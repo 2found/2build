@@ -316,7 +316,6 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
         onClose={() => setNewOpen(false)}
         project={state.project}
         projects={projects}
-        narrow={narrow}
         foremen={(snapshot.foremen ?? []).filter(f => foremanLive(f)).map(f => f.id)}
         canMutate={canMutate}
       />
@@ -678,7 +677,6 @@ function NewTicketModal({
   onClose,
   project,
   projects,
-  narrow,
   foremen,
   canMutate,
 }: {
@@ -686,11 +684,11 @@ function NewTicketModal({
   onClose: () => void;
   project: string;
   projects: string[];
-  narrow: boolean;
   foremen: string[];
   canMutate: boolean;
 }) {
-  const controlStyle = narrow ? Object.assign({}, inputStyle, { minHeight: 44 }) : inputStyle;
+  const controlStyle = { ...inputStyle, minHeight: 44, padding: '8px 10px', fontSize: 14 };
+  const actionStyle = { height: 44, padding: '0 16px', fontSize: 14 };
   const [proj, setProj] = useState(projects.includes(project) ? project : projects[0] ?? '');
   const previousProject = useRef(project);
   useEffect(() => {
@@ -741,9 +739,10 @@ function NewTicketModal({
       width={520}
       actions={
         <>
-          <Button size="lg" onClick={close}>Cancel</Button>
+          <Button size="lg" style={actionStyle} onClick={close}>Cancel</Button>
           <Button
             size="lg"
+            style={actionStyle}
             variant="primary"
             onClick={submit}
             disabled={pending || !canMutate || !title.trim() || !proj}
@@ -772,7 +771,7 @@ function NewTicketModal({
         {id => (
           <textarea
             id={id}
-            style={{ ...inputStyle, minHeight: 120, resize: 'vertical' }}
+            style={{ ...controlStyle, minHeight: 120, resize: 'vertical' }}
             value={requirement}
             onChange={e => setRequirement(e.target.value)}
           />
