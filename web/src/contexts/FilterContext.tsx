@@ -12,6 +12,7 @@ import type { Snapshot } from '../lib/data';
 import {
   filterReducer,
   initialFilterState,
+  mergeFilterQuery,
   parseFilterQuery,
   serializeFilter,
   type FilterAction,
@@ -73,7 +74,8 @@ export function FilterProvider({
     if (state.project !== storedState.project) {
       reduce({ type: 'replace', payload: state });
     }
-    replaceHashQuery(serializeFilter(state));
+    const { query } = parseHash(window.location.hash);
+    replaceHashQuery(mergeFilterQuery(query, state));
   }, [state, storedState]);
 
   // Sync from hash (e.g., user pastes deep-link URL).
@@ -99,7 +101,8 @@ export function FilterProvider({
       const serialized = serializeFilter(state);
       const incomingSerial = serializeFilter(incoming);
       if (incomingSerial === serialized) {
-        if (query !== incomingSerial) replaceHashQuery(incomingSerial);
+        const canonicalQuery = mergeFilterQuery(query, incoming);
+        if (query !== canonicalQuery) replaceHashQuery(canonicalQuery);
         return;
       }
       dispatch({ type: 'replace', payload: incoming });

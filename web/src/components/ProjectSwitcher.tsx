@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import type { Snapshot } from '../lib/data';
 import { useFilter } from '../contexts/FilterContext';
-import { replaceHashQuery } from '../lib/hash';
-import { serializeFilter } from '../lib/filter';
+import { mergeFilterQuery } from '../lib/filter';
+import { parseHash, replaceHashQuery } from '../lib/hash';
 
 const DONE_STATUSES = new Set(['done', 'cancelled', 'duplicate']);
 
@@ -32,7 +32,8 @@ export function ProjectSwitcher({ snapshot }: ProjectSwitcherProps) {
   const select = (slug: string) => {
     dispatch({ type: 'setProject', payload: slug });
     const next = { ...state, project: slug };
-    replaceHashQuery(serializeFilter(next));
+    const { query } = parseHash(window.location.hash);
+    replaceHashQuery(mergeFilterQuery(query, next));
     close();
   };
 

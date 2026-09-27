@@ -67,6 +67,27 @@ export function serializeFilter(state: FilterState): string {
   return params.join('&');
 }
 
+const FILTER_QUERY_KEYS: Record<string, true> = {
+  project: true,
+  status: true,
+  phase: true,
+  label: true,
+  foreman: true,
+  control: true,
+};
+
+/** Replace filter-owned query parameters while preserving every other raw parameter. */
+export function mergeFilterQuery(query: string, state: FilterState): string {
+  const unrelated = query.split('&').filter(part => {
+    if (!part) return false;
+    const equals = part.indexOf('=');
+    const key = equals < 0 ? part : part.slice(0, equals);
+    return !Object.hasOwn(FILTER_QUERY_KEYS, key);
+  });
+  const serialized = serializeFilter(state);
+  return [...unrelated, serialized].filter(Boolean).join('&');
+}
+
 /** Parse a query string (without leading '?') into FilterState. */
 export function parseFilterQuery(query: string, defaultProject = 'all'): FilterState {
   const state = initialFilterState(defaultProject);
