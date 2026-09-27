@@ -11,29 +11,44 @@ import (
 // prior compatible phase. Model and Effort are the already-selected phase
 // policy, not defaults to infer in the route resolver.
 type RouteRequest struct {
-	ExplicitAgent   string
-	PinnedAgent     string
-	PinnedModel     string
-	PinnedEffort    string
-	Model           string
-	Effort          string
-	DestinationHost string
-	ExactSession    bool
+	ExplicitAgent          string
+	PinnedAgent            string
+	PinnedModel            string
+	PinnedEffort           string
+	Model                  string
+	Effort                 string
+	DestinationHost        string
+	ExactSession           bool
+	TaskComplexity         string
+	PhaseClass             string
+	SelectedTier           string
+	OverrideProvenance     string
+	PinnedModelProvenance  string
+	PinnedEffortProvenance string
 }
 
 // RouteEvidence is persisted with the task before launch; it separates what
 // Foreman requested from what destination-host Orca discovery observed.
 type RouteEvidence struct {
-	Source         string `json:"source"`
-	RequestedAgent string `json:"requestedAgent,omitempty"`
-	PinnedAgent    string `json:"pinnedAgent,omitempty"`
-	Agent          string `json:"agent"`
-	RequestedHost  string `json:"destinationHost,omitempty"`
-	HostID         string `json:"hostId,omitempty"`
-	Model          string `json:"model,omitempty"`
-	Effort         string `json:"effort,omitempty"`
-	Discovery      string `json:"discovery"`
-	ObservedAt     string `json:"observedAt,omitempty"`
+	Source                 string `json:"source"`
+	RequestedAgent         string `json:"requestedAgent,omitempty"`
+	PinnedAgent            string `json:"pinnedAgent,omitempty"`
+	Agent                  string `json:"agent"`
+	RequestedHost          string `json:"destinationHost,omitempty"`
+	HostID                 string `json:"hostId,omitempty"`
+	Model                  string `json:"model,omitempty"`
+	Effort                 string `json:"effort,omitempty"`
+	Complexity             string `json:"complexity,omitempty"`
+	PhaseClass             string `json:"phaseClass,omitempty"`
+	SelectedTier           string `json:"selectedTier,omitempty"`
+	OverrideProvenance     string `json:"overrideProvenance,omitempty"`
+	PinnedModel            string `json:"pinnedModel,omitempty"`
+	PinnedModelProvenance  string `json:"pinnedModelProvenance,omitempty"`
+	PinnedEffort           string `json:"pinnedEffort,omitempty"`
+	PinnedEffortProvenance string `json:"pinnedEffortProvenance,omitempty"`
+	ExactSession           bool   `json:"exactSession"`
+	Discovery              string `json:"discovery"`
+	ObservedAt             string `json:"observedAt,omitempty"`
 }
 
 // ResolveRoute applies explicit intent, then a compatible recorded route, then
@@ -59,11 +74,20 @@ func ResolveRoute(req RouteRequest, discovery *orca.AgentDiscovery, discoveryErr
 	}
 
 	route := RouteEvidence{
-		RequestedAgent: strings.TrimSpace(req.ExplicitAgent),
-		PinnedAgent:    strings.TrimSpace(req.PinnedAgent),
-		RequestedHost:  strings.TrimSpace(req.DestinationHost),
-		Model:          req.Model,
-		Effort:         req.Effort,
+		RequestedAgent:         strings.TrimSpace(req.ExplicitAgent),
+		PinnedAgent:            strings.TrimSpace(req.PinnedAgent),
+		RequestedHost:          strings.TrimSpace(req.DestinationHost),
+		Model:                  req.Model,
+		Effort:                 req.Effort,
+		Complexity:             strings.TrimSpace(req.TaskComplexity),
+		PhaseClass:             strings.TrimSpace(req.PhaseClass),
+		SelectedTier:           strings.TrimSpace(req.SelectedTier),
+		OverrideProvenance:     strings.TrimSpace(req.OverrideProvenance),
+		PinnedModel:            strings.TrimSpace(req.PinnedModel),
+		PinnedModelProvenance:  strings.TrimSpace(req.PinnedModelProvenance),
+		PinnedEffort:           strings.TrimSpace(req.PinnedEffort),
+		PinnedEffortProvenance: strings.TrimSpace(req.PinnedEffortProvenance),
+		ExactSession:           req.ExactSession,
 	}
 	if route.RequestedAgent != "" {
 		route.Agent, route.Source = route.RequestedAgent, "explicit"

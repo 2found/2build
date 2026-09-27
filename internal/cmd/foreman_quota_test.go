@@ -53,8 +53,62 @@ func TestForemanResourceReserveDoesNotDeferAnActiveDispatch(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	if !strings.Contains(out, "ADMISSION=reserved\n") || !strings.Contains(out, "QUOTA_STATUS=not-applicable\n") || !strings.Contains(out, "dispatch-not-new-admission") || !strings.Contains(out, "LEASE=") {
+	if !strings.Contains(out, "ADMISSION=reserved\n") || !strings.Contains(out, "QUOTA_STATUS=unknown\n") ||
+		!strings.Contains(out, "QUOTA_REASON=dispatch-not-new-admission\n") || !strings.Contains(out, "LEASE=") {
 		t.Fatalf("active-dispatch reservation = %q", out)
+	}
+	assertQuotaHandoff(t, out, `"status": "unknown"`, `"reason": "dispatch-not-new-admission"`)
+}
+
+func TestForemanResourceReserveRecordsUnknownWhenOrchestrationIsUnsupported(t *testing.T) {
+	home := resourceCLIQuotaFixture(t)
+	writeQuotaOrca(t, home, `"agent.discovery.v1","quota.snapshot.v1"`, `{"ok":true,"result":{"agentDiscovery":{"schemaVersion":1,"hostId":"host-a","observedAt":"2026-09-27T12:00:00Z","effectiveDefaultAgent":"codex","agents":[{"id":"codex","enabled":true,"runnable":true}],"quotaSnapshots":[{"hostId":"host-a","poolId":"pool-1","provider":"codex","agentIds":["codex"],"authoritative":true,"status":"ok","freshness":"fresh","observedAt":"2026-09-27T12:00:00Z","windows":[{"name":"weekly","usedPercent":100,"windowMinutes":10080,"resetsAt":"2026-09-28T12:00:00Z"}]}]}}}`, `{"ok":true,"result":{"rateLimits":{}}}`)
+	out := captureStdout(t, func() {
+		if err := foremanResource([]string{"reserve", "fm-a", "--ticket", "bs-no-orchestration", "--task", "task-no-orchestration", "--profile", "standard", "--agent", "codex", "--host", "host-a"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(out, "ADMISSION=reserved\n") || !strings.Contains(out, "QUOTA_STATUS=unknown\n") ||
+		!strings.Contains(out, "QUOTA_REASON=orchestration-capability-unavailable\n") || !strings.Contains(out, "LEASE=") {
+		t.Fatalf("unsupported orchestration reservation = %q", out)
+	}
+	assertQuotaHandoff(t, out, `"status": "unknown"`, `"reason": "orchestration-capability-unavailable"`)
+}
+
+func TestForemanResourceReserveRecordsUnknownWhenOrcaPreflightFails(t *testing.T) {
+	resourceCLIQuotaFixture(t)
+	out := captureStdout(t, func() {
+		if err := foremanResource([]string{"reserve", "fm-a", "--ticket", "bs-no-orca", "--task", "task-no-orca", "--profile", "standard"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(out, "ADMISSION=reserved\n") || !strings.Contains(out, "QUOTA_STATUS=unknown\n") ||
+		!strings.Contains(out, "QUOTA_REASON=orca-runtime-unavailable\n") || !strings.Contains(out, "LEASE=") {
+		t.Fatalf("preflight failure reservation = %q", out)
+	}
+	assertQuotaHandoff(t, out, `"status": "unknown"`, `"reason": "orca-runtime-unavailable"`)
+}
+
+func assertQuotaHandoff(t *testing.T, output string, wanted ...string) {
+	t.Helper()
+	var path string
+	for _, line := range strings.Split(output, "\n") {
+		if strings.HasPrefix(line, "QUOTA_HANDOFF=") {
+			path = strings.TrimPrefix(line, "QUOTA_HANDOFF=")
+			break
+		}
+	}
+	if path == "" {
+		t.Fatalf("quota handoff path missing from %q", output)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read quota handoff: %v", err)
+	}
+	for _, field := range wanted {
+		if !strings.Contains(string(body), field) {
+			t.Errorf("quota handoff missing %s: %s", field, body)
+		}
 	}
 }
 

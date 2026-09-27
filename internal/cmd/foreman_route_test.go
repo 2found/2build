@@ -42,7 +42,14 @@ esac
 func TestForemanRoutePersistsExplicitRouteWhenDiscoveryContractIsMissing(t *testing.T) {
 	home := routeCommandFixture(t, `"orchestration.contract.v1"`)
 	out := captureStdout(t, func() {
-		if err := foremanRoute([]string{"--ticket", "bs-child", "--task", "task-1", "--agent", "codex", "--model", "tier-model", "--host", "host-a"}); err != nil {
+		if err := foremanRoute([]string{
+			"--ticket", "bs-child", "--task", "task-1", "--agent", "codex",
+			"--pinned-agent", "codex", "--pinned-model", "tier-model", "--pinned-effort", "high",
+			"--model", "tier-model", "--effort", "high", "--host", "host-a", "--exact-session",
+			"--complexity", "hard", "--phase-class", "critical", "--selected-tier", "max",
+			"--override-provenance", "none", "--pinned-model-provenance", "reviewer_model",
+			"--pinned-effort-provenance", "reviewer_effort",
+		}); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -50,11 +57,26 @@ func TestForemanRoutePersistsExplicitRouteWhenDiscoveryContractIsMissing(t *test
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatalf("route output %q: %v", out, err)
 	}
-	if got.Route.Agent != "codex" || got.Route.Source != "explicit" || got.Route.Discovery != "unavailable" || got.Route.RequestedHost != "host-a" || got.Route.HostID != "" || got.Handoff == "" {
+	if got.Route.Agent != "codex" || got.Route.Source != "explicit" || got.Route.Discovery != "unavailable" ||
+		got.Route.RequestedHost != "host-a" || got.Route.HostID != "" || got.Handoff == "" ||
+		got.Route.Complexity != "hard" || got.Route.PhaseClass != "critical" || got.Route.SelectedTier != "max" ||
+		got.Route.OverrideProvenance != "none" || got.Route.PinnedModel != "tier-model" ||
+		got.Route.PinnedEffort != "high" || got.Route.PinnedModelProvenance != "reviewer_model" ||
+		got.Route.PinnedEffortProvenance != "reviewer_effort" || !got.Route.ExactSession {
 		t.Fatalf("route evidence = %+v", got)
 	}
 	contents, err := os.ReadFile(got.Handoff)
-	if err != nil || !strings.Contains(string(contents), `"task": "task-1"`) || !strings.Contains(string(contents), `"source": "explicit"`) {
+	if err != nil || !strings.Contains(string(contents), `"task": "task-1"`) ||
+		!strings.Contains(string(contents), `"source": "explicit"`) ||
+		!strings.Contains(string(contents), `"complexity": "hard"`) ||
+		!strings.Contains(string(contents), `"phaseClass": "critical"`) ||
+		!strings.Contains(string(contents), `"selectedTier": "max"`) ||
+		!strings.Contains(string(contents), `"overrideProvenance": "none"`) ||
+		!strings.Contains(string(contents), `"pinnedModel": "tier-model"`) ||
+		!strings.Contains(string(contents), `"pinnedModelProvenance": "reviewer_model"`) ||
+		!strings.Contains(string(contents), `"pinnedEffort": "high"`) ||
+		!strings.Contains(string(contents), `"pinnedEffortProvenance": "reviewer_effort"`) ||
+		!strings.Contains(string(contents), `"exactSession": true`) {
 		t.Fatalf("durable route handoff = %q, %v", contents, err)
 	}
 	if !strings.HasPrefix(got.Handoff, filepath.Join(home, "projects")) {
@@ -74,10 +96,13 @@ func TestForemanRouteUsesDestinationDefaultAndPersistsHandoff(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatalf("route output %q: %v", out, err)
 	}
-	if got.Route.Agent != "codex" || got.Route.Source != "orca-default" || got.Route.HostID != "host-a" || got.Route.Model != "tier-model" || got.Route.Effort != "high" {
+	if got.Route.Agent != "codex" || got.Route.Source != "orca-default" || got.Route.HostID != "host-a" ||
+		got.Route.Model != "tier-model" || got.Route.Effort != "high" || got.Route.ExactSession {
 		t.Fatalf("default route evidence = %+v", got.Route)
 	}
-	if _, err := os.Stat(got.Handoff); err != nil || !strings.HasPrefix(got.Handoff, filepath.Join(home, "projects")) {
+	contents, err := os.ReadFile(got.Handoff)
+	if err != nil || !strings.Contains(string(contents), `"exactSession": false`) ||
+		!strings.HasPrefix(got.Handoff, filepath.Join(home, "projects")) {
 		t.Fatalf("default route handoff = %s, %v", got.Handoff, err)
 	}
 }

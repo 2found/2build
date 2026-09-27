@@ -48,6 +48,9 @@ const foremanUsage = `Usage:
                     [--pinned-agent <id>] [--model <id>] [--effort <level>]
                     [--pinned-model <id>] [--pinned-effort <level>]
                     [--host <host-id>] [--exact-session]
+                    [--complexity <value>] [--phase-class <value>]
+                    [--selected-tier <value>] [--override-provenance <source>]
+                    [--pinned-model-provenance <source>] [--pinned-effort-provenance <source>]
   bbs foreman route verify --ticket <ticket> --task <task> --agent <id>
                            [--host <host-id>] [--model <id>] [--effort <level>]
                            [--receipt-file <json>] [--rate-limited]
@@ -560,17 +563,35 @@ func foremanWorkerCommand(args []string) error {
 	if prompt == "" {
 		return fmt.Errorf("foreman worker-command: needs --prompt <text>\n%s", foremanUsage)
 	}
-	route, err := resolveForemanRoute(kv)
-	if err != nil {
-		return err
-	}
-	prof, err := agent.ByName(route.Agent)
-	if err != nil {
-		return err
-	}
-	prof.Provider, prof.Model, prof.Effort = kv["provider"], route.Model, route.Effort
-	if err := prof.ValidateSettings(); err != nil {
-		return err
+	discovery, discoveryErr := foremanAgentDiscovery()
+	route, routeErr := resolveForemanRouteWithDiscovery(kv, discovery, discoveryErr)
+	var prof agent.Profile
+	if routeErr != nil {
+		hasPinnedRoute := kv["pinned-agent"] != "" || kv["pinned-model"] != "" ||
+			kv["pinned-effort"] != "" || kv["exact-session"] != ""
+		explicit := strings.TrimSpace(kv["agent"])
+		hasExplicitAgent := explicit != "" && !strings.EqualFold(explicit, "auto")
+		hasOrcaDefault := discoveryErr == nil && discovery != nil &&
+			strings.TrimSpace(discovery.EffectiveDefaultAgent) != ""
+		if hasPinnedRoute || hasExplicitAgent || hasOrcaDefault || !hasConfiguredWorkerSettings() {
+			return routeErr
+		}
+		prof, err = agent.ResolveWith(agent.WorkerKey, agent.Options{
+			Agent: kv["agent"], Provider: kv["provider"], Model: kv["model"],
+			Effort: kv["effort"], Dir: kv["dir"],
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		prof, err = agent.ByName(route.Agent)
+		if err != nil {
+			return err
+		}
+		prof.Provider, prof.Model, prof.Effort = kv["provider"], route.Model, route.Effort
+		if err := prof.ValidateSettings(); err != nil {
+			return err
+		}
 	}
 	// --skill is how a caller names the skill without knowing how this agent
 	// namespaces it. It exists for the same reason agent selection lives here

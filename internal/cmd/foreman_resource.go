@@ -222,12 +222,19 @@ func foremanResourceReserve(args []string) error {
 	released := reconcileResourceLeases(ctx, broker, before.Leases, c, time.Now())
 	var quota foreman.QuotaAdmission
 	var accounts *orca.AccountRateLimits
-	accountStatus := "not-applicable"
-	if quotaEligible {
+	accountStatus := "unavailable"
+	switch {
+	case quotaEligible:
 		quota, accounts, accountStatus = foremanQuotaSnapshot(c, kv["agent"], kv["host"], time.Now().UTC())
-	} else {
+	case c == nil || !c.Orchestration():
+		quota, accounts, accountStatus = foremanQuotaSnapshot(c, kv["agent"], kv["host"], time.Now().UTC())
+		if c != nil && quota.Status != "unknown" {
+			quota.Status = "unknown"
+			quota.Reason = "orchestration-capability-unavailable"
+		}
+	default:
 		quota = foreman.QuotaAdmission{
-			Status: "not-applicable", Reason: "dispatch-not-new-admission", Agent: kv["agent"],
+			Status: "unknown", Reason: "dispatch-not-new-admission", Agent: kv["agent"],
 		}
 	}
 	if quota.Status == "deferred" {

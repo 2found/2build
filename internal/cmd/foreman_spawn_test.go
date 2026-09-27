@@ -439,14 +439,56 @@ func TestSpawnPreflightsTheAgentBeforeCreatingAWorkspace(t *testing.T) {
 	}
 }
 
-// An unpinned worker route must not inherit the coordinator's local config.
-func TestWorkerCommandRejectsConfigurationFallbackWithoutOrcaDefault(t *testing.T) {
-	fakeOrcaFor(t)
-	setGlobalAgent(t, "worker_agent", "grok")
+func TestWorkerCommandResolvesConfiguredWorkerSettingsWithoutOrcaDefault(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		configure func(*testing.T)
+	}{
+		{
+			name: "config",
+			configure: func(t *testing.T) {
+				path := filepath.Join(os.Getenv("BABYSIT_STATE_DIR"), "config.yaml")
+				if err := os.WriteFile(path, []byte("worker_agent: omp\nworker_provider: custom\nworker_model: \"@slow\"\nworker_effort: high\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name: "environment",
+			configure: func(t *testing.T) {
+				t.Setenv("BABYSIT_WORKER_AGENT", "omp")
+				t.Setenv("BABYSIT_WORKER_PROVIDER", "custom")
+				t.Setenv("BABYSIT_WORKER_MODEL", "@slow")
+				t.Setenv("BABYSIT_WORKER_EFFORT", "high")
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeOrcaFor(t)
+			clearWorkerSettingsEnv(t)
+			tc.configure(t)
+			out := captureStdout(t, func() {
+				if err := foremanWorkerCommand([]string{"--prompt", "/bbs:autopilot ship it"}); err != nil {
+					t.Fatal(err)
+				}
+			})
+			want := `omp --auto-approve --provider 'custom' --model '@slow' --thinking 'high' '/bbs:autopilot ship it'`
+			if strings.TrimSpace(out) != want {
+				t.Fatalf("worker-command printed %q, want %q", strings.TrimSpace(out), want)
+			}
+		})
+	}
+}
 
-	err := foremanWorkerCommand([]string{"--prompt", "/bbs:autopilot ship it"})
-	if err == nil || !strings.Contains(err.Error(), "agent.discovery.v1") {
-		t.Fatalf("unavailable destination default error = %v", err)
+func clearWorkerSettingsEnv(t *testing.T) {
+	t.Helper()
+	for _, name := range []string{
+		"BABYSIT_WORKER_AGENT", "BABYSIT_AGENT",
+		"BABYSIT_WORKER_PROVIDER", "BABYSIT_PROVIDER",
+		"BABYSIT_WORKER_MODEL", "BABYSIT_MODEL",
+		"BABYSIT_WORKER_EFFORT", "BABYSIT_EFFORT",
+	} {
+		t.Setenv(name, "")
 	}
 }
 
@@ -475,8 +517,9 @@ func TestWorkerCommandNamesTheSkillTheWayEachAgentResolvesIt(t *testing.T) {
 	}
 }
 
-func TestWorkerCommandRequiresOrcaDefaultAndNeedsPrompt(t *testing.T) {
+func TestWorkerCommandRequiresOrcaDefaultWithoutSettingsAndNeedsPrompt(t *testing.T) {
 	fakeOrcaFor(t)
+	clearWorkerSettingsEnv(t)
 
 	if err := foremanWorkerCommand([]string{"--prompt", "/bbs:autopilot x"}); err == nil || !strings.Contains(err.Error(), "agent.discovery.v1") {
 		t.Fatalf("missing Orca default error = %v", err)

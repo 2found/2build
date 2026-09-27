@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/reallongnguyen/babysit/internal/config"
 	"github.com/reallongnguyen/babysit/internal/foreman"
 	"github.com/reallongnguyen/babysit/internal/orca"
 	"github.com/reallongnguyen/babysit/internal/ticket"
@@ -57,21 +58,25 @@ func foremanRoute(args []string) error {
 }
 
 func resolveForemanRoute(kv map[string]string) (foreman.RouteEvidence, error) {
+	discovery, discoveryErr := foremanAgentDiscovery()
+	return resolveForemanRouteWithDiscovery(kv, discovery, discoveryErr)
+}
+
+func foremanAgentDiscovery() (*orca.AgentDiscovery, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	var discovery *orca.AgentDiscovery
-	var discoveryErr error
 	client, err := orca.PreflightContext(ctx)
 	if err != nil {
-		discoveryErr = err
-	} else {
-		d, readErr := client.AgentDiscovery()
-		if readErr != nil {
-			discoveryErr = readErr
-		} else {
-			discovery = &d
-		}
+		return nil, err
 	}
+	discovery, err := client.AgentDiscovery()
+	if err != nil {
+		return nil, err
+	}
+	return &discovery, nil
+}
+
+func resolveForemanRouteWithDiscovery(kv map[string]string, discovery *orca.AgentDiscovery, discoveryErr error) (foreman.RouteEvidence, error) {
 	explicit := kv["agent"]
 	if strings.EqualFold(strings.TrimSpace(explicit), "auto") {
 		explicit = ""
@@ -81,7 +86,30 @@ func resolveForemanRoute(kv map[string]string) (foreman.RouteEvidence, error) {
 		PinnedModel: kv["pinned-model"], PinnedEffort: kv["pinned-effort"],
 		Model: kv["model"], Effort: kv["effort"],
 		DestinationHost: kv["host"], ExactSession: kv["exact-session"] != "",
+		TaskComplexity: kv["complexity"], PhaseClass: kv["phase-class"],
+		SelectedTier: kv["selected-tier"], OverrideProvenance: kv["override-provenance"],
+		PinnedModelProvenance:  kv["pinned-model-provenance"],
+		PinnedEffortProvenance: kv["pinned-effort-provenance"],
 	}, discovery, discoveryErr)
+}
+
+func hasConfiguredWorkerSettings() bool {
+	for _, field := range []string{"agent", "provider", "model", "effort"} {
+		for _, name := range []string{
+			"BABYSIT_WORKER_" + strings.ToUpper(field),
+			"BABYSIT_" + strings.ToUpper(field),
+		} {
+			value := strings.TrimSpace(os.Getenv(name))
+			if value != "" && !(field == "agent" && strings.EqualFold(value, "auto")) {
+				return true
+			}
+		}
+		if value, _ := config.Get("worker_" + field); strings.TrimSpace(value) != "" &&
+			!(field == "agent" && strings.EqualFold(strings.TrimSpace(value), "auto")) {
+			return true
+		}
+	}
+	return false
 }
 
 func foremanRouteVerify(args []string) error {

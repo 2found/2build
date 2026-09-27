@@ -42,6 +42,26 @@ func TestResolveRouteUsesExplicitPinnedThenChangingOrcaDefault(t *testing.T) {
 	}
 }
 
+func TestResolveRouteCarriesDecisionProvenance(t *testing.T) {
+	got, err := ResolveRoute(RouteRequest{
+		ExplicitAgent: "codex", PinnedAgent: "codex",
+		PinnedModel: "tier-model", PinnedEffort: "high",
+		Model: "tier-model", Effort: "high", ExactSession: true,
+		TaskComplexity: "hard", PhaseClass: "critical", SelectedTier: "max",
+		OverrideProvenance:    "none",
+		PinnedModelProvenance: "reviewer_model", PinnedEffortProvenance: "reviewer_effort",
+	}, nil, orca.ErrNoAgentDiscovery)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Complexity != "hard" || got.PhaseClass != "critical" || got.SelectedTier != "max" ||
+		got.OverrideProvenance != "none" || got.PinnedModel != "tier-model" ||
+		got.PinnedModelProvenance != "reviewer_model" || got.PinnedEffort != "high" ||
+		got.PinnedEffortProvenance != "reviewer_effort" || !got.ExactSession {
+		t.Fatalf("route decision provenance = %+v", got)
+	}
+}
+
 func TestResolveRouteFallsBackFromIncompatiblePinButNeverChangesExactSession(t *testing.T) {
 	d := routeDiscovery("claude")
 	got, err := ResolveRoute(RouteRequest{PinnedAgent: "codex", PinnedModel: "older-model", Model: "tier-model"}, d, nil)

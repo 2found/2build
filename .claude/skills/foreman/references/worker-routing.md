@@ -15,7 +15,10 @@ Resolve the agent on the destination Orca host before resource admission:
 bbs foreman route --ticket "$TICKET" --task "$ORCA_TASK_ID" \
   [--agent <explicit-agent>] [--pinned-agent <phase-agent>] \
   [--pinned-model <phase-model>] [--pinned-effort <phase-effort>] \
-  [--model <selected-model>] [--effort <selected-effort>] [--host <host-id>]
+  [--model <selected-model>] [--effort <selected-effort>] [--host <host-id>] \
+  --complexity <simple|normal|hard> --phase-class <normal|critical> \
+  --selected-tier <flash|pro|max> [--override-provenance <source|none>] \
+  [--pinned-model-provenance <phase-pointer>] [--pinned-effort-provenance <phase-pointer>]
 ```
 
 The route order is explicit intent, compatible phase pin, then the
@@ -26,6 +29,11 @@ provenance in the ticket handoff. Never substitute coordinator-local
 `worker_agent`, `bbs agent resolve`, or a generic profile default. If discovery
 is unavailable, explicit and pinned routes remain usable; a new unpinned route
 must stop with its actionable Orca upgrade/configuration error.
+
+Pass the selected complexity, phase class and tier on every route. Use
+`none` when no phase-specific model/effort override was chosen; otherwise name
+the override source. Pin provenance identifies the pointer that supplied each
+pin, such as `worker_model` or `reviewer_effort`.
 
 Use the returned `agent`, `model` and `effort`, plus observed `hostId` or the
 requested `destinationHost`, for matching resource reservation and launch.
@@ -55,8 +63,9 @@ quota snapshots before retrying, and never switch accounts or downgrade tiers.
 
 ## Persist and resume
 
-Record task complexity, phase class, selected tier, override provenance and
-requested route in the numbered ticket handoff written by `bbs foreman route`.
+Record task complexity, phase class, selected tier, override provenance,
+requested settings, model/effort pins and their pointer provenance, and the
+exact-session marker in the numbered ticket handoff written by `bbs foreman route`.
 Include the route result and sanitized `launch.effective` receipt in the
 corresponding Orca Task/Dispatch handoff, including planning, finish audits,
 integration and delivery. `route verify` also writes a numbered ticket handoff.
