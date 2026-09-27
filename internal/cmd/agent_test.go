@@ -44,15 +44,10 @@ func TestAgentResolveCLIAndOpaqueConfigValues(t *testing.T) {
 	}
 }
 
-func TestWorkerLaunchUsesConfiguredAndFlagPreferences(t *testing.T) {
+func TestWorkerLaunchUsesExplicitAgentAndFlagPreferences(t *testing.T) {
 	fakeOrcaFor(t)
-	for key, value := range map[string]string{"worker_agent": "omp", "worker_provider": "custom", "worker_model": "@slow", "worker_effort": "medium"} {
-		if err := config.Set(key, value); err != nil {
-			t.Fatal(err)
-		}
-	}
 	out := captureStdout(t, func() {
-		if err := foremanWorkerCommand([]string{"--prompt", "ship it", "--skill", "autopilot", "--model", "chosen", "--effort", "high"}); err != nil {
+		if err := foremanWorkerCommand([]string{"--prompt", "ship it", "--skill", "autopilot", "--agent", "omp", "--provider", "custom", "--model", "chosen", "--effort", "high"}); err != nil {
 			t.Fatal(err)
 		}
 	})

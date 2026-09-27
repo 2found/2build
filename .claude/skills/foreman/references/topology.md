@@ -89,26 +89,41 @@ If workload evidence is ambiguous between `standard` and a heavy profile, use
 the heavy profile. Simulator profiles reserve the shared mobile stack and GPU;
 `local-ml` reserves the GPU. Before each new or reused Dispatch:
 
+Resolve the agent route first with [worker routing](worker-routing.md), then
+pass its selected agent and destination host into quota admission:
+
 ```bash
 RESOURCE_OUT="$(bbs foreman resource reserve "$FOREMAN_ID" \
-  --ticket "$TICKET" --task "$ORCA_TASK_ID" --profile "$RESOURCE_PROFILE")"
+  --ticket "$TICKET" --task "$ORCA_TASK_ID" --profile "$RESOURCE_PROFILE" \
+  --agent "$ROUTE_AGENT" --host "$ROUTE_HOST")"
 ```
 
-Parse `ADMISSION` and `LEASE` from the output; never `eval` it. `queued` means
-leave that Task pending and dispatch other admitted work: resource backpressure
-is not a failed attempt. `reserved` means immediately persist the lease id as
-`pointers.resource_lease` on that ticket, then call `worker-start`. If worker
-creation fails, release the lease before retrying. Keep one writer per child worktree;
-never exceed `MAX_WORKERS` even when global capacity remains. The broker also
-checks `parallel_max_workers` atomically, counting current reservations rather
-than historical worker rows.
+Parse `ADMISSION`, `QUOTA_STATUS`, `QUOTA_RECHECK_AT` and `LEASE`; never `eval`
+the output. `QUOTA_STATUS=deferred` means every mapped pool is fresh,
+authoritative and exhausted: keep the Task pending, do not call `worker-start`,
+and repeat route plus admission no earlier than `QUOTA_RECHECK_AT`. `unknown`,
+`available` and `not-applicable` retain the existing CPU/RAM and worker-count
+rules. The local `orca account list` view is advisory only; it cannot prove
+destination-host quota or agent-to-pool mapping. Quota never changes a live
+worker's route or account.
+
+`queued` means leave that Task pending and dispatch other admitted work:
+resource backpressure is not a failed attempt. `reserved` means immediately
+persist the lease id as `pointers.resource_lease` on that ticket, then call
+`worker-start`. If worker creation fails or reports a rate limit, persist the
+launch result, release the lease before retrying, and re-read quota before a
+new admission. Keep one writer per child worktree; never exceed `MAX_WORKERS`
+even when global capacity remains. The broker also checks
+`parallel_max_workers` atomically, counting current reservations rather than
+historical worker rows.
+
 A reservation is keyed by Foreman + Orca Task and is idempotent across resume.
 After an interruption or a delayed launch, heartbeat the foreman and repeat
-`reserve` immediately before `worker-start`; persist the returned lease id again.
-Each replacement reservation has a new id, so an old cleanup cannot release it.
-A launch reservation with no new Dispatch is reclaimed after ten minutes if its
-owner is stale or missing. A live Dispatch never expires merely because the
-foreman stopped heartbeating or the laptop slept.
+route plus `reserve` immediately before `worker-start`; persist the returned
+lease id again. Each replacement reservation has a new id, so an old cleanup
+cannot release it. A launch reservation with no new Dispatch is reclaimed after
+ten minutes if its owner is stale or missing. A live Dispatch never expires
+merely because the foreman stopped heartbeating or the laptop slept.
 
 `reserve`, `status` and the detached watcher reconcile leases. They stop exited
 agents by exact Dispatch id and verify terminal state before release. Live or

@@ -16,7 +16,7 @@ import (
 
 const foremanResourceUsage = `Usage:
   bbs foreman resource status
-  bbs foreman resource reserve <foreman-id> --ticket <ticket> --task <task> --profile <profile>
+  bbs foreman resource reserve <foreman-id> --ticket <ticket> --task <task> --profile <profile> [--agent <id>] [--host <host-id>]
   bbs foreman resource release <lease-id>
 
 Profiles: plan, standard, android-simulator, ios-simulator, local-ml
@@ -208,16 +208,43 @@ func foremanResourceReserve(args []string) error {
 	defer cancel()
 	c, _ := orca.PreflightContext(ctx)
 	previous := ""
+	quotaEligible := false
 	if c != nil && c.Orchestration() {
 		d, err := c.DispatchStateFor(kv["task"])
 		if err != nil {
 			return fmt.Errorf("resource reserve: cannot inspect task: %w", err)
 		}
+		quotaEligible = d.ID == "" || d.Status == "pending" || dispatchTerminal(d.Status)
 		if dispatchTerminal(d.Status) {
 			previous = d.ID
 		}
 	}
 	released := reconcileResourceLeases(ctx, broker, before.Leases, c, time.Now())
+	var quota foreman.QuotaAdmission
+	var accounts *orca.AccountRateLimits
+	accountStatus := "not-applicable"
+	if quotaEligible {
+		quota, accounts, accountStatus = foremanQuotaSnapshot(c, kv["agent"], kv["host"], time.Now().UTC())
+	} else {
+		quota = foreman.QuotaAdmission{
+			Status: "not-applicable", Reason: "dispatch-not-new-admission", Agent: kv["agent"],
+		}
+	}
+	if quota.Status == "deferred" {
+		evidence := resourceQuotaEvidence{
+			Ticket: kv["ticket"], Task: kv["task"], Foreman: id, Agent: kv["agent"],
+			DestinationHost: kv["host"], Quota: quota, AccountStatus: accountStatus,
+			LocalAccountRateLimits: accounts, ResourceAdmission: "not-attempted",
+		}
+		path, err := appendForemanHandoff(kv["ticket"], kv["task"], "quota", evidence)
+		if err != nil {
+			return fmt.Errorf("resource reserve: cannot persist quota evidence: %w", err)
+		}
+		printQuotaAdmission(quota, path)
+		fmt.Println("ADMISSION=deferred")
+		fmt.Println("REASON=" + quota.Reason)
+		return nil
+	}
 	status, err := broker.Reserve(foreman.ResourceRequest{
 		ForemanID:        id,
 		Ticket:           kv["ticket"],
@@ -227,9 +254,34 @@ func foremanResourceReserve(args []string) error {
 		PreviousDispatch: previous,
 	}, capUnits)
 	if err != nil {
+		evidence := resourceQuotaEvidence{
+			Ticket: kv["ticket"], Task: kv["task"], Foreman: id, Agent: kv["agent"],
+			DestinationHost: kv["host"], Quota: quota, AccountStatus: accountStatus,
+			LocalAccountRateLimits: accounts, ResourceAdmission: "error",
+		}
+		if _, persistErr := appendForemanHandoff(kv["ticket"], kv["task"], "quota", evidence); persistErr != nil {
+			return fmt.Errorf("resource reserve: %v (quota handoff failed: %w)", err, persistErr)
+		}
 		return err
 	}
 	printResourceStatus(status)
+	evidence := resourceQuotaEvidence{
+		Ticket: kv["ticket"], Task: kv["task"], Foreman: id, Agent: kv["agent"],
+		DestinationHost: kv["host"], Quota: quota, AccountStatus: accountStatus,
+		LocalAccountRateLimits: accounts, ResourceAdmission: status.Admission,
+		ResourceReason: status.Reason,
+	}
+	if status.Lease != nil {
+		evidence.Lease = status.Lease.ID
+	}
+	path, err := appendForemanHandoff(kv["ticket"], kv["task"], "quota", evidence)
+	if err != nil {
+		if status.Lease != nil {
+			_, _ = broker.Release(status.Lease.ID)
+		}
+		return fmt.Errorf("resource reserve: cannot persist quota evidence: %w", err)
+	}
+	printQuotaAdmission(quota, path)
 	for _, id := range released {
 		fmt.Println("RELEASED_LEASE=" + id)
 	}
@@ -293,4 +345,66 @@ func printResourceStatus(status foreman.ResourceStatus) {
 		fmt.Printf("ACTIVE_LEASE=%s FOREMAN=%s TICKET=%s PROFILE=%s UNITS=%d TASK=%s\n",
 			lease.ID, lease.ForemanID, lease.Ticket, lease.Profile, lease.Units, lease.Task)
 	}
+}
+
+type resourceQuotaEvidence struct {
+	Ticket                 string                  `json:"ticket"`
+	Task                   string                  `json:"task"`
+	Foreman                string                  `json:"foreman"`
+	Agent                  string                  `json:"agent,omitempty"`
+	DestinationHost        string                  `json:"destinationHost,omitempty"`
+	Quota                  foreman.QuotaAdmission  `json:"quota"`
+	AccountStatus          string                  `json:"accountStatus"`
+	LocalAccountRateLimits *orca.AccountRateLimits `json:"localAccountRateLimits,omitempty"`
+	ResourceAdmission      string                  `json:"resourceAdmission"`
+	ResourceReason         string                  `json:"resourceReason,omitempty"`
+	Lease                  string                  `json:"lease,omitempty"`
+}
+
+func foremanQuotaSnapshot(client *orca.Client, agent, host string, now time.Time) (foreman.QuotaAdmission, *orca.AccountRateLimits, string) {
+	accountsStatus := "unavailable"
+	var accounts *orca.AccountRateLimits
+	if client != nil {
+		if result, err := client.AccountList(); err == nil {
+			accounts = &result
+			accountsStatus = "read-advisory-only"
+		}
+	}
+	if client == nil || !client.Supports(orca.CapAgentDiscovery) {
+		result := foreman.AssessQuota(nil, agent, host, now)
+		if client == nil {
+			result.Reason = "orca-runtime-unavailable"
+		} else {
+			result.Reason = "agent-discovery-unavailable"
+		}
+		return result, accounts, accountsStatus
+	}
+	discovery, err := client.AgentDiscovery()
+	if err != nil {
+		result := foreman.AssessQuota(nil, agent, host, now)
+		result.Reason = "agent-discovery-read-failed"
+		return result, accounts, accountsStatus
+	}
+	if !client.Supports(orca.CapQuotaSnapshots) {
+		discovery.QuotaSnapshots = nil
+		result := foreman.AssessQuota(&discovery, agent, host, now)
+		result.Reason = "quota-snapshots-unavailable"
+		return result, accounts, accountsStatus
+	}
+	return foreman.AssessQuota(&discovery, agent, host, now), accounts, accountsStatus
+}
+
+func printQuotaAdmission(quota foreman.QuotaAdmission, handoff string) {
+	fmt.Println("QUOTA_STATUS=" + quota.Status)
+	fmt.Println("QUOTA_REASON=" + quota.Reason)
+	if quota.HostID != "" {
+		fmt.Println("QUOTA_HOST=" + quota.HostID)
+	}
+	if quota.Agent != "" {
+		fmt.Println("QUOTA_AGENT=" + quota.Agent)
+	}
+	if quota.RecheckAt != "" {
+		fmt.Println("QUOTA_RECHECK_AT=" + quota.RecheckAt)
+	}
+	fmt.Println("QUOTA_HANDOFF=" + handoff)
 }

@@ -439,19 +439,14 @@ func TestSpawnPreflightsTheAgentBeforeCreatingAWorkspace(t *testing.T) {
 	}
 }
 
-// The skill asks bbs for the worker command rather than hardcoding a CLI, so
-// agent selection has exactly one codepath.
-func TestWorkerCommandRendersTheConfiguredAgent(t *testing.T) {
+// An unpinned worker route must not inherit the coordinator's local config.
+func TestWorkerCommandRejectsConfigurationFallbackWithoutOrcaDefault(t *testing.T) {
 	fakeOrcaFor(t)
 	setGlobalAgent(t, "worker_agent", "grok")
 
-	out := captureStdout(t, func() {
-		if err := foremanWorkerCommand([]string{"--prompt", "/bbs:autopilot ship it"}); err != nil {
-			t.Fatal(err)
-		}
-	})
-	if strings.TrimSpace(out) != `grok --always-approve '/bbs:autopilot ship it'` {
-		t.Errorf("worker-command printed %q", out)
+	err := foremanWorkerCommand([]string{"--prompt", "/bbs:autopilot ship it"})
+	if err == nil || !strings.Contains(err.Error(), "agent.discovery.v1") {
+		t.Fatalf("unavailable destination default error = %v", err)
 	}
 }
 
@@ -480,19 +475,14 @@ func TestWorkerCommandNamesTheSkillTheWayEachAgentResolvesIt(t *testing.T) {
 	}
 }
 
-func TestWorkerCommandDefaultsToClaudeAndNeedsAPrompt(t *testing.T) {
+func TestWorkerCommandRequiresOrcaDefaultAndNeedsPrompt(t *testing.T) {
 	fakeOrcaFor(t)
 
-	out := captureStdout(t, func() {
-		if err := foremanWorkerCommand([]string{"--prompt", "/bbs:autopilot x"}); err != nil {
-			t.Fatal(err)
-		}
-	})
-	if !strings.HasPrefix(strings.TrimSpace(out), "claude --dangerously-skip-permissions ") {
-		t.Errorf("default worker agent is not claude: %q", out)
+	if err := foremanWorkerCommand([]string{"--prompt", "/bbs:autopilot x"}); err == nil || !strings.Contains(err.Error(), "agent.discovery.v1") {
+		t.Fatalf("missing Orca default error = %v", err)
 	}
-	if err := foremanWorkerCommand([]string{"--agent", "grok"}); err == nil {
-		t.Error("want an error when --prompt is missing")
+	if err := foremanWorkerCommand([]string{"--agent", "grok"}); err == nil || !strings.Contains(err.Error(), "--prompt") {
+		t.Fatalf("missing prompt error = %v", err)
 	}
 }
 
