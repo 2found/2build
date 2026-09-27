@@ -44,12 +44,12 @@ func foremanRoute(args []string) error {
 			return fmt.Errorf("foreman route: --%s is required", key)
 		}
 	}
+	if kv["exact-session"] == "" {
+		config.WarnRetiredAgentSettings(os.Stderr)
+	}
 	route, err := resolveForemanRoute(kv)
 	if err != nil {
 		return err
-	}
-	if kv["exact-session"] == "" {
-		config.WarnRetiredAgentSettings(os.Stderr)
 	}
 	evidence := routeHandoff{Ticket: kv["ticket"], Task: kv["task"], Route: route}
 	path, err := appendForemanHandoff(kv["ticket"], kv["task"], "route", evidence)

@@ -569,6 +569,9 @@ func foremanWorkerCommand(args []string) error {
 	if prompt == "" {
 		return fmt.Errorf("foreman worker-command: needs --prompt <text>\n%s", foremanUsage)
 	}
+	if kv["exact-session"] == "" {
+		config.WarnRetiredAgentSettings(os.Stderr)
+	}
 	discovery, discoveryErr := foremanAgentDiscovery()
 	route, err := resolveForemanRouteWithDiscovery(kv, discovery, discoveryErr)
 	if err != nil {
@@ -581,9 +584,6 @@ func foremanWorkerCommand(args []string) error {
 	prof.Model, prof.Effort = route.Model, route.Effort
 	if err := prof.ValidateSettings(); err != nil {
 		return err
-	}
-	if kv["exact-session"] == "" {
-		config.WarnRetiredAgentSettings(os.Stderr)
 	}
 	if skill := kv["skill"]; skill != "" {
 		prompt = prof.SkillRef(skill) + " " + prompt

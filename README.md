@@ -193,9 +193,11 @@ The formula also drops two argv0 aliases, `bbs-config` and `bbs-env` — only
 those two, which is why skills always call the space form.
 
 Run `bbs dashboard` to open the web control plane — tickets, verdicts,
-approvals, foremen, and agent settings — served locally from the binary (no npm needed).
-**Settings** configures machine-wide agent, provider, model, and effort defaults
-for workers and foremen in `~/.babysit/config.yaml`.
+approvals, foremen, and an Orca agent-settings notice — served locally from
+the binary (no npm needed).
+Agents and defaults are configured in Orca. Former Babysit worker/foreman
+settings are retired; new launches use explicit per-dispatch agent/model/effort
+or Orca's configured default.
 
 It is the half of babysit that the skills call on your behalf: ticket identity,
 verdicts, git-flow moves, telemetry. It does **not** contain the skill pack —
@@ -294,7 +296,7 @@ Once a requirement spans multiple tickets, `foreman` owns the whole project. Eac
 /bbs:foreman                              # attach/resume from ticket + Orca state
 ```
 
-Foreman creates one parent project and bounded child tickets, records their dependency edges, and starts supervised workers through Orca orchestration. Every child gets a plan-only Dispatch, an autonomous design gate, then a build/QA Dispatch. Workers use configurable agent, provider, model, and effort settings, resolved through `bbs agent resolve`; unset models use the CLI's own configuration. Babysit detects Claude Code, Codex, OMP, Grok, and Cursor, and keeps worker and foreman defaults independent. The [model-routing contract](.claude/skills/references/model-routing.md) preserves each child's launch choices across phases and recovery without a hardcoded model catalog. Foreman verifies verdicts from disk, serializes the shared test surface, runs composed integration QA when tickets interact, and applies the repo's `finish:` policy to each eligible child in dependency order — `land` merges it into base, `pr` opens its PR, `review` releases the settled worker — so done tickets never wait for the project; a child covered by a pending integration gate holds its land until that passes. The project DAG rides with its status and dispatch replies, and `bbs ticket dag <parent> --mermaid` prints it on demand. Orca messages and Dispatch ids replace pane-text polling, and an auto-started watcher nudges a stalled coordinator and re-asks it for status on the configured interval, so a restarted session resumes without conversation memory.
+Foreman creates one parent project and bounded child tickets, records their dependency edges, and starts supervised workers through Orca orchestration. Every child gets a plan-only Dispatch, an autonomous design gate, then a build/QA Dispatch. Agents and defaults are configured in Orca; former Babysit worker/foreman settings are retired. New launches use explicit per-dispatch agent/model/effort or Orca's configured default. Babysit detects Claude Code, Codex, OMP, Grok, and Cursor. The [model-routing contract](.claude/skills/references/model-routing.md) preserves each child's launch choices across phases and recovery without a hardcoded model catalog. Foreman verifies verdicts from disk, serializes the shared test surface, runs composed integration QA when tickets interact, and applies the repo's `finish:` policy to each eligible child in dependency order — `land` merges it into base, `pr` opens its PR, `review` releases the settled worker — so done tickets never wait for the project; a child covered by a pending integration gate holds its land until that passes. The project DAG rides with its status and dispatch replies, and `bbs ticket dag <parent> --mermaid` prints it on demand. Orca messages and Dispatch ids replace pane-text polling, and an auto-started watcher nudges a stalled coordinator and re-asks it for status on the configured interval, so a restarted session resumes without conversation memory.
 
 **One hard prerequisite, which is why it's the second thing to learn:** [Orca](https://www.onorca.dev) with orchestration enabled. Foreman loads Orca's installed, version-matched orchestration guide, fails fast without that runtime, and creates a worktree per child regardless of profile. Your profile still decides rigor and finish policy. On a single serial ticket it buys you nothing over `/bbs:autopilot`.
 

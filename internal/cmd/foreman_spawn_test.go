@@ -471,10 +471,16 @@ func TestWorkerCommandRetiredSettingsCannotBypassDiscovery(t *testing.T) {
 	writeRetiredAgentConfig(t, "worker_agent: omp\nworker_provider: custom\nworker_model: configured-model\nworker_effort: high\n")
 	t.Setenv("BABYSIT_WORKER_AGENT", "omp")
 	t.Setenv("BABYSIT_WORKER_MODEL", "configured-model")
-	err := foremanWorkerCommand([]string{"--prompt", "ship it"})
+	var err error
+	stderr := captureStderr(t, func() {
+		err = foremanWorkerCommand([]string{"--prompt", "ship it"})
+	})
 	if err == nil || !strings.Contains(err.Error(), "agent.discovery.v1") ||
 		!strings.Contains(err.Error(), "orca agent-context --json") {
 		t.Fatalf("retired settings bypassed Orca discovery: %v", err)
+	}
+	if got := strings.Count(stderr, "legacy worker/foreman agent settings are ignored"); got != 1 {
+		t.Fatalf("got %d retirement diagnostics after failed discovery, want one: %q", got, stderr)
 	}
 }
 
