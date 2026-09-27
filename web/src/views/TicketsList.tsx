@@ -15,6 +15,7 @@ import { useFilter } from '../contexts/FilterContext';
 import { useScopedTickets } from '../lib/scope';
 import { groupTickets, DEFAULT_COLLAPSED } from '../lib/groupTickets';
 import { BUCKET_LABEL, STATUS_BUCKET, derivePriority } from '../lib/priority';
+import { normalizeProjectState, parseFilterQuery } from '../lib/filter';
 import { useRegisterFocusScope } from '../lib/keyboard';
 import { useMediaQuery } from '../lib/media';
 import { Button } from '../components/Button';
@@ -58,20 +59,23 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
   const tickets = useScopedTickets(snapshot, state.project);
   const { canMutate, reason } = useControlPlane();
   const newTicketReason = projects.length === 0 ? 'Start a project from your agent first' : reason;
-  const [createIntent] = useState(() => {
-    const params = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
-    return params.get('create') === '1' ? state.project : null;
-  });
-  const [newOpen, setNewOpen] = useState(() => createIntent !== null && projects.includes(createIntent));
+  const [newOpen, setNewOpen] = useState(false);
+  const hash = window.location.hash;
   useEffect(() => {
-    if (createIntent === null) return;
     const [route, query = ''] = window.location.hash.split('?');
+    if (route !== '#/tickets') return;
     const params = new URLSearchParams(query);
     if (params.get('create') !== '1') return;
+    const intentProject = normalizeProjectState(
+      parseFilterQuery(query, snapshot.meta.active_project ?? 'all'),
+      projects,
+    ).project;
+    if (state.project !== intentProject) return;
+    if (projects.includes(intentProject)) setNewOpen(true);
     params.delete('create');
     const remaining = params.toString();
     history.replaceState(null, '', `${route}${remaining ? `?${remaining}` : ''}`);
-  }, [createIntent]);
+  }, [hash, snapshot.meta.active_project, projects, state.project]);
   const narrow = useMediaQuery('(max-width: 767px)');
   const columns = narrow ? COLUMNS_NARROW : COLUMNS;
 
@@ -682,8 +686,13 @@ function NewTicketModal({
   canMutate: boolean;
 }) {
   const [proj, setProj] = useState(projects.includes(project) ? project : projects[0] ?? '');
+  const previousProject = useRef(project);
   useEffect(() => {
-    setProj(current => projects.includes(current) ? current : projects.includes(project) ? project : projects[0] ?? '');
+    const projectChanged = previousProject.current !== project;
+    previousProject.current = project;
+    setProj(current => projectChanged && projects.includes(project)
+      ? project
+      : projects.includes(current) ? current : projects.includes(project) ? project : projects[0] ?? '');
   }, [project, projects]);
   const [title, setTitle] = useState('');
   const [requirement, setRequirement] = useState('');

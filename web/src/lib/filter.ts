@@ -21,6 +21,12 @@ export type FilterAction =
 export function initialFilterState(activeProject?: string): FilterState {
   return { project: activeProject ?? 'all', status: [], phase: [], label: [], foreman: [], control: [] };
 }
+export function normalizeProjectState(state: FilterState, projects: readonly string[]): FilterState {
+  const project = state.project === 'all' || projects.includes(state.project)
+    ? state.project
+    : projects[0] ?? '';
+  return project === state.project ? state : { ...state, project };
+}
 
 export function filterReducer(state: FilterState, action: FilterAction): FilterState {
   switch (action.type) {

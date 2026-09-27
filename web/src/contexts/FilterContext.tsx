@@ -13,6 +13,7 @@ import {
   filterReducer,
   initialFilterState,
   mergeFilterQuery,
+  normalizeProjectState,
   parseFilterQuery,
   serializeFilter,
   type FilterAction,
@@ -27,13 +28,6 @@ interface FilterContextValue {
 
 const FilterContext = createContext<FilterContextValue | null>(null);
 
-function normalizeProjectState(state: FilterState, projects: readonly string[]): FilterState {
-  const project = state.project === 'all' || projects.includes(state.project)
-    ? state.project
-    : projects[0] ?? '';
-  return project === state.project ? state : { ...state, project };
-}
-
 function deriveInitialState(
   activeProject: string | null | undefined,
   projects: readonly string[],
@@ -44,6 +38,7 @@ function deriveInitialState(
     : initialFilterState(activeProject ?? 'all');
   return normalizeProjectState(state, projects);
 }
+
 
 export function FilterProvider({
   children,
