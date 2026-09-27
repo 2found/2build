@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../components/Button';
 import { ErrorBox } from '../components/ErrorBox';
 import { Field, inputStyle } from '../components/Field';
-import { SectionHeader } from '../components/SectionHeader';
 import { TopBar } from '../components/TopBar';
 import { useControlPlane, useMutation } from '../contexts/ControlContext';
 import { getAgentSettings, saveAgentSettings, type AgentSettings, type AgentSettingsValues } from '../lib/api';
@@ -29,6 +28,12 @@ const frameHeaderStyle: React.CSSProperties = {
   padding: '10px 12px',
   borderBottom: '1px solid var(--border-emphasis)',
   backgroundColor: 'var(--surface-elevated)',
+};
+const frameSectionTitleStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: '11px',
+  letterSpacing: 'var(--tracking-caption)',
+  color: 'var(--text-muted)',
 };
 const mutedAction = { color: 'var(--text-muted)', fontSize: 12 };
 const ROUTES = [
@@ -166,7 +171,12 @@ export function Settings() {
       {data && draft && !loading && !loadError && !readonly && <form onSubmit={save} className="space-y-4" aria-busy={mutation.pending}>
         <section style={frameStyle} aria-label="Foreman session settings">
           <div style={frameHeaderStyle}>
-            <SectionHeader title="Foreman session" action={<span style={mutedAction}>Applies to new sessions</span>} />
+            <div>
+              <div className="flex items-center justify-between py-1" style={{ color: 'var(--text-muted)' }}>
+                <h3 className="font-medium uppercase" style={frameSectionTitleStyle}>Foreman session</h3>
+                <div><span style={mutedAction}>Applies to new sessions</span></div>
+              </div>
+            </div>
           </div>
           <div className="space-y-4" style={{ padding: 'var(--pad-section)' }}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -278,7 +288,12 @@ export function Settings() {
 
       <section style={frameStyle} aria-label="Automatic worker routing">
         <div style={frameHeaderStyle}>
-          <SectionHeader title="Automatic workers" action={<span style={mutedAction}>Task complexity + phase routing</span>} />
+          <div>
+            <div className="flex items-center justify-between py-1" style={{ color: 'var(--text-muted)' }}>
+              <h3 className="font-medium uppercase" style={frameSectionTitleStyle}>Automatic workers</h3>
+              <div><span style={mutedAction}>Task complexity + phase routing</span></div>
+            </div>
+          </div>
         </div>
         <div role="list">
           {ROUTES.map((route, index) => <div key={route.role} role="listitem"
