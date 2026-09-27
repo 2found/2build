@@ -1,7 +1,14 @@
 import { Button } from './Button';
+import { gateProps } from '../contexts/ControlContext';
 import { SectionHeader } from './SectionHeader';
 
-export function FirstRunChecklist({ onCreateTicket }: { onCreateTicket?: () => void }) {
+export function FirstRunChecklist({
+  onCreateTicket,
+  createTicketReason = '',
+}: {
+  onCreateTicket?: () => void;
+  createTicketReason?: string;
+}) {
   const hasProjects = onCreateTicket !== undefined;
   const rowClass = 'grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-3 px-4 py-3 md:grid-cols-[2rem_minmax(0,1fr)_auto] md:items-center';
   const actionClass = 'col-start-2 mt-2 w-full md:col-start-auto md:mt-0 md:w-auto';
@@ -83,6 +90,7 @@ export function FirstRunChecklist({ onCreateTicket }: { onCreateTicket?: () => v
               size="lg"
               className={actionClass}
               onClick={onCreateTicket}
+              {...gateProps(createTicketReason)}
             >
               Create first ticket
             </Button>

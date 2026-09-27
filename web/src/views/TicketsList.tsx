@@ -55,7 +55,9 @@ function isFlatMode(): boolean {
 export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
   const { state } = useFilter();
   const projects = useMemo(() => Object.keys(snapshot.projects ?? {}).sort(), [snapshot.projects]);
-  const selectedProject = projects.includes(state.project) ? state.project : projects[0] ?? '';
+  const selectedProject = state.project === 'all' || projects.includes(state.project)
+    ? state.project
+    : projects[0] ?? '';
   const tickets = useScopedTickets(snapshot, selectedProject);
   const { canMutate, reason } = useControlPlane();
   const newTicketReason = projects.length === 0 ? 'Start a project from your agent first' : reason;
@@ -213,7 +215,10 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
       <FiltersPopover facets={facets} />
 
       {tickets.length === 0 ? (
-        <FirstRunChecklist onCreateTicket={selectedProject ? () => setNewOpen(true) : undefined} />
+        <FirstRunChecklist
+          onCreateTicket={selectedProject ? () => setNewOpen(true) : undefined}
+          createTicketReason={reason}
+        />
       ) : filtered.length === 0 ? (
         <EmptyState title="No results" body="No tickets match the active filters. Try clearing a chip." />
       ) : flat ? (

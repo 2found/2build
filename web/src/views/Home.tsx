@@ -9,6 +9,7 @@ import { TopBar } from '../components/TopBar';
 import { WaitingOnYou } from '../components/WaitingOnYou';
 import { formatRelative } from '../lib/format';
 import { useFilter } from '../contexts/FilterContext';
+import { useControlPlane } from '../contexts/ControlContext';
 import { useScopedSessions, useScopedTickets } from '../lib/scope';
 
 const STATUS_ORDER: TicketStatus[] = [
@@ -34,8 +35,12 @@ interface ActiveRow {
 
 export function Home({ snapshot }: { snapshot: Snapshot }) {
   const { state } = useFilter();
+  const { reason } = useControlPlane();
   const projects = Object.keys(snapshot.projects ?? {}).sort();
-  const selectedProject = projects.includes(state.project) ? state.project : projects[0] ?? '';
+  const selectedProject = state.project === 'all' || projects.includes(state.project)
+    ? state.project
+    : projects[0] ?? '';
+  const createProject = selectedProject === 'all' ? projects[0] ?? '' : selectedProject;
   const tickets = useScopedTickets(snapshot, selectedProject);
   const sessions = useScopedSessions(snapshot);
   const { meta } = snapshot;
@@ -96,9 +101,10 @@ export function Home({ snapshot }: { snapshot: Snapshot }) {
       <div className="px-6 py-4 w-full space-y-6">
         {tickets.length === 0 && (
           <FirstRunChecklist
-            onCreateTicket={selectedProject ? () => {
-              window.location.hash = `#/tickets?project=${encodeURIComponent(selectedProject)}&create=1`;
+            onCreateTicket={createProject ? () => {
+              window.location.hash = `#/tickets?project=${encodeURIComponent(createProject)}&create=1`;
             } : undefined}
+            createTicketReason={reason}
           />
         )}
         <WaitingOnYou tickets={tickets} />

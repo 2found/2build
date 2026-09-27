@@ -20,7 +20,10 @@ interface ProjectSwitcherProps {
 export function ProjectSwitcher({ snapshot }: ProjectSwitcherProps) {
   const { state, dispatch } = useFilter();
   const slugs = Object.keys(snapshot.projects).sort();
-  const currentLabel = state.project === 'all' ? 'All projects' : state.project;
+  const currentProject = state.project === 'all' || slugs.includes(state.project)
+    ? state.project
+    : slugs[0] ?? '';
+  const currentLabel = currentProject === 'all' ? 'All projects' : currentProject || 'No projects';
 
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -60,7 +63,7 @@ export function ProjectSwitcher({ snapshot }: ProjectSwitcherProps) {
   const itemBase = 'w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between gap-2';
 
   const renderOption = (slug: string, label: string, count?: number) => {
-    const active = state.project === slug;
+    const active = currentProject === slug;
     return (
       <button
         key={slug}
