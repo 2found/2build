@@ -93,23 +93,16 @@ func resolveForemanRouteWithDiscovery(kv map[string]string, discovery *orca.Agen
 	}, discovery, discoveryErr)
 }
 
-func hasConfiguredWorkerSettings() bool {
-	for _, field := range []string{"agent", "provider", "model", "effort"} {
-		for _, name := range []string{
-			"BABYSIT_WORKER_" + strings.ToUpper(field),
-			"BABYSIT_" + strings.ToUpper(field),
-		} {
-			value := strings.TrimSpace(os.Getenv(name))
-			if value != "" && !(field == "agent" && strings.EqualFold(value, "auto")) {
-				return true
-			}
-		}
-		if value, _ := config.Get("worker_" + field); strings.TrimSpace(value) != "" &&
-			!(field == "agent" && strings.EqualFold(strings.TrimSpace(value), "auto")) {
-			return true
+func hasConfiguredWorkerAgent() bool {
+	for _, name := range []string{"BABYSIT_WORKER_AGENT", "BABYSIT_AGENT"} {
+		if value := os.Getenv(name); value != "" {
+			value = strings.TrimSpace(value)
+			return value != "" && !strings.EqualFold(value, "auto")
 		}
 	}
-	return false
+	value, _ := config.Get("worker_agent")
+	value = strings.TrimSpace(value)
+	return value != "" && !strings.EqualFold(value, "auto")
 }
 
 func foremanRouteVerify(args []string) error {

@@ -569,11 +569,9 @@ func foremanWorkerCommand(args []string) error {
 	if routeErr != nil {
 		hasPinnedRoute := kv["pinned-agent"] != "" || kv["pinned-model"] != "" ||
 			kv["pinned-effort"] != "" || kv["exact-session"] != ""
-		explicit := strings.TrimSpace(kv["agent"])
-		hasExplicitAgent := explicit != "" && !strings.EqualFold(explicit, "auto")
 		hasOrcaDefault := discoveryErr == nil && discovery != nil &&
 			strings.TrimSpace(discovery.EffectiveDefaultAgent) != ""
-		if hasPinnedRoute || hasExplicitAgent || hasOrcaDefault || !hasConfiguredWorkerSettings() {
+		if hasPinnedRoute || kv["agent"] != "" || hasOrcaDefault || !hasConfiguredWorkerAgent() {
 			return routeErr
 		}
 		prof, err = agent.ResolveWith(agent.WorkerKey, agent.Options{
@@ -584,12 +582,11 @@ func foremanWorkerCommand(args []string) error {
 			return err
 		}
 	} else {
-		prof, err = agent.ByName(route.Agent)
+		prof, err = agent.ResolveWith(agent.WorkerKey, agent.Options{
+			Agent: route.Agent, Provider: kv["provider"], Model: route.Model,
+			Effort: route.Effort, Dir: kv["dir"],
+		})
 		if err != nil {
-			return err
-		}
-		prof.Provider, prof.Model, prof.Effort = kv["provider"], route.Model, route.Effort
-		if err := prof.ValidateSettings(); err != nil {
 			return err
 		}
 	}

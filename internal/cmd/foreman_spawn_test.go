@@ -480,6 +480,77 @@ func TestWorkerCommandResolvesConfiguredWorkerSettingsWithoutOrcaDefault(t *test
 	}
 }
 
+func TestWorkerCommandComposesResolvedRouteWithConfiguredFields(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "configured fields fill route omissions",
+			args: []string{"--agent", "omp", "--prompt", "ship it"},
+			want: `omp --auto-approve --provider 'custom' --model 'configured-model' --thinking 'low' 'ship it'`,
+		},
+		{
+			name: "route fields and CLI provider override config",
+			args: []string{"--pinned-agent", "omp", "--pinned-model", "route-model", "--pinned-effort", "high", "--provider", "cli-provider", "--prompt", "ship it"},
+			want: `omp --auto-approve --provider 'cli-provider' --model 'route-model' --thinking 'high' 'ship it'`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeOrcaFor(t)
+			clearWorkerSettingsEnv(t)
+			path := filepath.Join(os.Getenv("BABYSIT_STATE_DIR"), "config.yaml")
+			if err := os.WriteFile(path, []byte("worker_provider: custom\nworker_model: configured-model\nworker_effort: low\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			out := captureStdout(t, func() {
+				if err := foremanWorkerCommand(tc.args); err != nil {
+					t.Fatal(err)
+				}
+			})
+			if strings.TrimSpace(out) != tc.want {
+				t.Fatalf("worker-command printed %q, want %q", strings.TrimSpace(out), tc.want)
+			}
+		})
+	}
+}
+
+func TestWorkerCommandNonAgentSettingsCannotBypassDiscovery(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		config   string
+		envName  string
+		envValue string
+	}{
+		{name: "provider config", config: "worker_provider: custom\n"},
+		{name: "model config", config: "worker_model: configured-model\n"},
+		{name: "effort config", config: "worker_effort: high\n"},
+		{name: "provider environment", envName: "BABYSIT_WORKER_PROVIDER", envValue: "custom"},
+		{name: "model environment", envName: "BABYSIT_WORKER_MODEL", envValue: "configured-model"},
+		{name: "effort environment", envName: "BABYSIT_WORKER_EFFORT", envValue: "high"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeOrcaFor(t)
+			clearWorkerSettingsEnv(t)
+			if tc.config != "" {
+				path := filepath.Join(os.Getenv("BABYSIT_STATE_DIR"), "config.yaml")
+				if err := os.WriteFile(path, []byte(tc.config), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if tc.envName != "" {
+				t.Setenv(tc.envName, tc.envValue)
+			}
+			err := foremanWorkerCommand([]string{"--prompt", "ship it"})
+			if err == nil || !strings.Contains(err.Error(), "agent.discovery.v1") ||
+				!strings.Contains(err.Error(), "orca agent-context --json") {
+				t.Fatalf("non-agent setting bypassed discovery: %v", err)
+			}
+		})
+	}
+}
+
 func clearWorkerSettingsEnv(t *testing.T) {
 	t.Helper()
 	for _, name := range []string{
