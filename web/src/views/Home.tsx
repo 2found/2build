@@ -11,6 +11,8 @@ import { formatRelative } from '../lib/format';
 import { useFilter } from '../contexts/FilterContext';
 import { useControlPlane } from '../contexts/ControlContext';
 import { useScopedSessions, useScopedTickets } from '../lib/scope';
+import { mergeFilterQuery } from '../lib/filter';
+import { parseHash } from '../lib/hash';
 
 const STATUS_ORDER: TicketStatus[] = [
   'in_progress', 'in_review', 'blocked', 'planned', 'decomposed',
@@ -100,10 +102,13 @@ export function Home({ snapshot }: { snapshot: Snapshot }) {
         {tickets.length === 0 && (
           <FirstRunChecklist
             onCreateTicket={createProject ? () => {
-              const params = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
-              params.set('project', createProject);
-              params.set('create', '1');
-              window.location.hash = `#/tickets?${params.toString()}`;
+              const { query } = parseHash(window.location.hash);
+              const withoutCreate = query.split('&').filter(part => {
+                const equals = part.indexOf('=');
+                return (equals < 0 ? part : part.slice(0, equals)) !== 'create';
+              }).join('&');
+              const handoff = mergeFilterQuery(withoutCreate, { ...state, project: createProject });
+              window.location.hash = `#/tickets?${handoff}${handoff ? '&' : ''}create=1`;
             } : undefined}
             createTicketReason={reason}
           />

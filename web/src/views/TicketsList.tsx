@@ -72,8 +72,10 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
     ).project;
     if (state.project !== intentProject) return;
     if (projects.includes(intentProject)) setNewOpen(true);
-    params.delete('create');
-    const remaining = params.toString();
+    const remaining = query.split('&').filter(part => {
+      const equals = part.indexOf('=');
+      return (equals < 0 ? part : part.slice(0, equals)) !== 'create';
+    }).join('&');
     history.replaceState(null, '', `${route}${remaining ? `?${remaining}` : ''}`);
   }, [hash, snapshot.meta.active_project, projects, state.project]);
   const narrow = useMediaQuery('(max-width: 767px)');
