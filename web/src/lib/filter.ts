@@ -52,7 +52,7 @@ export function filterReducer(state: FilterState, action: FilterAction): FilterS
 /** Serialize filter state to a query string (without leading '?'). */
 export function serializeFilter(state: FilterState): string {
   const params: string[] = [];
-  if (state.project && state.project !== 'all') {
+  if (state.project) {
     params.push(`project=${encodeURIComponent(state.project)}`);
   }
   if (state.status.length > 0) {
