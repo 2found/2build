@@ -242,19 +242,27 @@ has_all "no-coordinator-polling-timer" \
   'or polls on empty waits' 'adopt/spawn start it automatically'
 
 has_all "phase-specific-worker-model-routing" \
-  '../references/model-routing.md' 'canonical launch-settings' 'Never invent a model ID' \
+  '../references/model-routing.md' 'canonical contract' 'Never invent a model ID' \
   'Classify each task' 'Parent/child planning, decomposition, design, design feedback' \
   'Code review and review diagnosis' \
-  '--model <model> --effort <effort>' 'launch.effective' 'bbs agent resolve' \
+  '--model <selected-model> --effort <selected-effort>' 'launch.effective' 'bbs foreman route' \
+  'effectiveDefaultAgent' 'Never substitute coordinator-local' 'worker_agent' \
   'set-pointer planner_model' 'Each prefix has `agent`, `provider`, `model`, `effort`' \
   '| Plan | `planner_` |' '| Implement | `worker_` |' \
   '| Review | `reviewer_` |' '| QA | `qa_` |' 'Taste' \
   'task complexity, phase class, selected tier' 'override provenance' \
-  'resolve missing legacy routing evidence' 'Keep separate phase Dispatches'
+  'reuse a compatible phase pin' 'Keep separate phase Dispatches'
+
+if grep -q 'bbs agent resolve --role worker' "$ROOT/.claude/skills/foreman/references/worker-routing.md"; then
+  fail "worker-routing-avoids-coordinator-agent-resolution"
+else
+  ok "worker-routing-avoids-coordinator-agent-resolution"
+fi
 
 has_all "worker-model-config-discipline" \
-  'empty provider/model/effort means native default' 'stop before' 'Do not drop it' \
-  'Never replace a live writer or silently substitute' 'foreman_'
+  'empty provider/model/effort means native default' 'Do not assume `--provider` support' \
+  'Omit unset' 'Never replace a live writer or silently substitute' 'foreman_'
+
 
 REF="$ROOT/.claude/skills/references/model-routing.md"
 if grep -q 'model-routing.md' "$F" \
