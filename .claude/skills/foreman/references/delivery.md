@@ -26,8 +26,8 @@ A code-bearing child is eligible when all of these hold:
   `origin/<base>` and would discard an early merge. Final Integration QA
   depends on these lands, so it must not be a prerequisite of the land handler.
 
-Foreman dispatches a normal delivery worker for each `land` or `pr` handler
-in dependency order, one child at a time. Its assignment names the authorized
+Foreman dispatches a delivery worker on the normal phase route for each `land`
+or `pr` handler in dependency order, one child at a time. Its assignment names the authorized
 finish policy, exact child/head, destination checkout, lease and required
 receipt. This worker runs only the handler; it cannot expand authorization or
 dispatch siblings. Foreman verifies the receipt before cleanup or the next

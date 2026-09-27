@@ -7,7 +7,8 @@ review and delivery unit; a closed worker/worktree is never proof of delivery.
 
 Before child creation, worktrees, or production dispatch:
 
-1. Dispatch a strong planning/design worker on the parent checkout to write
+1. Dispatch a planning/design worker on the critical phase route in the parent
+   checkout to write
    `requirement.md` and run `plan-draft`. For user-facing work, its assignment
    invokes `design-ui` to produce a coherent `design.md` and `prototype.html`
    covering the whole product journey, including transitions across proposed
@@ -43,8 +44,8 @@ Before child creation, worktrees, or production dispatch:
    timeout or idle period is approval. `redirected` means rework/re-publish;
    `dropped` stops this project. Only current `approved` unlocks children.
 5. **`--auto` delegates the human design reviews to Foreman**, including a
-   revised parent design within the authorized scope. Dispatch a strong
-   design-review worker to inspect the same artifacts and fill the same
+   revised parent design within the authorized scope. Dispatch a design reviewer
+   on the critical phase route to inspect the same artifacts and fill the same
    five-line design rubric with named evidence. Foreman verifies that report
    against current artifacts, publishes `project-plan`, and uses
    `approval self-resolve --foreman "$FOREMAN_ID" --rubric-file <path>`.
@@ -55,8 +56,8 @@ Before child creation, worktrees, or production dispatch:
    Old records default to human project review. Existing hold/grant bounds,
    non-delegable decisions, code review, QA and configured finish policy still
    apply. `--auto` does not authorize merging, pushing, or expanding scope.
-6. After approval, Foreman dispatches strong workers to review child plans
-   against the accepted parent artifacts and revision, then applies their
+6. After approval, Foreman dispatches workers on the critical phase route to
+   review child plans against the accepted parent artifacts and revision, then applies their
    evidenced rubrics autonomously; humans need not read every child
    plan. Child-specific implementation detail stays on that child. A material
    product/design change pauses affected production work and returns to this
@@ -131,9 +132,10 @@ Every code-bearing project has a final Integration QA Task. It runs **after
 the selected finish handlers and before the Foreman `done` heartbeat**, even
 when child tickets are independent. A pre-land integration check is additional
 evidence, not a substitute. Wholly evidence-only projects may record N/A with
-acceptance evidence. Use a normal-model read-only QA worker; fixes go to owning
-children. Foreman owns lease acquisition and evidence checks; dispatch a normal
-integration worker for surface preparation, merges/composition and restoration
+acceptance evidence. Use a read-only QA worker on the normal phase route; fixes
+go to owning children. Foreman owns lease acquisition and evidence checks;
+dispatch an integration worker on the normal phase route for surface preparation,
+merges/composition and restoration
 in steps 2–3 and 6. Wait for its settlement and verify the resulting refs before
 QA or lease release. Never prepare or test the integrated surface inline.
 

@@ -155,8 +155,10 @@ the session's model. Never dispatch it to a native child, a second session, or
 an external process: a routed planner is a second model, a second usage bill,
 and a second context to reconcile, selected by a run that can see neither its
 cost nor its state. There is no `--planner` flag and no per-step model
-selector. The planning model is a **launch** decision: start autopilot on the
-model you want to plan with, and that model plans, implements, and gates.
+selector. The planning model is a **launch** decision: the human chooses the
+session for a direct run; Foreman selects the model before opening a phase worker.
+Autopilot does not select a model tier or reroute the session. The launched model
+executes every assigned step in this session.
 
 The step owns one writer, not one child: load and execute the real `plan-draft`
 skill here, in this context, with the same bounded assignment a dispatched
@@ -171,7 +173,8 @@ Then inspect the artifacts, confirm they belong to this attempt, and read
 not a plan: re-run it in-session once, naming the gap. If the plan is
 inadequate because this session's model cannot carry it, that is a launch
 problem rather than a dispatch problem — stop with `NEEDS_CONTEXT` naming the
-model to restart the run on, instead of silently planning at a lower tier.
+observed capability or artifact gap and durable resume pointers. Foreman or the
+human chooses the replacement session; Autopilot does not select another model.
 Never silently replace an accepted plan. Record the session model, artifact
 paths, and result in the checkpoint/handoff.
 ## The work loop (`/goal`)
@@ -264,6 +267,11 @@ Plan, Build, Review, or QA. Honor that phase and its stop boundary instead of
 running init or workflow steps outside that phase: Plan writes artifacts; Build implements, checks and
 commits; Review runs `review-pr` without `--fix` and reports needed repairs;
 QA verifies without code fixes. Foreman dispatches repairs and the next phase.
+Foreman owns task classification, phase splitting and model selection before
+launch. Honor its assigned phase and model; record the supplied routing metadata
+and observed launch settings in the handoff. If launch evidence conflicts with
+the assignment, report the mismatch to Foreman before work; never select a
+replacement model or start a worker to fix it.
 Keep each assigned skill in this session on its launched model; never delegate
 the whole phase, dispatch sibling Tasks or switch models. The review skill's
 internal analysis fan-out remains allowed under Current-session gates below.

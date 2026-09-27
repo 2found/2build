@@ -19,12 +19,11 @@ compact, or restart, but the project goal continues from ticket and Orca state.
    applies gates, and reports status. Owning an outcome means dispatching and
    verifying it, not doing the task. No inline fallback when workers are busy
    or unavailable: queue the Task or report the blocker.
-2. **Use strong models for planning and code review; normal models for
-   implementation and QA.** Design and plan feedback use strong workers too;
-   merge execution uses normal workers. Separate phase Dispatches when the
-   model changes. Resolve actual supported models through
-   [worker routing](references/worker-routing.md); ticket size never downgrades
-   planning or review to the implementation model.
+2. **Route models by task complexity and phase.** Planning, design and review
+   use the critical phase route; implementation, QA and delivery use the normal
+   phase route. Select the tier and concrete model through
+   [worker routing](references/worker-routing.md) and its canonical matrix.
+   Keep phase Dispatches separate even when both tiers resolve to the same model.
 
 Follow [the preamble](../references/preamble.md),
 [Auto-Decision Framework](../references/auto-decision-framework.md), and
@@ -132,7 +131,8 @@ tool use if nobody will be present to answer harness-level approval prompts.
 
 - **Free-text project** — create a parent project ticket on the current
   checkout without cutting it, persist the supplied requirement, dispatch a
-  strong planning/design worker for `plan-draft` and bounded child seeds,
+  planning/design worker on the critical phase route for `plan-draft` and
+  bounded child seeds,
   and pass **Project design checkpoint** before
   creating child tickets/worktrees or dispatching production work. A list of
   already-independent
@@ -198,8 +198,8 @@ safe ready wave: dispatch every admitted ready Task up to `MAX_WORKERS` and the
 machine-global resource budget. Never serialize independent work merely because
 the repo is `pet`, and never buy a stronger model merely because it is
 `enterprise`. A profile scales verification breadth and the authorized finish
-venue; phase controls model routing and ticket evidence controls verification
-breadth. Taste remains self-resolved
+venue; task complexity plus phase controls model routing. Ticket evidence
+controls verification breadth. Taste remains self-resolved
 unless an explicit hold or bounded grant says otherwise.
 
 ## Worker management
@@ -392,7 +392,7 @@ workflows keep their baseline, experiment or audit steps in the appropriate
 phase; evidence-only work needs no fabricated code gates. Never hard-code every
 child back to `builder`. Each autopilot Task explicitly names its one phase and
 stop boundary in the injected Orca assignment; see autopilot's **Foreman phase
-assignments**. Do not launch an unrestricted normal-model build that also reviews.
+assignments**. Do not launch an unrestricted Build assignment that also reviews.
 
 Non-builder production work that adds or reshapes a user-facing surface, or
 has an explicit plan hold or bounded grant, must also pass the Plan Task and
@@ -402,8 +402,9 @@ edits and return to this checkpoint; an experiment or audit does not replace
 plan approval.
 
 The accepted parent plan/design/prototype and their approval revision go in
-every child Task spec. A child plan must match that product contract; a strong
-design-review worker checks child implementation detail and supplies the rubric.
+every child Task spec. A child plan must match that product contract; a design
+reviewer on the critical phase route checks implementation detail and supplies
+the rubric.
 Foreman applies that evidence autonomously. A material change to the
 accepted product returns to the parent checkpoint before affected work starts.
 
@@ -415,8 +416,8 @@ accepted product returns to the parent checkpoint before affected work starts.
    hand-write a harness-specific `/bbs:` or `$bbs:` prefix. The worker must
    persist its plan verdict and send Orca `worker_done` from the injected
    lifecycle.
-2. **Design gate** — dispatch a strong design-review worker to inspect the
-   requirement, plan, design and prototype and return a rubric with evidence
+2. **Design gate** — dispatch a design reviewer on the critical phase route
+   to inspect the requirement, plan, design and prototype and return a rubric with evidence
    for coverage, host consistency, reuse, prototype inspection and scope.
    Read its report and check artifact revisions. Publish the babysit plan approval,
    then run `bbs ticket approval self-resolve` with named evidence. This
@@ -424,8 +425,8 @@ accepted product returns to the parent checkpoint before affected work starts.
    for the Build or Execution Task so the DAG cannot run ahead; never resolve
    the Orca gate independently.
 3. **Builder Build Task** — after approval, release the settled planner and
-   its lease, reserve the Build profile, and start a fresh normal worker in
-   the same worktree. Its spec requires `autopilot builder <ticket>`, scoped
+   its lease, reserve the Build profile, and start a fresh worker on the normal
+   phase route in the same worktree. Its spec requires `autopilot builder <ticket>`, scoped
    to implementation and local commits only; forbid planning, review, QA,
    topology and close-out. It consumes the accepted plan, verifies the change
    with focused implementation checks, commits and reports `worker_done`.
@@ -433,21 +434,24 @@ accepted product returns to the parent checkpoint before affected work starts.
 4. **Non-builder Execution Task** — start one worker in the child's exact
    worktree with `autopilot <workflow> <ticket>`. Its spec includes the same
    topology and close-out prohibitions and explicit phase boundary. Route
-   planning/design to strong workers and implementation to normal workers.
+   planning/design through the critical phase route and implementation through
+   the normal phase route.
    If it changes code, dispatch the Review and QA Tasks below. If it is an
    evidence-only prototype, recommendation, or audit, it must return the
    workflow verdict, artifact paths, acceptance evidence, and lifecycle signal.
    A prototype's quarantined spike is never a releasable branch: its worker
    archives the signal in ticket storage and restores the checkout before
    `worker_done`.
-5. **Review Task** — dispatch a strong worker for `review-pr` against the
-   complete ticket diff and exact committed revision. Persist the verdict and
-   typed gate evidence. Route code fixes to a normal Build repair worker and
-   re-review the resulting revision; no ticket passes on an older review.
-6. **QA Task** — after current review passes, dispatch a normal worker for
-   `qa` and acceptance checks. Persist QA evidence and verdicts, then verify
+5. **Review Task** — dispatch `review-pr` on the critical phase route against
+   the complete ticket diff and exact committed revision. Persist the verdict
+   and typed gate evidence. Route code fixes to a Build repair worker on the
+   normal phase route and re-review the resulting revision; no ticket passes
+   on an older review.
+6. **QA Task** — after current review passes, dispatch `qa` and acceptance
+   checks on the normal phase route. Persist QA evidence and verdicts, then verify
    readiness for the final committed tree. Any code fix invalidates both
-   gates: send it through normal repair, strong Review, then normal QA.
+   gates: send it through the normal phase route for repair, critical for Review,
+   then normal for QA.
    Only this final passing phase records workflow completion and release handoff.
 
 An incomplete design rubric gets at most two feedback Dispatches, each naming
@@ -484,9 +488,10 @@ Code-bearing workers execute per-ticket QA; foreman owns when and where it runs.
 - Independent tickets may complete their applicable per-ticket gates in any
   order. Dependents wait for prerequisite evidence and branch integration.
 - When tickets interact, add a **Pre-land integration QA Task** before `land`.
-  Acquire the parent surface lease and dispatch a normal integration worker
-  to prepare the covered branches with `bbs ticket surface compose`, followed
-  by a normal QA worker to test them before landing. This is preliminary evidence;
+  Acquire the parent surface lease and dispatch an integration worker on the
+  normal phase route to prepare the covered branches with `bbs ticket surface compose`,
+  followed by a QA worker on the normal phase route to test them before landing.
+  This is preliminary evidence;
   it never replaces final Integration QA on the delivered branch.
 - Every code-bearing project has a **Final Integration QA Task** after its
   finish handlers succeed. Follow **Final integration QA** in the project

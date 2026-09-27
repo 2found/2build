@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 # autopilot runs every step in the session it was launched in — planning
-# included. No planner subagent, no per-harness QA child, no routed model: the
-# session model executes its assigned phases. This suite pins that contract,
-# and keeps configurable model routing honest for the one skill that still
-# reads it (foreman).
+# included. Task/phase routing selects Foreman's launches; Autopilot executes
+# in the human-opened or Foreman-opened session without model selection.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -47,6 +45,11 @@ forbid 'planner_effort' "$SKILL"
 forbid 'OMP launch rule' "$SKILL"
 forbid 'automatic QA subagent' "$SKILL"
 forbid '../references/model-routing.md' "$SKILL"
+require 'Autopilot does not select a model tier or reroute the session' "$SKILL"
+require 'Foreman owns task classification, phase splitting and model selection before' "$SKILL"
+require 'report the mismatch to Foreman before work' "$SKILL"
+require 'human chooses the replacement session; Autopilot does not select another model' "$SKILL"
+forbid 'model to restart the run on' "$SKILL"
 forbid 'Native subagents need no new pane' "$SKILL"
 
 # --- workflows carry no "automatic QA subagent path" ------------------------
@@ -55,10 +58,10 @@ for f in "$WORKFLOWS"/*.md; do
   forbid 'automatic QA path' "$f"
 done
 
-# --- model routing belongs to foreman, which launches phase workers ----------
-require '`foreman` routes each supervised' "$REF"
-require '`autopilot` deliberately does not route models' "$REF"
-require 'launches Plan, Build, Review and QA as phase-scoped supervised sessions' "$REF"
+# --- foreman selects the route before opening each phase worker ------------
+require '`foreman`' "$REF"
+require '`autopilot` does not select models' "$REF"
+require 'Foreman splits work into phase assignments' "$REF"
 forbid '`autopilot` routes its planner' "$REF"
 require 'bbs agent resolve --role worker --json' "$REF"
 require 'worker_provider' "$REF"
@@ -66,16 +69,65 @@ require 'worker_model' "$REF"
 require 'worker_effort' "$REF"
 require 'An empty provider/model/effort means native default' "$REF"
 require '## Phase routing' "$REF"
-require '| Code review and review diagnosis | **strong** |' "$REF"
-require '| Implementation and code repairs | **normal** |' "$REF"
-require '| Per-ticket QA, integration QA and product acceptance checks | **normal** |' "$REF"
 require 'launch flag' "$REF"
 require 'came back short' "$REF"
 require '| `simple` | an obvious local docs/config edit' "$REF"
-require '| `critical` / `hard` | security, auth, money' "$REF"
-forbid 'gpt-5.6-sol' "$REF"
-forbid 'grok-4.6' "$REF"
-forbid '## Ladders' "$REF"
+require '| `hard` | security, auth, money' "$REF"
+require 'complexity `critical` to `hard`' "$REF"
+require 'Generic `worker_model` and' "$REF"
+require '`worker_effort` defaults do not override the tier table' "$REF"
+require 'explicit phase-specific user selection first, then a valid persisted' "$REF"
+require 'config changes alone do not change it' "$REF"
+require 'Legacy strong/normal routes lacking the' "$REF"
+require 'An unmapped agent needs an explicit phase route' "$REF"
+require 'unknown binding needs `NEEDS_CONTEXT`' "$REF"
+require '`BLOCKED` before dispatch' "$REF"
+require 'Never replace a live writer' "$REF"
+require 'Do not invent an OMP effort' "$REF"
+require 'override the binding' "$REF"
+require 'inherit' "$REF"
+require 'generic provider/effort settings even when those flags are omitted or empty' "$REF"
+require 'cannot be cleared by that launcher, stop with `BLOCKED`' "$REF"
+require 'alias is usable only if the live binding identifies that version' "$REF"
+require 'Standalone Autopilot runs all steps in the human-opened session' "$REF"
+require 'load this routing table, recommend a tier, or change models between phases' "$REF"
+
+# Parse the policy's data tables: assert every task/phase and harness outcome,
+# rather than merely checking that tier/model names occur somewhere in the file.
+python3 - "$REF" <<'PY'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+rows = [[cell.strip().strip('`') for cell in line.strip('|').split('|')]
+        for line in text.splitlines() if line.startswith('|')]
+routes = {r[0]: r[1:] for r in rows if len(r) == 4 and r[0] in ('simple', 'normal', 'hard')}
+expected_routes = {
+    'simple': ['[flash, pro]', 'flash', 'pro'],
+    'normal': ['[flash, pro]', 'flash', 'pro'],
+    'hard': ['[pro, max]', 'pro', 'max'],
+}
+assert routes == expected_routes, routes
+models = {r[0]: r[1:] for r in rows if len(r) == 6 and r[0] in ('flash', 'pro', 'max')}
+expected_models = {
+    'flash': ['gpt-6-luna', 'max', 'Opus 5.5', 'high', '@normal'],
+    'pro': ['gpt-5.6-sol', 'high', 'Opus 5.5', 'high', '@slow'],
+    'max': ['gpt-6-astra', 'high', 'Opus 5.5', 'high', '@plan'],
+}
+assert models == expected_models, models
+phases = {r[0]: r[1] for r in rows if len(r) == 2 and r[1] in ('critical', 'normal')}
+assert phases == {
+    'Parent/child planning, decomposition, design, design feedback': 'critical',
+    'Code review and review diagnosis': 'critical',
+    'Implementation and code repairs': 'normal',
+    'Per-ticket QA, integration QA and product acceptance checks': 'normal',
+    'Merges, composition and authorized delivery handlers': 'normal',
+}, phases
+for task, (_, normal, critical) in routes.items():
+    for phase, tier in [('normal', normal), ('critical', critical)]:
+        assert models[tier] == expected_models[expected_routes[task][1 if phase == 'normal' else 2]]
+        print(f'{task}/{phase} -> {tier}: {models[tier]}')
+PY
 
 # --- no README still advertises the removed flags ---------------------------
 for f in "$ROOT"/README.md "$ROOT"/README.zh.md "$ROOT"/README.ja.md "$ROOT"/README.ko.md "$ROOT"/README.vi.md; do

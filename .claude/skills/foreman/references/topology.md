@@ -4,7 +4,8 @@ Before step 2, pass **Project design checkpoint** in the project contract.
 Step 1 drafts seeds and interfaces; it does not authorize child worktrees or
 production dispatch. Reuse current approved artifacts on resume.
 
-1. Dispatch a strong planning worker to run the real `plan-draft` skill
+1. Dispatch a planning worker on the critical phase route to run the real
+   `plan-draft` skill
    against the parent and propose the decomposition. Its assignment: slice into
    **independent, testable, releasable units**: a child must stand alone as a
    reviewable change — its own branch, its own `review-pr` + `qa`, its own
@@ -76,14 +77,15 @@ production dispatch. Reuse current approved artifacts on resume.
    worktree only from its recorded branch. A dirty or divergent worktree is a
    recovery case, not permission to replace it.
 5. A dependent child starts only after its prerequisites passed per-ticket
-   gates. Dispatch a normal integration worker to bring prerequisite branch
-   heads into the dependent worktree with a recorded merge before Build.
+   gates. Dispatch an integration worker on the normal phase route to bring
+   prerequisite branch heads into the dependent worktree with a recorded merge before Build.
    Persist the exact prerequisite SHAs
    in its Task assignment/handoff. On conflict, leave the conflict to a
    supervised worker on that ticket; foreman never edits the resolution.
    If a prerequisite is repaired later, invalidate affected dependents and
-   parent integration evidence. At a settled worker boundary, dispatch a normal
-   worker to merge the new prerequisite revision into each affected dependent and repair /
+   parent integration evidence. At a settled worker boundary, dispatch a worker
+   on the normal phase route to merge the new prerequisite revision into each
+   affected dependent and repair /
    re-verification in dependency order. Never merge into a live worker's tree
    or accept its old gates as proof for a dependency revision it never tested.
 

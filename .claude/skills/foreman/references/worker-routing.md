@@ -8,23 +8,26 @@ worker's settings in its destination repository:
 bbs agent resolve --role worker --dir "$WORKTREE" --json
 ```
 
-Use the returned `agent`, `provider`, `model`, and `effort` as defaults, then
-resolve the required phase class through the canonical routing contract; never
-infer the agent by splitting a shell command. Explicit phase-specific choices go in
+Use the returned `agent` and `provider` as launch defaults, then
+resolve model and effort from task complexity and phase through the canonical
+routing contract; generic model/effort defaults do not override its tier table.
+Never infer the agent by splitting a shell command. Explicit phase-specific choices go in
 the resolver's `--agent`, `--provider`, `--model`, and `--effort` flags.
-Never invent a model ID. Empty values mean native defaults, not a missing
-hardcoded tier table. Foreman's own `foreman_*` settings do not select workers.
+Never invent a model ID. Empty values mean native defaults at the resolver,
+not a verified tier route. Foreman's own `foreman_*` settings do not select workers.
 
-Classify the ticket once from its requirement, plan, and acceptance commands
-for verification breadth; select model class independently:
+Classify the ticket once from its requirement, plan, and acceptance commands,
+then select a model tier for each phase using the shared matrix:
 
-- Plan and design-feedback Dispatches always use a **strong** model.
-- Code Review Dispatches always use a **strong** model, including simple tickets.
+- Plan and design-feedback Dispatches use the **critical phase** route.
+- Code Review Dispatches use the **critical phase** route, including simple tickets.
 - Build, repairs, per-ticket QA, Integration QA and merge/delivery Dispatches
-  use a **normal** model. Integration QA scopes checks to the composed surface.
-- Resolve both classes from explicit selections or supported live model evidence
-  as described in the canonical contract. Empty/unknown defaults do not establish
-  a class. Pass the selected route explicitly and persist it before dispatch.
+  use the **normal phase** route. Integration QA scopes checks to the composed surface.
+- Classify parent planning and integration/delivery assignments from their own
+  scope. Record task complexity, phase class and model tier in every Task spec,
+  along with any explicit phase override and its effective launch settings.
+  Resolve concrete routes from the canonical table or explicit selections;
+  pass the selected route explicitly and persist it before dispatch.
 
 For a launcher that supports the selected preferences, pass nonempty model and
 effort on a fresh-worker start:
@@ -69,15 +72,18 @@ BABYSIT_TICKET="$TICKET" bbs ticket set-pointer worker_effort "<effort-or-native
 ```
 
 Use the same `set-pointer` fields with `reviewer_` and `qa_` prefixes for Review
-and QA. Record each Dispatch's requested class, agent/provider/model/effort,
-selection evidence and observed launch receipt in its durable handoff, including
+and QA. Record each Dispatch's task complexity, phase class, selected tier,
+override provenance, requested agent/provider/model/effort and observed launch
+receipt in its durable handoff, including
 parent planning and integration/delivery Tasks.
 
-On resume, reuse the persisted route; changes to config affect new routes.
-An old route with no proof of the required phase class must be resolved before
-the next launch; never interrupt a live writer to change its model. After Plan,
+On resume, reuse the persisted route if the assignment and routing policy still
+match; changes to config affect new routes. An old route with no task/phase/tier
+evidence must be resolved before the next launch; never interrupt a live writer
+to change its model. After Plan,
 release the settled planner and Plan resource lease; Foreman
-starts a fresh normal Build worker. Reuse for other phases only when exact
+starts a fresh Build worker on the normal phase route. Reuse for other phases
+only when exact
 agent, provider, model/role, effort, and resource profile match the required
 route. Preserve the failure evidence
 when a user changes a route and never replace a live writer. Choosing a route

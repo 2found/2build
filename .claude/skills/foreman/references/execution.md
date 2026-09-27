@@ -173,8 +173,9 @@ inspect a live worker without progress or a valid wait and send one bounded
 diagnostic assignment if an obstacle is confirmed. Silence or an expired
 15-minute progress observation alone does not trigger a check or require the
 coordinator to refresh worker waits. Preserve existing failure counts across retries.
-After repeated semantic failure, dispatch strong planning/review diagnosis with
-the observed failure evidence, then return repairs to a normal Build worker.
+After repeated semantic failure, dispatch planning/review diagnosis on the
+critical phase route with the observed failure evidence, then return repairs
+to a Build worker on the normal phase route.
 Do not silently upgrade Build or QA, restart a live writer, expire its lease,
 or repeatedly resend the
 same assignment. Missing intent/authority escalates one concrete User Challenge;

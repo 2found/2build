@@ -35,7 +35,7 @@ has_all "autonomous-project-scope" \
 has_all "repository-autonomy-profiles" \
   '## Repository profile and autonomy' 'BBS_PROFILE=pet | startup | enterprise' \
   'maximum' 'safe ready wave' 'scales verification breadth' \
-  'phase controls model routing'
+  'task complexity plus phase controls model routing'
 
 has_all "live-orchestration-contract" \
   '~/.claude/skills/orchestration/SKILL.md' 'skills get orchestration' \
@@ -255,11 +255,13 @@ has_all "phase-specific-worker-model-routing" \
   '## Worker model and effort routing' '../references/model-routing.md' \
   'canonical launch-settings' 'Never invent a model ID' \
   'Classify the ticket once' 'Plan and design-feedback Dispatches' \
-  'Code Review Dispatches always use a \*\*strong\*\* model' \
+  'Code Review Dispatches use the \*\*critical phase\*\* route' \
   '--model <model> --effort <effort>' 'launch.effective' 'bbs agent resolve' \
   'set-pointer planner_model' 'set-pointer planner_effort' \
   'set-pointer worker_model' 'set-pointer worker_effort' \
-  'starts a fresh normal Build worker' 'Taste'
+  'starts a fresh Build worker on the normal phase route' 'Taste' \
+  'task complexity, phase class, selected tier' 'override provenance' \
+  'old route with no task/phase/tier' 'Keep phase Dispatches separate'
 
 has_all "worker-model-config-discipline" \
   'Empty values mean native defaults' 'stop before' 'Do not drop it' \
@@ -269,10 +271,10 @@ REF="$ROOT/.claude/skills/references/model-routing.md"
 if grep -q 'model-routing.md' "$F" \
    && ! grep -q 'model-routing.md' "$A" \
    && grep -q 'worker_model' "$REF" \
-   && ! grep -q 'gpt-5.6-sol' "$REF"; then
-  ok "canonical-model-table-foreman-only"
+   && grep -q 'gpt-5.6-sol' "$REF"; then
+  ok "canonical-model-table-foreman-owned"
 else
-  fail "canonical-model-table-foreman-only"
+  fail "canonical-model-table-foreman-owned"
 fi
 
 echo
