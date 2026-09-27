@@ -1,4 +1,4 @@
-// Package agent detects coding agents and resolves their launch preferences.
+// Package agent describes coding-agent CLIs and detects the current harness.
 //
 // A profile is data, not a template language: the CLIs differ in the binary
 // name, the flag that turns off permission prompts, how (or whether) a
@@ -21,16 +21,8 @@
 //     invokes skills with `$` instead of `/`. See SkillSigil, SkillPrefix and
 //     SkillRef.
 //
-// Foremen and workers are chosen separately, by two config keys that do not
-// inherit from each other:
-//
-//	worker_agent:  which CLI runs the per-ticket workers
-//	foreman_agent: which CLI runs the foreman itself
-//
-// The independence is the point. A foreman reviews design gates, reads QA
-// verdicts, and decides whether a worker's evidence holds up; setting workers
-// to grok is a throughput choice and must not silently move that audit off the
-// stronger reasoner. Each role resolves its own settings independently.
+// New dispatches use explicit launch intent or Orca discovery. A recovered
+// session always uses the agent recorded when it was created.
 package agent
 
 import (
@@ -44,25 +36,17 @@ import (
 )
 
 // Default is the legacy agent for records written before agent selection, and
-// the last fallback when neither a current nor an installed agent is detected.
+// the fallback when no current harness can be detected.
 const Default = "claude"
-
-// Config keys, in the repo's snake_case. Both roles are named explicitly rather
-// than one being the bare `agent`: an unqualified key would read as "the agent
-// for everything", which is exactly the inheritance these two must not have.
-const (
-	WorkerKey  = "worker_agent"
-	ForemanKey = "foreman_agent"
-)
 
 // Profile is one coding-agent CLI's spawn shape.
 type Profile struct {
-	// Name is the value users write in config or pass to --agent.
+	// Name identifies the selected or recorded agent.
 	Name string
 	// Bin is the executable looked up on PATH.
 	Bin string
-	// Provider, Model and Effort are launch preferences, never model catalogs.
-	// Empty values leave the agent's native configuration in control.
+	// Provider, Model and Effort are effective launch selectors. New worker
+	// routes provide model/effort explicitly; provider is retained for recovery.
 	Provider string
 	Model    string
 	Effort   string
@@ -204,15 +188,8 @@ func Names() []string {
 	return out
 }
 
-// Resolve applies flags > environment > repo > global > automatic detection.
-func Resolve(key, flag string) (Profile, error) {
-	return ResolveWith(key, Options{Agent: flag})
-}
-
-// ByName resolves a recorded agent name with no config ladder. Spawn uses it on
-// the resume path: the conversation being re-opened was minted by a specific
-// CLI, and the config may have changed since. Resuming a Claude session with
-// grok would hand it a uuid it has never heard of.
+// ByName maps an explicit or recorded agent identifier without consulting
+// global settings. Callers provide any launch route separately.
 func ByName(name string) (Profile, error) {
 	name = Normalize(name)
 	p, ok := profiles[name]
