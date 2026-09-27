@@ -60,7 +60,7 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
   const newTicketReason = projects.length === 0 ? 'Start a project from your agent first' : reason;
   const [createIntent] = useState(() => {
     const params = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
-    return params.get('create') === '1' ? params.get('project') ?? '' : null;
+    return params.get('create') === '1' ? state.project : null;
   });
   const [newOpen, setNewOpen] = useState(() => createIntent !== null && projects.includes(createIntent));
   useEffect(() => {
