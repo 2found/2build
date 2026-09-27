@@ -55,44 +55,52 @@ delivery tasks from their own scope, not whichever child finished last. Ticket
 size and repository profile do not select model tiers. Normalize legacy task
 complexity `critical` to `hard`; reserve `critical` for the phase class below.
 
-| Complexity | Use for |
-|---|---|
-| `simple` | an obvious local docs/config edit, or a tiny isolated change with no new contract and no new state |
-| `normal` | ordinary implementation work |
-| `hard` | security, auth, money, irreversible or live-data migration, distributed concurrency, a cross-system architecture decision |
+
+| Complexity | Use for                                                                                                                   |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `simple`   | an obvious local docs/config edit, or a tiny isolated change with no new contract and no new state                        |
+| `normal`   | ordinary implementation work                                                                                              |
+| `hard`     | security, auth, money, irreversible or live-data migration, distributed concurrency, a cross-system architecture decision |
+
 
 ## Phase routing
 
 First choose the task's ordered pair of tiers, then select by phase class:
 
-| Complexity | Tier pair | Normal phase | Critical phase |
-|---|---|---|---|
-| `simple` | `[flash, pro]` | `flash` | `pro` |
-| `normal` | `[flash, pro]` | `flash` | `pro` |
-| `hard` | `[pro, max]` | `pro` | `max` |
+
+| Complexity | Tier pair      | Normal phase | Critical phase |
+| ---------- | -------------- | ------------ | -------------- |
+| `simple`   | `[flash, pro]` | `flash`      | `pro`          |
+| `normal`   | `[flash, pro]` | `flash`      | `pro`          |
+| `hard`     | `[pro, max]`   | `pro`        | `max`          |
+
 
 Normal phases select index 0; critical phases select index 1. `normal` names
 both a task complexity and a phase class; neither is a model tier.
 
-| Phase | Phase class |
-|---|---|
-| Parent/child planning, decomposition, design, design feedback | `critical` |
-| Code review and review diagnosis | `critical` |
-| Implementation and code repairs | `normal` |
-| Per-ticket QA, integration QA and product acceptance checks | `normal` |
-| Finish audits, merges, composition, authorized delivery, restoration and cleanup | `normal` |
+
+| Phase                                                                            | Phase class |
+| -------------------------------------------------------------------------------- | ----------- |
+| Parent/child planning, decomposition, design, design feedback                    | `critical`  |
+| Code review and review diagnosis                                                 | `critical`  |
+| Implementation and code repairs                                                  | `normal`    |
+| Per-ticket QA, integration QA and product acceptance checks                      | `normal`    |
+| Finish audits, merges, composition, authorized delivery, restoration and cleanup | `normal`    |
+
 
 ## Model tiers
 
 These are the configured routing policy, not vendor capability or price claims.
-The order is `flash` < `pro` < `max`; model tier and reasoning effort are separate
+The order is `flash` &lt; `pro` &lt; `max`; model tier and reasoning effort are separate
 fields (flash uses max effort on Codex).
 
-| Tier | Codex model | Codex effort | Claude model | Claude effort | OMP role |
-|---|---|---|---|---|---|
-| `flash` | `gpt-6-luna` | `max` | Opus 5.5 | `high` | `@normal` |
-| `pro` | `gpt-5.6-sol` | `high` | Opus 5.5 | `high` | `@slow` |
-| `max` | `gpt-6-astra` | `high` | Opus 5.5 | `high` | `@plan` |
+
+| Tier    | Codex model   | Codex effort | Claude model | Claude effort | OMP role  |
+| ------- | ------------- | ------------ | ------------ | ------------- | --------- |
+| `flash` | `gpt-6-luna`  | `high`       | opus         | `high`        | `@normal` |
+| `pro`   | `gpt-5.6-sol` | `high`       | opus         | `high`        | `@slow`   |
+| `max`   | `gpt-6-astra` | `high`       | opus         | `high`        | `@plan`   |
+
 
 For Claude, resolve a supported native identifier for **Opus 5.5**. An `opus`
 alias is usable only if the live binding identifies that version. For OMP,
@@ -115,8 +123,7 @@ route on resume, otherwise the selected tier's table entry. Explicit phase
 model/effort overrides replace the named fields, not the task/phase classification;
 record the override separately from the policy tier. Generic `worker_model` and
 `worker_effort` defaults do not override the tier table. Supply the selected model
-and nonempty effort explicitly to `bbs agent resolve --role worker --model <model>
---effort <effort> --json`, omitting effort for an OMP role unless explicitly
+and nonempty effort explicitly to `bbs agent resolve --role worker --model <model> --effort <effort> --json`, omitting effort for an OMP role unless explicitly
 overridden for that phase. Never invent a model ID. Model support and role bindings
 must be verified independently of this resolver, which accepts opaque IDs.
 
@@ -137,7 +144,7 @@ evidence from the durable handoff before its next launch.
 Standalone Autopilot runs all steps in the human-opened session. It does not
 load this routing table, recommend a tier, or change models between phases.
 Record the actual session model (unknown if unobserved) as evidence; use the
-existing capability/NEEDS_CONTEXT handling if the session cannot carry the work.
+existing capability/NEEDS\_CONTEXT handling if the session cannot carry the work.
 
 ## Resume and changing a route
 
