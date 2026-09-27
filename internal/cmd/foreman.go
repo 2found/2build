@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/reallongnguyen/babysit/internal/agent"
+	"github.com/reallongnguyen/babysit/internal/config"
 	"github.com/reallongnguyen/babysit/internal/foreman"
 	"github.com/reallongnguyen/babysit/internal/identity"
 	"github.com/reallongnguyen/babysit/internal/orca"
@@ -39,11 +40,11 @@ const foremanUsage = `Usage:
   bbs foreman adopt [<id>] [--agent <name>] [--auto]
   bbs foreman heartbeat <id> [--status <status>] [--session <uuid>]
   bbs foreman spawn [<id>] [--dir <path>] [--command <text>] [--agent <name>]
-                    [--provider <id>] [--model <id>] [--effort <level>] [--auto]
+                    [--model <id>] [--effort <level>] [--auto]
   bbs foreman ensure <id>
   bbs foreman worker-command --prompt <text> [--skill <name>] [--agent <id>] [--pinned-agent <id>]
                             [--pinned-model <id>] [--pinned-effort <level>] [--host <host-id>] [--exact-session] [--dir <path>]
-                            [--provider <id>] [--model <id>] [--effort <level>]
+                            [--model <id>] [--effort <level>]
   bbs foreman route --ticket <ticket> --task <task> [--agent <id>]
                     [--pinned-agent <id>] [--model <id>] [--effort <level>]
                     [--pinned-model <id>] [--pinned-effort <level>]
@@ -497,9 +498,11 @@ func foremanSpawn(args []string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return spawnForemanWithOptions(id, kv["dir"], kv["command"], agent.Options{
-		Agent: kv["agent"], Provider: kv["provider"], Model: kv["model"], Effort: kv["effort"],
-		SkipValidate: kv["command"] != "", // caller's command may not invoke the agent at all
+	if kv["provider"] != "" {
+		return "", fmt.Errorf("foreman spawn no longer accepts --provider; configure providers in the agent's native settings")
+	}
+	return spawnForemanWithOptions(id, kv["dir"], kv["command"], foremanSpawnOptions{
+		Agent: kv["agent"], Model: kv["model"], Effort: kv["effort"],
 	}, kv["auto"] == "1")
 }
 
@@ -559,44 +562,29 @@ func foremanWorkerCommand(args []string) error {
 	if err != nil {
 		return err
 	}
+	if kv["provider"] != "" {
+		return fmt.Errorf("foreman worker-command no longer accepts --provider; configure providers in the agent's native settings")
+	}
 	prompt := kv["prompt"]
 	if prompt == "" {
 		return fmt.Errorf("foreman worker-command: needs --prompt <text>\n%s", foremanUsage)
 	}
 	discovery, discoveryErr := foremanAgentDiscovery()
-	route, routeErr := resolveForemanRouteWithDiscovery(kv, discovery, discoveryErr)
-	var prof agent.Profile
-	if routeErr != nil {
-		hasPinnedRoute := kv["pinned-agent"] != "" || kv["pinned-model"] != "" ||
-			kv["pinned-effort"] != "" || kv["exact-session"] != ""
-		hasOrcaDefault := discoveryErr == nil && discovery != nil &&
-			strings.TrimSpace(discovery.EffectiveDefaultAgent) != ""
-		if hasPinnedRoute || kv["agent"] != "" || hasOrcaDefault || !hasConfiguredWorkerAgent() {
-			return routeErr
-		}
-		prof, err = agent.ResolveWith(agent.WorkerKey, agent.Options{
-			Agent: kv["agent"], Provider: kv["provider"], Model: kv["model"],
-			Effort: kv["effort"], Dir: kv["dir"],
-		})
-		if err != nil {
-			return err
-		}
-	} else {
-		prof, err = agent.ResolveWith(agent.WorkerKey, agent.Options{
-			Agent: route.Agent, Provider: kv["provider"], Model: route.Model,
-			Effort: route.Effort, Dir: kv["dir"],
-		})
-		if err != nil {
-			return err
-		}
+	route, err := resolveForemanRouteWithDiscovery(kv, discovery, discoveryErr)
+	if err != nil {
+		return err
 	}
-	// --skill is how a caller names the skill without knowing how this agent
-	// namespaces it. It exists for the same reason agent selection lives here
-	// rather than in SKILL.md: a hard-coded `/bbs:autopilot` in the dispatch
-	// line is a second place the agent's shape can drift, and this particular
-	// drift is silent — an agent that discovers skills through a flat directory
-	// list exposes them bare, so the worker comes up cleanly and resolves the
-	// prompt to nothing.
+	prof, err := agent.ByName(route.Agent)
+	if err != nil {
+		return err
+	}
+	prof.Model, prof.Effort = route.Model, route.Effort
+	if err := prof.ValidateSettings(); err != nil {
+		return err
+	}
+	if kv["exact-session"] == "" {
+		config.WarnRetiredAgentSettings(os.Stderr)
+	}
 	if skill := kv["skill"]; skill != "" {
 		prompt = prof.SkillRef(skill) + " " + prompt
 	}
@@ -607,8 +595,6 @@ func foremanWorkerCommand(args []string) error {
 	if dir == "" {
 		dir = qaconfig.RepoToplevel()
 	} else if abs, absErr := filepath.Abs(dir); absErr == nil {
-		// Trust records store absolute paths; a relative --dir can never match
-		// one and would always fail preflight.
 		dir = abs
 	}
 	if err := prof.PreflightDir(dir); err != nil {
@@ -637,11 +623,14 @@ func foremanWorkerCommand(args []string) error {
 // Foreman state. A registered id whose terminal is still OPEN stays an error —
 // that is a real collision, not a restart.
 func spawnForeman(id, dir, command, agentFlag string, auto ...bool) (string, error) {
-	return spawnForemanWithOptions(id, dir, command,
-		agent.Options{Agent: agentFlag, SkipValidate: command != ""}, auto...)
+	return spawnForemanWithOptions(id, dir, command, foremanSpawnOptions{Agent: agentFlag}, auto...)
 }
 
-func spawnForemanWithOptions(id, dir, command string, opts agent.Options, auto ...bool) (string, error) {
+type foremanSpawnOptions struct {
+	Agent, Model, Effort string
+}
+
+func spawnForemanWithOptions(id, dir, command string, opts foremanSpawnOptions, auto ...bool) (string, error) {
 	client, err := orca.Preflight()
 	if err != nil {
 		return "", err
@@ -702,16 +691,17 @@ func spawnForemanWithOptions(id, dir, command string, opts agent.Options, auto .
 	session := r.Session
 
 	// Which CLI runs this foreman. On a restart the recorded agent wins over
-	// config: the handle recorded above is only meaningful to the CLI that
-	// minted it, so re-resolving from a config that has changed since would
-	// hand a different agent something it has never heard of. An
-	// explicit --agent that contradicts the recording is a mistake worth naming
+	// ambient preferences: the handle above is only meaningful to the CLI that
+	// minted it. Re-resolving from a preference that changed since would hand a
+	// different agent something it has never heard of.
+	// An explicit --agent that contradicts the recording is a mistake worth naming
 	// rather than silently honoring either way.
 	var prof agent.Profile
 	agentFlag := agent.Normalize(opts.Agent)
 	if agentFlag == "auto" {
 		agentFlag = "" // a resume always keeps the recorded agent
 	}
+	pinnedRecovery := resuming && (r.Agent != "" || r.Session != "")
 	if resuming && r.Agent != "" {
 		pinned := agent.Normalize(r.Agent)
 		if agentFlag != "" && agentFlag != pinned {
@@ -720,23 +710,29 @@ func spawnForemanWithOptions(id, dir, command string, opts agent.Options, auto .
 		}
 		prof, err = agent.ByName(pinned)
 	} else if resuming && r.Session != "" {
-		// A record written before agents were selectable: it has a session but
-		// no agent, and that session can only have been claude's.
 		if agentFlag != "" && agentFlag != agent.Default {
 			return "", fmt.Errorf("foreman %s has a %s session — cannot resume it as %s; "+
 				"retire it first to start a fresh conversation", id, agent.Default, agentFlag)
 		}
 		prof, err = agent.ByName(agent.Default)
 	} else {
-		opts.Dir = dir
-		prof, err = agent.ResolveWith(agent.ForemanKey, opts)
+		if agentFlag == "" {
+			agentFlag = agent.Detect().Agent
+			if agentFlag == "" || agentFlag == "unknown" {
+				agentFlag = agent.Default
+			}
+		}
+		prof, err = agent.ByName(agentFlag)
+		if err == nil {
+			prof.Model, prof.Effort = opts.Model, opts.Effort
+		}
 	}
 	if err != nil {
 		return "", err
 	}
-	if resuming && (r.Agent != "" || r.Session != "") {
+	if pinnedRecovery {
 		for _, setting := range []struct{ name, flag, recorded string }{
-			{"provider", opts.Provider, r.Provider}, {"model", opts.Model, r.Model}, {"effort", opts.Effort, r.Effort},
+			{"model", opts.Model, r.Model}, {"effort", opts.Effort, r.Effort},
 		} {
 			if setting.flag != "" && setting.flag != setting.recorded {
 				return "", fmt.Errorf("foreman %s has pinned %s %q — cannot restart with %q; retire it first to change launch settings",
@@ -744,6 +740,8 @@ func spawnForemanWithOptions(id, dir, command string, opts agent.Options, auto .
 			}
 		}
 		prof.Provider, prof.Model, prof.Effort = r.Provider, r.Model, r.Effort
+	} else {
+		config.WarnRetiredAgentSettings(os.Stderr)
 	}
 	if command == "" {
 		// We build the launch command from these settings; an explicit

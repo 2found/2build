@@ -10,12 +10,10 @@ bbs config workspace list
 bbs config workspace show                 # membership of the current repo
 ```
 
-`add-repo` creates the workspace when needed. Every setting and workspace
-registration lives in one machine-local file: `~/.babysit/config.yaml`.
+Workspace registrations and machine-local babysit settings live in one file:
+`~/.babysit/config.yaml`.
 
 ```yaml
-worker_agent: codex
-worker_effort: high
 workspaces:
   acme:
     version: 1
@@ -36,8 +34,9 @@ There is no `<repo>/.babysit/config.yaml` and no
 registered local path or git URL. A checkout matching multiple entries is an
 error rather than an arbitrary choice.
 
-Local paths and agent preferences are machine-specific, so the unified file is
-not committed. Repository policy and QA remain committed separately in
+Local paths are machine-specific, so the unified file is not committed. Agent
+enablement and defaults are configured in Orca, not the babysit config.
+Repository policy and QA remain committed separately in
 `.babysit/git-flow.yaml` and `.babysit/qa.yaml`; secrets remain in the ignored
 `.babysit/.env`.
 

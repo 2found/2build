@@ -11,8 +11,9 @@ read them by path, not as `skill://`.
   the human explicitly authorizes Foreman closeout. Everything else derives
   (`../references/git-flow.md § Profiles`).
 - `.babysit/qa.yaml`: minimal local `url`, `start`, `check`, and `flows`.
-- `~/.babysit/config.yaml`: the one machine-local babysit config. When this
-  repo joins a workspace, register its git URL, local path, role, repo type,
+- `~/.babysit/config.yaml`: machine-local workspace registry and babysit settings.
+  Agent enablement and the default agent belong in Orca, not this file. When
+  this repo joins a workspace, register its git URL, local path, role, repo type,
   and harness version under `workspaces`; never create `.babysit/config.yaml`.
 - `.babysit/.env`: gitignored machine-local secrets only.
 - `.gitignore`: include `.babysit/.env` if missing.

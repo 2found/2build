@@ -2,75 +2,71 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/config"
 	"github.com/reallongnguyen/babysit/internal/foreman"
 )
 
-func TestAgentResolveCLIAndOpaqueConfigValues(t *testing.T) {
-	fakeOrcaFor(t)
-	for key, value := range map[string]string{"worker_agent": "omp", "worker_provider": "custom", "worker_model": "@slow", "worker_effort": "high"} {
-		if err := config.Set(key, value); err != nil {
-			t.Fatal(err)
-		}
-		if got, _ := config.Get(key); got != value {
-			t.Fatalf("config lost %s: %q", key, got)
-		}
-	}
+func TestAgentResolveShowsRetirementGuidance(t *testing.T) {
 	root := NewRootCmd()
-	var output bytes.Buffer
-	root.SetOut(&output)
-	root.SetArgs([]string{"agent", "resolve", "--json"})
-	if err := root.Execute(); err != nil {
-		t.Fatal(err)
+	var stdout, stderr bytes.Buffer
+	root.SetOut(&stdout)
+	root.SetErr(&stderr)
+	root.SetArgs([]string{"agent", "resolve", "--role", "worker", "--json"})
+	if err := root.Execute(); err == nil {
+		t.Fatal("retired resolver succeeded")
 	}
-	var got map[string]string
-	if err := json.Unmarshal(output.Bytes(), &got); err != nil {
-		t.Fatal(err)
+	if stdout.Len() != 0 {
+		t.Fatalf("retirement guidance contaminated stdout: %q", stdout.String())
 	}
-	if got["agent"] != "omp" || got["provider"] != "custom" || got["model"] != "@slow" || got["effort"] != "high" || got["skill_prefix"] != "/" {
-		t.Fatalf("wrong resolved settings: %s", output.Bytes())
-	}
-	if err := config.Set("worker_model", "custom: model #literal"); err != nil {
-		t.Fatal(err)
-	}
-	if got, _ := config.Get("worker_model"); got != "custom: model #literal" {
-		t.Fatalf("opaque value corrupted: %q", got)
+	for _, want := range []string{"retired", "Orca", "bbs agent detect"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Fatalf("stderr %q is missing %q", stderr.String(), want)
+		}
 	}
 }
 
-func TestWorkerLaunchUsesExplicitAgentAndFlagPreferences(t *testing.T) {
+func TestWorkerLaunchUsesExplicitAgentModelAndEffort(t *testing.T) {
 	fakeOrcaFor(t)
+	path := filepath.Join(os.Getenv("BABYSIT_STATE_DIR"), "config.yaml")
+	if err := os.WriteFile(path, []byte("worker_agent: grok\nworker_provider: stale-provider\nworker_model: stale-model\nworker_effort: low\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	out := captureStdout(t, func() {
-		if err := foremanWorkerCommand([]string{"--prompt", "ship it", "--skill", "autopilot", "--agent", "omp", "--provider", "custom", "--model", "chosen", "--effort", "high"}); err != nil {
+		if err := foremanWorkerCommand([]string{"--prompt", "ship it", "--skill", "autopilot", "--agent", "omp", "--model", "chosen", "--effort", "high"}); err != nil {
 			t.Fatal(err)
 		}
 	})
-	for _, want := range []string{"omp --auto-approve", "--provider 'custom'", "--model 'chosen'", "--thinking 'high'", "'/autopilot ship it'"} {
+	for _, want := range []string{"omp --auto-approve", "--model 'chosen'", "--thinking 'high'", "'/autopilot ship it'"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %s in %s", want, out)
 		}
 	}
+	if strings.Contains(out, "stale-model") || strings.Contains(out, "stale-provider") {
+		t.Fatalf("retired preferences affected launch: %s", out)
+	}
 }
 
-func TestForemanRecoveryPinsLaunchPreferences(t *testing.T) {
+func TestForemanRecoveryPinsHistoricalLaunchSettings(t *testing.T) {
 	log, titles := fakeOrcaFor(t)
-	for key, value := range map[string]string{"foreman_agent": "omp", "foreman_provider": "custom", "foreman_model": "@slow", "foreman_effort": "high"} {
-		if err := config.Set(key, value); err != nil {
-			t.Fatal(err)
-		}
+	path := filepath.Join(os.Getenv("BABYSIT_STATE_DIR"), "config.yaml")
+	if err := os.WriteFile(path, []byte("foreman_agent: grok\nforeman_provider: stale-provider\nforeman_model: stale-model\nforeman_effort: low\n"), 0o600); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := foremanSpawn([]string{"fm-settings", "--dir", t.TempDir(), "--model", "original"}); err != nil {
+	t.Setenv("BABYSIT_FOREMAN_AGENT", "grok")
+	if _, err := foremanSpawn([]string{"fm-settings", "--dir", t.TempDir(), "--agent", "omp", "--model", "original", "--effort", "high"}); err != nil {
 		t.Fatal(err)
 	}
 	rec, err := foreman.Load("fm-settings")
-	if err != nil || rec.Model != "original" || rec.Provider != "custom" || rec.Effort != "high" {
-		t.Fatalf("preferences not recorded: %+v %v", rec, err)
+	if err != nil || rec.Agent != "omp" || rec.Model != "original" || rec.Provider != "" || rec.Effort != "high" {
+		t.Fatalf("new launch used retired settings: %+v %v", rec, err)
+	}
+	rec.Provider = "custom"
+	if err := foreman.Save(rec); err != nil {
+		t.Fatal(err)
 	}
 	if err := os.WriteFile(titles, nil, 0o644); err != nil {
 		t.Fatal(err)
@@ -78,10 +74,8 @@ func TestForemanRecoveryPinsLaunchPreferences(t *testing.T) {
 	if err := os.WriteFile(log, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := config.Set("foreman_model", "changed"); err != nil {
-		t.Fatal(err)
-	}
 	t.Setenv("BABYSIT_MODEL", "env-change")
+	t.Setenv("BABYSIT_FOREMAN_MODEL", "env-change")
 	if _, err := spawnForeman("fm-settings", "", "", ""); err != nil {
 		t.Fatal(err)
 	}
@@ -91,8 +85,8 @@ func TestForemanRecoveryPinsLaunchPreferences(t *testing.T) {
 			t.Fatalf("recovery dropped %s:\n%s", want, calls)
 		}
 	}
-	if strings.Contains(calls, "env-change") || strings.Contains(calls, "--model 'changed'") {
-		t.Fatalf("recovery changed settings: %s", calls)
+	if strings.Contains(calls, "env-change") || strings.Contains(calls, "stale-model") {
+		t.Fatalf("recovery changed pinned settings: %s", calls)
 	}
 	if err := os.WriteFile(titles, nil, 0o644); err != nil {
 		t.Fatal(err)

@@ -48,6 +48,9 @@ func foremanRoute(args []string) error {
 	if err != nil {
 		return err
 	}
+	if kv["exact-session"] == "" {
+		config.WarnRetiredAgentSettings(os.Stderr)
+	}
 	evidence := routeHandoff{Ticket: kv["ticket"], Task: kv["task"], Route: route}
 	path, err := appendForemanHandoff(kv["ticket"], kv["task"], "route", evidence)
 	if err != nil {
@@ -91,18 +94,6 @@ func resolveForemanRouteWithDiscovery(kv map[string]string, discovery *orca.Agen
 		PinnedModelProvenance:  kv["pinned-model-provenance"],
 		PinnedEffortProvenance: kv["pinned-effort-provenance"],
 	}, discovery, discoveryErr)
-}
-
-func hasConfiguredWorkerAgent() bool {
-	for _, name := range []string{"BABYSIT_WORKER_AGENT", "BABYSIT_AGENT"} {
-		if value := os.Getenv(name); value != "" {
-			value = strings.TrimSpace(value)
-			return value != "" && !strings.EqualFold(value, "auto")
-		}
-	}
-	value, _ := config.Get("worker_agent")
-	value = strings.TrimSpace(value)
-	return value != "" && !strings.EqualFold(value, "auto")
 }
 
 func foremanRouteVerify(args []string) error {

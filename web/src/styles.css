@@ -1,11 +1,5 @@
 @import "tailwindcss";
 
-/* Existing contrast tokens keep the form's primary action legible in both themes. */
-.agent-settings { --accent: var(--accent-hover); --accent-fg: var(--text-inverse); }
-.agent-settings :is(input, select, button):focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
 
 .project-panel { font-size: 13px; overflow-wrap: anywhere; min-width: 0; }
 .project-table { width: 100%; border-collapse: collapse; min-width: 560px; }

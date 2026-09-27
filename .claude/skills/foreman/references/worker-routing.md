@@ -3,8 +3,8 @@
 Read the canonical contract in [model routing](../references/model-routing.md)
 for task/phase classification, tiers, phase overrides and OMP role bindings.
 For Orca-supervised Foreman Dispatches, this reference owns worker agent
-selection and resume; generic resolver/config precedence there does not select
-a Dispatch agent. Foreman's own `foreman_*` settings remain separate.
+selection and resume. New routes use explicit intent, a compatible phase pin,
+then the destination-host Orca default; BBS preferences do not select an agent.
 
 ## Resolve and launch
 
@@ -25,9 +25,9 @@ The route order is explicit intent, compatible phase pin, then the
 destination-host `agentDiscovery.effectiveDefaultAgent`. The command validates
 enabled/runnable state and supported model/effort overrides when the advertised
 discovery contract is available, then persists the requested route and pin
-provenance in the ticket handoff. Never substitute coordinator-local
-`worker_agent`, `bbs agent resolve`, or a generic profile default. If discovery
-is unavailable, explicit and pinned routes remain usable; a new unpinned route
+provenance in the ticket handoff. Never substitute coordinator-local detection,
+retired BBS preferences, or a generic profile default. If discovery is
+unavailable, explicit and pinned routes remain usable; a new unpinned route
 must stop with its actionable Orca upgrade/configuration error.
 
 Pass the selected complexity, phase class and tier on every route. Use

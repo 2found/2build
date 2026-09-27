@@ -18,23 +18,6 @@ function get<T>(path: string): Promise<T> {
   return send<T>('GET', path);
 }
 
-export type AgentSettingsValues = Record<`${'worker' | 'foreman'}_${'agent' | 'provider' | 'model' | 'effort'}`, string>;
-
-export interface AgentSettings {
-  path: string;
-  revision: string;
-  values: AgentSettingsValues;
-  agents: { agent: string; bin: string; path?: string }[];
-  detected: { agent: string; source: string };
-}
-
-export function getAgentSettings() {
-  return get<AgentSettings>('/api/agent-settings');
-}
-
-export function saveAgentSettings(revision: string, values: AgentSettingsValues) {
-  return post<Pick<AgentSettings, 'values' | 'revision'>>('/api/agent-settings', { revision, values });
-}
 
 async function send<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {

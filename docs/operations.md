@@ -115,47 +115,18 @@ and verification. The full protocol is in
 
 ### Which coding agent runs the work
 
-Open `bbs dashboard` → **Settings** to configure machine-wide agent, provider,
-model, and effort defaults separately for workers and foremen. Changes apply to
-new runs. Agent choices show which CLIs are installed. Model and provider
-identifiers are free text, so custom providers and new models do not need a
-babysit update. Authentication stays in the agent's own config. Static
-dashboard snapshots cannot edit settings.
+Configure enabled coding agents and the default agent in Orca. The dashboard's
+Settings route retains an ownership notice; no BBS form or config file controls
+agent preferences. Foreman uses Orca discovery on the destination host when
+starting new workers. Existing workers and foremen resume with their recorded
+agent/model rather than today's default.
 
-`foreman` dispatches workers as coding-agent CLI sessions. Two keys in the
-single `~/.babysit/config.yaml` file pick which CLI:
-
-| Key | Selects | Default |
-|-----|---------|---------|
-| `worker_agent` | the per-ticket workers | `auto` |
-| `foreman_agent` | the foreman session itself | `auto` |
-
-Supported: `claude`, `omp`, `grok`, `codex`, `cursor`. `auto` detects the current
-agent, then selects the first installed CLI in alphabetical order; with no
-signal or installation it falls back to Claude and preflight reports the missing
-binary. Explicit selections never fall back to another agent.
-
-```bash
-bbs agent detect --json                 # current harness and detection evidence
-bbs agent list --json                   # supported CLIs and installed paths
-bbs agent resolve --role worker --json  # resolved launch settings
-bbs agent resolve --role foreman --dir /path/to/repo --json
-```
-
-Detection uses an explicit `BABYSIT_CURRENT_AGENT` marker, nearest recognized
-parent process, then native session markers. It does not infer the current agent
-from installed binaries, API keys, or config directories. OMP needs a recognized
-`omp` parent process or an explicit current-agent marker when embedded behind an
-unrecognized wrapper. `BABYSIT_AGENT` is a launch override, not runtime identity.
-
-Selection precedence for each field is CLI flag, role-specific environment
-(`BABYSIT_WORKER_AGENT` or `BABYSIT_FOREMAN_AGENT`), shared `BABYSIT_AGENT`,
-repository config, global config, then detection. `claude-code`/`claude code`,
-`cursor-agent`, and `oh-my-pi` are accepted aliases. Cursor launches through
-`cursor-agent`; a generic `agent` binary is not assumed to be Cursor (Grok also
-installs that name).
-`foreman_agent` selects only a session created or recovered by `spawn`; a
-directly invoked Foreman naturally runs in the CLI where its skill was invoked.
+`bbs agent detect --json` identifies the current harness with evidence;
+`bbs agent list --json` reports supported CLIs and installed paths. Detection
+uses `BABYSIT_CURRENT_AGENT`, the nearest recognized parent process, then native
+session markers. It does not query Orca, installed binaries, credentials or
+config; standalone skills remain usable without Orca. `bbs agent resolve` is
+retired and prints migration guidance.
 
 Direct skill invocation is the normal entrypoint:
 
@@ -174,11 +145,13 @@ not the required launch path. Direct invocation inherits the current CLI's
 permission mode, so configure that session for unattended tool use before
 leaving a multi-day run.
 
-The two keys do not inherit from each other on purpose. A foreman reviews design
-gates and QA evidence from its workers, so moving workers to another agent is a
-throughput choice that must not silently relocate that audit — `worker_agent:
-omp` alone leaves a directly invoked foreman in its current CLI and a managed
-foreman on its independently selected `foreman_agent`.
+New Foreman terminals use an explicit `--agent` when requested, otherwise the
+current harness. New worker routes are owned by destination-host Orca facts; old
+BBS worker/foreman agent/provider/model/effort settings no longer affect
+launches. Legacy YAML bytes remain untouched; each launch command emits one
+warning when such values are present, and `bbs config set` rejects new writes.
+Providers stay in agent-native configuration unless Orca advertises a supported
+explicit contract.
 
 Adding an agent is a registry entry in `internal/agent`, which owns the binary
 name, the flag that suppresses tool approval, how (or whether) a conversation
@@ -212,11 +185,10 @@ Two things it does not own:
   files therefore say to read those by path, and
   `tests/test_skill_reference_links.sh` guards both halves: that the targets
   resolve, and that every skill which names one says how to read it.
-- **A foreman's session is pinned to the agent that minted it.** `spawn` records
-  it and reuses it on resume, because a conversation handle means nothing to a
-  different CLI. Changing `foreman_agent` takes effect on the next *new*
-  foreman, not on a resume; `bbs foreman spawn <id> --agent <other>` refuses
-  rather than guess.
+  - **A foreman's session is pinned to the agent that minted it.** `spawn` records
+    it and uses it on resume; contradictory explicit `--agent` requests refuse.
+    Recorded model, effort, and historical provider values remain available for
+    exact-session recovery. New sessions do not read retired BBS preferences.
 
   What the handle *is* depends on the agent, and only `claude` and `grok` can
   be told to use one we chose: they take `--session-id <uuid>`. `omp` has no
@@ -255,63 +227,32 @@ worktree.
 
 ### Provider, model and effort
 
-Each role has independent `*_provider`, `*_model`, and `*_effort` settings.
-Empty settings preserve the CLI's native configuration. Babysit does not ship a
-model catalog or choose a more expensive model from ticket difficulty.
+Orca owns enabled-agent and default-agent selection for new workers. Foreman
+applies the phase/tier routing table and destination-host discovery. Explicit
+per-dispatch `--agent`, `--model`, and `--effort` requests remain available
+through route and worker-command; managed `spawn` also accepts explicit fields
+for a new Foreman. Provider selection belongs in the agent's native
+configuration unless Orca advertises a supported selector. BBS global and
+role-specific environment fallbacks are retired; `bbs config set` rejects
+retired preferences.
 
 ```bash
-bbs config set worker_agent omp
-bbs config set worker_provider openai
-bbs config set worker_model '<your-model-id>'
-bbs config set worker_effort high
-bbs config set foreman_agent codex
-bbs config set foreman_model '<your-coordinator-model-id>'
-bbs agent resolve --role worker --json
-```
-
-The CLI quotes values such as `@slow` correctly; quote them in hand-written
-YAML too. For an OMP role bound to a provider, leave `worker_provider` empty
-and set only `worker_model`, for example `@slow`. Clear a setting with
-`bbs config set worker_model ''` to use native defaults when no higher-priority
-setting applies.
-
-All four fields follow the same precedence: explicit flag, role-specific
-`BABYSIT_WORKER_*` / `BABYSIT_FOREMAN_*`, shared `BABYSIT_PROVIDER` /
-`BABYSIT_MODEL` / `BABYSIT_EFFORT` / `BABYSIT_AGENT`, then
-`~/.babysit/config.yaml`. `--dir` selects the launch directory; configuration
-remains machine-wide.
-
-| Agent | Provider setting | Model / effort |
-|---|---|---|
-| Claude Code | `anthropic`, `bedrock`, `vertex`, `foundry` via native environment selectors | `--model`, `--effort` |
-| Codex | native provider identifier via `-c model_provider=…`; configure that provider in Codex first | `--model`, `-c model_reasoning_effort=…` |
-| OMP | native `--provider` selector; alternatively use a `provider/model` model with provider unset | `--model`, `--thinking` |
-| Grok | unset or `xai`; other providers are rejected | `--model`, `--reasoning-effort` |
-| Cursor | unset or `cursor`; other providers are rejected | `--model`; separate effort is unsupported |
-
-Provider credentials and endpoints remain in each agent's own configuration.
-Model IDs stay opaque, so a newly available model needs no babysit release.
-Unsupported provider/effort combinations fail before a terminal is created.
-
-```bash
-bbs foreman worker-command --agent omp --provider openai \
-  --model '<your-model-id>' --effort high --skill autopilot --prompt 'Build the ticket'
+bbs foreman worker-command --agent omp --model '<your-model-id>' --effort high \
+  --skill autopilot --prompt 'Build the ticket'
 bbs foreman spawn fm-demo --agent codex --model '<your-model-id>'
 ```
 
-Managed foreman records pin the requested provider/model/effort alongside the
-agent. Recovery reuses them even if configuration changes; contradictory
-explicit flags fail. Empty recorded settings continue to use native CLI config,
-so they cannot freeze an unobserved native default across later native changes.
+Managed Foreman records pin the selected agent, model and effort. Provider
+values recorded by earlier versions remain readable and are applied only when
+recovering that pinned session; new launches use native provider configuration.
+Changed explicit settings are refused for a pinned session.
 
-Foreman skills read `bbs agent resolve` before supervised dispatch and persist
-Plan/Build routes on each child. The external launcher must support carrying the
-requested settings: check its live capabilities and `launch.effective` receipt.
-In particular, do not invent an Orca `--provider` flag or assume an OMP model
-flag is forwarded. A launcher that cannot honor explicit configuration is a
-named dispatch blocker, never permission to silently use another model. Direct
-`worker-command` and managed `spawn` render the native options themselves.
-See [model routing](../.claude/skills/references/model-routing.md).
+Foreman routes new supervised workers through `bbs foreman route` using the
+destination host's Orca facts and persists the selected route. Verify the
+effective launch receipt; do not invent provider support or silently substitute
+an agent/model. Direct `worker-command` uses the same route policy. See
+[model routing](../.claude/skills/references/model-routing.md) and the
+[worker launch reference](../.claude/skills/foreman/references/worker-routing.md).
 
 ## Telemetry
 

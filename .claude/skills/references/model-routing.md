@@ -1,9 +1,9 @@
 # Model routing
 
-The pack's canonical task/phase routing and launch-settings contract. `foreman`
-routes each supervised Dispatch it launches through
-`bbs agent resolve --role worker --json`. This resolver carries settings; the
-skill selects the tier. Keep the model table here, not in each consuming skill.
+The pack's canonical task/phase routing contract. Foreman obtains a new
+worker's agent from explicit intent, a compatible phase pin, or destination-host
+Orca discovery; the task/phase policy below selects its model tier.
+Keep the model table here, not in each consuming skill.
 
 Foreman splits work into phase assignments, selects each model from task
 complexity plus phase, then launches its worker. Foreman launches Plan, Build,
@@ -11,41 +11,22 @@ Review and QA as phase-scoped supervised sessions.
 `autopilot` does not select models: every step in one invocation runs in the
 session opened by the human or Foreman. Neither skill switches a running worker's model.
 
-## Configuration
+## Route inputs
 
-Resolve each field independently: explicit `--agent` / `--provider` / `--model` /
-`--effort`, then `BABYSIT_WORKER_*`, then shared `BABYSIT_AGENT`,
-`BABYSIT_PROVIDER`, `BABYSIT_MODEL`, `BABYSIT_EFFORT`, then the machine-wide
-`~/.babysit/config.yaml`. The keys are `worker_agent`, `worker_provider`,
-`worker_model`, `worker_effort`. The corresponding `foreman_*` keys are
-independent.
+New worker routes select the explicit agent first, then a compatible phase pin,
+then Orca's effective default on the destination host. Model and effort come
+from an explicit phase override, a persisted route on resume, or the tier table
+below. Provider selection belongs to the agent's native configuration unless
+Orca advertises a supported explicit contract.
 
-An absent agent or `auto` detects the current harness first, then an installed
-CLI. `bbs agent detect --json` identifies the current harness with its evidence;
-`bbs agent list --json` reports installed CLIs. Installed does not mean current,
-authenticated, or ready to resolve babysit's skills.
+`bbs agent detect --json` identifies the current harness without Orca;
+`bbs agent list --json` reports installed CLIs. Neither command chooses a new
+Foreman worker.
 
-An empty provider/model/effort means native default at the resolver level: omit
-its launch flag. For a routed launch, select model and effort from the tier
-table below first; an unknown native default does not satisfy a route. Models
-are opaque identifiers to the resolver. Use the agent's own model listing to
-verify support; do not store credentials or scrape auth files to choose a provider.
-
-```bash
-bbs config set worker_agent omp
-bbs config set worker_provider openai
-bbs config set worker_model '<your-model-id>'
-bbs config set worker_effort high
-bbs agent resolve --role worker --dir '<worker-repo>' --json
-```
-
-For OMP roles whose binding already names a provider, leave `worker_provider`
-empty. Codex providers must exist in its native configuration. Claude accepts
-`anthropic`, `bedrock`, `vertex`, or `foundry`; Grok and Cursor use their native
-`xai` and `cursor` providers. Unsupported combinations fail at resolution.
-`bbs foreman worker-command` and `spawn` translate these settings to native CLI
-flags. A separate launcher must explicitly support forwarding them; a resolved
-preference is not evidence that the worker received it.
+BBS global agent/provider/model/effort preferences and their worker/foreman
+environment selectors are retired: new launches ignore them, existing YAML
+bytes remain unchanged, and `bbs config set` rejects new writes. `bbs agent resolve`
+is retired and prints migration guidance.
 
 ## Task complexity
 
@@ -105,27 +86,18 @@ fields (flash uses max effort on Codex).
 For Claude, resolve a supported native identifier for **Opus 5.5**. An `opus`
 alias is usable only if the live binding identifies that version. For OMP,
 read the selected role's binding; its provider/model/effort belong to that role.
-Do not invent an OMP effort or let generic worker provider/effort defaults
-override the binding. Pass the role as the model selector using supported native
-launch transport; omission of a flag is not evidence that a conflicting default
-was cleared. A launcher that cannot honor the binding is unsupported.
-In particular, `bbs agent resolve` and `bbs foreman worker-command` inherit
-generic provider/effort settings even when those flags are omitted or empty.
-For a launcher supporting role-only selection, pass the role without forwarding
-those generic fields and verify the native binding in the launch receipt.
-For `worker-command`, explicitly override inherited fields with the observed
-role binding's values where supported. If a binding has an unset field that
-cannot be cleared by that launcher, stop with `BLOCKED`; do not mutate shared
-configuration or launch with a conflicting inherited setting.
+Do not invent an OMP effort or assume provider-selection support. New routes
+send selected model/effort only through advertised launch transport and verify
+`launch.effective`. If a launcher cannot honor a selection, stop with `BLOCKED`;
+do not substitute.
 
 Resolve an explicit phase-specific user selection first, then a valid persisted
 route on resume, otherwise the selected tier's table entry. Explicit phase
 model/effort overrides replace the named fields, not the task/phase classification;
-record the override separately from the policy tier. Generic `worker_model` and
-`worker_effort` defaults do not override the tier table. Supply the selected model
-and nonempty effort explicitly to `bbs agent resolve --role worker --model <model> --effort <effort> --json`, omitting effort for an OMP role unless explicitly
-overridden for that phase. Never invent a model ID. Model support and role bindings
-must be verified independently of this resolver, which accepts opaque IDs.
+record the override separately from the policy tier. Provider remains native
+configuration unless Orca advertises a supported route field.
+Never invent a model ID; model support and role bindings must be verified
+independently.
 
 An unmapped agent needs an explicit phase route. An unavailable model/role or
 unknown binding needs `NEEDS_CONTEXT`; unsupported launcher forwarding is
