@@ -103,10 +103,7 @@ export function Home({ snapshot }: { snapshot: Snapshot }) {
           <FirstRunChecklist
             onCreateTicket={createProject ? () => {
               const { query } = parseHash(window.location.hash);
-              const withoutCreate = query.split('&').filter(part => {
-                const equals = part.indexOf('=');
-                return (equals < 0 ? part : part.slice(0, equals)) !== 'create';
-              }).join('&');
+              const withoutCreate = query.split('&').filter(part => !new URLSearchParams(part).has('create')).join('&');
               const handoff = mergeFilterQuery(withoutCreate, { ...state, project: createProject });
               window.location.hash = `#/tickets?${handoff}${handoff ? '&' : ''}create=1`;
             } : undefined}
