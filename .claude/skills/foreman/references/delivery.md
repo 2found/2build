@@ -1,6 +1,6 @@
 ## Eager per-ticket finish
 
-A child whose finish prerequisites pass finishes at the tick that observes it.
+A child whose finish prerequisites pass finishes when its worker report is handled.
 PR/review-ready tickets and settled workers need not wait for final project
 QA. Local lands wait for the last per-ticket surface mutation and pre-land
 integration gate, because those operations can reset base.
@@ -26,12 +26,10 @@ A code-bearing child is eligible when all of these hold:
   `origin/<base>` and would discard an early merge. Final Integration QA
   depends on these lands, so it must not be a prerequisite of the land handler.
 
-Foreman dispatches a delivery worker on the normal phase route for each `land`
-or `pr` handler in dependency order, one child at a time. Its assignment names the authorized
-finish policy, exact child/head, destination checkout, lease and required
-receipt. This worker runs only the handler; it cannot expand authorization or
-dispatch siblings. Foreman verifies the receipt before cleanup or the next
-handler. The `review` status/cleanup path remains coordinator work:
+Dispatch `land`/`pr` handlers to normal-phase delivery workers, one child at a
+time in dependency order. Name the policy, exact child/head, destination, lease
+and required receipt; verify it before cleanup or the next handler. `review`
+status and worker release stay with Foreman:
 
 - `land` — `bbs ticket land <child>` from the primary checkout. Revert any
    scratch composition first (`bbs ticket surface revert`); `land` BLOCKs on
@@ -48,20 +46,12 @@ handler. The `review` status/cleanup path remains coordinator work:
    clean branch and Git worktree for human inspection. Run
    `BABYSIT_TICKET="$CHILD" bbs ticket set-status in_review`.
 
-After a successful `review`, `land`, or `pr`: archive the settled worker's
-output, `worker-release` it, release the resource lease, and run Orca worktree
-close-out. After `land` or `pr`, also remove the verified-clean non-primary Git
-worktree with `bbs ticket worktree-remove` (git worktree remove + bounded
-retry for transient NTFS open handles); keep the branch. On any failure
-or hold, close settled terminals but keep the Git worktree recoverable.
-
-**Orca worktree close-out** — `worker-release` closes only the one agent
-terminal its Dispatch owns. Before any bulk close, prove nothing supervised is
-still live in that worktree: every Dispatch recorded on the ticket is settled,
-and `orca orchestration worker-list --run <run_id> --terminal-state active
---include-remote --json` shows no worker placed at that path — a `reclaimable`
-row there gets its own `worker-release` first. Then close every other terminal
-and harness process owned by that exact ticket worktree:
+Archive settled output, `worker-release` the worker, release its resource lease,
+then close the ticket's Orca surfaces. `worker-release` closes only the agent
+terminal its Dispatch owns. Before bulk close, require every recorded Dispatch
+settled and `orca orchestration worker-list --run <run_id> --terminal-state active
+--include-remote --json` to show no live/unverifiable worker at that path; release
+any reclaimable row first. Close only surfaces owned by the exact worktree:
 
 ```bash
 orca terminal close --worktree path:<worktreePath> --all --json
@@ -81,35 +71,25 @@ bbs ticket worktree-remove <worktreePath>                 # land/pr only; last �
                                                           # open-handle failures
 ```
 
-The bulk terminal close is mandatory even under `review`: it stops setup
-shells, agent harnesses, and configured terminal tabs instead of leaving zombie
-processes beside a dormant checkout. Never run it while a Dispatch is active or
-unverifiable. `selector_not_found` on a `path:` selector means Orca tracks
-nothing there — the clean case, not an error. A surface that refuses to close
-keeps the Git worktree recoverable like any other hold. Never substitute
-`orca worktree rm`: it also tries to delete the checked-out local branch, which
-the ticket keeps — so after `git worktree remove` the Orca worktree record
-stays behind pointing at a deleted path. That stale card is expected; it is
-not a reason to run `worktree rm`, which would delete the branch outright once
-the checkout is gone.
+Bulk terminal close is mandatory even under `review`. Under `land`/`pr`, remove
+only the verified-clean non-primary Git worktree using `bbs ticket worktree-remove`
+(git worktree remove with bounded NTFS open-handle retries); keep the branch.
+Failures/holds retain a recoverable checkout. `selector_not_found` means Orca
+tracks nothing there. Never substitute `orca worktree rm`: it deletes the branch
+as well; a stale Orca card after safe Git worktree removal is expected.
 
-Failure routing — never blind-retry an unchanged state:
+## Failure and resume
 
-- surface-lease contention → leave the child eligible; the next tick retries;
-- stale or `ready:false` readiness → return the child to verification
-  (re-run the affected gate in its worktree) before landing;
-- merge conflict → a supervised repair Dispatch in the child's worktree
-  resolves it (merge `origin/<base>` in, never local base); keep the
-  worktree and do not retry the land until that Dispatch settles;
-- a `land` BLOCK that is not a conflict (dirty primary, off-base checkout,
-  scratch marker) → report it in the tick output and stop retrying until the
-  primary state changes;
-- a discarded merge — a `surface compose`/`revert` reset base after the
-  land, so the branch is no longer an ancestor — → re-land at the next tick;
-  if the worktree was already removed, recreate it from the recorded branch
-  first (`land` evaluates readiness inside it);
-- a `create-pr` failure → retry once at the next tick, then mark the child
-  blocked with evidence.
+Failure routing — never blind-retry an unchanged state or schedule retry ticks:
+
+| Reported condition | Next action |
+|---|---|
+| Surface lease held | Queue until release/resource notification or bounded recovery |
+| Stale evidence / `ready:false` | Re-run affected gates before delivery |
+| Merge conflict | Supervised repair Dispatch merges `origin/<base>` (never local base) into the child; await settlement |
+| Other land BLOCK (dirty/off-base/scratch) | Report blocker; wait for the primary state to change |
+| A later composition discarded a land | Re-land after surface work settles; recreate a removed worktree from its branch first |
+| `create-pr` failed | Recover actual handler state, retry once if recoverable; otherwise block with evidence |
 
 On resume, recognize a finish receipt before evaluating worktree-bound
 readiness. Persist each successful handler's action, verified branch/head and

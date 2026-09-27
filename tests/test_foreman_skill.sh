@@ -14,7 +14,8 @@ WRAPPER="$ROOT/skills/foreman/SKILL.md"
 ENTRY="$F"
 F="$(mktemp)"
 trap 'rm -f "$F"' EXIT
-cat "$ENTRY" "$ROOT"/.claude/skills/foreman/references/*.md > "$F"
+cat "$ENTRY" "$ROOT"/.claude/skills/foreman/references/*.md \
+  "$ROOT/.claude/skills/references/model-routing.md" > "$F"
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m  %s\n' "$1"; }
@@ -30,41 +31,39 @@ has_all() {
 
 has_all "autonomous-project-scope" \
   'Autonomous Orca orchestrator' 'multiple tickets or dependent features' \
-  'Project decomposition and DAG'
+  'Foreman owns the ticket DAG'
 
 has_all "repository-autonomy-profiles" \
-  '## Repository profile and autonomy' 'BBS_PROFILE=pet | startup | enterprise' \
-  'maximum' 'safe ready wave' 'scales verification breadth' \
-  'task complexity plus phase controls model routing'
+  'bbs autopilot git-flow' 'profile sets review/QA breadth' 'admitted ready wave' \
+  'task complexity, model tier'
 
 has_all "live-orchestration-contract" \
   '~/.claude/skills/orchestration/SKILL.md' 'skills get orchestration' \
   'worker-start' 'check --wait' 'worker-release' 'request recovery'
 
 has_all "foreman-owns-topology" \
-  'bbs ticket ensure --mode=worktree' 'git worktree list' \
-  'git worktree remove' 'dependency-order finish'
+  'bbs ticket ensure --mode=worktree' 'git worktree list' 'git worktree remove' 'apply' \
+  'in dependency order'
 
 has_all "finish-cleans-worker-workspace" \
-  'Dispatch-owned agent terminal' 'verified-clean non-primary Git' \
-  'terminal close --worktree path:<worktreePath> --all' \
-  'mandatory even under `review`' 'Git worktree for' \
-  'human inspection' 'keep the branch'
+  'terminal its Dispatch owns' 'verified-clean non-primary Git' \
+  'terminal close --worktree path:<worktreePath> --all' 'mandatory even under `review`' \
+  'Git worktree for human inspection' 'keep the branch'
 
 has_all "bounded-worker-pool" \
   'bbs config get parallel_max_workers' 'MAX_WORKERS=4' \
   'positive integer' 'one writer per child worktree'
 
 has_all "global-weighted-admission" \
-  'machine-global weighted' 'bbs foreman resource reserve' \
-  'parallel_global_units' 'ADMISSION' 'no time-based expiry' \
-  'resource backpressure'
+  'machine-global weighted' 'bbs foreman resource reserve' 'parallel_global_units' 'ADMISSION' \
+  'never expires' 'resource backpressure'
 
 
 has_all "child-slice-sizing" \
   'independent, testable, releasable units' \
   'never split one coherent change across siblings' \
-  'split the work into sub-tickets' 'explicit' 'phases inside its own ticket'
+  'sub-ticket needing its own worktree returns to Foreman' \
+  'explicit phases inside its own ticket'
 
 has_all "autopilot-worker-execution-envelope" \
   '`AGENT_ROLE=orca`' 'already spawned' \
@@ -80,17 +79,14 @@ else
 fi
 
 has_all "agent-independent-design-gate" \
-  'Phase-scoped ticket dispatch' '--stop-after=plan' 'Orca decision gate' \
-  'approval self-resolve'
+  'Keep separate phase Dispatches' '--stop-after=plan' 'approved' 'approval self-resolve'
 
 has_all "lifecycle-aware-dispatch" \
-  'pointers.workflow' 'Never hard-code every' \
-  'Non-builder Execution Task' 'LIFECYCLE' 'TRIGGER' \
-  'evidence-only prototype, recommendation, or audit'
+  'pointers.workflow' 'default to `builder` only' 'LIFECYCLE' 'TRIGGER' 'evidence-only'
 
 has_all "project-qa-gate" \
-  'Integration QA Task' 'bbs ticket surface compose' 'parent surface lease' \
-  'Integration QA is read-only'
+  'Integration QA Task' 'bbs ticket surface compose' 'surface lease' 'read-only QA worker' \
+  'parent scope and cross-ticket flows'
 
 has_all "durable-resume-and-finish" \
   'pointers.orca_run' 'Terminal handles are routing metadata' \
@@ -105,8 +101,8 @@ has_all "revert-before-land" \
   'surface revert' 'bbs-serving' 'BLOCKs' 'dependency order'
 
 has_all "native-task-list-init" \
-  'native task list at entry' 'parent, children, and DAG' \
-  'rebuild it from ticket + Orca state'
+  'Initialize the native task list' 'parent, children' \
+  'DAG; rebuild it from ticket + Orca state'
 
 P="$ROOT/.claude/skills/references/preamble.md"
 if grep -q 'MUST mirror' "$P" \
@@ -119,49 +115,45 @@ else
 fi
 
 has_all "single-writer-multi-foreman" \
-  '--foreman-id <id>' 'bbs ticket claim' 'hard fence' \
-  'different parents may run'
+  '--foreman-id <id>' 'bbs ticket claim' 'hard fence' 'Different parents may' \
+  'one mutating Foreman'
 
 has_all "direct-skill-invocation-is-primary" \
-  'Direct skill invocation' 'default entrypoint' \
-  'bbs foreman adopt' 'babysit detects its actual agent' '--agent <current-agent>' \
-  'not a prerequisite' 're-adopt the current session'
+  'Direct skill invocation' 'default entrypoint' 'bbs foreman adopt' 'its actual agent' \
+  '--agent <current-agent>' 'not a prerequisite' 'Re-adopt the current session'
 
 has_all "live-change-intake" \
-  'bbs foreman inbox' 'change-request' \
-  "Do not rewrite a settled ticket" 'prior Integration QA'
+  'bbs foreman inbox' 'change-request' 'a settled ticket or silently replace a live assignment' \
+  'prior Integration QA'
 
 has_all "dag-emission-contract" \
-  '## The project DAG' 'bbs ticket dag "$PARENT" --mermaid' \
-  'Read-only: it never writes ticket state' 'never re-type the edges' \
-  'Topology built' 'Topology changed' 'Status wake' \
-  're-emits the DAG' 'rides with the status it explains'
+  'bbs ticket dag "$PARENT" --mermaid' 'topology is built/changed' 'never re-type the edges' \
+  'never writes ticket state' 'user requests status'
 
 has_all "goal-compaction-and-days" \
-  'persistent goal proxy' 'Compaction is a cold-resume boundary' \
-  'bbs foreman ensure <id>' 'cold-starts instead'
+  'persistent goal facility' 'Compaction is a cold-resume boundary' 'bbs foreman ensure <id>' \
+  'never resume an ambiguous'
 
-has_all "active-status-reconcile" \
-  '## Status reconciliation' 'check --wait' \
-  'never a liveness-only reply' 'maximum admitted ready wave' \
+has_all "event-driven-reconciliation" \
+  'block on Orca `check --wait`' 'Do not actively check terminals' \
+  'An empty timeout only re-arms the wait' 'Do not' 'start a polling timer' 'reconciliation' \
   'return to the blocking wait'
 has_all "eager-per-ticket-finish" \
   '## Eager per-ticket finish' 'settled workers need not wait' \
   'bbs ticket land <child>' 'create-pr' 'dependency order' \
   'Final Integration QA' 'resets local base' \
   'pointers.pr' 'merge-base --is-ancestor' \
-  'supervised repair Dispatch' 'never blind-retry' \
+  'Supervised repair Dispatch' 'never blind-retry' \
   'under `land`' 'final integration QA does not' '`review`'
 
 has_all "parent-design-gates-child-topology" \
   'Before step 2, pass' 'Project design checkpoint' \
-  'Append `--auto` only when explicitly requested' 'read recorded `auto`' \
-  'accepted parent plan/design/prototype'
+  'Append `--auto` only when explicitly requested' 'recorded `auto`' 'accepted parent design' \
+  'all'
 
 has_all "final-qa-after-finish-before-done" \
-  'After the handlers, run' 'Do not set parent completion' \
-  'landed `<base>`' 'retained `qa/<parent>`' \
-  'Independent tickets still need' 'Final Integration QA'
+  'exact delivered base' 'retained QA/wave' 'final project QA' 'Only then run' 'No missing gate' \
+  'before the Foreman `done` heartbeat'
 
 PROJECT_CONTRACT="$ROOT/.claude/skills/foreman/references/project-contract.md"
 if python3 - "$PROJECT_CONTRACT" "$ROOT/.claude/skills/qa/SKILL.md" <<'PY'
@@ -173,7 +165,7 @@ for required in (
     'Only current `approved` unlocks children',
     '`--auto` delegates the human design reviews',
     'auto: true', 'approval self-resolve',
-    'bbs foreman report <parent>', 'atomically replace parent `report.md`',
+    'bbs foreman report <parent>', 'atomically\nreplace parent `report.md`',
     'PR_READY', 'LANDED_LOCAL', 'MERGED_REMOTE', 'UNKNOWN',
     'Never move `<base>`', 'No `-B`, force update or deletion',
     'Do not use\n   `surface revert` as restoration',
@@ -192,8 +184,7 @@ fi
 
 has_all "ticket-status-closeout" \
   'bbs ticket set-status done' 'bbs ticket set-status in_review' \
-  'only after the PR is observed merged' \
-  'parent ticket to `done`' 'parent to'
+  'only after the PR is observed merged' 'parent becomes `done`' 'remains `in_review`'
 
 if grep -q 'bbs ticket set-status in_review' "$C" \
    && grep -q 'status becomes `done` only after the PR is observed merged' "$C"; then
@@ -204,14 +195,14 @@ fi
 
 
 has_all "status-wake-full-snapshot" \
-  'status wake' 'always prints the full' \
-  'every project Task and supervised worker' 'IN_PROGRESS'
+  'For a status request' 'show every project Task and supervised worker' \
+  'resource use and the DAG' 'IN_PROGRESS'
 
 has_all "terminal-done-heartbeat" \
   'bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"' \
-  'only completion signal' 'record never completes' \
-  '`bbs foreman watch` closes the exact adopted Foreman terminal tab' \
-  'paused, or cancelled project never writes `done`'
+  'A `done` heartbeat alone is not completion' \
+  'watcher closes only the adopted Foreman terminal' \
+  'blocked required ticket or unfinished cleanup'
 
 if ! grep -q 'bbs foreman mailbox' "$F" "$ROOT/.claude/skills/references/preamble.md" \
    && ! grep -q 'sleep 20' "$F" \
@@ -222,8 +213,8 @@ else
 fi
 
 has_all "orca-delivery-and-settlement" \
-  'Process every message in a Delivery before' 'acknowledging its exact id' \
-  'accepted lifecycle settlement' 'Rejected lifecycle reports do not complete work'
+  'Process every message in a Delivery before acknowledging its' 'exact id' \
+  'accepted lifecycle settlement' 'reports do not complete work'
 
 PREAMBLE="$ROOT/.claude/skills/references/preamble.md"
 if grep -q 'live injected Orca preamble is authoritative' "$PREAMBLE" \
@@ -246,26 +237,24 @@ else
   fail "codex-wrapper-matches"
 fi
 
-has_all "shared-reconciliation-interval" \
-  'bbs config get foreman_status_interval' 'default 3600' \
-  'check --wait' 'missed-event/restart/stale-state' \
-  'never let a bad value shrink the wait'
+has_all "no-coordinator-polling-timer" \
+  'external missed-event/restart backup' 'Foreman never schedules its own status timer' \
+  'or polls on empty waits' 'adopt/spawn start it automatically'
 
 has_all "phase-specific-worker-model-routing" \
-  '## Worker model and effort routing' '../references/model-routing.md' \
-  'canonical launch-settings' 'Never invent a model ID' \
-  'Classify the ticket once' 'Plan and design-feedback Dispatches' \
-  'Code Review Dispatches use the \*\*critical phase\*\* route' \
+  '../references/model-routing.md' 'canonical launch-settings' 'Never invent a model ID' \
+  'Classify each task' 'Parent/child planning, decomposition, design, design feedback' \
+  'Code review and review diagnosis' \
   '--model <model> --effort <effort>' 'launch.effective' 'bbs agent resolve' \
-  'set-pointer planner_model' 'set-pointer planner_effort' \
-  'set-pointer worker_model' 'set-pointer worker_effort' \
-  'starts a fresh Build worker on the normal phase route' 'Taste' \
+  'set-pointer planner_model' 'Each prefix has `agent`, `provider`, `model`, `effort`' \
+  '| Plan | `planner_` |' '| Implement | `worker_` |' \
+  '| Review | `reviewer_` |' '| QA | `qa_` |' 'Taste' \
   'task complexity, phase class, selected tier' 'override provenance' \
-  'old route with no task/phase/tier' 'Keep phase Dispatches separate'
+  'resolve missing legacy routing evidence' 'Keep separate phase Dispatches'
 
 has_all "worker-model-config-discipline" \
-  'Empty values mean native defaults' 'stop before' 'Do not drop it' \
-  'never silently upgrade a model' 'foreman_'
+  'empty provider/model/effort means native default' 'stop before' 'Do not drop it' \
+  'Never replace a live writer or silently substitute' 'foreman_'
 
 REF="$ROOT/.claude/skills/references/model-routing.md"
 if grep -q 'model-routing.md' "$F" \

@@ -8,86 +8,59 @@ review and delivery unit; a closed worker/worktree is never proof of delivery.
 Before child creation, worktrees, or production dispatch:
 
 1. Dispatch a planning/design worker on the critical phase route in the parent
-   checkout to write
-   `requirement.md` and run `plan-draft`. For user-facing work, its assignment
-   invokes `design-ui` to produce a coherent `design.md` and `prototype.html`
-   covering the whole product journey, including transitions across proposed
-   tickets and important empty/error states. Inspect the prototype. For a
-   non-UI project, provide interfaces, example inputs/outputs and a workflow
-   in `design.md`; explain why a visual prototype is N/A. This is product
-   design, not the `prototype` skill's feasibility spike.
-2. The planning worker drafts `manifest.md`: proposed seed keys, scope, dependencies, shared
-   contracts, acceptance ownership and integration checks. This is a preview
-   of decomposition, not permission to spawn production workers. Parent planning
-   and design-review Dispatches are allowed before this gate, on the existing
-   parent checkout with no child creation or production edits. Keep runtime ticket ids and
-   status in relations/report, so progress does not rewrite approved design.
-3. Write the structured `project.json` acceptance contract through
-   `bbs foreman contract` (see execution.md), then publish with the parent in scope:
+   checkout to run `plan-draft` and, for user-facing work, `design-ui`, producing:
+
+   - `requirement.md`, `plan.md`, `design.md` and `prototype.html`: all ticket
+     scopes, transitions, empty/error states and acceptance criteria. Non-UI
+     designs use interfaces, examples and a workflow with visual prototype N/A.
+   - `manifest.md`: stable seed keys, scopes, dependencies, shared contracts,
+     acceptance ownership and integration checks. Runtime ids/status belong in
+     relations/report, so progress does not rewrite the approved design.
+
+   Parent planning/review may precede approval; child creation and production
+   edits may not. Write `project.json` through `bbs foreman contract` (execution.md).
+2. Publish the artifact-fingerprinted approval:
 
    ```bash
    BABYSIT_TICKET="$PARENT" bbs ticket approval publish --kind project-plan \
      --note "Review the project plan, design/prototype, and proposed tickets"
    ```
 
-   The record fingerprints requirement, plan, design, prototype, manifest and the structured project contract
-   (respecting their pointers). `approval status` returns `stale` when those
-   artifacts change or disappear; a stale record cannot be approved. Refresh
-   the artifacts and re-publish it. Never overwrite a pending review's
-   artifacts while a human is reviewing; redirect/rework is a new checkpoint.
-4. Default is **human review once for the project**. Present links to the
-   actual artifacts plus the proposed tickets. Route the decision through the
-   preamble's invocation channel and persist a human answer with
-   `approval resolve`; dashboard uses its existing approval panel. For an
-   Orca-dispatched Foreman, the coordinator must relay this human checkpoint,
-   not substitute its own Taste answer. Wait for an explicit answer; no
-   timeout or idle period is approval. `redirected` means rework/re-publish;
-   `dropped` stops this project. Only current `approved` unlocks children.
-5. **`--auto` delegates the human design reviews to Foreman**, including a
-   revised parent design within the authorized scope. Dispatch a design reviewer
-   on the critical phase route to inspect the same artifacts and fill the same
-   five-line design rubric with named evidence. Foreman verifies that report
-   against current artifacts, publishes `project-plan`, and uses
-   `approval self-resolve --foreman "$FOREMAN_ID" --rubric-file <path>`.
-   Record the decision in the usual telemetry. Never fake a human verdict.
-   Pass the flag to `bbs foreman adopt ... --auto` on explicit invocation;
-   `bbs foreman spawn ... --auto` also persists it. `auto: true` on the
-   Foreman record survives cold restart, adoption, and omitted flags on resume.
-   Old records default to human project review. Existing hold/grant bounds,
-   non-delegable decisions, code review, QA and configured finish policy still
-   apply. `--auto` does not authorize merging, pushing, or expanding scope.
-6. After approval, Foreman dispatches workers on the critical phase route to
-   review child plans against the accepted parent artifacts and revision, then applies their
-   evidenced rubrics autonomously; humans need not read every child
-   plan. Child-specific implementation detail stays on that child. A material
-   product/design change pauses affected production work and returns to this
-   parent checkpoint; unaffected work can continue. Before each new dispatch
-   and at finish, re-read `approval status` rather than trusting an old message.
+   It covers requirement, plan, design, prototype, manifest and project contract
+   through their pointers. Changed/missing artifacts make `approval status`
+   stale; refresh and republish. Never overwrite artifacts during pending human
+   review. `redirected` requires rework/republish; `dropped` stops the project.
+3. Default: present artifact links and proposed tickets for **human review** through
+   the preamble's invocation channel; persist the answer with `approval resolve`.
+   An Orca coordinator relays this checkpoint, not its own Taste answer.
+   Silence is not approval. Only current `approved` unlocks children.
+4. **`--auto` delegates the human design reviews** within authorized scope.
+   Dispatch a critical-phase design reviewer to inspect the artifacts/prototype
+   and fill the five-line rubric with evidence. Foreman verifies it, publishes
+   `project-plan`, then uses
+   `approval self-resolve --foreman "$FOREMAN_ID" --rubric-file <path>` and logs
+   telemetry. runtime.md owns flag adoption; recorded `auto: true` survives resume,
+   omitted flags and restart. Old records default to human review. Holds/grants,
+   non-delegable decisions and finish policy still apply; no fake human verdicts.
+5. Review child plans with critical-phase workers against accepted parent artifacts;
+   Foreman applies their evidenced rubrics autonomously. Keep these `kind=plan`
+   reviews distinct from `project-plan`. Material scope/design changes pause
+   affected production and reopen the parent checkpoint; unaffected work continues.
+   Re-read `approval status` before dispatch and finish. On resume preserve live
+   work, but gather missing/stale approval before new production dispatch.
 
-Keep project review distinct from `kind=plan` child reviews: default child
-autonomy is unchanged. Do not downgrade a parent to `plan` to bypass its gate.
-This checkpoint replaces the generic final Taste confirmation for Foreman;
-do not add another routine human review at the end. Under `--auto`, log Taste
-decisions without a confirmation prompt; unresolved User Challenges still route
-through the preamble.
-Resume an existing running project from current artifacts/evidence; do not
-discard its workers or commits to replay setup. If no current parent approval
-exists, gather its project design checkpoint before new production dispatch.
+This is Foreman's human design checkpoint; do not add routine final Taste
+confirmation. Under `--auto`, log Taste decisions; route unresolved User
+Challenges through the preamble.
 
 ## Durable project report
 
-At every reconciliation tick, after a delivery/gate transition, and before the
-terminal heartbeat, atomically replace parent `report.md` (write a sibling
-temporary file, then rename). Set `pointers.report` to this path. Keep the
-latest complete snapshot there; existing ticket history/handoffs retain the
-event trail. The report remains readable with `bbs foreman report <parent>`
-from the repo even after the coordinator and worktrees close.
-
-Empty waits do not rewrite the report. On a delivery/gate event, refresh the
-affected rows and retain other rows with their last observation times; only a
-full reconciliation advances the whole snapshot's observation time.
-
-Use this compact shape; links must lead to actual artifacts or receipts:
+At bounded reconciliation, delivery/gate transitions and completion, atomically
+replace parent `report.md` via a sibling temporary file and set `pointers.report`.
+`bbs foreman report <parent>` reads this saved snapshot after worktrees close.
+Empty waits do not rewrite it. Events update affected rows only, retaining other
+observation times; full reconciliation refreshes the whole snapshot. Link real
+artifacts/receipts and include every required child (UNKNOWN when unreachable):
 
 ```markdown
 # <Project title> — <parent>
@@ -104,27 +77,33 @@ Integration QA: <PENDING / PASS / FAIL / STALE / N/A reason> — <branch>@<SHA>,
 Remaining: <what still has to happen, who owns it, next action>
 ```
 
-Reconcile rows from ticket/DAG, Orca, current gate evidence, and actual finish
-receipts. Include missing children as UNKNOWN, not as absent rows. Label
-unreachable sources UNKNOWN with last observation time; a missing worktree or
-`worker_done` never establishes merge or QA. Show title and active task, not
-only opaque ticket/Dispatch ids. Track required scope explicitly; cancelled
-work is not completed acceptance unless the scope was explicitly changed.
+Execution, delivery and cleanup are separate axes. Derive rows from ticket/DAG,
+Orca, gate evidence and handler receipts, never terminal closure or `worker_done`
+alone. Cancelled scope still needs an accepted contract change.
 
-Execution, delivery, and cleanup are separate axes. `PR_READY` requires the
-expected PRs at verified heads plus final integration PASS, with at least one
-still open; it means **not fully merged** and reports the merged/total count.
-`LANDED_LOCAL` requires verified presence on local base plus
-final PASS, and explicitly says whether remote delivery is verified or still
-unpushed/unknown. `MERGED_REMOTE` requires observed remote merge evidence;
-do not infer it from a local ancestor test. `REVIEW_READY` requires final PASS
-and retained clean branches/worktrees. Evidence-only projects state their
-artifact delivery explicitly. Until the required final gate passes, delivery
-is PENDING even if every individual handler ran successfully.
+| Delivery | Required evidence, including final acceptance PASS |
+|---|---|
+| `REVIEW_READY` | Retained clean branches/worktrees |
+| `PR_READY` | Verified PR heads, at least one open; report merged/total |
+| `LANDED_LOCAL` | Verified heads on local base; state remote delivery separately |
+| `MERGED_REMOTE` | Observed remote merges, not a local ancestor test |
+| `PENDING` / `UNKNOWN` | Missing gate / unreachable evidence with observation time |
 
-The CLI prints this as a **saved snapshot**, never a fresh live verification.
-On a status request Foreman first reconciles, persists, and then shows it.
-Never rely on this report alone to unlock a gate on resume.
+Evidence-only projects report artifact acceptance/delivery explicitly. Until the
+final gate passes, delivery stays PENDING even if individual handlers succeeded.
+On a status request, reconcile before showing the snapshot. The report alone
+never unlocks a gate on resume.
+
+## Pre-land integration QA
+
+When tickets interact, add a Pre-land integration QA Task before landing them.
+Acquire the parent surface lease and dispatch an integration worker on the
+normal phase route to prepare the covered branches with `bbs ticket surface compose`,
+then a read-only QA worker to test that composition. Record covered revisions
+and acceptance evidence; changes invalidate the result. Revert only this known
+scratch composition before landing. This check never replaces final project QA.
+Per-ticket QA owns its own surface lifecycle; serialize all shared-surface work
+through leases and treat contention as queued work.
 
 ## Final integration QA
 

@@ -4,7 +4,7 @@ Read at entry/cold resume with project-contract.md. The CLI owns mechanical
 validation; Foreman owns product judgment and the Orca lifecycle. These commands
 read existing ticket/approval/DAG state and never create branches or dispatch.
 
-## Accepted scope and the first usable journey
+## Accepted scope and DAG admission
 
 Before publishing the parent project-plan approval, write `project.json` through
 `bbs foreman contract "$PARENT" --file <draft.json>`. The file is part of that
@@ -40,12 +40,10 @@ children across repos. Every required leaf must have one accepted seed. A
 cancelled child leaves unmet scope until an explicit contract revision removes
 or replaces it.
 
-Build a small vertical journey first: real UI/action, real persistence/API,
-reload and one failure path. Admit its prerequisites first. Demonstrate it on
-an integrated surface and run the fresh product evaluator below before widening
-the ready wave. Parallelize after shared interfaces and the product direction
-have evidence. QA backlog or repeated interface conflicts reduce new starts;
-prioritize integration and repairs within the existing resource bounds.
+After parent approval, admit ready tickets according to the DAG and resource
+bounds. `first_journey` identifies acceptance coverage, not a separate admission
+gate before other independent tickets. Shared interfaces and edit ownership are
+fixed in the accepted plan; dependency edges enforce necessary ordering.
 
 At each full reconciliation use `bbs foreman snapshot "$PARENT" --json`. It returns
 scope coverage, child seals, current evidence, blockers, delivery and observed
@@ -57,12 +55,8 @@ the read succeeded. Reads never reconcile or mutate ticket status.
 
 ## Worker packet and verification
 
-Each Task includes parent outcome and accepted revision, owned acceptance IDs,
-design/prototype paths, exact prerequisite revisions, permitted files/interfaces,
-available commands/runtime, constraints, and the existing Orca identity envelope.
-Workers execute their assigned phase in one session on their assigned checkout.
-Autopilot phase assignments follow its **Foreman phase assignments** contract;
-the coordinator never executes a heavy phase itself.
+Use the worker packet in SKILL.md and the Orca envelope in topology.md.
+Autopilot honors its **Foreman phase assignments** contract on the assigned checkout.
 
 New managed code children use `bbs autopilot checkpoint --ticket "$TICKET"
 --workflow builder --step run --status in_progress --contract-version 2` (substitute
@@ -132,23 +126,18 @@ that SHA exactly. The probe must query the running build; echoing an expected
 SHA proves nothing. The dashboard labels the observation time, never current
 server availability.
 
-At the first journey and final integrated milestone, dispatch a **fresh read-only
-product evaluator**. Read [product-review.md](product-review.md). Use `kind:
-journey` for preliminary evidence and `kind: product` for final evidence. Final
-product checks use `kind: product` for every criterion. The evaluator's identity
-must differ from child gate producers. Foreman, not autopilot, owns this Task.
-Product critique is a Builder assignment, not another mandatory skill on every
-ticket. It reuses QA artifacts where they prove the behavior; it independently
-exercises the actual product. Material findings block completion until repaired
-and checked again. Minor findings remain in the handoff.
+When the contract requires product review, dispatch a **fresh read-only product
+evaluator** on the normal phase route using [product-review.md](product-review.md).
+Its identity must differ from child gate producers. Final evidence and every
+criterion check use `kind: product`; `kind: journey` is only for an explicitly
+required preliminary check. Material findings require repair and fresh evidence;
+minor findings stay in the handoff.
 
-After final checks, restore the recorded checkout, release surface leases and
-settled Orca workers/resources, then persist the report. Finish with
-`bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"`. It writes the completion
-receipt and sets the coordinator done only after its assigned parent projects
-are verified. Parent delivery status remains `in_review` for retained review
-branches/open PRs. A raw done heartbeat and watcher close both require current
-completion evidence; editing a status cannot substitute for it.
+After final QA/restoration, release settled workers and leases, persist the
+report, then run `bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"`.
+It writes the completion receipt only when all assigned parents are verified;
+retained review/open PR parents remain `in_review`. Status edits or a raw done
+heartbeat cannot replace this receipt.
 
 ## Progress, waits and repair
 
@@ -161,22 +150,15 @@ milestone or wait transition. Use the actual run/Dispatch/attempt IDs:
  "evidence":"/absolute/durable/check.log"}
 ```
 
-Only changed evidence advances `progress_at`. Rewriting a summary, a spinner,
-and extra commits do not. A wait adds `wait_kind` (`test`, `dependency`, `approval`,
-`resource`), `wait_reason` and `wait_until` at most 15 minutes ahead. These are
-reported waits, not proof of agent liveness. Refresh from the actual ongoing
-wait, never a blind timer. Orca remains the runtime authority. Terminal reachability
-is observed on each watcher tick independently of hourly model reconciliation.
+Only changed evidence advances `progress_at`; summary rewrites and extra commits
+do not. Waits add `wait_kind` (`test`, `dependency`, `approval`, `resource`),
+`wait_reason` and `wait_until` at most 15 minutes ahead. Refresh from actual
+ongoing waits, never a timer. Expiry is not failure or a reason to inspect a
+worker; Orca owns runtime state and runtime.md defines reconciliation triggers.
 
-At a CLI-requested full reconciliation, or after a concrete failure report,
-inspect a live worker without progress or a valid wait and send one bounded
-diagnostic assignment if an obstacle is confirmed. Silence or an expired
-15-minute progress observation alone does not trigger a check or require the
-coordinator to refresh worker waits. Preserve existing failure counts across retries.
-After repeated semantic failure, dispatch planning/review diagnosis on the
-critical phase route with the observed failure evidence, then return repairs
-to a Build worker on the normal phase route.
-Do not silently upgrade Build or QA, restart a live writer, expire its lease,
-or repeatedly resend the
-same assignment. Missing intent/authority escalates one concrete User Challenge;
-unaffected work can continue. Record telemetry and recovery artifacts before retry.
+On confirmed repeated semantic failure, dispatch planning/review diagnosis on
+the critical phase route with failure evidence, then repairs on the normal route.
+Preserve failure counts and work; never restart a live writer, expire its lease,
+blindly resend assignments or silently upgrade its model. Missing intent/authority
+escalates one User Challenge; unaffected work continues. Record telemetry and
+recovery evidence before retrying.

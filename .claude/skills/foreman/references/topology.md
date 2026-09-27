@@ -4,44 +4,20 @@ Before step 2, pass **Project design checkpoint** in the project contract.
 Step 1 drafts seeds and interfaces; it does not authorize child worktrees or
 production dispatch. Reuse current approved artifacts on resume.
 
-1. Dispatch a planning worker on the critical phase route to run the real
-   `plan-draft` skill
-   against the parent and propose the decomposition. Its assignment: slice into
-   **independent, testable, releasable units**: a child must stand alone as a
-   reviewable change — its own branch, its own `review-pr` + `qa`, its own
-   revert. Size each child to the smallest unit that still satisfies those
-   three, and never split one coherent change across siblings to widen the DAG
-   or fill the worker bound: over-decomposition pays a whole plan/build/QA
-   cycle per child and invents ordering the code does not have. If the slices
-   only land together, they are one ticket.
-   A slice too large for one worker pass is equally not a reason to grow the
-   project graph. Dispatch it with a Task spec that tells the `autopilot`
-   worker to split the work into sub-tickets or to implement it in explicit
-   phases inside its own ticket, and gate on that child's single branch,
-   verdict set, and handoff. Any sub-ticket needing its own worktree is linked
-   on both sides to the parent and added to the DAG like any other child, so
-   foreman stays the only owner of topology.
-   Keep genuine ordering as `blocked_by`/`blocks`; never remove a real
-   dependency to widen the ready wave or shorten the graph.
-   In the parent `manifest.md`, map every acceptance criterion to its proposed
-   child seed and verification evidence, including cross-ticket journeys. Keep
-   the parent plan thin; manifest seed keys stay stable when ticket ids are
-   allocated after approval (record those ids in ticket relations/report).
-   Assign each
-   child exactly one archetype workflow and persist it with
+1. Use the approved parent plan/manifest from the planning worker. Children are
+   **independent, testable, releasable units**, each with its own branch, verdicts
+   and revert; never split one coherent change across siblings merely to widen
+   the DAG. A large child uses explicit phases inside its own ticket. A proposed
+   sub-ticket needing its own worktree returns to Foreman for approval against
+   accepted scope, bidirectional linkage and DAG admission; workers never own topology.
+   Preserve real `blocked_by`/`blocks` dependencies, shared interfaces, edit
+   ownership, and acceptance-to-seed/evidence mapping. Missing accepted coverage
+   needs a child or repair; changed scope or non-delegable decisions escalate.
+   Persist the assigned archetype workflow with
    `BABYSIT_TICKET="$TICKET" bbs ticket set-pointer workflow <workflow>`;
-   default to `builder` only when the work shape is ordinary production work.
-   For a requested lifecycle loop, model promotion as dependency edges and
-   create or unblock the next child only when the prerequisite handoff's
-   `LIFECYCLE` and `TRIGGER` evidence satisfy autopilot's Lifecycle loop. Do not
-   create or pre-admit speculative grower or maintainer work before its metric or
-   operational signal exists. Record shared
-   interfaces (API/data shape, compatibility, migration order) before their
-   consumers start. Shared-file edits need explicit ownership or ordering;
-   separate worktrees alone do not make conflicting changes independent.
-   Missing required coverage becomes a child or an in-scope repair assignment,
-   never an unexplained omission. Escalate only if closing it changes accepted
-   product scope or requires a non-delegable decision.
+   default to `builder` only for ordinary production work. Lifecycle promotion
+   needs the prerequisite handoff's `LIFECYCLE` and `TRIGGER` evidence; never
+   pre-admit speculative growth/maintenance work before its signal exists.
 2. For each accepted seed, run `bbs ticket ensure --mode=worktree
    --from-input-file "$SEED_PATH" --reason foreman-decompose` from the
    canonical repo/base. `ensure` owns the ticket id, branch naming, and
@@ -71,23 +47,20 @@ production dispatch. Reuse current approved artifacts on resume.
    --child "$TICKET"`, initialize code children with contract version 2 per
    execution.md, and include their parent acceptance IDs in the Task.
    The moment both sides of every relation are linked, emit the DAG with the
-   dispatch plan — **The project DAG**.
+   dispatch plan — see [runtime](references/runtime.md), **Intake and DAG**.
 4. Validate the primary checkout, `git worktree list`, every recorded path,
    branch head, and configured base before dispatch. Recreate a missing clean
    worktree only from its recorded branch. A dirty or divergent worktree is a
    recovery case, not permission to replace it.
-5. A dependent child starts only after its prerequisites passed per-ticket
-   gates. Dispatch an integration worker on the normal phase route to bring
-   prerequisite branch heads into the dependent worktree with a recorded merge before Build.
-   Persist the exact prerequisite SHAs
-   in its Task assignment/handoff. On conflict, leave the conflict to a
-   supervised worker on that ticket; foreman never edits the resolution.
-   If a prerequisite is repaired later, invalidate affected dependents and
-   parent integration evidence. At a settled worker boundary, dispatch a worker
-   on the normal phase route to merge the new prerequisite revision into each
-   affected dependent and repair /
-   re-verification in dependency order. Never merge into a live worker's tree
-   or accept its old gates as proof for a dependency revision it never tested.
+5. Start dependents only after prerequisite gates pass. Before Build, dispatch
+   an integration worker on the normal phase route to merge verified prerequisite
+   heads into the dependent worktree; record exact SHAs in its handoff. Conflicts
+   go to supervised repair workers. A later prerequisite repair invalidates
+   affected dependent gates and parent integration evidence: merge the new heads
+   and reverify in dependency order, only at settled worker boundaries.
+   Never merge into a live writer's tree or accept gates for untested revisions.
+
+## Resource admission
 
 Resolve the worker bound on every fresh invocation or resume:
 
@@ -96,14 +69,11 @@ MAX_WORKERS="$(bbs config get parallel_max_workers 2>/dev/null || true)"
 [ -n "$MAX_WORKERS" ] || MAX_WORKERS=4
 ```
 
-An explicit `MAX_WORKERS` value must be a positive integer; otherwise report
-`BLOCKED` with the invalid value. It is a per-foreman ceiling, not the host
-safety limit. Every ready Task must also reserve machine-global weighted
-capacity through `bbs foreman resource` before `worker-start`; the broker
-atomically serializes all foremen and derives a host CPU/RAM budget
-from the current host. `parallel_global_units` may lower that automatic budget
-but never raise it. Current CPU or memory pressure queues new work without
-stopping a running worker.
+`MAX_WORKERS` must be a positive integer or report `BLOCKED`. It is a per-Foreman
+ceiling; every Dispatch also reserves machine-global weighted capacity before
+`worker-start`. The broker serializes admission across foremen and derives the
+host CPU/RAM budget. `parallel_global_units` can lower that budget, never raise
+it. Current resource pressure queues starts without stopping running workers.
 
 Classify the Task from its requirement, plan, and acceptance commands:
 
@@ -140,18 +110,15 @@ A launch reservation with no new Dispatch is reclaimed after ten minutes if its
 owner is stale or missing. A live Dispatch never expires merely because the
 foreman stopped heartbeating or the laptop slept.
 
-Both `reserve` and `status`, plus the detached watcher, reconcile all foremen's
-leases. An exited agent whose Dispatch is still active is stopped by exact
-Dispatch id, then its terminal state is verified before its lease is released.
-A live agent or unverifiable remote host retains capacity; `RESOURCE_HELD`
-explains unresolved recovery. Follow Orca's recovery evidence for these workers,
-not repeated blind waits or a manual release based only on age. Count only
-current held reservations toward the worker ceiling, and retry stopped Tasks
-through their failed Dispatch, preserving worktrees and checkpoints.
-Release a settled reservation with
-`bbs foreman resource release "$RESOURCE_LEASE"`, then clear
-`pointers.resource_lease`. When reusing a settled worker for a new Dispatch,
-release the old Task's lease and reserve the new Task's profile first.
+`reserve`, `status` and the detached watcher reconcile leases. They stop exited
+agents by exact Dispatch id and verify terminal state before release. Live or
+unverifiable workers retain capacity (`RESOURCE_HELD`); never release by age.
+Retry proven stopped Tasks through their failed Dispatch, preserving worktrees
+and checkpoints. Release settled leases with
+`bbs foreman resource release "$RESOURCE_LEASE"`, clear `pointers.resource_lease`,
+and reserve the next Task's profile before reusing a worker.
+
+## Worker envelope
 
 Every worker Task spec must establish the execution envelope before naming its
 ticket work: this is a supervised Orca Dispatch, its effective

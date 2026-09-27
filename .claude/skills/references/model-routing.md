@@ -80,7 +80,7 @@ both a task complexity and a phase class; neither is a model tier.
 | Code review and review diagnosis | `critical` |
 | Implementation and code repairs | `normal` |
 | Per-ticket QA, integration QA and product acceptance checks | `normal` |
-| Merges, composition and authorized delivery handlers | `normal` |
+| Finish audits, merges, composition, authorized delivery, restoration and cleanup | `normal` |
 
 ## Model tiers
 

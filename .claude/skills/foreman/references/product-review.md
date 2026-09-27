@@ -1,4 +1,4 @@
-# Product evaluator assignment (Builder pilot)
+# Product evaluator assignment
 
 Input: accepted parent outcome, audience, criterion IDs, design/prototype, exact
 integrated revisions, runtime URL/probe, and existing QA evidence. Start a fresh
@@ -24,9 +24,3 @@ works. Unavailable runtime or missing evidence is a gap, never PASS. Submit via
 the parent's evidence attempt; Foreman dispatches fixes to the owning child and
 reruns affected gates. Stop within the project's work budget and report remaining
 gaps explicitly.
-
-Measure this pilot on comparable projects before claiming a quality/cost gain:
-accepted completion, escaped material defects, interventions, repeated work,
-recovery correctness, time to first usable journey, and provider usage coverage.
-Count blocked/failed runs. Do not equate deterministic contract fixtures with a
-live model product benchmark.
