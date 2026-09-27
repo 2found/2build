@@ -56,7 +56,7 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
   const { state } = useFilter();
   const projects = useMemo(() => Object.keys(snapshot.projects ?? {}).sort(), [snapshot.projects]);
   const selectedProject = projects.includes(state.project) ? state.project : projects[0] ?? '';
-  const tickets = useScopedTickets(snapshot, state.project);
+  const tickets = useScopedTickets(snapshot, selectedProject);
   const { canMutate, reason } = useControlPlane();
   const newTicketReason = projects.length === 0 ? 'Start a project from your agent first' : reason;
   const [createIntent] = useState(() => {
@@ -188,10 +188,12 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
       <TopBar
         title="Tickets"
         count={filtered.length}
+        warnings={snapshot.meta.warnings}
         actions={
           <div>
             <Button
               variant="primary"
+              size="lg"
               onClick={() => setNewOpen(true)}
               {...gateProps(newTicketReason)}
               {...(projects.length === 0 ? { 'aria-describedby': 'new-ticket-project-reason' } : {})}

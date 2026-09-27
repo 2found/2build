@@ -35,8 +35,8 @@ interface ActiveRow {
 export function Home({ snapshot }: { snapshot: Snapshot }) {
   const { state } = useFilter();
   const projects = Object.keys(snapshot.projects ?? {}).sort();
-  const selectedProject = projects.includes(state.project) ? state.project : projects[0];
-  const tickets = useScopedTickets(snapshot, state.project);
+  const selectedProject = projects.includes(state.project) ? state.project : projects[0] ?? '';
+  const tickets = useScopedTickets(snapshot, selectedProject);
   const sessions = useScopedSessions(snapshot);
   const { meta } = snapshot;
   const sessionCount = snapshot.sessions?.count ?? 0;
