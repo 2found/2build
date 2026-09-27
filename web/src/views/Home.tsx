@@ -100,7 +100,10 @@ export function Home({ snapshot }: { snapshot: Snapshot }) {
         {tickets.length === 0 && (
           <FirstRunChecklist
             onCreateTicket={createProject ? () => {
-              window.location.hash = `#/tickets?project=${encodeURIComponent(createProject)}&create=1`;
+              const params = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
+              params.set('project', createProject);
+              params.set('create', '1');
+              window.location.hash = `#/tickets?${params.toString()}`;
             } : undefined}
             createTicketReason={reason}
           />

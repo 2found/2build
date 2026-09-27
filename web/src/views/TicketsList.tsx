@@ -217,7 +217,7 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
 
       {tickets.length === 0 ? (
         <FirstRunChecklist
-          onCreateTicket={state.project ? () => setNewOpen(true) : undefined}
+          onCreateTicket={projects.length > 0 && state.project ? () => setNewOpen(true) : undefined}
           createTicketReason={reason}
         />
       ) : filtered.length === 0 ? (
@@ -314,6 +314,7 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
         onClose={() => setNewOpen(false)}
         project={state.project}
         projects={projects}
+        narrow={narrow}
         foremen={(snapshot.foremen ?? []).filter(f => foremanLive(f)).map(f => f.id)}
         canMutate={canMutate}
       />
@@ -675,6 +676,7 @@ function NewTicketModal({
   onClose,
   project,
   projects,
+  narrow,
   foremen,
   canMutate,
 }: {
@@ -682,9 +684,11 @@ function NewTicketModal({
   onClose: () => void;
   project: string;
   projects: string[];
+  narrow: boolean;
   foremen: string[];
   canMutate: boolean;
 }) {
+  const controlStyle = narrow ? Object.assign({}, inputStyle, { minHeight: 44 }) : inputStyle;
   const [proj, setProj] = useState(projects.includes(project) ? project : projects[0] ?? '');
   const previousProject = useRef(project);
   useEffect(() => {
@@ -749,14 +753,14 @@ function NewTicketModal({
     >
       <Field label="Project">
         {id => (
-          <select id={id} style={inputStyle} value={proj} onChange={e => setProj(e.target.value)}>
+          <select id={id} style={controlStyle} value={proj} onChange={e => setProj(e.target.value)}>
             {projects.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         )}
       </Field>
       <Field label="Title">
         {id => (
-          <input id={id} style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} />
+          <input id={id} style={controlStyle} value={title} onChange={e => setTitle(e.target.value)} />
         )}
       </Field>
       <Field
@@ -779,7 +783,7 @@ function NewTicketModal({
         hint="The foreman that picks it up. It is woken now if its workspace is reachable, otherwise on its next tick."
       >
         {id => (
-          <select id={id} style={inputStyle} value={assignee} onChange={e => setAssignee(e.target.value)}>
+          <select id={id} style={controlStyle} value={assignee} onChange={e => setAssignee(e.target.value)}>
             <option value="">Unassigned</option>
             {foremen.map(f => <option key={f} value={f}>{f}</option>)}
           </select>
