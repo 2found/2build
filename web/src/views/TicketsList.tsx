@@ -6,6 +6,7 @@ import { PriorityDot } from '../components/PriorityDot';
 import { DenseRow } from '../components/DenseRow';
 import { FiltersPopover, type FacetDef } from '../components/FiltersPopover';
 import { EmptyState } from '../components/EmptyState';
+import { FirstRunChecklist } from '../components/FirstRunChecklist';
 import { SectionHeader } from '../components/SectionHeader';
 import { TopBar } from '../components/TopBar';
 import { WaitingOnYou } from '../components/WaitingOnYou';
@@ -53,9 +54,25 @@ function isFlatMode(): boolean {
 
 export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
   const { state } = useFilter();
+  const projects = useMemo(() => Object.keys(snapshot.projects ?? {}).sort(), [snapshot.projects]);
+  const selectedProject = projects.includes(state.project) ? state.project : projects[0] ?? '';
   const tickets = useScopedTickets(snapshot, state.project);
   const { canMutate, reason } = useControlPlane();
-  const [newOpen, setNewOpen] = useState(false);
+  const newTicketReason = projects.length === 0 ? 'Start a project from your agent first' : reason;
+  const [createIntent] = useState(() => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1] ?? '');
+    return params.get('create') === '1' ? params.get('project') ?? '' : null;
+  });
+  const [newOpen, setNewOpen] = useState(() => createIntent !== null && projects.includes(createIntent));
+  useEffect(() => {
+    if (createIntent === null) return;
+    const [route, query = ''] = window.location.hash.split('?');
+    const params = new URLSearchParams(query);
+    if (params.get('create') !== '1') return;
+    params.delete('create');
+    const remaining = params.toString();
+    history.replaceState(null, '', `${route}${remaining ? `?${remaining}` : ''}`);
+  }, [createIntent]);
   const narrow = useMediaQuery('(max-width: 767px)');
   const columns = narrow ? COLUMNS_NARROW : COLUMNS;
 
@@ -172,11 +189,20 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
         title="Tickets"
         count={filtered.length}
         actions={
-          <Button variant="primary" onClick={() => setNewOpen(true)} {...gateProps(reason)}>
-            New ticket
-          </Button>
+          <div>
+            <Button
+              variant="primary"
+              onClick={() => setNewOpen(true)}
+              {...gateProps(newTicketReason)}
+              {...(projects.length === 0 ? { 'aria-describedby': 'new-ticket-project-reason' } : {})}
+            >
+              New ticket
+            </Button>
+            {projects.length === 0 && (
+              <span id="new-ticket-project-reason" className="sr-only">{newTicketReason}</span>
+            )}
+          </div>
         }
-        warnings={snapshot.meta.warnings}
       />
       <div className="px-6 py-4 w-full space-y-4">
       {/* Unfiltered on purpose: a blocked worker that a status chip happens to
@@ -185,7 +211,7 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
       <FiltersPopover facets={facets} />
 
       {tickets.length === 0 ? (
-        <EmptyState title="No tickets" body="No tickets found in this project." />
+        <FirstRunChecklist onCreateTicket={selectedProject ? () => setNewOpen(true) : undefined} />
       ) : filtered.length === 0 ? (
         <EmptyState title="No results" body="No tickets match the active filters. Try clearing a chip." />
       ) : flat ? (
@@ -278,8 +304,8 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
       <NewTicketModal
         open={newOpen}
         onClose={() => setNewOpen(false)}
-        project={state.project}
-        projects={Object.keys(snapshot.projects ?? {})}
+        project={selectedProject}
+        projects={projects}
         foremen={(snapshot.foremen ?? []).filter(f => foremanLive(f)).map(f => f.id)}
         canMutate={canMutate}
       />
@@ -651,7 +677,10 @@ function NewTicketModal({
   foremen: string[];
   canMutate: boolean;
 }) {
-  const [proj, setProj] = useState(project !== 'all' ? project : projects[0] ?? '');
+  const [proj, setProj] = useState(projects.includes(project) ? project : projects[0] ?? '');
+  useEffect(() => {
+    setProj(current => projects.includes(current) ? current : projects.includes(project) ? project : projects[0] ?? '');
+  }, [project, projects]);
   const [title, setTitle] = useState('');
   const [requirement, setRequirement] = useState('');
   const [assignee, setAssignee] = useState('');

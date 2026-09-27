@@ -3,6 +3,7 @@ import type { Snapshot, TicketStatus, TicketSummary } from '../lib/data';
 import { Tag } from '../components/Tag';
 import { DenseRow } from '../components/DenseRow';
 import { EmptyState } from '../components/EmptyState';
+import { FirstRunChecklist } from '../components/FirstRunChecklist';
 import { SectionHeader } from '../components/SectionHeader';
 import { TopBar } from '../components/TopBar';
 import { WaitingOnYou } from '../components/WaitingOnYou';
@@ -33,6 +34,8 @@ interface ActiveRow {
 
 export function Home({ snapshot }: { snapshot: Snapshot }) {
   const { state } = useFilter();
+  const projects = Object.keys(snapshot.projects ?? {}).sort();
+  const selectedProject = projects.includes(state.project) ? state.project : projects[0];
   const tickets = useScopedTickets(snapshot, state.project);
   const sessions = useScopedSessions(snapshot);
   const { meta } = snapshot;
@@ -91,7 +94,15 @@ export function Home({ snapshot }: { snapshot: Snapshot }) {
         warnings={snapshot.meta.warnings}
       />
       <div className="px-6 py-4 w-full space-y-6">
+        {tickets.length === 0 && (
+          <FirstRunChecklist
+            onCreateTicket={selectedProject ? () => {
+              window.location.hash = `#/tickets?project=${encodeURIComponent(selectedProject)}&create=1`;
+            } : undefined}
+          />
+        )}
         <WaitingOnYou tickets={tickets} />
+        {tickets.length > 0 && (
         <section>
           <SectionHeader title="Active tickets" count={active.length} />
           {active.length === 0 ? (
@@ -170,6 +181,7 @@ export function Home({ snapshot }: { snapshot: Snapshot }) {
             </div>
           )}
         </section>
+        )}
 
         {looseSessions.length > 0 && (
           <section>
@@ -220,11 +232,9 @@ export function Home({ snapshot }: { snapshot: Snapshot }) {
           </section>
         )}
 
-        <section>
-          <SectionHeader title="Tickets by status" count={tickets.length} />
-          {tickets.length === 0 ? (
-            <EmptyState title="No tickets" />
-          ) : (
+        {tickets.length > 0 && (
+          <section>
+            <SectionHeader title="Tickets by status" count={tickets.length} />
             <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-1">
               {STATUS_ORDER.filter(s => counts.has(s)).map(s => (
                 <div key={s} className="flex items-center gap-1.5">
@@ -238,8 +248,8 @@ export function Home({ snapshot }: { snapshot: Snapshot }) {
                 </div>
               ))}
             </div>
-          )}
-        </section>
+          </section>
+        )}
 
         <Activity lines={snapshot.journalTail ?? []} />
       </div>
