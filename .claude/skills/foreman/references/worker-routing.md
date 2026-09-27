@@ -11,6 +11,10 @@ parent and child Dispatch; Foreman's own `foreman_*` settings are independent.
    `bbs agent resolve --role worker --dir "$WORKTREE" --json`.
    Select the phase's model/effort through the canonical contract, then resolve
    again with those explicit settings. Generic defaults do not override tiers.
+   For OMP, pass `--model @normal`, `--model @slow` or `--model @plan`
+   for the selected tier. Never replace the role with its resolved model name
+   or a model from the Codex column. Persist the role as the requested selector;
+   record its resolved provider/model/effort separately as launch evidence.
 2. Read the live Orca launcher capabilities. For supported model/effort forwarding:
 
    ```bash
