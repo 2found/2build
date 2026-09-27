@@ -47,7 +47,7 @@ the ready wave. Parallelize after shared interfaces and the product direction
 have evidence. QA backlog or repeated interface conflicts reduce new starts;
 prioritize integration and repairs within the existing resource bounds.
 
-At each reconciliation use `bbs foreman snapshot "$PARENT" --json`. It returns
+At each full reconciliation use `bbs foreman snapshot "$PARENT" --json`. It returns
 scope coverage, child seals, current evidence, blockers, delivery and observed
 time. Before new production dispatch use
 `bbs foreman readiness "$PARENT" --action dispatch --json`; inspect each child's
@@ -60,13 +60,15 @@ the read succeeded. Reads never reconcile or mutate ticket status.
 Each Task includes parent outcome and accepted revision, owned acceptance IDs,
 design/prototype paths, exact prerequisite revisions, permitted files/interfaces,
 available commands/runtime, constraints, and the existing Orca identity envelope.
-Workers still execute autopilot in one session on their assigned checkout.
+Workers execute their assigned phase in one session on their assigned checkout.
+Autopilot phase assignments follow its **Foreman phase assignments** contract;
+the coordinator never executes a heavy phase itself.
 
 New managed code children use `bbs autopilot checkpoint --ticket "$TICKET"
 --workflow builder --step run --status in_progress --contract-version 2` (substitute
 their actual workflow). Existing v1 tickets require that explicit migration and
 new gate runs; never wrap legacy PASS prose as typed evidence. Autopilot's
-[verification producer](../autopilot/references/verification.md) captures
+[verification producer](../../autopilot/references/verification.md) captures
 before/after subjects and archives logs. Seal each passing child **before** its
 finish handler or worktree removal: `bbs foreman seal "$TICKET"`.
 
@@ -166,11 +168,14 @@ reported waits, not proof of agent liveness. Refresh from the actual ongoing
 wait, never a blind timer. Orca remains the runtime authority. Terminal reachability
 is observed on each watcher tick independently of hourly model reconciliation.
 
-For a live worker without progress or a valid wait, inspect the obstacle and send
-one bounded diagnostic assignment. Preserve existing failure counts across retries.
-After repeated semantic failure, change hypothesis, split internal phases, or
-escalate the **next launch** model using the canonical routing table and observed
-failure evidence. This includes Build when implementation is the demonstrated
-problem. Do not restart a live writer, expire its lease, or repeatedly resend the
+At a CLI-requested full reconciliation, or after a concrete failure report,
+inspect a live worker without progress or a valid wait and send one bounded
+diagnostic assignment if an obstacle is confirmed. Silence or an expired
+15-minute progress observation alone does not trigger a check or require the
+coordinator to refresh worker waits. Preserve existing failure counts across retries.
+After repeated semantic failure, dispatch strong planning/review diagnosis with
+the observed failure evidence, then return repairs to a normal Build worker.
+Do not silently upgrade Build or QA, restart a live writer, expire its lease,
+or repeatedly resend the
 same assignment. Missing intent/authority escalates one concrete User Challenge;
 unaffected work can continue. Record telemetry and recovery artifacts before retry.

@@ -71,6 +71,57 @@ test("OMP refreshes session identity at start and after shell tools", async () =
   expect(calls[0][1][1]).toBe("session-writer");
 });
 
+test("OMP checks worker reports at session_stop and preserves native block decisions", async () => {
+  const previous = process.env.ORCA_TERMINAL_HANDLE;
+  process.env.ORCA_TERMINAL_HANDLE = "term-worker";
+  try {
+    const { handlers, calls, ctx } = harness({ code: 0, killed: false, stderr: "",
+      stdout: JSON.stringify({ decision: "block", reason: "Report ctx-current through Orca" }) });
+    for (const stop_hook_active of [false, true]) {
+      expect(await handlers.get("session_stop")!({ stop_hook_active }, ctx))
+        .toEqual({ decision: "block", reason: "Report ctx-current through Orca" });
+    }
+    expect(calls[0][1][1]).toBe("worker-report-gate");
+    const settled = harness();
+    expect(await settled.handlers.get("session_stop")!({}, settled.ctx)).toBeUndefined();
+  } finally {
+    if (previous === undefined) delete process.env.ORCA_TERMINAL_HANDLE;
+    else process.env.ORCA_TERMINAL_HANDLE = previous;
+  }
+});
+
+test("OMP report checks block failures and malformed decisions", async () => {
+  const previous = process.env.ORCA_TERMINAL_HANDLE;
+  process.env.ORCA_TERMINAL_HANDLE = "term-worker";
+  try {
+    for (const result of [
+      { code: 127, killed: false, stdout: "", stderr: "missing" },
+      { code: 0, killed: true, stdout: "", stderr: "" },
+      { code: 0, killed: false, stdout: "invalid", stderr: "" },
+      { code: 0, killed: false, stdout: "{}", stderr: "" },
+      { code: 0, killed: false, stdout: '{"decision":"block","reason":""}', stderr: "" },
+    ]) {
+      const { handlers, ctx } = harness(result);
+      expect(await handlers.get("session_stop")!({}, ctx)).toMatchObject({ decision: "block" });
+    }
+  } finally {
+    if (previous === undefined) delete process.env.ORCA_TERMINAL_HANDLE;
+    else process.env.ORCA_TERMINAL_HANDLE = previous;
+  }
+});
+
+test("OMP skips the stop gate outside Orca", async () => {
+  const previous = process.env.ORCA_TERMINAL_HANDLE;
+  delete process.env.ORCA_TERMINAL_HANDLE;
+  try {
+    const { handlers, calls, ctx } = harness();
+    expect(await handlers.get("session_stop")!({}, ctx)).toBeUndefined();
+    expect(calls).toHaveLength(0);
+  } finally {
+    if (previous !== undefined) process.env.ORCA_TERMINAL_HANDLE = previous;
+  }
+});
+
 test("OMP executes the compiled hooks without a model or release command", async () => {
   // The extension prefers the sibling build at ../bin/bbs; build it if absent.
   const bbsPath = join(import.meta.dir, "..", "bin", "bbs");

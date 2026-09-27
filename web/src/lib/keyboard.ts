@@ -85,6 +85,7 @@ const G_ROUTES: Record<string, string> = {
   s: '#/skill-events',
   m: '#/timeline',
   a: '#/analytics',
+  ',': '#/settings',
 };
 
 export interface GlobalKeyboardActions {

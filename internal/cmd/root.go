@@ -76,7 +76,7 @@ func NewRootCmd() *cobra.Command {
 		newConfigCmd(), newEnvCmd(), newSlugCmd(), newTicketCmd(), newQAConfigCmd(),
 		newSecretsCmd(), newDesignCmd(), newDashboardCmd(), newHooksCmd(),
 		newForemanCmd(), newWorkspaceCmd(),
-		newSkillRuntimeCmd(),
+		newSkillRuntimeCmd(), newAgentCmd(),
 		guardHelp(newUpdateCheckCmd()), guardHelp(newUpgradeCmd()),
 		guardHelp(newAutopilotCmd()),
 	)

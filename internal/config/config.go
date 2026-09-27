@@ -1,14 +1,13 @@
-// Package config reads and writes the babysit config file
-// (~/.babysit/config.yaml) natively, without shelling out to jq/yq.
+// Package config owns the single babysit config file
+// (~/.babysit/config.yaml).
 //
-// Reads parse the file via yaml.v3. Writes are format-preserving native edits
-// that mirror the legacy bin/bbs-config bash script byte-for-byte: the file is
-// a documented comment header plus flat `key: value` lines that users may hand
-// edit, so a full yaml round-trip (which would drop comments and reflow the
-// header) is deliberately avoided.
+// Scalar get/set operations preserve existing text. Structured writers update
+// only their YAML subtree under a shared lock, so agent settings and workspace
+// registrations cannot overwrite each other.
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/reallongnguyen/babysit/internal/ticket"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,14 +32,20 @@ const configHeader = `# babysit configuration — edit freely, changes take effe
 #                           # Set to false to only run skills explicitly typed.
 #
 # ─── Coding agent ────────────────────────────────────────────────────
-# worker_agent: claude      # which CLI foreman dispatches workers on:
-#                           #   claude | omp | grok | codex
-# foreman_agent: claude     # which CLI the foreman itself runs on. Separate
+# worker_agent: auto        # auto | claude | codex | omp | grok | cursor
+#                           # auto detects the current agent, then PATH.
+# foreman_agent: auto       # which CLI the foreman itself runs on. Separate
 #                           # from worker_agent on purpose — the foreman audits
 #                           # its workers, so moving them does not move the audit.
 #                           # Non-claude agents need babysit's skills reachable
 #                           # from their own store; an unmet one fails fast at
 #                           # spawn with the setup step it needs.
+# worker_provider:         # native provider identifier; no credentials here
+# worker_model:            # model ID or OMP role; empty uses CLI config
+# worker_effort:           # native reasoning/thinking level (if supported)
+# foreman_provider:        # independent from worker settings
+# foreman_model:
+# foreman_effort:
 #
 # ─── Telemetry ───────────────────────────────────────────────────────
 # telemetry: local          # off | local
@@ -55,14 +61,17 @@ const configHeader = `# babysit configuration — edit freely, changes take effe
 #                                 # host CPU/RAM budget; a positive
 #                                 # value may only lower that budget.
 # foreman_status_interval: 3600   # seconds between full reconciliation ticks:
-#                                 #   the Foreman skill's bounded orca
-#                                 #   orchestration check --wait timeout and
-#                                 #   bbs foreman watch's status-prompt
-#                                 #   default share this one value. Deliveries
+#                                 #   the Foreman skill's fallback audit and
+#                                 #   bbs foreman watch's status/idle prompt
+#                                 #   defaults share this one value. Deliveries
 #                                 #   still wake the foreman immediately; this
 #                                 #   is only the missed-event/restart backup.
 #                                 #   bbs foreman watch --status-interval
 #                                 #   overrides it for that watcher.
+# ─── Workspaces ──────────────────────────────────────────────────────
+# workspaces:               # managed by bbs config workspace; repo paths,
+#                           # roles, metadata, and harness version live here.
+#
 
 #
 # ─── Updates ─────────────────────────────────────────────────────────
@@ -84,6 +93,72 @@ func Dir() string {
 // Path returns the config file path.
 func Path() string {
 	return filepath.Join(Dir(), "config.yaml")
+}
+
+// Read returns the config bytes. A missing file is an empty config.
+func Read() ([]byte, error) {
+	b, err := os.ReadFile(Path())
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	return b, err
+}
+
+// Update serializes one read-modify-write against the single config file.
+func Update(mutate func([]byte) ([]byte, error)) ([]byte, error) {
+	return UpdatePath(Path(), mutate)
+}
+
+// UpdatePath is Update for a dashboard server started with an explicit state
+// directory. All writers share the same lock and atomic-write behavior.
+func UpdatePath(path string, mutate func([]byte) ([]byte, error)) ([]byte, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, err
+	}
+	unlock, err := acquireLock(path)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+
+	current, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		current, err = nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	next, err := mutate(current)
+	if err != nil {
+		return nil, err
+	}
+	if bytes.Equal(current, next) {
+		return next, nil
+	}
+	target := path
+	if info, statErr := os.Lstat(target); statErr == nil && info.Mode()&os.ModeSymlink != 0 {
+		target, err = filepath.EvalSymlinks(target)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := ticket.WriteAtomic(target, next); err != nil {
+		return nil, err
+	}
+	return next, nil
+}
+
+func acquireLock(path string) (func(), error) {
+	lockPath := path + ".lock"
+	for tries := 0; ; tries++ {
+		if err := os.Mkdir(lockPath, 0o755); err == nil {
+			return func() { _ = os.RemoveAll(lockPath) }, nil
+		}
+		if tries >= 50 {
+			return nil, fmt.Errorf("config: failed to acquire lock after 5s (%s)", lockPath)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 // Get returns the value for a top-level key and whether it was present.
@@ -121,45 +196,46 @@ func Set(key, value string) error {
 	if i := strings.IndexByte(value, '\n'); i >= 0 {
 		value = value[:i]
 	}
-	if err := os.MkdirAll(Dir(), 0o755); err != nil {
+	// Values are opaque strings: @slow, provider/model and values with ':' or
+	// '#' must survive YAML without becoming aliases, maps or comments.
+	encoded, err := yaml.Marshal(value)
+	if err != nil {
 		return err
 	}
-	path := Path()
-	b, err := os.ReadFile(path)
-	var content string
-	switch {
-	case err == nil:
-		content = string(b)
-	case os.IsNotExist(err):
-		content = configHeader
-	default:
-		return err
-	}
-
-	prefix := key + ":"
-	lines := strings.Split(content, "\n")
-	matched := false
-	for i, ln := range lines {
-		if strings.HasPrefix(ln, prefix) {
-			lines[i] = key + ": " + value
-			matched = true
+	value = strings.TrimSuffix(string(encoded), "\n")
+	_, err = Update(func(b []byte) ([]byte, error) {
+		content := string(b)
+		if len(b) == 0 {
+			content = configHeader
 		}
-	}
-	if matched {
-		content = strings.Join(lines, "\n")
-	} else {
-		content += key + ": " + value + "\n"
-	}
-	return os.WriteFile(path, []byte(content), 0o644)
+		prefix := key + ":"
+		lines := strings.Split(content, "\n")
+		matched := false
+		for i, ln := range lines {
+			if strings.HasPrefix(ln, prefix) {
+				lines[i] = key + ": " + value
+				matched = true
+			}
+		}
+		if matched {
+			content = strings.Join(lines, "\n")
+		} else {
+			if content != "" && !strings.HasSuffix(content, "\n") {
+				// A hand-edited file may lack a final newline; appending without
+				// one would splice the new key onto the last line, corrupting both.
+				content += "\n"
+			}
+			content += key + ": " + value + "\n"
+		}
+		return []byte(content), nil
+	})
+	return err
 }
 
 // List returns the raw file bytes (or nil if the file is missing), matching
 // `cat 2>/dev/null || true`.
 func List() []byte {
-	b, err := os.ReadFile(Path())
-	if err != nil {
-		return nil
-	}
+	b, _ := Read()
 	return b
 }
 

@@ -11,8 +11,10 @@ read them by path, not as `skill://`.
   the human explicitly authorizes Foreman closeout. Everything else derives
   (`../references/git-flow.md § Profiles`).
 - `.babysit/qa.yaml`: minimal local `url`, `start`, `check`, and `flows`.
-- `.babysit/config.yaml`: committed — which workspace this repo belongs to, plus optional `name`, `description`, `repo_type`. Written via `bbs config repo set`; only when the repo joins a workspace.
-- `.babysit/.env`: gitignored machine-local values (credentials; related repo paths only when there is no workspace entry).
+- `~/.babysit/config.yaml`: the one machine-local babysit config. When this
+  repo joins a workspace, register its git URL, local path, role, repo type,
+  and harness version under `workspaces`; never create `.babysit/config.yaml`.
+- `.babysit/.env`: gitignored machine-local secrets only.
 - `.gitignore`: include `.babysit/.env` if missing.
 - `AGENTS.md` or `CLAUDE.md`: add/update only a tiny Babysit pointer section.
 ## Rules
@@ -49,8 +51,7 @@ read them by path, not as `skill://`.
   `/bbs:foreman`. Do not recommend, install, or write a specific IDE /
   terminal multiplexer into committed config or the landing doc — that is a
   machine preference, and `foreman` owns its own backend preflight.
-- Related repos (FE/BE counterpart, shared schemas) feed planning and API-contract checks. Their paths belong in the **workspace registry** — `bbs config workspace add-repo <ws> --git-url <url> --path <dir> --role <fe|be|shared>` — which is the authority babysit reads. `RELATED_*_REPO` in `.babysit/.env` still resolves for repos that never joined a workspace, but it is a fallback: when both name a role and disagree, babysit blocks instead of picking. Meaning (what each repo is *for*) still goes in `AGENTS.md`.
-- Record the harness version once the config is written: `bbs config repo stamp`. It is what makes "this repo was set up by an older babysit" visible in `bbs config workspace show`. A repo with no `harness_version` is not a problem — that is every repo configured before this existed — so never warn about it.
+- Related repos (FE/BE counterpart, shared schemas) feed planning and API-contract checks. Register this repo and each related repo in the **workspace mapping inside `~/.babysit/config.yaml`** using `bbs config workspace add-repo`. The command records the running harness version. `RELATED_*_REPO` in `.babysit/.env` remains a fallback only for repos outside a workspace; when both sources name a role and disagree, babysit blocks. Meaning (what each repo is *for*) still goes in `AGENTS.md`.
 ## QA Harness Notes
 Prefer this committed shape:
 ```yaml
@@ -114,9 +115,9 @@ section:
 
 Use these repos for investigation and planning when a task crosses FE/BE,
 API contracts, generated types, or shared schemas. Local paths are machine
-specific: they live in the workspace registry (`bbs config workspace show`), which
-is the authority. `$RELATED_*_REPO` in `.babysit/.env` is a fallback for
-repos outside a workspace.
+specific: they live in the workspace mapping in `~/.babysit/config.yaml`
+(`bbs config workspace show`), which is the authority. `$RELATED_*_REPO` in
+`.babysit/.env` is a fallback for repos outside a workspace.
 
 - Backend API: role `be`
 - Frontend app: role `fe`
@@ -127,12 +128,11 @@ replace only that section. Do not commit absolute local paths to `AGENTS.md` or
 `CLAUDE.md`.
 Register each related repo the human names:
 ```bash
-bbs config workspace create <workspace>          # idempotent
-bbs config workspace add-repo <workspace> --git-url <origin-url> --path <local-dir> --role be
-bbs config repo set workspace <workspace>   # writes this repo's .babysit/config.yaml
+bbs config workspace add-repo <workspace> --git-url <this-origin> --path <this-repo> --role fe --repo-type polyrepo
+bbs config workspace add-repo <workspace> --git-url <related-origin> --path <related-repo> --role be
 ```
-The registry lives in `~/.babysit/workspaces/` — machine-local, never
-committed, which is what keeps absolute paths out of git.
+`add-repo` creates the workspace when needed and writes only
+`~/.babysit/config.yaml`. Do not create or commit `.babysit/config.yaml`.
 On a repo that is not joining a workspace, seed `.babysit/.env` instead, after
 ensuring it is gitignored:
 ```bash
@@ -146,7 +146,7 @@ is absent — record where the path is expected to come from and leave it unset.
 ## Output
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
-CONFIG: <files created/updated, including AGENTS.md/CLAUDE.md and .babysit/.env when related repos are configured>
+CONFIG: <files created/updated, including ~/.babysit/config.yaml workspace registration when applicable>
 VERIFY: <config parse + local app probe/check, or named blocker>
 NEXT: /bbs:autopilot "<feature>"
 ```

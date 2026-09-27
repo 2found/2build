@@ -1,5 +1,5 @@
 {
-  "description": "Babysit release checks and session tracking (Claude Code, Codex, Grok Build). OMP uses hooks/omp.ts.",
+  "description": "Babysit release checks, session tracking, and Orca worker stop checks. OMP uses hooks/omp.ts.",
   "hooks": {
     "PreToolUse": [
       {
@@ -14,6 +14,13 @@
         "matcher": "Bash",
         "hooks": [
           { "type": "command", "command": "bbs hooks session-writer", "timeout": 10 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bbs hooks worker-report-gate", "timeout": 10 }
         ]
       }
     ],

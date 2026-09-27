@@ -866,14 +866,12 @@ func serveVerdictOK(primary, t, skill string) bool {
 
 // (relatedRepoEnv / relatedRepoPath live in ticket_board.go.)
 
-// siblingSourceName names the authority a failed role lookup consulted, so the
-// message stays accurate for both an unregistered repo (where .env is still
-// the only source) and a registered one.
+// siblingSourceName names the authority consulted for a failed role lookup.
 func siblingSourceName(r *workspace.Resolver) string {
 	if n := r.Name(); n != "" {
 		return "workspace " + n
 	}
-	return "any workspace (this repo has no .babysit/config.yaml)"
+	return "all workspaces in " + workspace.ConfigPath()
 }
 
 // ─── land ────────────────────────────────────────────────────────────────────

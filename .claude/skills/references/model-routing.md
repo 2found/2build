@@ -1,172 +1,100 @@
 # Model routing
 
-The pack's canonical harness → model list. `foreman` routes each supervised
-Dispatch it launches. Every model ID, effort, and price the pack reasons about
-is written down here — a second copy inside a SKILL.md is a second thing to
-drift.
+The pack's canonical launch-settings contract. `foreman` routes each supervised
+Dispatch it launches through `bbs agent resolve --role worker --json`.
+Provider names, model IDs and effort come from user configuration or the agent's
+live model listing. There is no bundled model catalog or price table. Never
+invent a model ID or read an agent type as a model name.
 
 `autopilot` deliberately does not route models: every step in one invocation
-runs in the session it was launched in (see
-[autopilot § Planning runs in this session](../autopilot/SKILL.md)). Foreman
-therefore launches the Plan and Build phases as separate supervised sessions
-when their routes differ. It never asks one autopilot session to change models
-mid-run.
+runs in the session it was launched in. Foreman
+launches Plan, Build, Review and QA as phase-scoped supervised sessions;
+it never asks a running worker to change models mid-run.
+
+## Configuration
+
+Resolve each field independently: explicit `--agent` / `--provider` / `--model` /
+`--effort`, then `BABYSIT_WORKER_*`, then shared `BABYSIT_AGENT`,
+`BABYSIT_PROVIDER`, `BABYSIT_MODEL`, `BABYSIT_EFFORT`, then the machine-wide
+`~/.babysit/config.yaml`. The keys are `worker_agent`, `worker_provider`,
+`worker_model`, `worker_effort`. The corresponding `foreman_*` keys are
+independent.
+
+An absent agent or `auto` detects the current harness first, then an installed
+CLI. `bbs agent detect --json` identifies the current harness with its evidence;
+`bbs agent list --json` reports installed CLIs. Installed does not mean current,
+authenticated, or ready to resolve babysit's skills.
+
+An empty provider/model/effort means native default: omit its launch flag.
+An unknown default is not proof of the required model class below. Do not
+replace an empty value with a model from a remembered table. Models are
+opaque identifiers, including OMP roles such as `@slow` or `provider/model`.
+Use the agent's own model listing when a user needs available choices; do not
+store credentials or scrape auth files to choose a provider.
+
+```bash
+bbs config set worker_agent omp
+bbs config set worker_provider openai
+bbs config set worker_model '<your-model-id>'
+bbs config set worker_effort high
+bbs agent resolve --role worker --dir '<worker-repo>' --json
+```
+
+For OMP roles whose binding already names a provider, leave `worker_provider`
+empty. Codex providers must exist in its native configuration. Claude accepts
+`anthropic`, `bedrock`, `vertex`, or `foundry`; Grok and Cursor use their native
+`xai` and `cursor` providers. Unsupported combinations fail at resolution.
+`bbs foreman worker-command` and `spawn` translate these settings to native CLI
+flags. A separate launcher must explicitly support forwarding them; a resolved
+preference is not evidence that the worker received it.
 
 ## Tiers
 
-Classify from the requirement, the plan, and the acceptance commands. Weak or
-ambiguous evidence stays `normal`; never classify up on a guess.
+Classify from the requirement, plan, and acceptance commands. Weak evidence
+stays `normal`. Tiers guide phase ownership and verification, not a fixed model.
 
 | Tier | Use for |
 |---|---|
 | `simple` | an obvious local docs/config edit, or a tiny isolated change with no new contract and no new state |
-| `normal` *(default)* | ordinary implementation work — everything no other row names |
+| `normal` | ordinary implementation work |
 | `critical` / `hard` | security, auth, money, irreversible or live-data migration, distributed concurrency, a cross-system architecture decision |
 
 ## Phase routing
 
-Classify the ticket once, then route each phase. Hardness belongs to the
-reasoning step, not permanently to every command the ticket will run:
+Model class follows the work phase, independently of ticket complexity:
 
-| Ticket tier | Plan and design feedback | Build, review, and per-ticket QA |
-|---|---|---|
-| `simple` | `simple` rung | `simple` rung |
-| `normal` | `normal` rung | `normal` rung |
-| `critical` / `hard` | `critical` / `hard` rung | `normal` rung |
+| Phase | Required model class |
+|---|---|
+| Parent/child planning, decomposition, design, design feedback | **strong** |
+| Code review and review diagnosis | **strong** |
+| Implementation and code repairs | **normal** |
+| Per-ticket QA, integration QA and product acceptance checks | **normal** |
+| Merges, composition and authorized delivery handlers | **normal** |
 
-Integration QA classifies the composed surface independently; a hard
-cross-system or non-delegable gate uses the hard rung. A hard ticket always
-releases its settled planner and starts a fresh normal Build worker, even when
-the harness maps both phases to the same model ID: phase ownership and cost
-accounting must remain explicit. Simple and normal tickets may reuse a worker
-only when the exact agent, model/role, and effort match the next phase.
+Resolve a concrete strong and normal route for the selected agent before their
+first dispatch. Use explicit phase-specific user selections first. Otherwise
+use configured models when their class is known, and the agent's live model
+listing/capability descriptions to select supported routes for any missing
+class. Log that selection as Taste and pass the selected model explicitly to
+`bbs agent resolve --role worker --model <model> --json` before launch. These
+are phase choices, not new config keys or literal `--model strong|normal` flags.
+Do not treat a generic `worker_model` as an override for both classes or infer
+capability from an opaque alias. If the class cannot be established, route the
+missing selection through `NEEDS_CONTEXT`; never silently use one unknown model
+for every phase. A higher effort setting alone does not make a normal model strong.
 
-This keeps architecture, security boundaries, and irreversible-data design on
-the strongest normally routed planner while ordinary implementation returns to
-the workhorse. For example, a hard ticket routes Plan to Codex
-`gpt-5.6-sol` at `high`, then routes Build to the normal row: Codex
-`gpt-5.6-sol` at `high`. An `omp` worker keeps its bound role and a `grok`
-worker its `grok-4.6` default across both phases — Orca forwards launch
-preferences only for Claude, Codex, and Cursor — so their phase routes are
-recorded, not honored. The top escalation rung still
-requires the evidence in **Escalating to the top rung**.
+Release a settled worker when the next phase needs a different route; start a
+fresh worker on the same checkout. Reuse only when agent, provider, model,
+effort and resource profile match the next assigned phase. Persist requested
+settings and observed launch results separately; label an unobserved native
+default as `native-default`, never as a known effective model. That label is
+bookkeeping, never a CLI model argument or evidence of strong/normal capability.
 
-## Ladders
+## Changing a route
 
-Ranked by capacity, strongest first. Prices are published list rates in USD per
-million tokens (input / output), checked 2026-09-14 against the provider price
-pages — OpenAI `developers.openai.com/api/docs/pricing`, Anthropic
-`platform.claude.com/docs/en/about-claude/pricing`, DeepSeek
-`api-docs.deepseek.com/quick_start/pricing`, Devin `devin.ai/pricing`. Effective
-cost is usually lower — cached input, prompt-cache reads, batch APIs — so read
-them as a cost ordering, not an invoice. A model ID is usable only on the
-harness whose ladder lists it.
-
-### Codex
-
-| # | Model | Effort | Capacity | Input | Output |
-|---|-------|--------|----------|------:|-------:|
-| 1 | `gpt-6-astra` | `high` | escalation rung — ~2.5x the workhorse, see below | 10.00 | 50.00 |
-| 2 | `gpt-5.6-sol` | `high` | the workhorse rung — handles almost every ticket | 4.00 (promotional) | 20.00 |
-| 3 | `gpt-5.6-terra` | `high` | cheapest capable rung; docs, config, tiny isolated changes | 2.00 | 12.00 |
-
-### Claude Code
-
-| # | Model | Effort | Capacity | Input | Output |
-|---|-------|--------|----------|------:|-------:|
-| 1 | Fable 5.1 (`fable`) | `high` | escalation rung — ~2x the workhorse, see below | 10.00 | 50.00 |
-| 2 | Opus 5 (`opus`) | `high` | the workhorse rung — handles almost every ticket | 5.00 | 25.00 |
-| 3 | Sonnet 5 (`sonnet`) | `high` | gate rung — the cheapest capable option for review and verification work | 3.00 | 15.00 |
-| 4 | Haiku 4.5 (`haiku`) | — | mechanical work only | 1.00 | 5.00 |
-
-### OMP — operator-configured roles
-
-OMP addresses roles, not model IDs: an operator binds each role to a model, so
-the ladder's capacity comes from the binding rather than from the name. The
-convention is `@slow` > `@default` > `@smol`; read this machine's binding with
-`omp config get modelRoles` and price the bound model from its own ladder.
-
-| # | Role | Bound model here | Input | Output |
-|---|------|------------------|------:|-------:|
-| 1 | `@slow` | `openai-codex/gpt-5.6-sol:high` | 4.00 | 20.00 |
-| 2 | `@default` | `opencode-go/deepseek-v4.1-flash:high` | 0.30 peak / 0.15 off-peak | 1.20 / 0.60 |
-| 3 | `@smol` | `devin/swe-2:high` | subscription | subscription |
-
-Roles carry their own names, so the ladder reads by binding, not by rank:
-`@default` is the everyday rung, `@smol` takes easy work, and `@slow` is the
-strongest role — the critical rung. Other roles (`@plan`, `@designer`,
-`@advisor`, `@task`, `@commit`, `@tiny`) are bound by the operator for their own
-jobs and are not tier inputs here. OMP has no rung above `@slow`: if an operator
-binds it to a frontier model, the cost of that choice is theirs, not this
-file's.
-
-### Grok
-
-Grok Build advertises two models (`grok models`): `grok-4.6`, its default, and
-the older `grok-4.5`. All routing runs on the default, so every tier takes it
-and no per-Dispatch launch preference is involved — Orca forwards
-`--model`/`--effort` only for Claude, Codex, and Cursor. Grok's own config and
-`--reasoning-effort` set its effort.
-
-| # | Model | Effort | Capacity | Input | Output |
-|---|-------|--------|----------|------:|-------:|
-| 1 | `grok-4.6` | own config | the only routed rung — the harness default, all tiers | 2.00 | 6.00 |
-| — | `grok-4.5` | — | advertised, not routed | — | — |
-
-`grok-4.6` list rates double for a prompt at or above 200K tokens ($4.00 /
-$12.00), so a long-context worker pays a different rate on the same rung.
-
-## Tier → model
-
-| Harness | `simple` | `normal` (default) | `critical` / `hard` |
-|---|---|---|---|
-| Codex | #3 `gpt-5.6-terra`, `high` | #2 `gpt-5.6-sol`, `high` | #2 `gpt-5.6-sol`, `high` |
-| Claude Code | #2 `opus`, `high` | #2 `opus`, `high` | #2 `opus`, `high` |
-| OMP | #3 `@smol`, `high` | #2 `@default`, `high` | #1 `@slow`, `high` |
-| Grok | `grok-4.6` | `grok-4.6` | `grok-4.6` |
-
-The routine rungs — `gpt-5.6-sol`, `opus`, `@default` — carry almost every
-implementation, including hard tickets after planning. Codex and Claude repeat
-the routine rung in the `critical` column on purpose: for their Plan phase,
-`critical` buys escalation *eligibility*, not a bigger default model. OMP's
-critical Plan takes `@slow`, the strongest role the operator bound, which on
-this machine is the same model as Codex's routine rung — no cost spike. Grok
-has a single routed rung, so its row is flat by fact rather than by choice.
-
-## Escalating to the top rung
-
-`gpt-6-astra` ($10/$50) and Fable 5.1 ($10/$50) cost 2–2.5x the workhorse per
-token, so they are an escalation, never a tier default, and never a hunch.
-Escalate one Dispatch at a time, and only when one of these holds:
-
-- the user named that model for this run, or
-- the ticket is on the non-delegable floor — security, auth, money,
-  irreversible or live-data migration — or is a cross-system architecture
-  decision, **and** the workhorse already ran it and came back short: a
-  `BLOCKED`, an inadequate plan, or a gate that failed on reasoning, or
-- a bounded implementation attempt repeatedly failed the same accepted behavior
-  after a changed hypothesis, and the failure evidence identifies a model
-  capability gap. This permits an affected Build Dispatch to escalate too;
-  preserve retry counts and record the next-launch rationale.
-
-Name the trigger beside the model in the handoff, with the cost delta, and log
-it as the Taste decision. "It looks hard" is not a trigger — when in doubt stay
-on the workhorse and let the evidence promote the ticket. Run at most the
-Dispatches that need it on the top rung; a ticket whose remaining work is
-ordinary implementation drops back to the workhorse on a fresh worker.
-
-## Rules
-
-- Never invent a model ID, and never read an agent type name as a model name.
-- A harness with no ladder here (cursor, pi, …) runs on its own
-  configured default. Record that; do not guess an ID for it.
-- An explicit model or effort the user named for this run wins over the tier,
-  in every skill that reads this file.
-- Prefer the cheapest rung that can carry the work. Cost is a reason to move
-  down the ladder, never a reason to climb it: the top rungs need the
-  escalation trigger above, and a `simple` ticket that turns out to need more
-  moves up one rung, not to the top.
-- Phase route → model is a Taste decision: log the ticket tier, phase,
-  harness, model, effort, and the evidence that classified it.
-- What the harness advertises beats this file. When a live list disagrees with
-  a row here, use the advertised value and fix the row.
+An explicit model or effort the user names for this run wins over configuration.
+Otherwise retain the persisted phase route. A failed attempt that came back short is
+evidence to reconsider the approach, not permission to buy a more expensive
+model. A requested route change is a Taste decision: log the reason and any
+observed cost difference, preserve the failure evidence, and start a fresh
+worker. Never replace a live writer or silently substitute an unsupported route.

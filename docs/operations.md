@@ -115,18 +115,45 @@ and verification. The full protocol is in
 
 ### Which coding agent runs the work
 
-`foreman` dispatches workers as coding-agent CLI sessions. Two keys pick which
-CLI, in `~/.babysit/config.yaml` above or in a repo's committed
-`.babysit/config.yaml` (the global file wins, so a machine can opt out without
-editing tracked state):
+Open `bbs dashboard` → **Settings** to configure machine-wide agent, provider,
+model, and effort defaults separately for workers and foremen. Changes apply to
+new runs. Agent choices show which CLIs are installed. Model and provider
+identifiers are free text, so custom providers and new models do not need a
+babysit update. Authentication stays in the agent's own config. Static
+dashboard snapshots cannot edit settings.
+
+`foreman` dispatches workers as coding-agent CLI sessions. Two keys in the
+single `~/.babysit/config.yaml` file pick which CLI:
 
 | Key | Selects | Default |
 |-----|---------|---------|
-| `worker_agent` | the per-ticket workers | `claude` |
-| `foreman_agent` | the foreman session itself | `claude` |
+| `worker_agent` | the per-ticket workers | `auto` |
+| `foreman_agent` | the foreman session itself | `auto` |
 
-Supported: `claude`, `omp`, `grok`, `codex`. `BABYSIT_AGENT=<name>` overrides
-both for one run; `bbs foreman spawn --agent <name>` overrides everything.
+Supported: `claude`, `omp`, `grok`, `codex`, `cursor`. `auto` detects the current
+agent, then selects the first installed CLI in alphabetical order; with no
+signal or installation it falls back to Claude and preflight reports the missing
+binary. Explicit selections never fall back to another agent.
+
+```bash
+bbs agent detect --json                 # current harness and detection evidence
+bbs agent list --json                   # supported CLIs and installed paths
+bbs agent resolve --role worker --json  # resolved launch settings
+bbs agent resolve --role foreman --dir /path/to/repo --json
+```
+
+Detection uses an explicit `BABYSIT_CURRENT_AGENT` marker, nearest recognized
+parent process, then native session markers. It does not infer the current agent
+from installed binaries, API keys, or config directories. OMP needs a recognized
+`omp` parent process or an explicit current-agent marker when embedded behind an
+unrecognized wrapper. `BABYSIT_AGENT` is a launch override, not runtime identity.
+
+Selection precedence for each field is CLI flag, role-specific environment
+(`BABYSIT_WORKER_AGENT` or `BABYSIT_FOREMAN_AGENT`), shared `BABYSIT_AGENT`,
+repository config, global config, then detection. `claude-code`/`claude code`,
+`cursor-agent`, and `oh-my-pi` are accepted aliases. Cursor launches through
+`cursor-agent`; a generic `agent` binary is not assumed to be Cursor (Grok also
+installs that name).
 `foreman_agent` selects only a session created or recovered by `spawn`; a
 directly invoked Foreman naturally runs in the CLI where its skill was invoked.
 
@@ -138,7 +165,7 @@ OMP          /foreman <large project>
 Codex        $bbs:foreman <large project>
 ```
 
-The skill's first operation is `bbs foreman adopt <id> --agent <current>`. It
+The skill's first operation is `bbs foreman adopt <id>`. It detects the agent,
 reads and renames the active Orca terminal, records the actual agent dialect,
 and makes dashboard/watchdog wakes addressable. Re-adoption after compaction is
 idempotent. It refuses to steal an id, terminal, or repo already bound to a
@@ -168,6 +195,7 @@ Two things it does not own:
   | `grok` | `grok plugin install https://github.com/lohi-ai/babysit` | `/bbs:autopilot` |
   | `omp` | `omp config set skills.customDirectories '["$HOME/.claude/plugins/marketplaces/babysit/.claude/skills"]'` | `/autopilot` |
   | `codex` | `codex plugin marketplace add lohi-ai/babysit && codex plugin add bbs@babysit` | `$bbs:autopilot` |
+  | `cursor` | make the skills available under `.cursor/skills` or `.agents/skills` | `/autopilot` |
 
   `bbs foreman worker-command` preflights the binary and names the per-agent
   fix; the install itself is on the operator. Pass `--skill autopilot` rather
@@ -194,7 +222,7 @@ Two things it does not own:
   be told to use one we chose: they take `--session-id <uuid>`. `omp` has no
   such flag, so a foreman on omp gets a private session directory
   (`--session-dir`) and resumes with `--continue` — unambiguous because nothing
-  else writes to that directory. `codex` has neither, so a closed Codex foreman
+  else writes to that directory. `codex` and `cursor` have neither, so either closed foreman
   starts a fresh conversation and cold-resumes from ticket + Orca state. It
   deliberately does not use repo-wide `resume --last`: several foremen may
   share one repo, and "last" could attach the wrong project's goal. A uuid is
@@ -225,55 +253,65 @@ cd <repo> && grok      # answer the trust prompt, then quit
 Workers launch with `--cwd <repo>`, so this is one decision per repo, not per
 worktree.
 
-### Which model runs a worker
+### Provider, model and effort
 
-Foreman does not run every ticket on whatever model its CLI defaults to. Each
-child ticket is classified into a task tier — `simple`, `normal`,
-`critical/hard` — from its requirement, plan, and acceptance commands, with
-weak evidence staying `normal`. The canonical harness → tier → model list,
-with each harness's ladder, capacity order, and list prices, is
-`.claude/skills/references/model-routing.md` — the pack's single place to edit
-those IDs. `foreman` — the worker CLI session it dispatches — is the only
-skill that routes through it; an `autopilot` worker inherits whatever model it
-was started with and plans, implements, and gates on that one model.
-
-Almost every ticket runs on the routine rung — `gpt-5.6-sol`, `opus`,
-`@default`. OMP's `critical` column adds `@slow`, its strongest configured role.
-The top rung (`gpt-6-astra`, Fable 5.1) costs 2–2.5x the workhorse per
-token and needs the table's escalation trigger: floor work (security, auth,
-money, irreversible data, a cross-system architecture decision) whose workhorse
-attempt already came back short. A `critical` classification alone never buys
-it, so an unattended batch cannot quietly climb to it.
+Each role has independent `*_provider`, `*_model`, and `*_effort` settings.
+Empty settings preserve the CLI's native configuration. Babysit does not ship a
+model catalog or choose a more expensive model from ticket difficulty.
 
 ```bash
-orca orchestration worker-start --task <task> --worktree current \
-  --agent <agent> --model <model> --effort <effort> --json
+bbs config set worker_agent omp
+bbs config set worker_provider openai
+bbs config set worker_model '<your-model-id>'
+bbs config set worker_effort high
+bbs config set foreman_agent codex
+bbs config set foreman_model '<your-coordinator-model-id>'
+bbs agent resolve --role worker --json
 ```
 
-The model must belong to the worker's own CLI (`worker_agent`), and Orca only
-forwards `--model`/`--effort` for a fresh Claude, Codex, or Cursor terminal
-whose connected worker server advertises launch preferences — an `omp` worker
-starts on its own role binding, and a `grok` worker on `grok-4.6`, the model
-the table routes for every tier. The receipt's
-`launch.effective` is what the worker actually got; a Dispatch that could not
-carry the preference records the limitation in its handoff, and the worker's
-`autopilot` then plans, implements, and gates on whatever model the worker
-started with — it routes no models of its own.
+The CLI quotes values such as `@slow` correctly; quote them in hand-written
+YAML too. For an OMP role bound to a provider, leave `worker_provider` empty
+and set only `worker_model`, for example `@slow`. Clear a setting with
+`bbs config set worker_model ''` to use native defaults when no higher-priority
+setting applies.
 
-The resolved pair is persisted as `worker_model` / `worker_effort` pointers on
-the child ticket, so a resume, retry, or reused worker cannot silently
-change the model a ticket ran on:
+All four fields follow the same precedence: explicit flag, role-specific
+`BABYSIT_WORKER_*` / `BABYSIT_FOREMAN_*`, shared `BABYSIT_PROVIDER` /
+`BABYSIT_MODEL` / `BABYSIT_EFFORT` / `BABYSIT_AGENT`, then
+`~/.babysit/config.yaml`. `--dir` selects the launch directory; configuration
+remains machine-wide.
+
+| Agent | Provider setting | Model / effort |
+|---|---|---|
+| Claude Code | `anthropic`, `bedrock`, `vertex`, `foundry` via native environment selectors | `--model`, `--effort` |
+| Codex | native provider identifier via `-c model_provider=…`; configure that provider in Codex first | `--model`, `-c model_reasoning_effort=…` |
+| OMP | native `--provider` selector; alternatively use a `provider/model` model with provider unset | `--model`, `--thinking` |
+| Grok | unset or `xai`; other providers are rejected | `--model`, `--reasoning-effort` |
+| Cursor | unset or `cursor`; other providers are rejected | `--model`; separate effort is unsupported |
+
+Provider credentials and endpoints remain in each agent's own configuration.
+Model IDs stay opaque, so a newly available model needs no babysit release.
+Unsupported provider/effort combinations fail before a terminal is created.
 
 ```bash
-BABYSIT_TICKET=<child> bbs ticket get-pointer worker_model
+bbs foreman worker-command --agent omp --provider openai \
+  --model '<your-model-id>' --effort high --skill autopilot --prompt 'Build the ticket'
+bbs foreman spawn fm-demo --agent codex --model '<your-model-id>'
 ```
 
-A model or effort named explicitly for the project wins over the tier. No
-config key pins a worker model: the choice is per ticket, and that is the only
-knob. Foreman's *own* session model is separate — it is whatever
-`foreman_agent` launched on, it cannot change mid-run, and a multi-day
-coordinator belongs on a routine rung, because the top rung charges its rate on
-every reconcile tick.
+Managed foreman records pin the requested provider/model/effort alongside the
+agent. Recovery reuses them even if configuration changes; contradictory
+explicit flags fail. Empty recorded settings continue to use native CLI config,
+so they cannot freeze an unobserved native default across later native changes.
+
+Foreman skills read `bbs agent resolve` before supervised dispatch and persist
+Plan/Build routes on each child. The external launcher must support carrying the
+requested settings: check its live capabilities and `launch.effective` receipt.
+In particular, do not invent an Orca `--provider` flag or assume an OMP model
+flag is forwarded. A launcher that cannot honor explicit configuration is a
+named dispatch blocker, never permission to silently use another model. Direct
+`worker-command` and managed `spawn` render the native options themselves.
+See [model routing](../.claude/skills/references/model-routing.md).
 
 ## Telemetry
 
@@ -339,10 +377,12 @@ poking forever. Independently of the pane, every `--status-interval` it sends
 the same skill prompt as an active status check, so a busy foreman still gets
 asked; a foreman whose record says `done` leaves the watch set even while its
 terminal stays open. The status interval defaults to the configured
-`foreman_status_interval` (3600 seconds) — the same reconciliation interval
-the Foreman skill bounds its `check --wait` with — so the flag, the config
-key, and the skill's wait cannot drift apart; an explicit `--status-interval`
-overrides the configured value for that watcher.
+`foreman_status_interval` (3600 seconds). The idle threshold defaults to that
+same interval; `--status-interval` overrides it for that watcher and `--idle`
+can independently override the idle threshold. Foreman blocks awaiting worker
+reports between reminders. Empty `check --wait` timeouts only renew the wait;
+they do not trigger project audits. Worker reports trigger focused verification
+of affected tickets, while status reminders trigger full reconciliation.
 
 ```bash
 bbs foreman watch                       # every foreman with an open workspace
@@ -354,7 +394,7 @@ bbs foreman watch --once                # one pass, for cron
 | flag | default | what it does |
 |---|---|---|
 | `--interval <sec>` | 60 | how often to capture the pane |
-| `--idle <sec>` | 600 | unchanged for this long → nudge |
+| `--idle <sec>` | effective `--status-interval` (3600) | unchanged for this long → nudge |
 | `--status-interval <sec>` | `foreman_status_interval` config (3600) | periodic status prompt, even while the pane moves |
 | `--lines <n>` | 40 | how much of the pane forms the fingerprint |
 | `--nudge <text>` | `check status` | what gets typed in |

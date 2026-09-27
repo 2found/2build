@@ -139,11 +139,17 @@ if (-not $_BRANCH) { $_BRANCH = 'unknown' }
 $_top = try { (git rev-parse --show-toplevel 2>$null) } catch { $null }
 $_REPO = if ($_top) { Split-Path -Leaf $_top } else { 'unknown' }
 $_INVOKER = if ($env:AGENT_ROLE) { $env:AGENT_ROLE } elseif ($env:GT_ROLE) { $env:GT_ROLE } else { 'developer' }
-$_AGENT = $env:BABYSIT_AGENT
-if (-not $_AGENT -and $env:CODEX_SESSION_ID) { $_AGENT = 'codex' }
-if (-not $_AGENT -and ($env:GROK_SESSION_ID -or $env:GROK_AGENT)) { $_AGENT = 'grok' }
-if (-not $_AGENT -and $env:CLAUDE_CODE_SESSION_ID) { $_AGENT = 'claude' }
-$_SKILL_REF = switch ($_AGENT) { 'codex' { '$bbs:' } 'omp' { '/' } default { '/bbs:' } }
+$_AGENT = Invoke-Bbs agent detect
+if (-not $_AGENT -or $_AGENT -eq 'unknown') {
+    # No usable bbs on PATH (plugin-only install, or a binary that predates
+    # `agent detect`): fall back to the session markers the shell already sees.
+    if ($env:CODEX_SESSION_ID -or $env:CODEX_THREAD_ID) { $_AGENT = 'codex' }
+    elseif ($env:GROK_SESSION_ID -or $env:GROK_AGENT) { $_AGENT = 'grok' }
+    elseif ($env:CLAUDE_CODE_SESSION_ID -or $env:CLAUDECODE) { $_AGENT = 'claude' }
+    elseif ($env:CURSOR_AGENT) { $_AGENT = 'cursor' }
+    else { $_AGENT = 'unknown' }
+}
+$_SKILL_REF = switch ($_AGENT) { 'codex' { '$bbs:' } 'omp' { '/' } 'cursor' { '/' } default { '/bbs:' } }
 $_SPAWNED = if ($env:OPENCLAW_SESSION) { 'true' } else { 'false' }
 
 # ── Project scope — identity ladder via `bbs ticket env` ─────────

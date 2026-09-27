@@ -9,18 +9,12 @@ import (
 	"github.com/reallongnguyen/babysit/internal/workspace"
 )
 
-// repoWith writes a checkout with the given .babysit/config.yaml (skipped when
-// empty) and .babysit/.env (skipped when empty).
-func repoWith(t *testing.T, cfg, env string) string {
+// repoWith writes a checkout with an optional machine-local .babysit/.env.
+func repoWith(t *testing.T, env string) string {
 	t.Helper()
 	top := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(top, ".babysit"), 0o755); err != nil {
 		t.Fatal(err)
-	}
-	if cfg != "" {
-		if err := os.WriteFile(filepath.Join(top, ".babysit", "config.yaml"), []byte(cfg), 0o644); err != nil {
-			t.Fatal(err)
-		}
 	}
 	if env != "" {
 		if err := os.WriteFile(filepath.Join(top, ".babysit", ".env"), []byte(env), 0o644); err != nil {
@@ -31,10 +25,9 @@ func repoWith(t *testing.T, cfg, env string) string {
 }
 
 func TestRelatedRepoPathUnregisteredFallsBackToEnv(t *testing.T) {
-	// AC3: a repo with no config.yaml resolves siblings exactly as it does
-	// today — through .babysit/.env, with no workspace involved.
+	// A repo absent from the unified workspace registry falls back to .env.
 	workspace.TestHome(t)
-	top := repoWith(t, "", "RELATED_BACKEND_REPO=/tmp/api\n")
+	top := repoWith(t, "RELATED_BACKEND_REPO=/tmp/api\n")
 	got, ok, err := relatedRepoPathVia(workspace.NewResolver(top, ""), "be", top)
 	if err != nil || !ok || got != "/tmp/api" {
 		t.Fatalf("want /tmp/api, got %q ok=%v err=%v", got, ok, err)
@@ -43,7 +36,7 @@ func TestRelatedRepoPathUnregisteredFallsBackToEnv(t *testing.T) {
 
 func TestRelatedRepoPathWorkspaceWins(t *testing.T) {
 	workspace.TestHome(t)
-	top := repoWith(t, "workspace: acme\n", "")
+	top := repoWith(t, "")
 	if err := workspace.AddRepo("acme", workspace.Repo{GitURL: "web.git", Path: top}); err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +53,7 @@ func TestRelatedRepoPathConflictBlocks(t *testing.T) {
 	// The failure this ticket exists to prevent: two sources naming different
 	// directories for the same role. Neither wins — the caller stops.
 	workspace.TestHome(t)
-	top := repoWith(t, "workspace: acme\n", "RELATED_BACKEND_REPO=/tmp/api-old\n")
+	top := repoWith(t, "RELATED_BACKEND_REPO=/tmp/api-old\n")
 	if err := workspace.AddRepo("acme", workspace.Repo{GitURL: "web.git", Path: top}); err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +75,7 @@ func TestRelatedRepoPathAgreementIsNotAConflict(t *testing.T) {
 	// A repo that registered its siblings and kept the old .env entries is a
 	// normal migration state, not an error.
 	workspace.TestHome(t)
-	top := repoWith(t, "workspace: acme\n", "RELATED_BACKEND_REPO=/tmp/api\n")
+	top := repoWith(t, "RELATED_BACKEND_REPO=/tmp/api\n")
 	if err := workspace.AddRepo("acme", workspace.Repo{GitURL: "web.git", Path: top}); err != nil {
 		t.Fatal(err)
 	}
@@ -98,11 +91,11 @@ func TestRelatedRepoPathAgreementIsNotAConflict(t *testing.T) {
 func TestSiblingSourceNameStaysAccurate(t *testing.T) {
 	// The serve message names whichever authority was actually consulted.
 	workspace.TestHome(t)
-	unreg := repoWith(t, "", "")
-	if got := siblingSourceName(workspace.NewResolver(unreg, "")); !strings.Contains(got, "no .babysit/config.yaml") {
+	unreg := repoWith(t, "")
+	if got := siblingSourceName(workspace.NewResolver(unreg, "")); !strings.Contains(got, "config.yaml") {
 		t.Fatalf("unregistered repo should say so, got %q", got)
 	}
-	top := repoWith(t, "workspace: acme\n", "")
+	top := repoWith(t, "")
 	if err := workspace.AddRepo("acme", workspace.Repo{GitURL: "web.git", Path: top}); err != nil {
 		t.Fatal(err)
 	}

@@ -7,16 +7,19 @@ review and delivery unit; a closed worker/worktree is never proof of delivery.
 
 Before child creation, worktrees, or production dispatch:
 
-1. Write parent `requirement.md` and run `plan-draft`. For user-facing work,
-   invoke `design-ui` to produce a coherent `design.md` and `prototype.html`
+1. Dispatch a strong planning/design worker on the parent checkout to write
+   `requirement.md` and run `plan-draft`. For user-facing work, its assignment
+   invokes `design-ui` to produce a coherent `design.md` and `prototype.html`
    covering the whole product journey, including transitions across proposed
    tickets and important empty/error states. Inspect the prototype. For a
    non-UI project, provide interfaces, example inputs/outputs and a workflow
    in `design.md`; explain why a visual prototype is N/A. This is product
    design, not the `prototype` skill's feasibility spike.
-2. Draft `manifest.md`: proposed seed keys, scope, dependencies, shared
+2. The planning worker drafts `manifest.md`: proposed seed keys, scope, dependencies, shared
    contracts, acceptance ownership and integration checks. This is a preview
-   of decomposition, not permission to spawn. Keep runtime ticket ids and
+   of decomposition, not permission to spawn production workers. Parent planning
+   and design-review Dispatches are allowed before this gate, on the existing
+   parent checkout with no child creation or production edits. Keep runtime ticket ids and
    status in relations/report, so progress does not rewrite approved design.
 3. Write the structured `project.json` acceptance contract through
    `bbs foreman contract` (see execution.md), then publish with the parent in scope:
@@ -40,9 +43,10 @@ Before child creation, worktrees, or production dispatch:
    timeout or idle period is approval. `redirected` means rework/re-publish;
    `dropped` stops this project. Only current `approved` unlocks children.
 5. **`--auto` delegates the human design reviews to Foreman**, including a
-   revised parent design within the authorized scope. It still creates and
-   inspects the same artifacts, fills the same five-line design rubric with
-   named evidence, publishes `project-plan`, and uses
+   revised parent design within the authorized scope. Dispatch a strong
+   design-review worker to inspect the same artifacts and fill the same
+   five-line design rubric with named evidence. Foreman verifies that report
+   against current artifacts, publishes `project-plan`, and uses
    `approval self-resolve --foreman "$FOREMAN_ID" --rubric-file <path>`.
    Record the decision in the usual telemetry. Never fake a human verdict.
    Pass the flag to `bbs foreman adopt ... --auto` on explicit invocation;
@@ -51,8 +55,9 @@ Before child creation, worktrees, or production dispatch:
    Old records default to human project review. Existing hold/grant bounds,
    non-delegable decisions, code review, QA and configured finish policy still
    apply. `--auto` does not authorize merging, pushing, or expanding scope.
-6. After approval, Foreman reviews child plans autonomously against the
-   accepted parent artifacts and revision; humans need not read every child
+6. After approval, Foreman dispatches strong workers to review child plans
+   against the accepted parent artifacts and revision, then applies their
+   evidenced rubrics autonomously; humans need not read every child
    plan. Child-specific implementation detail stays on that child. A material
    product/design change pauses affected production work and returns to this
    parent checkpoint; unaffected work can continue. Before each new dispatch
@@ -76,6 +81,10 @@ temporary file, then rename). Set `pointers.report` to this path. Keep the
 latest complete snapshot there; existing ticket history/handoffs retain the
 event trail. The report remains readable with `bbs foreman report <parent>`
 from the repo even after the coordinator and worktrees close.
+
+Empty waits do not rewrite the report. On a delivery/gate event, refresh the
+affected rows and retain other rows with their last observation times; only a
+full reconciliation advances the whole snapshot's observation time.
 
 Use this compact shape; links must lead to actual artifacts or receipts:
 
@@ -122,7 +131,11 @@ Every code-bearing project has a final Integration QA Task. It runs **after
 the selected finish handlers and before the Foreman `done` heartbeat**, even
 when child tickets are independent. A pre-land integration check is additional
 evidence, not a substitute. Wholly evidence-only projects may record N/A with
-acceptance evidence. Use a read-only QA worker; fixes go to owning children.
+acceptance evidence. Use a normal-model read-only QA worker; fixes go to owning
+children. Foreman owns lease acquisition and evidence checks; dispatch a normal
+integration worker for surface preparation, merges/composition and restoration
+in steps 2–3 and 6. Wait for its settlement and verify the resulting refs before
+QA or lease release. Never prepare or test the integrated surface inline.
 
 1. Reconcile the complete required child set and current receipt/PR heads.
    Acquire the parent surface lease in every participating primary checkout;

@@ -104,17 +104,21 @@ esac
 	// Spawn preflights the agent binary before creating a terminal, and PATH
 	// below is only this dir — so the agents have to exist here or every spawn
 	// fails on a missing CLI rather than exercising what the test is about.
-	for _, bin := range []string{"claude", "grok", "omp", "codex"} {
+	for _, bin := range []string{"claude", "grok", "omp", "codex", "cursor-agent"} {
 		if err := os.WriteFile(filepath.Join(dir, bin), []byte("#!/bin/sh\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
 	t.Setenv("PATH", dir)
-	// PATH holds no git either, so RepoToplevel finds nothing and agent
-	// resolution never reads a repo config — leaving these tests to the global
-	// config under BABYSIT_STATE_DIR, which is a temp dir per test.
+	// PATH holds no git either; agent resolution uses only the unified config
+	// under BABYSIT_STATE_DIR, which is a temp dir per test.
 	t.Setenv("BABYSIT_STATE_DIR", t.TempDir())
 	t.Setenv("BABYSIT_AGENT", "")
+	t.Setenv("BABYSIT_CURRENT_AGENT", "claude")
+	for _, key := range []string{"BABYSIT_WORKER_AGENT", "BABYSIT_FOREMAN_AGENT", "BABYSIT_PROVIDER", "BABYSIT_MODEL", "BABYSIT_EFFORT",
+		"BABYSIT_WORKER_PROVIDER", "BABYSIT_WORKER_MODEL", "BABYSIT_WORKER_EFFORT", "BABYSIT_FOREMAN_PROVIDER", "BABYSIT_FOREMAN_MODEL", "BABYSIT_FOREMAN_EFFORT"} {
+		t.Setenv(key, "")
+	}
 	t.Setenv("ORCA_CLI_COMMAND", "")
 	t.Setenv("ORCA_DEV_REPO_ROOT", "")
 	t.Setenv("BABYSIT_HOME", t.TempDir())

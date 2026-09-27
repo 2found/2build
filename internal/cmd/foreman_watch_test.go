@@ -482,7 +482,7 @@ func TestWatchOptsDefaultsAndValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o.idle != 10*time.Minute || o.interval != time.Minute || o.statusInterval != time.Hour || o.nudge != "check status" || o.maxNudges != 3 {
+	if o.idle != time.Hour || o.interval != time.Minute || o.statusInterval != time.Hour || o.nudge != "check status" || o.maxNudges != 3 {
 		t.Errorf("unexpected defaults: %+v", o)
 	}
 	o, err = watchOptsFrom(map[string]string{"idle": "90", "status-interval": "45", "nudge": "status?", "once": "1"})
@@ -503,7 +503,8 @@ func TestWatchOptsDefaultsAndValidation(t *testing.T) {
 
 // The status clock's default is the configured reconciliation interval, and
 // the explicit flag still wins over it — the same precedence the Foreman
-// skill documents for its check --wait bound.
+// skill documents for its fallback audit. Idle nudges share that cadence unless
+// explicitly overridden, so quiet worker waits do not cause early audits.
 func TestWatchStatusIntervalFromConfig(t *testing.T) {
 	state := t.TempDir()
 	t.Setenv("BABYSIT_STATE_DIR", state)
@@ -514,7 +515,7 @@ func TestWatchStatusIntervalFromConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o.statusInterval != 30*time.Minute {
+	if o.statusInterval != 30*time.Minute || o.idle != 30*time.Minute {
 		t.Errorf("configured value not applied: %+v", o)
 	}
 
@@ -522,7 +523,7 @@ func TestWatchStatusIntervalFromConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o.statusInterval != 2*time.Minute {
+	if o.statusInterval != 2*time.Minute || o.idle != 2*time.Minute {
 		t.Errorf("explicit --status-interval must win over config: %+v", o)
 	}
 
@@ -536,6 +537,28 @@ func TestWatchStatusIntervalFromConfig(t *testing.T) {
 		if _, err := watchOptsFrom(map[string]string{"status-interval": "60"}); err != nil {
 			t.Errorf("explicit flag should bypass invalid config %q: %v", v, err)
 		}
+	}
+}
+
+func TestWatchDefaultWaitDoesNotNudgeBeforeReminder(t *testing.T) {
+	client, r, _, log := watchFixture(t)
+	t.Setenv("BABYSIT_STATE_DIR", t.TempDir())
+	o, err := watchOptsFrom(map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	watchTick(client, r, o, now)
+	for _, elapsed := range []time.Duration{10 * time.Minute, 30 * time.Minute, 59 * time.Minute} {
+		if line := watchTick(client, r, o, now.Add(elapsed)); line != "" {
+			t.Fatalf("quiet wait triggered early audit at %s: %s", elapsed, line)
+		}
+	}
+	if strings.Contains(callLog(t, log), "terminal send") {
+		t.Fatal("quiet wait sent an early status prompt")
+	}
+	if line := watchTick(client, r, o, now.Add(time.Hour)); !strings.HasPrefix(line, "NUDGED") {
+		t.Fatalf("expected hourly reminder, got %q", line)
 	}
 }
 

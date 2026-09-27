@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # autopilot runs every step in the session it was launched in — planning
 # included. No planner subagent, no per-harness QA child, no routed model: the
-# session model plans, implements, and gates. This suite pins that contract,
-# and keeps the shared model-routing table honest for the one skill that still
+# session model executes its assigned phases. This suite pins that contract,
+# and keeps configurable model routing honest for the one skill that still
 # reads it (foreman).
 set -euo pipefail
 
@@ -58,24 +58,24 @@ done
 # --- model routing belongs to foreman, which launches phase workers ----------
 require '`foreman` routes each supervised' "$REF"
 require '`autopilot` deliberately does not route models' "$REF"
-require 'launches the Plan and Build phases as separate supervised sessions' "$REF"
+require 'launches Plan, Build, Review and QA as phase-scoped supervised sessions' "$REF"
 forbid '`autopilot` routes its planner' "$REF"
-require '| Codex | #3 `gpt-5.6-terra`, `high` | #2 `gpt-5.6-sol`, `high` | #2 `gpt-5.6-sol`, `high` |' "$REF"
-require '| Claude Code | #2 `opus`, `high` | #2 `opus`, `high` | #2 `opus`, `high` |' "$REF"
-require '| OMP | #3 `@smol`, `high` | #2 `@default`, `high` | #1 `@slow`, `high` |' "$REF"
-require '| Grok | `grok-4.6` | `grok-4.6` | `grok-4.6` |' "$REF"
+require 'bbs agent resolve --role worker --json' "$REF"
+require 'worker_provider' "$REF"
+require 'worker_model' "$REF"
+require 'worker_effort' "$REF"
+require 'An empty provider/model/effort means native default' "$REF"
 require '## Phase routing' "$REF"
-require 'A hard ticket always' "$REF"
-require 'starts a fresh normal Build worker' "$REF"
-require 'keeps its bound role' "$REF"
-require 'recorded, not honored' "$REF"
-require '## Escalating to the top rung' "$REF"
-require 'escalation, never a tier default' "$REF"
+require '| Code review and review diagnosis | **strong** |' "$REF"
+require '| Implementation and code repairs | **normal** |' "$REF"
+require '| Per-ticket QA, integration QA and product acceptance checks | **normal** |' "$REF"
+require 'launch flag' "$REF"
 require 'came back short' "$REF"
 require '| `simple` | an obvious local docs/config edit' "$REF"
 require '| `critical` / `hard` | security, auth, money' "$REF"
-require 'gpt-6-astra' "$REF"
-require 'omp config get modelRoles' "$REF"
+forbid 'gpt-5.6-sol' "$REF"
+forbid 'grok-4.6' "$REF"
+forbid '## Ladders' "$REF"
 
 # --- no README still advertises the removed flags ---------------------------
 for f in "$ROOT"/README.md "$ROOT"/README.zh.md "$ROOT"/README.ja.md "$ROOT"/README.ko.md "$ROOT"/README.vi.md; do

@@ -35,7 +35,7 @@ has_all "autonomous-project-scope" \
 has_all "repository-autonomy-profiles" \
   '## Repository profile and autonomy' 'BBS_PROFILE=pet | startup | enterprise' \
   'maximum' 'safe ready wave' 'scales verification breadth' \
-  'ticket evidence controls model routing'
+  'phase controls model routing'
 
 has_all "live-orchestration-contract" \
   '~/.claude/skills/orchestration/SKILL.md' 'skills get orchestration' \
@@ -80,7 +80,7 @@ else
 fi
 
 has_all "agent-independent-design-gate" \
-  'Two-phase ticket dispatch' '--stop-after=plan' 'Orca decision gate' \
+  'Phase-scoped ticket dispatch' '--stop-after=plan' 'Orca decision gate' \
   'approval self-resolve'
 
 has_all "lifecycle-aware-dispatch" \
@@ -124,7 +124,7 @@ has_all "single-writer-multi-foreman" \
 
 has_all "direct-skill-invocation-is-primary" \
   'Direct skill invocation' 'default entrypoint' \
-  'bbs foreman adopt' '--agent claude' '--agent omp' '--agent codex' \
+  'bbs foreman adopt' 'babysit detects its actual agent' '--agent <current-agent>' \
   'not a prerequisite' 're-adopt the current session'
 
 has_all "live-change-intake" \
@@ -144,7 +144,7 @@ has_all "goal-compaction-and-days" \
 has_all "active-status-reconcile" \
   '## Status reconciliation' 'check --wait' \
   'never a liveness-only reply' 'maximum admitted ready wave' \
-  'active for the next bounded check'
+  'return to the blocking wait'
 has_all "eager-per-ticket-finish" \
   '## Eager per-ticket finish' 'settled workers need not wait' \
   'bbs ticket land <child>' 'create-pr' 'dependency order' \
@@ -213,12 +213,30 @@ has_all "terminal-done-heartbeat" \
   '`bbs foreman watch` closes the exact adopted Foreman terminal tab' \
   'paused, or cancelled project never writes `done`'
 
-if ! grep -q 'bbs foreman mailbox wait' "$F" \
+if ! grep -q 'bbs foreman mailbox' "$F" "$ROOT/.claude/skills/references/preamble.md" \
    && ! grep -q 'sleep 20' "$F" \
    && ! grep -q 'Copy the block below' "$F"; then
   ok "no-pane-or-mailbox-coordination"
 else
   fail "no-pane-or-mailbox-coordination"
+fi
+
+has_all "orca-delivery-and-settlement" \
+  'Process every message in a Delivery before' 'acknowledging its exact id' \
+  'accepted lifecycle settlement' 'Rejected lifecycle reports do not complete work'
+
+PREAMBLE="$ROOT/.claude/skills/references/preamble.md"
+if grep -q 'live injected Orca preamble is authoritative' "$PREAMBLE" \
+   && grep -q 'orca orchestration ask' "$PREAMBLE" \
+   && grep -q 'orca orchestration check' "$PREAMBLE" \
+   && grep -q 'orca orchestration send' "$PREAMBLE" \
+   && grep -q 'whole Dispatch, not each nested skill' "$PREAMBLE" \
+   && grep -q 'both lifecycle IDs' "$PREAMBLE" \
+   && grep -q -- '--outcome failed' "$PREAMBLE" \
+   && ! grep -q 'MAILBOX=off' "$PREAMBLE"; then
+  ok "worker-uses-injected-orca-lifecycle"
+else
+  fail "worker-uses-injected-orca-lifecycle"
 fi
 
 if grep -q 'Autonomous Orca orchestrator' "$WRAPPER" \
@@ -235,22 +253,23 @@ has_all "shared-reconciliation-interval" \
 
 has_all "phase-specific-worker-model-routing" \
   '## Worker model and effort routing' '../references/model-routing.md' \
-  'canonical harness' 'never invent a model ID' \
+  'canonical launch-settings' 'Never invent a model ID' \
   'Classify the ticket once' 'Plan and design-feedback Dispatches' \
-  'Build, review, and per-ticket QA' \
-  '--model <model> --effort <effort>' 'launch.effective' 'grok-4.6' \
+  'Code Review Dispatches always use a \*\*strong\*\* model' \
+  '--model <model> --effort <effort>' 'launch.effective' 'bbs agent resolve' \
   'set-pointer planner_model' 'set-pointer planner_effort' \
   'set-pointer worker_model' 'set-pointer worker_effort' \
   'starts a fresh normal Build worker' 'Taste'
 
-has_all "worker-model-cost-discipline" \
-  'routine rung' 'top rung' 'came back' 'log the cost' \
-  'Ordinary Build still returns'
+has_all "worker-model-config-discipline" \
+  'Empty values mean native defaults' 'stop before' 'Do not drop it' \
+  'never silently upgrade a model' 'foreman_'
 
 REF="$ROOT/.claude/skills/references/model-routing.md"
 if grep -q 'model-routing.md' "$F" \
    && ! grep -q 'model-routing.md' "$A" \
-   && grep -q '^| Codex | #3 `gpt-5.6-terra`, `high` |' "$REF"; then
+   && grep -q 'worker_model' "$REF" \
+   && ! grep -q 'gpt-5.6-sol' "$REF"; then
   ok "canonical-model-table-foreman-only"
 else
   fail "canonical-model-table-foreman-only"

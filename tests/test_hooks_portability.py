@@ -103,11 +103,12 @@ class Hooks(unittest.TestCase):
         # The whole point of the compiled seam: the manifest command must be a
         # bare `bbs hooks <name>` — no $VARS, conditionals, or quoting that a
         # non-POSIX shell could misread.
-        self.assertEqual(set(self.hooks), {"PreToolUse", "PostToolUse", "SessionStart"})
+        self.assertEqual(set(self.hooks), {"PreToolUse", "PostToolUse", "SessionStart", "Stop"})
         commands = {
             "PreToolUse": "bbs hooks pre-tool-gate",
             "PostToolUse": "bbs hooks session-writer",
             "SessionStart": "bbs hooks session-writer",
+            "Stop": "bbs hooks worker-report-gate",
         }
         for event, want in commands.items():
             got = self.hooks[event][0]["hooks"][0]["command"]
@@ -190,6 +191,37 @@ class Hooks(unittest.TestCase):
         if sessions.exists():
             for f in sessions.iterdir():
                 self.assertTrue(f.name.startswith(".session.") or "/" not in f.name)
+
+    def test_stop_gate_checks_current_orca_dispatch(self):
+        cli = self.root / "orca"
+        log = self.root / "orca-calls"
+        cli.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$BBS_TEST_LOG"\n'
+                       'printf "%s\\n" "$BBS_TEST_REPLY"\n')
+        cli.chmod(0o755)
+        env = {**self.env, "ORCA_CLI_COMMAND": str(cli),
+               "ORCA_TERMINAL_HANDLE": "term-worker", "BBS_TEST_LOG": str(log)}
+        for active in (False, True):
+            response = {"messages": [], "count": 0}
+            if active:
+                response["dispatchId"] = "ctx-current"
+            env["BBS_TEST_REPLY"] = json.dumps({"ok": True, "result": response})
+            for continued in (False, True):
+                result = self.run_hook("Stop", payload={"stop_hook_active": continued}, env=env)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                if active:
+                    decision = json.loads(result.stdout)
+                    self.assertEqual(decision["decision"], "block")
+                    self.assertIn("ctx-current", decision["reason"])
+                    self.assertIn("worker_done", decision["reason"])
+                else:
+                    self.assertEqual(result.stdout, "")
+        self.assertEqual(log.read_text().splitlines(),
+                         ["orchestration check --terminal term-worker --peek --json"] * 4)
+
+    def test_stop_gate_skips_sessions_outside_orca(self):
+        result = self.run_hook("Stop", payload={"stop_hook_active": True})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
 
 
 if __name__ == "__main__":

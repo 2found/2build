@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/reallongnguyen/babysit/internal/agent"
@@ -47,7 +48,8 @@ type dashServer struct {
 	// spawn form prefills as the foreman's workspace folder.
 	currentDir string
 	reconcile  bool
-	origin     string // "http://127.0.0.1:<port>", filled in once listening
+	origin     string       // "http://127.0.0.1:<port>", filled in once listening
+	settingsMu sync.RWMutex // writes (POST) serialize; reads (GET) run concurrently
 }
 
 // idRe is the shape of a slug or ticket id on the way to a file path. The CLI
@@ -59,6 +61,8 @@ var idRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 func (s *dashServer) mux() *http.ServeMux {
 	m := http.NewServeMux()
 	m.HandleFunc("GET /api/snapshot", s.handleSnapshot)
+	m.HandleFunc("GET /api/agent-settings", s.handleAgentSettings)
+	m.HandleFunc("POST /api/agent-settings", s.handleSaveAgentSettings)
 	m.HandleFunc("POST /api/tickets", s.handleCreateTicket)
 	m.HandleFunc("POST /api/tickets/{project}/{ticket}/assign", s.handleAssign)
 	m.HandleFunc("POST /api/tickets/{project}/{ticket}/status", s.handleSetStatus)

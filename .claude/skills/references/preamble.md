@@ -9,7 +9,7 @@ down.
 
 The preamble prints `AGENT` and `SKILL_REF`. Use that prefix for every
 user-facing or spawned babysit skill invocation, including literal `/bbs:`
-examples later in this pack: Codex uses `$bbs:<skill>`, omp uses `/<skill>`,
+examples later in this pack: Codex uses `$bbs:<skill>`, omp/Cursor use `/<skill>`,
 and Claude Code/grok use `/bbs:<skill>`.
 
 ## Resolving shared references
@@ -84,11 +84,13 @@ any skill that would otherwise call `AskUserQuestion` at a design checkpoint.
 ### `AGENT_ROLE=orca`
 Set only by a foreman that dispatched this worker over Orca's message bus, so
 the bus is known to be there. The coordinator is another agent reading a
-mailbox, not a human at this terminal:
-```bash
-ANSWER=$(orca orchestration ask --question "<the one question, in one line>" \
-  --options "a,b" --timeout-ms 1800000 --json)
-```
+mailbox, not a human at this terminal. Read
+`~/.claude/skills/orchestration/SKILL.md` and the version-matched guide it loads.
+The live injected Orca preamble is authoritative: use its exact executable,
+handle, capability, Task ID, and Dispatch ID for all worker communication.
+- Use the injected `orca orchestration ask` command for a blocking coordinator
+  question; do not reconstruct its authority arguments from ticket names or
+  environment variables.
 - `ask` blocks until the coordinator answers and returns a durable message id.
   A timeout leaves the question *pending*, not dropped — resume the same
   question with `--resume <message_id>` rather than asking it again, or the
@@ -99,20 +101,29 @@ ANSWER=$(orca orchestration ask --question "<the one question, in one line>" \
   structured block below. A dispatched worker that cannot reach its foreman is
   in the orchestrator case, and the block is what an orchestrator reads.
 
-Ring the doorbell in the same breath as printing your terminal status block —
-a coordinator waiting on the bus has no other way to learn the run ended:
-```bash
-bbs foreman mailbox done --status <the STATUS you just printed> \
-  --body "<3 sentences: what you did, what you found, what is left>" \
-  --files "<comma-separated paths you changed>"
-```
-- Nothing is handed to you for this. Your foreman titled the task with your
-  ticket, so `done` finds it from `BABYSIT_TICKET` alone — no id to carry and
-  none to lose. Pass `--ticket` only when that env var is not set.
+Follow the injected lifecycle for the whole Dispatch, not each nested skill:
+- Read coordinator follow-ups with `orca orchestration check` at natural
+  checkpoints and immediately before reporting completion. Follow the injected
+  heartbeat cadence.
+- Persist the handoff and verdicts, then send exactly one `worker_done` through
+  the injected `orca orchestration send` command with both lifecycle IDs and a
+  three-sentence summary of what you did, found, and left. Use explicit
+  `--outcome succeeded` for `DONE`/`DONE_WITH_CONCERNS`, or `--outcome failed`
+  when ending the Dispatch as `BLOCKED`/`NEEDS_CONTEXT`. A pending question
+  continues through `ask`; it is not a terminal report.
+- Include `--files-modified` and `--report-path` only for real files/artifacts.
+  After `worker_done`, end the dispatched turn and idle. Ordinary sessions
+  without a live injected Dispatch never emit lifecycle messages.
 - It is the **doorbell, not the verdict**: the coordinator still reads
   `bbs ticket verdict-status` off disk. Print the status block either way.
-- Best-effort by construction — a worker nobody dispatched, or an Orca too old
-  to serve the bus, gets `MAILBOX=off` and exit 0. Never let it gate a handoff.
+  A send error or lifecycle rejection is a reporting failure; preserve the
+  handoff, surface the error, and follow Orca's recovery contract. Never silently
+  treat it as delivered or guess a replacement Dispatch.
+
+The installed `worker-report-gate` Stop hook checks the current Orca assignment
+before the worker ends its turn. If it blocks, follow the injected lifecycle
+and resolve the report failure; a stop-hook continuation is not proof of
+delivery. The hook never reports for you or waits for a Foreman reply.
 
 ### `NEEDS_CONTEXT` shape
 ```
@@ -229,11 +240,17 @@ _TEL=$(_bbs_cfg telemetry);       _TEL=${_TEL:-local}
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 _REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo "unknown")")
 _INVOKER="${AGENT_ROLE:-${GT_ROLE:-developer}}"
-_AGENT="${BABYSIT_AGENT:-}"
-[ -z "$_AGENT" ] && [ -n "${CODEX_SESSION_ID:-}" ] && _AGENT="codex"
-[ -z "$_AGENT" ] && [ -n "${GROK_SESSION_ID:-${GROK_AGENT:-}}" ] && _AGENT="grok"
-[ -z "$_AGENT" ] && [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && _AGENT="claude"
-case "$_AGENT" in codex) _SKILL_REF='$bbs:' ;; omp) _SKILL_REF='/' ;; *) _SKILL_REF='/bbs:' ;; esac
+_AGENT="$(bbs agent detect 2>/dev/null || true)"
+if [ -z "$_AGENT" ] || [ "$_AGENT" = "unknown" ]; then
+  # No usable bbs on PATH (plugin-only install, or a binary that predates
+  # `agent detect`): fall back to the session markers the shell already sees.
+  if [ -n "${CODEX_SESSION_ID:-}${CODEX_THREAD_ID:-}" ]; then _AGENT="codex"
+  elif [ -n "${GROK_SESSION_ID:-}${GROK_AGENT:-}" ]; then _AGENT="grok"
+  elif [ -n "${CLAUDE_CODE_SESSION_ID:-}${CLAUDECODE:-}" ]; then _AGENT="claude"
+  elif [ -n "${CURSOR_AGENT:-}" ]; then _AGENT="cursor"
+  else _AGENT="unknown"; fi
+fi
+case "$_AGENT" in codex) _SKILL_REF='$bbs:' ;; omp|cursor) _SKILL_REF='/' ;; *) _SKILL_REF='/bbs:' ;; esac
 [ -n "$OPENCLAW_SESSION" ] && _SPAWNED="true" || _SPAWNED="false"
 
 # Project scope — slug + ticket re-derived through the identity ladder on every

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/reallongnguyen/babysit/internal/agent"
 	"github.com/reallongnguyen/babysit/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -128,19 +129,7 @@ func skillExit(args []string) {
 }
 
 func currentSkillRuntimeRecord(name string) skillRuntimeRecord {
-	harness := strings.TrimSpace(os.Getenv("BABYSIT_AGENT"))
-	if harness == "" && (os.Getenv("CODEX_SESSION_ID") != "" || os.Getenv("CODEX_THREAD_ID") != "") {
-		harness = "codex"
-	}
-	if harness == "" && os.Getenv("CLAUDE_CODE_SESSION_ID") != "" {
-		harness = "claude"
-	}
-	if harness == "" && (os.Getenv("GROK_SESSION_ID") != "" || os.Getenv("GROK_AGENT") != "") {
-		harness = "grok"
-	}
-	if harness == "" {
-		harness = "unknown"
-	}
+	harness := agent.Detect().Agent
 	var model *string
 	for _, key := range []string{"BABYSIT_MODEL", "CODEX_MODEL", "ANTHROPIC_MODEL", "OPENAI_MODEL"} {
 		if value := strings.TrimSpace(os.Getenv(key)); value != "" {

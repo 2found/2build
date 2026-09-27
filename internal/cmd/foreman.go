@@ -38,11 +38,12 @@ const foremanUsage = `Usage:
   bbs foreman register <id> [--dir <path>] [--workspace-title <title>] [--session <uuid>]
   bbs foreman adopt [<id>] [--agent <name>] [--auto]
   bbs foreman heartbeat <id> [--status <status>] [--session <uuid>]
-  bbs foreman spawn [<id>] [--dir <path>] [--command <text>] [--agent <name>] [--auto]
+  bbs foreman spawn [<id>] [--dir <path>] [--command <text>] [--agent <name>]
+                    [--provider <id>] [--model <id>] [--effort <level>] [--auto]
   bbs foreman ensure <id>
   bbs foreman worker-command --prompt <text> [--skill <name>] [--agent <name>] [--dir <path>]
+                            [--provider <id>] [--model <id>] [--effort <level>]
   bbs foreman resource <status|reserve|release> ...
-  bbs foreman mailbox <status|bind|dispatch|wait|reply|done> ...
   bbs foreman watch [<id>] [--interval <sec>] [--idle <sec>] [--lines <n>]
                     [--status-interval <sec>] [--nudge <text>] [--max-nudges <n>] [--once]
                     (--status-interval defaults to config foreman_status_interval, 3600)
@@ -132,8 +133,6 @@ func dispatchForeman(args []string) error {
 		return foremanWorkerCommand(rest)
 	case "resource":
 		return foremanResource(rest)
-	case "mailbox":
-		return foremanMailbox(rest)
 	case "watch":
 		return foremanWatch(rest)
 	case "retire":
@@ -335,9 +334,13 @@ func foremanAdopt(args []string) error {
 		agentName = term.AgentIdentity
 	}
 	if agentName == "" {
-		return errors.New("foreman adopt: current agent is unknown; pass --agent claude|codex|omp|grok")
+		agentName = agent.Detect().Agent
 	}
-	if term.AgentIdentity != "" && term.AgentIdentity != agentName {
+	agentName = agent.Normalize(agentName)
+	if agentName == "unknown" {
+		return fmt.Errorf("foreman adopt: current agent is unknown; pass --agent %s", strings.Join(agent.Names(), "|"))
+	}
+	if term.AgentIdentity != "" && agent.Normalize(term.AgentIdentity) != agentName {
 		return fmt.Errorf("foreman adopt: --agent %s conflicts with Orca terminal agent %s", agentName, term.AgentIdentity)
 	}
 	if _, err := agent.ByName(agentName); err != nil {
@@ -389,8 +392,8 @@ func foremanAdopt(args []string) error {
 		if r.Agent == "" && r.Session != "" && agentName != agent.Default {
 			return fmt.Errorf("foreman %s has a legacy %s session — cannot adopt it as %s; retire it first", id, agent.Default, agentName)
 		}
-		if r.Agent != "" && r.Agent != agentName {
-			return fmt.Errorf("foreman %s is pinned to %s — cannot adopt it as %s; retire it first", id, r.Agent, agentName)
+		if pinned := agent.Normalize(r.Agent); pinned != "" && pinned != agentName {
+			return fmt.Errorf("foreman %s is pinned to %s — cannot adopt it as %s; retire it first", id, pinned, agentName)
 		}
 		if r.ProjectDir != "" {
 			bound, absErr := filepath.Abs(r.ProjectDir)
@@ -481,7 +484,10 @@ func foremanSpawn(args []string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return spawnForeman(id, kv["dir"], kv["command"], kv["agent"], kv["auto"] == "1")
+	return spawnForemanWithOptions(id, kv["dir"], kv["command"], agent.Options{
+		Agent: kv["agent"], Provider: kv["provider"], Model: kv["model"], Effort: kv["effort"],
+		SkipValidate: kv["command"] != "", // caller's command may not invoke the agent at all
+	}, kv["auto"] == "1")
 }
 
 // foremanEnsure is the idempotent watchdog entrypoint: an open terminal is a
@@ -544,7 +550,9 @@ func foremanWorkerCommand(args []string) error {
 	if prompt == "" {
 		return fmt.Errorf("foreman worker-command: needs --prompt <text>\n%s", foremanUsage)
 	}
-	prof, err := agent.Resolve(agent.WorkerKey, kv["agent"])
+	prof, err := agent.ResolveWith(agent.WorkerKey, agent.Options{
+		Agent: kv["agent"], Provider: kv["provider"], Model: kv["model"], Effort: kv["effort"], Dir: kv["dir"],
+	})
 	if err != nil {
 		return err
 	}
@@ -564,6 +572,10 @@ func foremanWorkerCommand(args []string) error {
 	dir := kv["dir"]
 	if dir == "" {
 		dir = qaconfig.RepoToplevel()
+	} else if abs, absErr := filepath.Abs(dir); absErr == nil {
+		// Trust records store absolute paths; a relative --dir can never match
+		// one and would always fail preflight.
+		dir = abs
 	}
 	if err := prof.PreflightDir(dir); err != nil {
 		return err
@@ -591,6 +603,11 @@ func foremanWorkerCommand(args []string) error {
 // Foreman state. A registered id whose terminal is still OPEN stays an error —
 // that is a real collision, not a restart.
 func spawnForeman(id, dir, command, agentFlag string, auto ...bool) (string, error) {
+	return spawnForemanWithOptions(id, dir, command,
+		agent.Options{Agent: agentFlag, SkipValidate: command != ""}, auto...)
+}
+
+func spawnForemanWithOptions(id, dir, command string, opts agent.Options, auto ...bool) (string, error) {
 	client, err := orca.Preflight()
 	if err != nil {
 		return "", err
@@ -657,8 +674,12 @@ func spawnForeman(id, dir, command, agentFlag string, auto ...bool) (string, err
 	// explicit --agent that contradicts the recording is a mistake worth naming
 	// rather than silently honoring either way.
 	var prof agent.Profile
+	agentFlag := agent.Normalize(opts.Agent)
+	if agentFlag == "auto" {
+		agentFlag = "" // a resume always keeps the recorded agent
+	}
 	if resuming && r.Agent != "" {
-		pinned := r.Agent
+		pinned := agent.Normalize(r.Agent)
 		if agentFlag != "" && agentFlag != pinned {
 			return "", fmt.Errorf("foreman %s is pinned to %s — cannot restart it as %s; "+
 				"retire it first to start a fresh conversation", id, pinned, agentFlag)
@@ -673,10 +694,30 @@ func spawnForeman(id, dir, command, agentFlag string, auto ...bool) (string, err
 		}
 		prof, err = agent.ByName(agent.Default)
 	} else {
-		prof, err = agent.Resolve(agent.ForemanKey, agentFlag)
+		opts.Dir = dir
+		prof, err = agent.ResolveWith(agent.ForemanKey, opts)
 	}
 	if err != nil {
 		return "", err
+	}
+	if resuming && (r.Agent != "" || r.Session != "") {
+		for _, setting := range []struct{ name, flag, recorded string }{
+			{"provider", opts.Provider, r.Provider}, {"model", opts.Model, r.Model}, {"effort", opts.Effort, r.Effort},
+		} {
+			if setting.flag != "" && setting.flag != setting.recorded {
+				return "", fmt.Errorf("foreman %s has pinned %s %q — cannot restart with %q; retire it first to change launch settings",
+					id, setting.name, setting.recorded, setting.flag)
+			}
+		}
+		prof.Provider, prof.Model, prof.Effort = r.Provider, r.Model, r.Effort
+	}
+	if command == "" {
+		// We build the launch command from these settings; an explicit
+		// --command runs whatever the caller wrote instead, so a pinned or
+		// configured value the agent cannot honor is not ours to reject.
+		if err := prof.ValidateSettings(); err != nil {
+			return "", err
+		}
 	}
 
 	// Mint the durable handle only once the profile is known, because what a
@@ -741,6 +782,7 @@ func spawnForeman(id, dir, command, agentFlag string, auto ...bool) (string, err
 	r.WorkspaceRef, r.WorkspaceTitle = ref, title
 	r.Session = session
 	r.Agent = prof.Name
+	r.Provider, r.Model, r.Effort = prof.Provider, prof.Model, prof.Effort
 	r.ManualCommand = explicitCommand
 	r.Status = "idle"
 	r.Heartbeat = foreman.Now()

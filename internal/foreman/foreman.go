@@ -52,6 +52,11 @@ type Record struct {
 	// different agent a uuid it has never heard of. Empty means claude — every
 	// record written before agents were selectable.
 	Agent string `yaml:"agent,omitempty"`
+	// Launch preferences are pinned with the agent across recovery. Empty
+	// means native CLI configuration; it is not an observed effective model.
+	Provider string `yaml:"provider,omitempty"`
+	Model    string `yaml:"model,omitempty"`
+	Effort   string `yaml:"effort,omitempty"`
 	// Session is the session uuid this foreman's conversation lives
 	// in — minted by `foreman spawn` and handed to the CLI as `--session-id`,
 	// so a later spawn can re-open the same conversation with `--resume`. It is
@@ -68,21 +73,7 @@ type Record struct {
 	ManualCommand bool `yaml:"manual_command,omitempty"`
 	// Auto delegates project design review to Foreman. Unlike child review,
 	// this requires an explicit --auto and survives restart/adoption.
-	Auto bool `yaml:"auto,omitempty"`
-	// Run is the Orca orchestration Run this foreman's mailbox lives in, bound
-	// fresh per session by `run-create`. It is recorded because coordinator
-	// binding is per-TERMINAL, not per-record: a foreman that resumes in a new
-	// terminal — the normal case after a crash or a closed tab — has to
-	// `run-use` this id to rebind, or its whole mailbox reads as somebody
-	// else's. Empty for a foreman running under the pane-monitor fallback, or
-	// on an Orca that does not serve the orchestration contract.
-	Run string `yaml:"run,omitempty"`
-	// Delivery is the id of the last mailbox batch this foreman was handed,
-	// acknowledged on its next read. It lives on the record rather than in the
-	// reader because every `bbs foreman mailbox wait` is a separate process:
-	// a delivery id held in memory dies with the call that fetched it, and the
-	// batch it would have acknowledged replays for ever.
-	Delivery   string `yaml:"delivery,omitempty"`
+	Auto       bool   `yaml:"auto,omitempty"`
 	Status     string `yaml:"status"`
 	Heartbeat  string `yaml:"heartbeat"`
 	Completion string `yaml:"completion,omitempty"`

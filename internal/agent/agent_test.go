@@ -7,23 +7,23 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/reallongnguyen/babysit/internal/qaconfig"
 )
 
 // origPath is captured at load time, before any t.Setenv clobbers PATH, so the
 // helpers that need real git or a real shell can put it back.
 var origPath = os.Getenv("PATH")
 
-// isolate cuts every input Resolve reads off from the developer's real machine:
-// a temp dir for the global config, an empty PATH so RepoToplevel finds no git
-// and no repo config is consulted, and no BABYSIT_AGENT inherited from the
-// shell running the suite.
+// isolate cuts every settings input off from the developer's machine.
 func isolate(t *testing.T) {
 	t.Helper()
 	t.Setenv("BABYSIT_STATE_DIR", t.TempDir())
 	t.Setenv("PATH", t.TempDir())
 	t.Setenv("BABYSIT_AGENT", "")
+	t.Setenv("BABYSIT_CURRENT_AGENT", "claude")
+	for _, key := range []string{"BABYSIT_WORKER_AGENT", "BABYSIT_FOREMAN_AGENT", "BABYSIT_PROVIDER", "BABYSIT_MODEL", "BABYSIT_EFFORT",
+		"BABYSIT_WORKER_PROVIDER", "BABYSIT_WORKER_MODEL", "BABYSIT_WORKER_EFFORT", "BABYSIT_FOREMAN_PROVIDER", "BABYSIT_FOREMAN_MODEL", "BABYSIT_FOREMAN_EFFORT"} {
+		t.Setenv(key, "")
+	}
 	t.Setenv("CODEX_SESSION_ID", "")
 	t.Setenv("CODEX_THREAD_ID", "")
 }
@@ -110,53 +110,6 @@ func TestPrecedenceFlagBeatsEnvBeatsGlobal(t *testing.T) {
 	}
 }
 
-// The repo file is committed; the global one is not. A machine without a given
-// CLI has to be able to opt out without editing tracked state.
-func TestRepoConfigBeatsGlobalButNotEnv(t *testing.T) {
-	isolate(t)
-	repo := gitRepo(t)
-	writeRepoConfig(t, repo, "workspace: acme\nworker_agent: grok\n")
-	writeGlobal(t, "worker_agent: claude\n")
-
-	if p, _ := Resolve(WorkerKey, ""); p.Name != "grok" {
-		t.Errorf("repo config lost to the global default")
-	}
-	t.Setenv("BABYSIT_AGENT", "claude")
-	if p, _ := Resolve(WorkerKey, ""); p.Name != "claude" {
-		t.Errorf("BABYSIT_AGENT could not override the committed repo config")
-	}
-}
-
-// An unknown name must fail where it is used, not where the file is read: an
-// older bbs has to keep working in a repo that pins an agent it never heard of.
-func TestUnknownAgentFailsWithTheSourceAndTheKnownNames(t *testing.T) {
-	isolate(t)
-	_, err := Resolve(WorkerKey, "gork")
-	if err == nil {
-		t.Fatal("want an error for an unknown agent")
-	}
-	for _, want := range []string{"gork", "--agent", "claude", "grok"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("error %q does not mention %q", err, want)
-		}
-	}
-}
-
-func TestRepoConfigWithAnUnknownAgentStillLoads(t *testing.T) {
-	isolate(t)
-	repo := gitRepo(t)
-	writeRepoConfig(t, repo, "workspace: acme\nworker_agent: some-future-cli\n")
-
-	_, err := Resolve(WorkerKey, "")
-	if err == nil || !strings.Contains(err.Error(), "some-future-cli") {
-		t.Fatalf("want the unknown name reported at resolve time, got %v", err)
-	}
-	// The foreman role reads a different key, so it is unaffected and still runs.
-	if p, err := Resolve(ForemanKey, ""); err != nil || p.Name != "claude" {
-		t.Errorf("an unknown worker agent broke foreman resolution: %v / %q", err, p.Name)
-	}
-}
-
 func TestWorkerCommandCarriesTheYoloFlagPerAgent(t *testing.T) {
 	claude, grok := profiles["claude"], profiles["grok"]
 	if got := claude.WorkerCommand("/bbs:autopilot ship it"); got != `claude --dangerously-skip-permissions '/bbs:autopilot ship it'` {
@@ -218,35 +171,6 @@ func TestPreflightNamesWhatToInstall(t *testing.T) {
 	}
 	if err := profiles["grok"].Preflight(); err != nil {
 		t.Errorf("preflight failed with grok on PATH: %v", err)
-	}
-}
-
-// gitRepo stands up a real git repo and moves the test into it, because repo
-// config is reached through `git rev-parse --show-toplevel`. It returns the path
-// git reports rather than the one t.TempDir gave: on macOS the temp dir is
-// reached through a symlink and git answers with the physical path, so the two
-// differ and only git's is where LoadRepoConfig will look.
-func gitRepo(t *testing.T) string {
-	t.Helper()
-	t.Setenv("PATH", origPath)
-	t.Chdir(t.TempDir())
-	if out, err := exec.Command("git", "init").CombinedOutput(); err != nil {
-		t.Fatalf("git init: %v\n%s", err, out)
-	}
-	top := qaconfig.RepoToplevel()
-	if top == "" {
-		t.Fatal("git reported no toplevel in a freshly initialized repo")
-	}
-	return top
-}
-
-func writeRepoConfig(t *testing.T, top, body string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Join(top, ".babysit"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(top, ".babysit", "config.yaml"), []byte(body), 0o644); err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -373,8 +297,8 @@ decided_at = 3
 
 func TestNamesListsEveryRegisteredAgent(t *testing.T) {
 	got := strings.Join(Names(), ",")
-	if got != "claude,codex,grok,omp" {
-		t.Errorf("Names() = %q, want claude,codex,grok,omp", got)
+	if got != "claude,codex,cursor,grok,omp" {
+		t.Errorf("Names() = %q, want claude,codex,cursor,grok,omp", got)
 	}
 }
 

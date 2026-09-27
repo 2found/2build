@@ -9,46 +9,31 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// The registry workspace, not the Orca terminal and not the worktree pool.
-// Output here always names the workspace ("workspace acme") so a reader can
-// tell which of the three is meant without guessing; `bbs foreman` says
-// "Orca terminal" for its own, and the per-ticket pool is only ever called a
-// worktree.
 const workspaceUsage = `Usage:
   bbs config workspace list
   bbs config workspace show [<name>]
   bbs config workspace create <name>
-  bbs config workspace add-repo <name> --git-url <url> [--path <dir>] [--role <fe|be|shared>]
+  bbs config workspace add-repo <name> --git-url <url> [--path <dir>] [--role <fe|be|shared>] [--repo-type <monorepo|polyrepo>]
 
-  bbs config repo show
-  bbs config repo get <key>
-  bbs config repo set <key> <value>
-  bbs config repo stamp                 record the running babysit version
-
-Three files, three surfaces: 'workspace' is the machine-local registry under
-~/.babysit/workspaces/, 'repo' is the committed <repo>/.babysit/config.yaml,
-and the global ~/.babysit/config.yaml is bbs config get/set/list.
+Workspace registrations live under the top-level workspaces mapping in
+~/.babysit/config.yaml. There is no per-repository config file.
 `
 
-// Hidden: the documented spelling is `bbs config workspace …`. This stays
-// reachable because bbs and the skill pack ship separately — a brew-updated
-// binary still gets `bbs workspace show` from a plugin that hasn't upgraded.
+// Hidden legacy spelling; the documented surface is `bbs config workspace`.
 func newWorkspaceCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "workspace",
 		Short:              "multi-repo registry: which repos belong to one product",
 		Hidden:             true,
 		DisableFlagParsing: true,
-		RunE: func(_ *cobra.Command, args []string) error {
-			return runWorkspace(args)
-		},
+		RunE:               func(_ *cobra.Command, args []string) error { return runWorkspace(args) },
 	}
 }
 
 func runWorkspace(args []string) error {
 	if err := dispatchWorkspace(args); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
+		fmt.Fprintln(os.Stderr, err)
+		return errSilent
 	}
 	return nil
 }
@@ -56,28 +41,28 @@ func runWorkspace(args []string) error {
 func dispatchWorkspace(args []string) error {
 	if len(args) == 0 {
 		fmt.Fprint(os.Stderr, workspaceUsage)
-		os.Exit(2)
+		return errSilent
 	}
-	sub, rest := args[0], args[1:]
-	switch sub {
+	switch args[0] {
 	case "list":
 		return workspaceList()
 	case "show":
-		return workspaceShow(rest)
+		return workspaceShow(args[1:])
 	case "create":
-		return workspaceCreate(rest)
+		return workspaceCreate(args[1:])
 	case "add-repo":
-		return workspaceAddRepo(rest)
-	case "config":
-		return workspaceConfig(rest)
+		return workspaceAddRepo(args[1:])
+	default:
+		fmt.Fprint(os.Stderr, workspaceUsage)
+		return errSilent
 	}
-	fmt.Fprint(os.Stderr, workspaceUsage)
-	os.Exit(2)
-	return nil
 }
 
 func workspaceList() error {
-	all := workspace.List()
+	all, err := workspace.List()
+	if err != nil {
+		return err
+	}
 	if len(all) == 0 {
 		fmt.Println("no workspaces registered")
 		return nil
@@ -88,9 +73,6 @@ func workspaceList() error {
 	return nil
 }
 
-// workspaceShow prints one workspace's repos. With no name it reports the
-// current repo's membership, which is also where a stale harness_version
-// surfaces.
 func workspaceShow(args []string) error {
 	name := ""
 	if len(args) > 0 {
@@ -101,55 +83,50 @@ func workspaceShow(args []string) error {
 		if top == "" {
 			return fmt.Errorf("not in a git repo — pass a workspace name")
 		}
-		cfg, present, err := workspace.LoadRepoConfig(top)
-		if err != nil {
+		resolver := workspace.NewResolver(top, originURL(top))
+		if err := resolver.Err(); err != nil {
 			return err
 		}
-		if !present {
-			fmt.Printf("%s: no .babysit/config.yaml — not a workspace member\n", top)
+		repo, ok := resolver.Repo()
+		if !ok {
+			fmt.Printf("%s: not registered in %s\n", top, workspace.ConfigPath())
 			return nil
 		}
+		name = resolver.Name()
 		fmt.Printf("repo:      %s\n", top)
-		fmt.Printf("workspace: %s\n", cfg.Workspace)
-		fmt.Printf("harness:   %s\n", harnessDisplay(cfg))
-		if cfg.RepoType != "" {
-			fmt.Printf("repo_type: %s\n", cfg.RepoType)
+		fmt.Printf("workspace: %s\n", name)
+		fmt.Printf("harness:   %s\n", harnessDisplay(repo))
+		if repo.RepoType != "" {
+			fmt.Printf("repo_type: %s\n", repo.RepoType)
 		}
-		if r := workspace.NewResolver(top, originURL(top)); r.Err() != nil {
-			return r.Err()
-		}
-		name = cfg.Workspace
 	}
 	w, err := workspace.Load(name)
 	if err != nil {
 		return err
 	}
 	fmt.Printf("workspace %s\n", w.Name)
-	for _, r := range w.Repos {
-		path := r.Path
+	for _, repo := range w.Repos {
+		path := repo.Path
 		if path == "" {
 			path = "(not on this machine)"
 		}
 		role := ""
-		if r.Role != "" {
-			role = "  role=" + r.Role
+		if repo.Role != "" {
+			role = "  role=" + repo.Role
 		}
-		fmt.Printf("  %s  %s%s\n", r.GitURL, path, role)
+		fmt.Printf("  %s  %s%s\n", repo.GitURL, path, role)
 	}
 	return nil
 }
 
-// harnessDisplay renders harness_version for humans. Null is the ordinary
-// state — every repo configured before setup-project learned to write it — so
-// it reads as plain "not set", never as a warning.
-func harnessDisplay(cfg workspace.RepoConfig) string {
-	if cfg.HarnessVersion == nil || *cfg.HarnessVersion == "" {
+func harnessDisplay(repo workspace.Repo) string {
+	if repo.HarnessVersion == nil || *repo.HarnessVersion == "" {
 		return "not set (run bbs:setup-project to record it)"
 	}
-	if cur := resolveVersion(); cfg.Stale(cur) {
-		return *cfg.HarnessVersion + " (stale — current is " + cur + ")"
+	if current := resolveVersion(); repo.Stale(current) {
+		return *repo.HarnessVersion + " (stale — current is " + current + ")"
 	}
-	return *cfg.HarnessVersion
+	return *repo.HarnessVersion
 }
 
 func workspaceCreate(args []string) error {
@@ -159,147 +136,47 @@ func workspaceCreate(args []string) error {
 	if err := workspace.Create(args[0]); err != nil {
 		return err
 	}
-	fmt.Printf("workspace %s ready (%s)\n", args[0], workspace.Path(args[0]))
+	fmt.Printf("workspace %s ready (%s)\n", args[0], workspace.ConfigPath())
 	return nil
 }
 
 func workspaceAddRepo(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: bbs config workspace add-repo <name> --git-url <url> [--path <dir>] [--role <role>]")
+		return fmt.Errorf("usage: bbs config workspace add-repo <name> --git-url <url> [--path <dir>] [--role <role>] [--repo-type <type>]")
 	}
 	name, rest := args[0], args[1:]
-	var r workspace.Repo
+	var repo workspace.Repo
 	for i := 0; i < len(rest); i++ {
 		switch rest[i] {
 		case "--git-url":
-			r.GitURL, i = valueAt(rest, i), i+1
+			repo.GitURL, i = valueAt(rest, i), i+1
 		case "--path":
-			r.Path, i = valueAt(rest, i), i+1
+			repo.Path, i = valueAt(rest, i), i+1
 		case "--role":
-			r.Role, i = valueAt(rest, i), i+1
+			repo.Role, i = valueAt(rest, i), i+1
+		case "--repo-type":
+			repo.RepoType, i = valueAt(rest, i), i+1
+		case "--name":
+			repo.Name, i = valueAt(rest, i), i+1
+		case "--description":
+			repo.Description, i = valueAt(rest, i), i+1
+		default:
+			return fmt.Errorf("unknown add-repo option %q", rest[i])
 		}
 	}
-	if r.GitURL == "" {
+	if repo.GitURL == "" {
 		return fmt.Errorf("add-repo needs --git-url (the machine-independent half of a repo's identity)")
 	}
-	if err := workspace.AddRepo(name, r); err != nil {
+	if version := resolveVersion(); version != "unknown" {
+		repo.HarnessVersion = &version
+	}
+	if err := workspace.AddRepo(name, repo); err != nil {
 		return err
 	}
-	fmt.Printf("workspace %s: added %s\n", name, r.GitURL)
+	fmt.Printf("workspace %s: added %s (%s)\n", name, repo.GitURL, workspace.ConfigPath())
 	return nil
 }
 
-// workspaceConfig is the repo-scoped counterpart of `bbs config`, reached as
-// `bbs config repo`. It stays a sibling verb rather than a --scope flag on
-// get/set/list because those three are a byte-pinned port of bin/bbs-config
-// and their contract is not ours to widen.
-func workspaceConfig(args []string) error {
-	top := qaconfig.RepoToplevel()
-	if top == "" {
-		return fmt.Errorf("not in a git repo")
-	}
-	if len(args) == 0 {
-		args = []string{"show"}
-	}
-	cfg, present, err := workspace.LoadRepoConfig(top)
-	if err != nil {
-		return err
-	}
-	switch args[0] {
-	case "show":
-		if !present {
-			fmt.Printf("%s: no config.yaml\n", workspace.RepoConfigPath(top))
-			return nil
-		}
-		b, _ := os.ReadFile(workspace.RepoConfigPath(top))
-		os.Stdout.Write(b)
-		return nil
-	case "get":
-		if len(args) < 2 {
-			return fmt.Errorf("usage: bbs config repo get <key>")
-		}
-		if v, ok := repoConfigField(cfg, args[1]); ok {
-			fmt.Println(v)
-			return nil
-		}
-		return fmt.Errorf("unknown key %q (workspace|harness_version|name|description|repo_type)", args[1])
-	case "stamp":
-		// setup-project's one-liner for AC5. A dedicated verb rather than
-		// `set harness_version "$(bbs --version | ...)"` because the running
-		// version is already known here, and a skill parsing it back out of
-		// version output is a needless place to go wrong.
-		v := resolveVersion()
-		if v == "unknown" {
-			return fmt.Errorf("this build reports no version — leaving harness_version null, which is a legal value, rather than recording a fake one")
-		}
-		cfg.HarnessVersion = &v
-		if err := workspace.SaveRepoConfig(top, cfg); err != nil {
-			return err
-		}
-		fmt.Printf("%s: harness_version=%s\n", workspace.RepoConfigPath(top), v)
-		return nil
-	case "set":
-		if len(args) < 3 {
-			return fmt.Errorf("usage: bbs config repo set <key> <value>")
-		}
-		if err := setRepoConfigField(&cfg, args[1], args[2]); err != nil {
-			return err
-		}
-		if err := workspace.SaveRepoConfig(top, cfg); err != nil {
-			return err
-		}
-		fmt.Printf("%s: %s=%s\n", workspace.RepoConfigPath(top), args[1], args[2])
-		return nil
-	}
-	fmt.Fprint(os.Stderr, workspaceUsage)
-	os.Exit(2)
-	return nil
-}
-
-func repoConfigField(c workspace.RepoConfig, key string) (string, bool) {
-	switch key {
-	case "workspace":
-		return c.Workspace, true
-	case "harness_version":
-		if c.HarnessVersion == nil {
-			return "", true // null prints empty, exit 0 — it is a legal value
-		}
-		return *c.HarnessVersion, true
-	case "name":
-		return c.Name, true
-	case "description":
-		return c.Description, true
-	case "repo_type":
-		return c.RepoType, true
-	}
-	return "", false
-}
-
-func setRepoConfigField(c *workspace.RepoConfig, key, value string) error {
-	switch key {
-	case "workspace":
-		c.Workspace = value
-	case "harness_version":
-		if value == "" || value == "null" {
-			c.HarnessVersion = nil
-		} else {
-			c.HarnessVersion = &value
-		}
-	case "name":
-		c.Name = value
-	case "description":
-		c.Description = value
-	case "repo_type":
-		c.RepoType = value
-	default:
-		return fmt.Errorf("unknown key %q (workspace|harness_version|name|description|repo_type)", key)
-	}
-	return nil
-}
-
-// originURL is the repo's origin url, one of the two ways a registry entry is
-// matched to a checkout. Empty when there is no origin — matching falls back
-// to the local path.
 func originURL(toplevel string) string {
 	return gitOut("-C", toplevel, "remote", "get-url", "origin")
 }

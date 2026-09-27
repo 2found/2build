@@ -257,6 +257,27 @@ and write scope in the durable plan/handoff; report milestones and bounded waits
 through `bbs foreman progress`. These are evidence responsibilities, not topology
 or sibling orchestration. Standalone v1 skills keep their existing fallback.
 
+### Foreman phase assignments
+
+A current, authenticated Orca Dispatch from Foreman may explicitly assign only
+Plan, Build, Review, or QA. Honor that phase and its stop boundary instead of
+running init or workflow steps outside that phase: Plan writes artifacts; Build implements, checks and
+commits; Review runs `review-pr` without `--fix` and reports needed repairs;
+QA verifies without code fixes. Foreman dispatches repairs and the next phase.
+Keep each assigned skill in this session on its launched model; never delegate
+the whole phase, dispatch sibling Tasks or switch models. The review skill's
+internal analysis fan-out remains allowed under Current-session gates below.
+Read the accepted plan and prior handoffs,
+persist the phase's checkpoint/handoff and actual gate evidence using
+`references/verification.md`, and send exactly one `worker_done` for this
+Dispatch. Build/Review settlement leaves the workflow in progress; only final
+QA with current review, QA and readiness may record workflow completion.
+Any discovered need for planning or a code fix outside the assigned phase is
+a handoff to Foreman, not permission to continue on the wrong model. This
+explicit envelope takes precedence over whole-workflow execution in this skill
+and its workflow files (including automatic planning and `review-pr --fix`);
+ordinary direct autopilot invocations retain the full current-session loop.
+
 ### Current-session gates (`review-pr`, `qa`)
 Applies to every workflow's `review-pr` and `qa` steps, without an opt-in
 flag. Both gates run in this session, on the session's model: no autopilot

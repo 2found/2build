@@ -48,4 +48,22 @@ export default function babysit(pi: ExtensionAPI) {
   pi.on("tool_result", async (event, ctx) => {
     if (event.toolName === "bash") await heartbeat(event, ctx);
   });
+
+  pi.on("session_stop", async (_event, ctx) => {
+    if (!process.env.ORCA_TERMINAL_HANDLE) return;
+    try {
+      const result = await run("worker-report-gate", ctx);
+      if (result.killed || result.code !== 0) {
+        return { decision: "block", reason: `Babysit worker report check failed: ${result.stderr || "timeout or process failure"}` };
+      }
+      if (!result.stdout.trim()) return;
+      const decision = JSON.parse(result.stdout);
+      if (decision.decision === "block" && typeof decision.reason === "string" && decision.reason.trim()) {
+        return { decision: "block", reason: decision.reason };
+      }
+      return { decision: "block", reason: "Babysit worker report check returned an unexpected response." };
+    } catch (error) {
+      return { decision: "block", reason: `Babysit worker report check failed: ${error}` };
+    }
+  });
 }

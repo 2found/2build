@@ -1,6 +1,4 @@
-// Package agent resolves which coding-agent CLI a foreman and its workers run
-// on. Claude Code is the default; grok, omp and codex are the other supported
-// agents.
+// Package agent detects coding agents and resolves their launch preferences.
 //
 // A profile is data, not a template language: the CLIs differ in the binary
 // name, the flag that turns off permission prompts, how (or whether) a
@@ -32,8 +30,7 @@
 // The independence is the point. A foreman reviews design gates, reads QA
 // verdicts, and decides whether a worker's evidence holds up; setting workers
 // to grok is a throughput choice and must not silently move that audit off the
-// stronger reasoner. So `worker_agent: grok` alone leaves the foreman on Claude
-// Code — moving it takes saying `foreman_agent: grok` on purpose.
+// stronger reasoner. Each role resolves its own settings independently.
 package agent
 
 import (
@@ -44,14 +41,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/reallongnguyen/babysit/internal/config"
-	"github.com/reallongnguyen/babysit/internal/qaconfig"
-	"github.com/reallongnguyen/babysit/internal/workspace"
 )
 
-// Default is the agent used when nothing selects one, for both roles. Claude
-// Code is the agent every babysit skill was written against.
+// Default is the legacy agent for records written before agent selection, and
+// the last fallback when neither a current nor an installed agent is detected.
 const Default = "claude"
 
 // Config keys, in the repo's snake_case. Both roles are named explicitly rather
@@ -68,6 +61,11 @@ type Profile struct {
 	Name string
 	// Bin is the executable looked up on PATH.
 	Bin string
+	// Provider, Model and Effort are launch preferences, never model catalogs.
+	// Empty values leave the agent's native configuration in control.
+	Provider string
+	Model    string
+	Effort   string
 	// Yolo is the flag that stops the agent asking for tool approval. Workers
 	// and autonomous foremen run unattended in Orca terminals, so without it a
 	// multi-day run stalls on the first mutation. Skill policy still fences
@@ -115,8 +113,8 @@ type Profile struct {
 	TrustHint string
 }
 
-// profiles is the registry. Adding a third agent is an entry here plus a row in
-// the docs — there is no per-agent code path anywhere else.
+// profiles holds the supported CLI protocols. Provider/model/effort translation
+// lives in settings.go; model identifiers never belong in this registry.
 var profiles = map[string]Profile{
 	"claude": {
 		Name: "claude", Bin: "claude",
@@ -189,6 +187,11 @@ var profiles = map[string]Profile{
 		Install: "install codex: https://developers.openai.com/codex/cli, then install babysit: " +
 			"codex plugin marketplace add lohi-ai/babysit && codex plugin add bbs@babysit",
 	},
+	"cursor": {
+		Name: "cursor", Bin: "cursor-agent", Yolo: "--yolo",
+		Resume: "--resume", SkillSigil: "/", SkillPrefix: "",
+		Install: "install Cursor CLI: https://cursor.com/docs/cli/installation; make babysit's skills available in .cursor/skills or .agents/skills",
+	},
 }
 
 // Names lists the registered agents, sorted, for error messages and docs.
@@ -201,32 +204,9 @@ func Names() []string {
 	return out
 }
 
-// Resolve picks the agent for a role — WorkerKey or ForemanKey — in precedence
-// order:
-//
-//	--agent <name>              the caller's explicit override
-//	BABYSIT_AGENT               this shell / this run
-//	<repo>/.babysit/config.yaml the repo's committed default
-//	~/.babysit/config.yaml      this machine's default
-//	claude                      the built-in default
-//
-// The repo file is committed and the global one is not, so the order lets a
-// machine without a given CLI installed opt out without editing a tracked file,
-// and lets a repo state a team default without assuming every machine matches.
-//
-// An unrecognized name is an error here rather than in RepoConfig.Validate, and
-// that placement is load-bearing: validating the enum at load time would make a
-// repo that pins a newer agent break every command that reads repo config on an
-// older bbs. Failing at the point of use keeps the blast radius at the spawn
-// that actually needs the name.
+// Resolve applies flags > environment > repo > global > automatic detection.
 func Resolve(key, flag string) (Profile, error) {
-	name, source := selectName(key, flag)
-	p, ok := profiles[name]
-	if !ok {
-		return Profile{}, fmt.Errorf("unknown agent %q (from %s) — known agents: %s",
-			name, source, strings.Join(Names(), ", "))
-	}
-	return p, nil
+	return ResolveWith(key, Options{Agent: flag})
 }
 
 // ByName resolves a recorded agent name with no config ladder. Spawn uses it on
@@ -234,40 +214,13 @@ func Resolve(key, flag string) (Profile, error) {
 // CLI, and the config may have changed since. Resuming a Claude session with
 // grok would hand it a uuid it has never heard of.
 func ByName(name string) (Profile, error) {
+	name = Normalize(name)
 	p, ok := profiles[name]
 	if !ok {
 		return Profile{}, fmt.Errorf("unknown agent %q — known agents: %s",
 			name, strings.Join(Names(), ", "))
 	}
 	return p, nil
-}
-
-// selectName returns the winning name and where it came from, so an error can
-// tell the user which of the four places to go fix.
-//
-// BABYSIT_AGENT is shared by both roles on purpose: it is the "just this run,
-// on this machine" override, and a run that sets it means it.
-func selectName(key, flag string) (name, source string) {
-	if flag != "" {
-		return flag, "--agent"
-	}
-	if v := os.Getenv("BABYSIT_AGENT"); v != "" {
-		return v, "BABYSIT_AGENT"
-	}
-	if top := qaconfig.RepoToplevel(); top != "" {
-		// A malformed or absent repo config is not this function's problem: the
-		// commands that own that file report it. Here it simply does not select
-		// an agent, and resolution falls through to the global default.
-		if c, _, err := workspace.LoadRepoConfig(top); err == nil {
-			if v := c.AgentFor(key); v != "" {
-				return v, workspace.RepoConfigPath(top)
-			}
-		}
-	}
-	if v, _ := config.Get(key); v != "" {
-		return v, config.Path()
-	}
-	return Default, "built-in default"
 }
 
 // Preflight reports whether this agent can actually be spawned. It runs before
@@ -369,7 +322,7 @@ func trustedInClaudeJSON(body, dir string) bool {
 // WorkerCommand renders the shell command line that runs one worker on the
 // given prompt, e.g. `/bbs:autopilot ship the settings page`.
 func (p Profile) WorkerCommand(prompt string) string {
-	return p.Bin + " " + p.Yolo + " " + shellQuote(prompt)
+	return p.launchCommand() + " " + shellQuote(prompt)
 }
 
 // MintsSessionID reports whether a NEW conversation can be bound to a handle
@@ -410,11 +363,11 @@ func (p Profile) SessionToken(uuid, dir string) string {
 // SessionToken chose, and ResumeCommand re-opens it. Foremen are autonomous,
 // so both shapes include the profile's unattended approval flag.
 func (p Profile) NewSessionCommand(session, prompt string) string {
-	return p.Bin + " " + p.Yolo + p.sessionArgs(session, false) + " " + shellQuote(prompt)
+	return p.launchCommand() + p.sessionArgs(session, false) + " " + shellQuote(prompt)
 }
 
 func (p Profile) ResumeCommand(session, prompt string) string {
-	return p.Bin + " " + p.Yolo + p.sessionArgs(session, true) + " " + shellQuote(prompt)
+	return p.launchCommand() + p.sessionArgs(session, true) + " " + shellQuote(prompt)
 }
 
 // sessionArgs renders the session half of a foreman command line, and its one
@@ -443,7 +396,7 @@ func (p Profile) sessionArgs(session string, resume bool) string {
 }
 
 // SkillRef renders a babysit skill invocation the way THIS agent resolves it —
-// `/bbs:autopilot` in Claude Code and grok, `/autopilot` in omp's flat skill
+// `/bbs:autopilot` in Claude Code and grok, `/autopilot` in omp/Cursor's flat skill
 // list, and `$bbs:autopilot` in Codex. Every prompt naming a skill must go
 // through here; a hard-coded sigil or prefix is the failure that comes up fine
 // and then resolves to nothing.

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Home as HomeIcon, HardHat, Inbox, Workflow, Zap, Calendar, BarChart3, ChevronDown, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { Home as HomeIcon, HardHat, Inbox, Workflow, Zap, Calendar, BarChart3, ChevronDown, ChevronRight, MoreHorizontal, Settings2 } from 'lucide-react';
 import type { Meta, Snapshot } from '../lib/data';
 import { formatDate } from '../lib/format';
 import { ProjectSwitcher } from './ProjectSwitcher';
@@ -22,6 +22,7 @@ const PRIMARY_ITEMS = [
   { hash: '#/',              label: 'Home',         kbd: 'H', Icon: HomeIcon },
   { hash: '#/tickets',       label: 'Tickets',      kbd: 'T', Icon: Inbox },
   { hash: '#/foremen',       label: 'Foremen',      kbd: 'F', Icon: HardHat },
+  { hash: '#/settings',      label: 'Settings',     kbd: ',', Icon: Settings2 },
 ] as const;
 
 const MORE_ITEMS = [

@@ -1,88 +1,82 @@
 # Workspaces — the multi-repo registry
 
 A **workspace** is a named list of repos that make up one product. It answers
-the question a foreman has to answer before it can hand out work: *which repos
-am I responsible for, and where are they on this machine?*
+which repos a foreman owns and where those repos live on this machine.
 
 ```bash
-bbs config workspace create acme
-bbs config workspace add-repo acme --git-url git@github.com:acme/web.git --path ~/src/web --role fe
+bbs config workspace add-repo acme --git-url git@github.com:acme/web.git --path ~/src/web --role fe --repo-type polyrepo
 bbs config workspace add-repo acme --git-url git@github.com:acme/api.git --path ~/src/api --role be
 bbs config workspace list
-bbs config workspace show                 # membership of the repo you are standing in
+bbs config workspace show                 # membership of the current repo
 ```
+
+`add-repo` creates the workspace when needed. Every setting and workspace
+registration lives in one machine-local file: `~/.babysit/config.yaml`.
+
+```yaml
+worker_agent: codex
+worker_effort: high
+workspaces:
+  acme:
+    version: 1
+    repos:
+      - git_url: git@github.com:acme/web.git
+        path: /Users/me/src/web
+        role: fe
+        repo_type: polyrepo
+        harness_version: 1.60.0
+      - git_url: git@github.com:acme/api.git
+        path: /Users/me/src/api
+        role: be
+        harness_version: 1.60.0
+```
+
+There is no `<repo>/.babysit/config.yaml` and no
+`~/.babysit/workspaces/<name>.yaml`. Workspace membership is resolved by a
+registered local path or git URL. A checkout matching multiple entries is an
+error rather than an arbitrary choice.
+
+Local paths and agent preferences are machine-specific, so the unified file is
+not committed. Repository policy and QA remain committed separately in
+`.babysit/git-flow.yaml` and `.babysit/qa.yaml`; secrets remain in the ignored
+`.babysit/.env`.
 
 ## Three things are called "workspace"
 
-The word is overloaded in this codebase, and the overload is load-bearing —
-all three exist and none is going away. Only one of them is *this* thing.
-
 | Meaning | What it is | How it is named in output |
 |---|---|---|
-| 1. Orca terminal | an Orca terminal tab — one visible worker, its agent session and optional browser tab | always written **"Orca terminal"**, never bare |
-| 2. worktree pool | `<repo>/.babysit/worktrees/<ticket>_<slug>`, one git worktree per ticket | always written **"worktree"** — never "workspace" |
-| 3. registry workspace | this file's subject: a named set of repos | always carries its name — **"workspace acme"** |
+| Orca terminal | one visible worker and agent session | **Orca terminal**, never bare |
+| worktree pool | `<repo>/.babysit/worktrees/<ticket>_<slug>` | **worktree** |
+| registry workspace | a named set of repos in `config.yaml` | **workspace acme** |
 
-The rule for anything you write — CLI output, skill text, docs: **meaning 3
-always appears with its name attached**, meaning 1 always carries the `Orca`
-prefix, and meaning 2 is called a worktree. Bare "workspace" with no name and
-no prefix is a bug in the message.
+`foreman` gains no extra field for the registry. Its `ProjectDir` is matched to
+the unified registry. `foreman.Record.WorkspaceDir`, `WorkspaceRef`, and
+`WorkspaceTitle` refer to the Orca terminal.
 
-`foreman` gains no new field for this. A foreman record already carries
-`ProjectDir`; its registry workspace is whatever that repo's `config.yaml`
-declares. (`foreman.Record.WorkspaceDir` / `WorkspaceRef` / `WorkspaceTitle`
-are meaning 1 — the Orca terminal the worker runs in.)
+## Repository metadata
 
-## Two files, two commands
+`harness_version`, `name`, `description`, and `repo_type` belong to each repo
+entry. `add-repo` records the running harness version. A missing
+`harness_version` is valid and silent; a known older version is shown by
+`bbs config workspace show`.
 
-| File | Committed? | Read by |
-|---|---|---|
-| `~/.babysit/workspaces/<name>.yaml` | no — machine-local | `bbs config workspace list/show/add-repo` |
-| `<repo>/.babysit/config.yaml` | **yes** | `bbs config repo` |
-| `~/.babysit/config.yaml` | no | `bbs config` — a *different* file that happens to share the basename |
+`repo_type` changes behavior: `monorepo` disables sibling-repo fan-out because
+its related code is already inside the same checkout. `polyrepo` and an unset
+value keep fan-out enabled.
 
-The split is machine-locality. Local paths differ per developer, so they live
-in the machine-local registry; workspace membership is a fact about the repo,
-so it is committed. Nothing with a machine-local absolute path is ever written
-to a committed file.
+## Sibling paths
 
-`<repo>/.babysit/config.yaml`:
+`bbs ticket serve` resolves a related role from:
 
-```yaml
-workspace: acme          # required — the back-pointer
-harness_version: 1.55.9  # nullable; written by `bbs config repo stamp`
-name: Web App            # optional
-description: customer-facing storefront   # optional
-repo_type: polyrepo      # optional: monorepo | polyrepo
-```
-
-`harness_version` is **null-by-default and null is fine**: it is the correct
-reading for every repo configured before this existed, so it never warns and
-never blocks. It exists so `bbs config workspace show` can say "set up by an older
-babysit" when it *does* know.
-
-`repo_type` is not decoration — `monorepo` makes `bbs ticket serve` skip the
-sibling fan-out, because a monorepo's siblings are directories in the same
-checkout and there is nothing to resolve.
-
-## Sibling paths: one authority
-
-`bbs ticket serve` needs local paths for a ticket's sibling repos. Two sources
-can supply them:
-
-1. the workspace registry, matched by role — **authoritative**
+1. the current repo's matched workspace entry — authoritative
 2. `RELATED_*_REPO` in `<repo>/.babysit/.env` — fallback
 
-A repo with no `.babysit/config.yaml` uses (2) exactly as it always has; there
-is no migration and nothing to opt into. A repo that is registered uses (1).
-When both name a role and **disagree**, babysit blocks and prints both paths
-rather than picking one — silently serving the wrong checkout is the failure
-this authority exists to prevent.
+When both sources name different paths, babysit blocks and prints both values.
+When they agree, the workspace path wins without a warning. A repo absent from
+the workspace registry continues to use `.babysit/.env`.
 
 ## Tests
 
-Any test that touches the registry must redirect `BABYSIT_HOME`, via
-`workspace.TestHome(t)`. `workspace.Dir()` panics under `go test` when
-`BABYSIT_HOME` is unset, so a test cannot silently write into the human's real
-`~/.babysit/workspaces/`. Note `BABYSIT_STATE_DIR` does **not** redirect this
-store — it only redirects `internal/config`.
+Tests that touch workspaces call `workspace.TestHome(t)`, which redirects
+`BABYSIT_STATE_DIR` so the unified config cannot touch the developer's real
+`~/.babysit/config.yaml`.

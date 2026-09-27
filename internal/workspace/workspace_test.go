@@ -6,44 +6,31 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/reallongnguyen/babysit/internal/config"
 )
 
-func TestDirPanicsWithoutBabysitHome(t *testing.T) {
-	// The guard that keeps a future test from writing into the human's real
-	// ~/.babysit. Setting BABYSIT_STATE_DIR must NOT satisfy it: that variable
-	// redirects internal/config, not this store.
-	t.Setenv("BABYSIT_HOME", "")
-	t.Setenv("BABYSIT_STATE_DIR", t.TempDir())
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("Dir() did not panic with BABYSIT_HOME unset — the store is writable from a test that forgot to redirect it")
-		}
-		if !strings.Contains(r.(string), "BABYSIT_HOME") {
-			t.Fatalf("panic should name the variable to set, got %v", r)
-		}
-	}()
-	_ = Dir()
-}
-
-func TestCreateAndLoadRoundTrip(t *testing.T) {
+func TestCreateAndLoadRoundTripInUnifiedConfig(t *testing.T) {
 	TestHome(t)
+	if err := config.Set("telemetry", "off"); err != nil {
+		t.Fatal(err)
+	}
 	if err := Create("acme"); err != nil {
 		t.Fatal(err)
 	}
-	if !Exists("acme") {
-		t.Fatal("workspace should exist after Create")
-	}
-	// Create is idempotent — it is also the implicit path inside AddRepo.
 	if err := Create("acme"); err != nil {
-		t.Fatalf("second Create should be a no-op, got %v", err)
+		t.Fatalf("second Create should be a no-op: %v", err)
 	}
-	w, err := Load("acme")
-	if err != nil {
-		t.Fatal(err)
+	workspace, err := Load("acme")
+	if err != nil || workspace.Name != "acme" || workspace.Version != 1 {
+		t.Fatalf("got %+v err=%v", workspace, err)
 	}
-	if w.Name != "acme" || w.Version != 1 {
-		t.Fatalf("got %+v", w)
+	body, err := os.ReadFile(config.Path())
+	if err != nil || !strings.Contains(string(body), `telemetry: "off"`) || !strings.Contains(string(body), "workspaces:") {
+		t.Fatalf("settings and workspaces must share one file: %q err=%v", body, err)
+	}
+	if _, err := os.Stat(filepath.Join(config.Dir(), "workspaces")); !os.IsNotExist(err) {
+		t.Fatalf("legacy workspace directory should not be created: %v", err)
 	}
 }
 
@@ -52,30 +39,19 @@ func TestAddRepoAppendsAndUpdatesByGitURL(t *testing.T) {
 	if err := AddRepo("acme", Repo{GitURL: "git@github.com:acme/web.git", Path: "/tmp/web", Role: "fe"}); err != nil {
 		t.Fatal(err)
 	}
-	// Implicit create: no Create call preceded this.
 	if err := AddRepo("acme", Repo{GitURL: "git@github.com:acme/api.git", Path: "/tmp/api", Role: "be"}); err != nil {
 		t.Fatal(err)
 	}
-	w, _ := Load("acme")
-	if len(w.Repos) != 2 {
-		t.Fatalf("want 2 repos, got %d: %+v", len(w.Repos), w.Repos)
-	}
-	// Same git url updates in place rather than duplicating.
 	if err := AddRepo("acme", Repo{GitURL: "git@github.com:acme/web.git", Path: "/tmp/web2", Role: "fe"}); err != nil {
 		t.Fatal(err)
 	}
-	w, _ = Load("acme")
-	if len(w.Repos) != 2 {
-		t.Fatalf("re-adding a git url must not duplicate, got %d", len(w.Repos))
-	}
-	if w.Repos[0].Path != "/tmp/web2" {
-		t.Fatalf("entry should be updated, got %q", w.Repos[0].Path)
+	workspace, err := Load("acme")
+	if err != nil || len(workspace.Repos) != 2 || workspace.Repos[0].Path != "/tmp/web2" {
+		t.Fatalf("update by git URL failed: %+v err=%v", workspace, err)
 	}
 }
 
 func TestAddRepoConcurrentDoesNotDropEntries(t *testing.T) {
-	// The reason this store locks where foreman.Save does not: read-modify-write
-	// on a shared list loses entries silently without one.
 	TestHome(t)
 	var wg sync.WaitGroup
 	for i := range 8 {
@@ -86,12 +62,9 @@ func TestAddRepoConcurrentDoesNotDropEntries(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	w, err := Load("acme")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(w.Repos) != 8 {
-		t.Fatalf("concurrent add-repo dropped entries: want 8, got %d", len(w.Repos))
+	workspace, err := Load("acme")
+	if err != nil || len(workspace.Repos) != 8 {
+		t.Fatalf("concurrent add-repo dropped entries: %+v err=%v", workspace, err)
 	}
 }
 
@@ -106,42 +79,22 @@ func TestValidNameRejectsTraversal(t *testing.T) {
 	}
 }
 
-func TestListSkipsUnparseableFiles(t *testing.T) {
-	home := TestHome(t)
-	if err := Create("good"); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(home, "workspaces", "bad.yaml"), []byte("{{{not yaml"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	got := List()
-	if len(got) != 1 || got[0].Name != "good" {
-		t.Fatalf("one bad file must not blank the list, got %+v", got)
-	}
-}
-
-func TestAddRepoRefusesToClobberAMalformedFile(t *testing.T) {
-	// The whole registry for a workspace is one file. If a hand edit breaks the
-	// yaml, an add-repo that "starts fresh" deletes every repo already listed.
-	home := TestHome(t)
-	if err := AddRepo("acme", Repo{GitURL: "web.git", Path: "/tmp/web"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(home, "workspaces", "acme.yaml"), []byte("repos: [oops\n"), 0o644); err != nil {
+func TestMalformedUnifiedConfigIsNeverOverwritten(t *testing.T) {
+	TestHome(t)
+	broken := []byte("workspaces: [oops\n")
+	if err := os.WriteFile(config.Path(), broken, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := AddRepo("acme", Repo{GitURL: "api.git", Path: "/tmp/api"}); err == nil {
-		t.Fatal("add-repo onto an unparseable registry file must fail, not overwrite it")
+		t.Fatal("add-repo onto malformed config must fail")
 	}
-	b, err := os.ReadFile(filepath.Join(home, "workspaces", "acme.yaml"))
-	if err != nil || !strings.Contains(string(b), "oops") {
-		t.Fatalf("the broken file must survive for the human to fix: %q err=%v", b, err)
+	after, _ := os.ReadFile(config.Path())
+	if string(after) != string(broken) {
+		t.Fatalf("broken config changed: %q", after)
 	}
 }
 
 func TestSamePathIgnoresSymlinkSpelling(t *testing.T) {
-	// macOS /tmp -> /private/tmp: two spellings of one directory are routine,
-	// and treating them as different turns into a spurious membership BLOCK.
 	dir := t.TempDir()
 	real := filepath.Join(dir, "real")
 	if err := os.Mkdir(real, 0o755); err != nil {
@@ -151,28 +104,19 @@ func TestSamePathIgnoresSymlinkSpelling(t *testing.T) {
 	if err := os.Symlink(real, link); err != nil {
 		t.Fatal(err)
 	}
-	if !SamePath(real, link) {
-		t.Fatalf("%s and %s are the same directory", real, link)
-	}
-	if SamePath(real, dir) {
-		t.Fatal("different directories must not compare equal")
+	if !SamePath(real, link) || SamePath(real, dir) {
+		t.Fatal("path canonicalization is incorrect")
 	}
 }
 
 func TestSamePathFoldsCaseOnInsensitiveFS(t *testing.T) {
-	// NTFS compares case-insensitively: a registry path and a cwd spelling
-	// that differ only in case are the same directory on Windows, and a
-	// case-sensitive compare false-negatives workspace matching there.
-	// Non-existent paths keep canonPath from resolving to the on-disk
-	// spelling, so the fold itself is what is exercised.
 	old := fsCaseInsensitive
 	defer func() { fsCaseInsensitive = old }()
 	dir := t.TempDir()
-	upper := filepath.Join(dir, "REPO")
-	lower := filepath.Join(dir, "repo")
+	upper, lower := filepath.Join(dir, "REPO"), filepath.Join(dir, "repo")
 	fsCaseInsensitive = true
 	if !SamePath(upper, lower) {
-		t.Fatalf("%s and %s differ only by case on a case-insensitive filesystem", upper, lower)
+		t.Fatal("case-insensitive filesystems must fold case")
 	}
 	fsCaseInsensitive = false
 	if SamePath(upper, lower) {

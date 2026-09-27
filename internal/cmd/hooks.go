@@ -29,7 +29,7 @@ import (
 func newHooksCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "hooks",
-		Short:              "plugin hooks (pre-tool-gate/session-writer)",
+		Short:              "plugin hooks (pre-tool-gate/session-writer/worker-report-gate)",
 		DisableFlagParsing: true,
 		Args:               cobra.ArbitraryArgs,
 		RunE: func(_ *cobra.Command, args []string) error {
@@ -46,6 +46,8 @@ func newHooksCmd() *cobra.Command {
 				runPreToolGate(payload, os.Stdout, os.Stderr)
 			case "session-writer":
 				runSessionWriter(payload)
+			case "worker-report-gate":
+				runWorkerReportGate(os.Stdout)
 			default:
 				fmt.Fprintf(os.Stderr, "unknown hook: %s\n", args[0])
 				os.Exit(2)
@@ -62,6 +64,8 @@ func hooksUsage() {
                   native deny/ask decision, or nothing when it has no objection
   session-writer  SessionStart + PostToolUse session tracker — refreshes
                   ~/.babysit/sessions/<agent>-<id>.yaml, always exits 0
+  worker-report-gate  Stop check — keeps an Orca worker running until its
+                  current Dispatch has settled; never sends a report itself
 
 Payload comes from stdin, or --payload when the caller cannot pipe stdin.
 `)

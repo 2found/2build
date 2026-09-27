@@ -5,10 +5,26 @@ description: Autonomous Orca orchestrator for large projects made of multiple ti
 # foreman
 
 Complete a multi-ticket project without making the human coordinate its parts.
-Foreman owns project topology and orchestration; workers own code. Every worker
-is a supervised Orca Dispatch running the `autopilot` assistant in a worktree
+Foreman owns project topology and orchestration; workers execute the work. Every
+worker is a supervised Orca Dispatch with a bounded assignment in a checkout
 foreman prepared. Foreman is a persistent goal proxy: one process may disappear,
 compact, or restart, but the project goal continues from ticket and Orca state.
+
+## First rules
+
+1. **Dispatch heavy work; never execute it in the Foreman session.** Planning,
+   decomposition, design/prototyping, implementation, code review, merges and
+   conflict resolution, builds/tests, and all QA belong to workers. Foreman
+   creates assignments, manages topology and leases, reads returned evidence,
+   applies gates, and reports status. Owning an outcome means dispatching and
+   verifying it, not doing the task. No inline fallback when workers are busy
+   or unavailable: queue the Task or report the blocker.
+2. **Use strong models for planning and code review; normal models for
+   implementation and QA.** Design and plan feedback use strong workers too;
+   merge execution uses normal workers. Separate phase Dispatches when the
+   model changes. Resolve actual supported models through
+   [worker routing](references/worker-routing.md); ticket size never downgrades
+   planning or review to the implementation model.
 
 Follow [the preamble](../references/preamble.md),
 [Auto-Decision Framework](../references/auto-decision-framework.md), and
@@ -35,13 +51,15 @@ finish boundary.
 
 | Owner | Responsibilities |
 |---|---|
-| **Foreman** | Project decomposition and DAG, branch checkout, worktree create/reuse/cleanup, Orca Run/Task/Dispatch lifecycle, design gates, QA scheduling, integration QA, dependency-order finish. |
-| **Autopilot worker** | One ticket on the checkout it receives: requirement/plan, implementation, local commits, `review-pr`, `qa`, verdicts, handoff. It never branches, creates worktrees, pushes, lands, opens PRs, or dispatches siblings. |
+| **Foreman** | Project decomposition and DAG coordination, branch checkout, worktree create/reuse/cleanup, Orca Run/Task/Dispatch lifecycle, evidence-based design gates, QA scheduling, dependency-order finish dispatch. |
+| **Autopilot worker** | The assigned ticket phase on its checkout: requirement/plan, implementation, local commits, `review-pr`, or `qa`, with verdicts and handoff. It never branches, creates worktrees, pushes, lands, opens PRs, or dispatches siblings. |
+| **Planning/design or integration/delivery worker** | The exact delegated artifact, merge/composition, or authorized finish handler. No independent topology decisions, scope expansion, or sibling dispatch. |
 | **Orca** | Live Run/Task/Dispatch provenance, injected worker lifecycle, threaded questions, durable Delivery, retries, and terminal ownership. |
 | **Babysit ticket state** | Requirements, plans, parent/child relations, manifests, worktree paths, checkpoints, approvals, verdicts, readiness, and finish authorization. |
 
-Foreman does not edit worker code. A clean git operation is coordination; a
-merge conflict or integration defect goes to a worker in the affected
+Foreman does not edit worker code or run merges, even clean ones. It dispatches
+merge/composition/finish Tasks with exact refs, checkout, lease and authorization;
+conflicts or integration defects go to a repair worker in the affected
 worktree. Never force-push, force-remove a worktree, stash or overwrite user
 changes, or bypass readiness.
 
@@ -56,7 +74,7 @@ At the start of every fresh invocation or cold resume:
    a placeholder, not a literal command or shell variable.
 3. Confirm the runtime is reachable and orchestration is enabled using that
    guide. If either is unavailable, report `BLOCKED`; do not fall back to pane
-   polling, `bbs foreman mailbox`, a generic subagent API, or guessed flags.
+   polling, a generic subagent API, or guessed flags.
 4. Create or bind one Orca Run for the project. Persist its id on the parent
    ticket as `pointers.orca_run`; rebind it on resume. Verify every Task and
    Dispatch with Orca state before describing it as orchestrated.
@@ -65,13 +83,21 @@ Use the live guide's preferred supervised loop: create Tasks with dependency
 edges, start workers with `worker-start` in exact existing worktrees, wait with
 `check --wait`, answer questions by message id, and account for every settled
 Dispatch with immediate reuse, `worker-release`, or explicit retention. Do not
-cache the guide's CLI grammar in this skill. A wait timeout is a reconcile tick,
-not a failure. Use request recovery from the receipt before retrying a mutation
+cache the guide's CLI grammar in this skill. An empty wait timeout only re-arms
+the wait; it is neither a status-check request nor a failure. Use request recovery
+from the receipt before retrying a mutation
 whose response was lost.
+
+Communicate directly through Orca. Process every message in a Delivery before
+acknowledging its exact id; after a restart, let Orca replay unacknowledged
+messages. A `worker_done` must belong to the expected active Dispatch and have
+an accepted lifecycle settlement, not merely a successful enqueue or a claimed
+`succeeded` outcome. Rejected lifecycle reports do not complete work. Verify
+the required ticket evidence before applying a gate or finish handler.
 
 ## Invocation and durable state
 
-Direct skill invocation from Codex, OMP, or Claude Code inside an Orca terminal
+Direct skill invocation from a supported coding agent inside an Orca terminal
 is the default entrypoint. `bbs foreman spawn` is optional recovery/convenience,
 not a prerequisite. Before any other mutation, adopt the invoking session:
 
@@ -80,12 +106,10 @@ not a prerequisite. Before any other mutation, adopt the invoking session:
    choose a stable project-scoped id (prefer `fm-<parent>` when the parent
    exists). On a compacted or bare continuation, omit the id only when this
    terminal was already adopted; the command recovers its one recorded id.
-2. Name the agent that is executing this skill and run the corresponding form:
+2. Adopt the current terminal; babysit detects its actual agent:
 
    ```bash
-   bbs foreman adopt "$FOREMAN_ID" --agent claude  # Claude Code
-   bbs foreman adopt "$FOREMAN_ID" --agent omp     # OMP
-   bbs foreman adopt "$FOREMAN_ID" --agent codex   # Codex
+   bbs foreman adopt "$FOREMAN_ID"
    ```
 
    Append `--auto` only when explicitly requested in this invocation; adoption
@@ -93,8 +117,8 @@ not a prerequisite. Before any other mutation, adopt the invoking session:
    artifact creation, code review, QA, holds, or finish authorization. A bare
    resume preserves the recorded mode; never infer `--auto` from an unattended
    invocation, a profile, or an old child approval.
-   Run exactly one matching form, not all three. On a continuation whose id is
-   not in context, use `bbs foreman adopt --agent <current-agent>`.
+   If detection is unavailable, pass `--agent <current-agent>` explicitly.
+   On a continuation whose id is not in context, use `bbs foreman adopt`.
 3. Treat adoption failure as `BLOCKED`. Adoption resolves the active Orca
    terminal, cross-checks its agent identity, renames it to `bbs foreman <id>`,
    persists the agent/workspace binding, and is idempotent for that same
@@ -107,8 +131,9 @@ the current CLI's permission mode; the session must already permit unattended
 tool use if nobody will be present to answer harness-level approval prompts.
 
 - **Free-text project** — create a parent project ticket on the current
-  checkout without cutting it, persist the requirement, run `plan-draft`,
-  draft bounded child seeds, and pass **Project design checkpoint** before
+  checkout without cutting it, persist the supplied requirement, dispatch a
+  strong planning/design worker for `plan-draft` and bounded child seeds,
+  and pass **Project design checkpoint** before
   creating child tickets/worktrees or dispatching production work. A list of
   already-independent
   requests still gets one parent so the project has one completion condition.
@@ -143,10 +168,10 @@ branch, worktree, Orca task/dispatch ids, and verdicts. Persist ids immediately
 after each successful external mutation. Terminal handles are routing metadata,
 never recovery identity.
 
-Every wake runs the reconcile tick in **Status reconciliation** below — never
-act on remembered status. Initialize the harness's native task list at entry
+Route wakes through **Worker management** below; verify the affected state
+before acting. Initialize the harness's native task list at entry
 from the parent, children, and DAG (rebuild it from ticket + Orca state on
-cold resume), and keep it mirrored at every tick; disk and Orca state remain
+cold resume), and update it on state changes; disk and Orca state remain
 authoritative.
 
 ## Repository profile and autonomy
@@ -173,19 +198,40 @@ safe ready wave: dispatch every admitted ready Task up to `MAX_WORKERS` and the
 machine-global resource budget. Never serialize independent work merely because
 the repo is `pet`, and never buy a stronger model merely because it is
 `enterprise`. A profile scales verification breadth and the authorized finish
-venue; ticket evidence controls model routing. Taste remains self-resolved
+venue; phase controls model routing and ticket evidence controls verification
+breadth. Taste remains self-resolved
 unless an explicit hold or bounded grant says otherwise.
+
+## Worker management
+
+**Default to doing nothing while workers run.** After dispatching the admitted
+wave, block on Orca `check --wait` and await worker reports. Do not repeatedly
+read terminals, checkpoints, git state, inbox, resource status, or project
+snapshots to discover progress. Silence is expected, not evidence of a stall.
+
+- **Worker report, question, or escalation:** read controls/intake and verify
+  the affected Task/Dispatch and its required disk evidence. Answer questions,
+  apply its gate/finish handler, release settled workers, and dispatch newly
+  unblocked work. Refresh other children only when their dependencies or
+  evidence changed. Persist delivery/gate transitions and return to waiting.
+- **Empty timeout or unchanged notification:** re-arm the blocking wait with
+  no audit, report rewrite, DAG output, or progress narration. A short Orca or
+  tool timeout does not advance the reconciliation deadline.
+- **CLI status reminder, explicit user status request, dashboard assignment,
+  cold resume, or concrete failure:** run **Status reconciliation**. The
+  detached `bbs foreman watch` owns periodic reminders; do not create a
+  competing model-driven polling loop or invoke `watch --once` while waiting.
 
 ## Status reconciliation
 
-A "check status" nudge, a bounded `check --wait` timeout, a `watch --once`
-refresh, and a dashboard wake all run the same idempotent reconcile tick —
-a full project reconciliation, never a liveness-only reply. One tick:
+A full reconciliation is for the triggers above and the final completion
+check, never an ordinary empty wait. On a status request it is
+never a liveness-only reply. One tick:
 
 1. re-adopt the current session idempotently and heartbeat the foreman
    record, then re-read `bbs foreman inbox "$FOREMAN_ID"`, control state, and
    parent/child relations before reading Orca mail. Repeat the inbox read
-   after every Delivery or wait timeout and immediately before finish.
+   immediately before dispatch or finish.
    `paused` or `cancelled` means no new dispatch; leave current files and
    commits in place.
 2. Bind the recorded Orca Run and read the live state of every project Task,
@@ -212,7 +258,7 @@ a full project reconciliation, never a liveness-only reply. One tick:
    **The project DAG**) so the shape rides with the status it explains.
 5. After the first usable journey passes product review, dispatch the maximum admitted ready wave; before then admit that journey and its prerequisites. Retry only proven failed/stopped
    Dispatches, and release settled workers and their resource leases when not
-   immediately reused. Remain active for the next bounded check; a tick with
+   immediately reused. After the finish passes below, return to the blocking wait; a tick with
    work remaining is not a terminal outcome.
 6. Run the eager per-ticket finish pass in dependency order — **Eager
    per-ticket finish**: apply `review`, `land`, or `pr` to every eligible child,
@@ -243,16 +289,18 @@ state. A wait timeout, idle prompt,
 context compaction, rate-limit pause, closed terminal, or process restart is not
 a terminal goal outcome. Never complete the goal for one of those conditions.
 
-Use bounded rolling `check --wait` calls so each timeout becomes a full
-reconcile/heartbeat tick. Bound each wait with the configured reconciliation
-interval — `bbs config get foreman_status_interval` seconds, default 3600 —
-the same value `bbs foreman watch` uses for its status-prompt default, so the
-two never drift. Deliveries (`worker_done`, escalation, question) return from
-the wait immediately; the interval is only the missed-event/restart/stale-state
-backup. An unset or empty key means 3600; a present value that is not a
-positive integer of seconds is invalid — stop and report it rather than
-guessing, and never let a bad value shrink the wait into a tight loop. For
-multi-day work, an external scheduler may run
+Use the longest blocking `check --wait` supported by the live guide and harness;
+resume a still-running wait instead of starting another. Deliveries
+(`worker_done`, escalation, question) wake the coordinator immediately.
+Active checks otherwise follow the CLI reminder interval —
+`bbs config get foreman_status_interval` seconds, default 3600 (one hour).
+This is the missed-event/restart/stale-state backup, not a worker progress
+polling cadence. Read it at entry/cold resume; an unset or empty key means
+3600. A present non-positive or non-integer value is invalid — report it and
+never let a bad value shrink the wait into a tight loop. Short transport
+timeouts only renew the wait. If CLI reminders are unavailable, reconcile
+when that full interval has elapsed since the last full audit, not on every
+timeout. For multi-day work, an external scheduler may run
 `bbs foreman ensure <id>` to recreate a missing terminal. The watcher needs
 no scheduler: `adopt` and `spawn` auto-start an unscoped detached
 `bbs foreman watch`; its global flock keeps one unscoped watcher, while a
@@ -268,8 +316,9 @@ durable state.
 
 The assigned ticket set is the durable intake queue. A dashboard assignment
 wakes the running foreman immediately; a CLI-created assignment is still found
-on the next bounded reconcile tick. Terminal prose or an Orca message may wake
-the coordinator, but it is not accepted scope until represented on disk.
+on the next worker event or CLI status reminder. Terminal prose or an Orca
+message may wake the coordinator, but it is not accepted scope until represented
+on disk.
 
 - A new feature slice is a normal child ticket linked on both sides to the
   owned parent, assigned to `FOREMAN_ID`, and added to the Orca DAG exactly
@@ -335,13 +384,15 @@ the terminal snapshot until the project finishes.
 
 Read [worker routing](references/worker-routing.md) before allocating or retrying a worker. The canonical harness/model table and launch receipts govern model selection.
 
-## Two-phase ticket dispatch
+## Phase-scoped ticket dispatch
 
-Read `pointers.workflow` before creating Tasks. `builder` uses two supervised
-Tasks so design review is agent-independent; `prototyper`, `sweeper`, `grower`,
-and `maintainer` normally use one execution Task because their own workflow
-establishes the baseline, experiment, or audit before changing code. Never hard-code every
-child back to `builder`.
+Read `pointers.workflow` before creating Tasks. Use separate Plan, Build,
+Review and QA Tasks so each phase receives its required model. Non-builder
+workflows keep their baseline, experiment or audit steps in the appropriate
+phase; evidence-only work needs no fabricated code gates. Never hard-code every
+child back to `builder`. Each autopilot Task explicitly names its one phase and
+stop boundary in the injected Orca assignment; see autopilot's **Foreman phase
+assignments**. Do not launch an unrestricted normal-model build that also reviews.
 
 Non-builder production work that adds or reshapes a user-facing surface, or
 has an explicit plan hold or bounded grant, must also pass the Plan Task and
@@ -351,8 +402,9 @@ edits and return to this checkpoint; an experiment or audit does not replace
 plan approval.
 
 The accepted parent plan/design/prototype and their approval revision go in
-every child Task spec. A child plan must match that product contract; Foreman
-reviews child implementation detail autonomously. A material change to the
+every child Task spec. A child plan must match that product contract; a strong
+design-review worker checks child implementation detail and supplies the rubric.
+Foreman applies that evidence autonomously. A material change to the
 accepted product returns to the parent checkpoint before affected work starts.
 
 1. **Plan Task** — start a fresh worker in the child's exact worktree on the
@@ -363,30 +415,40 @@ accepted product returns to the parent checkpoint before affected work starts.
    hand-write a harness-specific `/bbs:` or `$bbs:` prefix. The worker must
    persist its plan verdict and send Orca `worker_done` from the injected
    lifecycle.
-2. **Design gate** — after `worker_done`, read the requirement, plan, design,
-   and prototype from ticket paths and verify coverage, host consistency,
-   reuse, prototype inspection, and scope. Publish the babysit plan approval,
+2. **Design gate** — dispatch a strong design-review worker to inspect the
+   requirement, plan, design and prototype and return a rubric with evidence
+   for coverage, host consistency, reuse, prototype inspection and scope.
+   Read its report and check artifact revisions. Publish the babysit plan approval,
    then run `bbs ticket approval self-resolve` with named evidence. This
    approval is the safety authority. Mirror its result to an Orca decision gate
    for the Build or Execution Task so the DAG cannot run ahead; never resolve
    the Orca gate independently.
-3. **Builder Build Task** — after approval, hard tickets archive and `worker-release`
-   the planner, release its resource lease, reserve the Build profile, and
-   start a fresh normal worker in the same worktree. Simple and normal tickets
-   may reuse the settled planner only when every route and resource field
-   matches. Its spec requires `autopilot builder <ticket>` and forbids topology
-   and close-out. Autopilot consumes the accepted disk plan, implements,
-   commits, runs `review-pr` then `qa`, persists both verdicts, and reports
-   `worker_done`.
+3. **Builder Build Task** — after approval, release the settled planner and
+   its lease, reserve the Build profile, and start a fresh normal worker in
+   the same worktree. Its spec requires `autopilot builder <ticket>`, scoped
+   to implementation and local commits only; forbid planning, review, QA,
+   topology and close-out. It consumes the accepted plan, verifies the change
+   with focused implementation checks, commits and reports `worker_done`.
+   This settles Build, not the ticket: Review and QA remain pending.
 4. **Non-builder Execution Task** — start one worker in the child's exact
    worktree with `autopilot <workflow> <ticket>`. Its spec includes the same
-   topology and close-out prohibitions. If it changes code, it must return
-   current review, QA, readiness, and final-tree evidence. If it is an
+   topology and close-out prohibitions and explicit phase boundary. Route
+   planning/design to strong workers and implementation to normal workers.
+   If it changes code, dispatch the Review and QA Tasks below. If it is an
    evidence-only prototype, recommendation, or audit, it must return the
    workflow verdict, artifact paths, acceptance evidence, and lifecycle signal.
    A prototype's quarantined spike is never a releasable branch: its worker
    archives the signal in ticket storage and restores the checkout before
    `worker_done`.
+5. **Review Task** — dispatch a strong worker for `review-pr` against the
+   complete ticket diff and exact committed revision. Persist the verdict and
+   typed gate evidence. Route code fixes to a normal Build repair worker and
+   re-review the resulting revision; no ticket passes on an older review.
+6. **QA Task** — after current review passes, dispatch a normal worker for
+   `qa` and acceptance checks. Persist QA evidence and verdicts, then verify
+   readiness for the final committed tree. Any code fix invalidates both
+   gates: send it through normal repair, strong Review, then normal QA.
+   Only this final passing phase records workflow completion and release handoff.
 
 An incomplete design rubric gets at most two feedback Dispatches, each naming
 the missing evidence. Then mark the ticket `BLOCKED`. The non-delegable floor,
@@ -394,7 +456,9 @@ human hold, or grant bound routes through the preamble's human channel. Worker
 questions are answered by Orca `reply`: Mechanical/Taste from requirements and
 the decision framework; User Challenges escalate through the same channel.
 
-Accept evidence, never completion prose. For every code-bearing Task, read
+Accept evidence, never completion prose. For each phase, verify its assigned
+artifacts and revisions; a settled Plan or Build is not ticket completion.
+Before declaring a code-bearing ticket ready, read
 current `review-pr` and `qa` verdicts, `qa-evidence`, git HEAD, checkpoint
 freshness, and `bbs ticket readiness --action <review|land|pr> --json` for the
 intended action. Read `ok` and `data.ready`, not just exit 0. A stale/missing
@@ -420,8 +484,9 @@ Code-bearing workers execute per-ticket QA; foreman owns when and where it runs.
 - Independent tickets may complete their applicable per-ticket gates in any
   order. Dependents wait for prerequisite evidence and branch integration.
 - When tickets interact, add a **Pre-land integration QA Task** before `land`.
-  Acquire the parent surface lease and use `bbs ticket surface compose` to
-  test the covered branches before landing. This is preliminary evidence;
+  Acquire the parent surface lease and dispatch a normal integration worker
+  to prepare the covered branches with `bbs ticket surface compose`, followed
+  by a normal QA worker to test them before landing. This is preliminary evidence;
   it never replaces final Integration QA on the delivered branch.
 - Every code-bearing project has a **Final Integration QA Task** after its
   finish handlers succeed. Follow **Final integration QA** in the project
@@ -463,14 +528,16 @@ every required code-bearing child has current passing `review-pr` + `qa`
 evidence, every evidence-only child has its workflow verdict and artifacts,
 any required Pre-land integration QA passed, and readiness allows
 the exact action (`land`, `pr`, or `review`) for each code-bearing child. Apply
-the repo's single handler in dependency order:
+the repo's single handler in dependency order through the delivery workers
+specified in **Eager per-ticket finish**; the commands below belong in their
+assignments, not the Foreman session:
 
 ```bash
 eval "$(bbs autopilot git-flow)"   # BBS_FINISH=review | land | pr
 ```
 
 - `review` — keep the clean committed branch and Git worktree for the human;
-  optionally compose it with `bbs ticket serve` when asked. The checkout stays,
+  dispatch composition with `bbs ticket serve` when asked. The checkout stays,
   but its Orca terminals and harnesses do not.
 - `land` — if integration QA (or any `surface compose`/`serve`) left a
   scratch composition on the primary, run `bbs ticket surface revert` first.

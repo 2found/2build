@@ -18,6 +18,7 @@ const BINDINGS: { keys: React.ReactNode; desc: string }[] = [
   { keys: <><Kbd>G</Kbd> <Kbd>S</Kbd></>,   desc: 'Go to Skill events' },
   { keys: <><Kbd>G</Kbd> <Kbd>M</Kbd></>,   desc: 'Go to Timeline' },
   { keys: <><Kbd>G</Kbd> <Kbd>A</Kbd></>,   desc: 'Go to Analytics' },
+  { keys: <><Kbd>G</Kbd> <Kbd>,</Kbd></>,   desc: 'Go to Settings' },
   { keys: <><Kbd>J</Kbd> / <Kbd>K</Kbd></>, desc: 'Move row focus down / up' },
   { keys: <><Kbd>↵</Kbd></>,                desc: 'Activate focused row' },
 ];

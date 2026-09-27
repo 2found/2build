@@ -42,8 +42,8 @@ import (
 // Beside that stall clock runs a second, independent one: every
 // --status-interval the foreman gets the same skill prompt even while its pane
 // is moving, because a busy pane is not a status report. The flag's default
-// is the configured foreman_status_interval — the same reconciliation
-// interval the Foreman skill bounds its check --wait with — so the two
+// is the configured foreman_status_interval — the same fallback audit
+// interval the Foreman skill uses — so the two
 // cannot drift. The two clocks never share state — a status prompt spends no
 // nudge budget and buys no idle time, so it cannot let a dead terminal evade
 // the bound. A foreman that reports itself done remains in the loop only for
@@ -141,14 +141,13 @@ func paneFingerprint(pane string) string {
 func watchOptsFrom(kv map[string]string) (watchOpts, error) {
 	o := watchOpts{
 		interval:  60 * time.Second,
-		idle:      10 * time.Minute,
 		lines:     40,
 		nudge:     "check status",
 		maxNudges: 3,
 	}
 	// The status clock's default is the shared configured reconciliation
-	// interval — the same value the Foreman skill bounds its check --wait
-	// with — so the two cannot drift. An explicit --status-interval wins;
+	// interval — the same value the Foreman skill uses for fallback audits
+	// — so the two cannot drift. An explicit --status-interval wins;
 	// a present-but-invalid configured value fails here rather than
 	// silently tightening the loop.
 	if _, ok := kv["status-interval"]; !ok {
@@ -178,6 +177,11 @@ func watchOptsFrom(kv map[string]string) (watchOpts, error) {
 	}
 	if err := secs("status-interval", &o.statusInterval); err != nil {
 		return o, err
+	}
+	// Quiet worker waits are normal. Do not nudge sooner than the periodic
+	// reminder unless the caller explicitly chose a shorter idle threshold.
+	if _, ok := kv["idle"]; !ok {
+		o.idle = o.statusInterval
 	}
 	if v, ok := kv["lines"]; ok {
 		n, err := strconv.Atoi(v)

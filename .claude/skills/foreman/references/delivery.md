@@ -26,8 +26,12 @@ A code-bearing child is eligible when all of these hold:
   `origin/<base>` and would discard an early merge. Final Integration QA
   depends on these lands, so it must not be a prerequisite of the land handler.
 
-Foreman runs the handler itself — a clean git operation is coordination, not
-code — in dependency order, one child at a time:
+Foreman dispatches a normal delivery worker for each `land` or `pr` handler
+in dependency order, one child at a time. Its assignment names the authorized
+finish policy, exact child/head, destination checkout, lease and required
+receipt. This worker runs only the handler; it cannot expand authorization or
+dispatch siblings. Foreman verifies the receipt before cleanup or the next
+handler. The `review` status/cleanup path remains coordinator work:
 
 - `land` — `bbs ticket land <child>` from the primary checkout. Revert any
    scratch composition first (`bbs ticket surface revert`); `land` BLOCKs on
