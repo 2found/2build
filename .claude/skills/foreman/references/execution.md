@@ -68,7 +68,7 @@ New managed code children use `bbs autopilot checkpoint --ticket "$TICKET"
 --workflow builder --step run --status in_progress --contract-version 2` (substitute
 their actual workflow). Existing v1 tickets require that explicit migration and
 new gate runs; never wrap legacy PASS prose as typed evidence. Autopilot's
-[verification producer](../../autopilot/references/verification.md) captures
+[verification producer](../autopilot/references/verification.md) captures
 before/after subjects and archives logs. Seal each passing child **before** its
 finish handler or worktree removal: `bbs foreman seal "$TICKET"`.
 

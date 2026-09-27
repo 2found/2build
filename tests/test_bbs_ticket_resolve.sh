@@ -87,9 +87,12 @@ T="$(mktemp -d)"
   PATH="$SCRIPT_DIR/bin:$PATH"
   out="$("$BBS_TICKET_BIN" env)"; rc=$?
   [ "$rc" = "0" ] || { echo "expected rc=0, got rc=$rc"; exit 1; }
-  for want in '^SLUG=.' '^BRANCH=feat/bs-env_topic$' '^TICKET=bs-env$' '^BABYSIT_PROJECT_HOME=.' '^TICKET_HOME=.' '^INDEX=.'; do
-    printf '%s\n' "$out" | grep -q "$want" || { echo "missing $want in: $out"; exit 1; }
+  for want in "^SLUG='[^']+'\$" "^BRANCH='feat/bs-env_topic'\$" "^TICKET='bs-env'\$" "^BABYSIT_PROJECT_HOME='[^']+'\$" "^TICKET_HOME='[^']+'\$" "^INDEX='[^']+'\$"; do
+    printf '%s\n' "$out" | grep -qE "$want" || { echo "missing $want in: $out"; exit 1; }
   done
+  # eval-safety is the contract: quoted values must survive `eval "$(bbs ticket env)"`
+  eval "$out"
+  [ "$BRANCH" = "feat/bs-env_topic" ] && [ "$TICKET" = "bs-env" ] || { echo "eval produced BRANCH=$BRANCH TICKET=$TICKET"; exit 1; }
 ) && ok "env-prints-ticket-vars" || fail "env-prints-ticket-vars"
 rm -rf "$T"
 

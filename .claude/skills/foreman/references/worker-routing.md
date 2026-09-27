@@ -1,7 +1,7 @@
 ## Worker model and effort routing
 
 Read the canonical launch-settings contract in
-[model routing](../../references/model-routing.md) before dispatch. Resolve the
+[model routing](../references/model-routing.md) before dispatch. Resolve the
 worker's settings in its destination repository:
 
 ```bash
