@@ -20,9 +20,7 @@ interface ProjectSwitcherProps {
 export function ProjectSwitcher({ snapshot }: ProjectSwitcherProps) {
   const { state, dispatch } = useFilter();
   const slugs = Object.keys(snapshot.projects).sort();
-  const currentProject = state.project === 'all' || slugs.includes(state.project)
-    ? state.project
-    : slugs[0] ?? '';
+  const currentProject = state.project;
   const currentLabel = currentProject === 'all' ? 'All projects' : currentProject || 'No projects';
 
   const [open, setOpen] = useState(false);

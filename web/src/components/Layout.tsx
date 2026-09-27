@@ -103,13 +103,14 @@ export function Layout({
   const filter = useFilterOptional();
   // Same label the switcher renders. No provider yet means the first paint of
   // the loading screen, where there is no project scope to name.
+  const project = filter?.state.project ?? 'all';
   useDocumentTitle(
     activeRoute,
-    !filter || filter.state.project === 'all' ? 'All projects' : filter.state.project,
+    project === 'all' ? 'All projects' : project || 'No projects',
   );
   const projectParam =
-    filter && filter.state.project !== 'all' && filter.state.project
-      ? `project=${encodeURIComponent(filter.state.project)}`
+    filter && project !== 'all' && project
+      ? `project=${encodeURIComponent(project)}`
       : '';
   const withProject = (hash: string) =>
     projectParam ? `${hash}${hash.includes('?') ? '&' : '?'}${projectParam}` : hash;

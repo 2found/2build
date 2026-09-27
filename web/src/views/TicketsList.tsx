@@ -55,10 +55,7 @@ function isFlatMode(): boolean {
 export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
   const { state } = useFilter();
   const projects = useMemo(() => Object.keys(snapshot.projects ?? {}).sort(), [snapshot.projects]);
-  const selectedProject = state.project === 'all' || projects.includes(state.project)
-    ? state.project
-    : projects[0] ?? '';
-  const tickets = useScopedTickets(snapshot, selectedProject);
+  const tickets = useScopedTickets(snapshot, state.project);
   const { canMutate, reason } = useControlPlane();
   const newTicketReason = projects.length === 0 ? 'Start a project from your agent first' : reason;
   const [createIntent] = useState(() => {
@@ -216,7 +213,7 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
 
       {tickets.length === 0 ? (
         <FirstRunChecklist
-          onCreateTicket={selectedProject ? () => setNewOpen(true) : undefined}
+          onCreateTicket={state.project ? () => setNewOpen(true) : undefined}
           createTicketReason={reason}
         />
       ) : filtered.length === 0 ? (
@@ -311,7 +308,7 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
       <NewTicketModal
         open={newOpen}
         onClose={() => setNewOpen(false)}
-        project={selectedProject}
+        project={state.project}
         projects={projects}
         foremen={(snapshot.foremen ?? []).filter(f => foremanLive(f)).map(f => f.id)}
         canMutate={canMutate}

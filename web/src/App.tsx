@@ -151,7 +151,7 @@ export function App() {
   }
 
   return (
-    <FilterProvider activeProject={snapshot.meta.active_project}>
+    <FilterProvider activeProject={snapshot.meta.active_project} projects={snapshot.projects}>
       <ControlProvider source={source} error={error} refresh={refresh}>
         <AppInner snapshot={snapshot} hash={hash} error={error} retry={refresh} />
       </ControlProvider>

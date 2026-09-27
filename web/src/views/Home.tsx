@@ -37,9 +37,7 @@ export function Home({ snapshot }: { snapshot: Snapshot }) {
   const { state } = useFilter();
   const { reason } = useControlPlane();
   const projects = Object.keys(snapshot.projects ?? {}).sort();
-  const selectedProject = state.project === 'all' || projects.includes(state.project)
-    ? state.project
-    : projects[0] ?? '';
+  const selectedProject = state.project;
   const createProject = selectedProject === 'all' ? projects[0] ?? '' : selectedProject;
   const tickets = useScopedTickets(snapshot, selectedProject);
   const sessions = useScopedSessions(snapshot);

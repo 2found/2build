@@ -1,11 +1,14 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useReducer,
   type Dispatch,
   type ReactNode,
 } from 'react';
+import type { Snapshot } from '../lib/data';
 import {
   filterReducer,
   initialFilterState,
@@ -23,32 +26,55 @@ interface FilterContextValue {
 
 const FilterContext = createContext<FilterContextValue | null>(null);
 
-function deriveInitialState(activeProject: string | null | undefined): FilterState {
+function normalizeProjectState(state: FilterState, projects: readonly string[]): FilterState {
+  const project = state.project === 'all' || projects.includes(state.project)
+    ? state.project
+    : projects[0] ?? '';
+  return project === state.project ? state : { ...state, project };
+}
+
+function deriveInitialState(
+  activeProject: string | null | undefined,
+  projects: readonly string[],
+): FilterState {
   const { query } = parseHash(window.location.hash);
-  if (query) {
-    return parseFilterQuery(query, activeProject ?? 'all');
-  }
-  return initialFilterState(activeProject ?? 'all');
+  const state = query
+    ? parseFilterQuery(query, activeProject ?? 'all')
+    : initialFilterState(activeProject ?? 'all');
+  return normalizeProjectState(state, projects);
 }
 
 export function FilterProvider({
   children,
   activeProject,
+  projects,
 }: {
   children: ReactNode;
   activeProject?: string | null;
+  projects: Snapshot['projects'];
 }) {
-  const [state, dispatch] = useReducer(
+  const projectSlugs = useMemo(() => Object.keys(projects).sort(), [projects]);
+  const [storedState, reduce] = useReducer(
     filterReducer,
     undefined,
-    () => deriveInitialState(activeProject),
+    () => deriveInitialState(activeProject, projectSlugs),
   );
+  const state = useMemo(
+    () => normalizeProjectState(storedState, projectSlugs),
+    [storedState, projectSlugs],
+  );
+  const dispatch = useCallback<Dispatch<FilterAction>>((action) => {
+    const next = normalizeProjectState(filterReducer(state, action), projectSlugs);
+    reduce({ type: 'replace', payload: next });
+  }, [state, projectSlugs]);
 
-  // Write filter state to hash query whenever state changes
+  // Keep state and URL canonical when snapshot projects change or filters update.
   useEffect(() => {
-    const query = serializeFilter(state);
-    replaceHashQuery(query);
-  }, [state]);
+    if (state.project !== storedState.project) {
+      reduce({ type: 'replace', payload: state });
+    }
+    replaceHashQuery(serializeFilter(state));
+  }, [state, storedState]);
 
   // Sync from hash (e.g., user pastes deep-link URL).
   // Empty-query nav (in-app ticket link clicks, sidebar nav without project=,
@@ -66,17 +92,21 @@ export function FilterProvider({
         if (serialized) replaceHashQuery(serialized);
         return;
       }
-      const incoming = parseFilterQuery(query, activeProject ?? 'all');
+      const incoming = normalizeProjectState(
+        parseFilterQuery(query, activeProject ?? 'all'),
+        projectSlugs,
+      );
       const serialized = serializeFilter(state);
       const incomingSerial = serializeFilter(incoming);
-      if (incomingSerial === serialized) return;
+      if (incomingSerial === serialized) {
+        if (query !== incomingSerial) replaceHashQuery(incomingSerial);
+        return;
+      }
       dispatch({ type: 'replace', payload: incoming });
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, activeProject]);
-
+  }, [state, activeProject, projectSlugs, dispatch]);
   return (
     <FilterContext.Provider value={{ state, dispatch }}>
       {children}
