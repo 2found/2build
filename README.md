@@ -28,9 +28,9 @@ To work on Babysit itself, clone the repository and run `./bin/setup-skills --fu
 
 ## Configure Foreman
 
-Foreman requires [Orca](https://www.onorca.dev) with orchestration enabled. Start `bbs dashboard`, open **Settings**, and choose the agent and optional provider for new Foreman sessions. Leave provider blank for the agent's native default; authenticate with the agent's own tools. Settings changes affect new sessions, not sessions already running.
+Foreman requires [Orca](https://www.onorca.dev) with orchestration enabled. Agents and defaults are configured in Orca. Former Babysit worker/foreman configuration keys are retired and ignored; new launches use explicit per-dispatch agent/model/effort choices or Orca's configured defaults.
 
-You do not configure each worker's model or effort. Foreman routes workers automatically from task complexity and phase: planning, design, and review use the critical route; implementation, QA, and delivery use the normal route. Simple/normal tasks use `@normal` for normal phases and `@slow` for critical ones; hard tasks use `@slow` and `@plan`, respectively. OMP owns the native role bindings: `@normal` for flash, `@slow` for pro, and `@plan` for max. Each binding supplies its provider, model, and effort. Configure and authenticate those roles in OMP; a missing route blocks dispatch rather than silently falling back.
+Foreman routes workers automatically from task complexity and phase: planning, design, and review use the critical route; implementation, QA, and delivery use the normal route. Explicit per-dispatch agent/model/effort choices take precedence; otherwise Foreman uses the configured Orca defaults.
 
 ## Foreman: multi-ticket projects
 
@@ -47,7 +47,7 @@ $bbs:foreman "Rebuild the request flow across web and API"
 
 Foreman initializes or resumes a parent project and binds its Orca Run. A planning/design worker first creates one general plan, prototype (or a non-UI workflow/interface design), and stable ticket manifest covering scope and dependencies. By default, you review those artifacts and proposed tickets before child tickets, worktrees, or production dispatch. Explicit `--auto` delegates that review to a separate evidence-checking worker and records the approval; it does not bypass safety holds or later QA.
 
-After approval, accepted seeds become a ticket DAG with explicit dependency edges. Foreman dispatches only ready tickets, within worker/resource limits, and keeps one writer per ticket worktree. Each ticket moves through separate bounded Plan, Implement, Review, and QA worker phases. Routing uses task complexity plus phase; OMP selectors are `@normal`, `@slow`, and `@plan`, not user-picked per-ticket model settings.
+After approval, accepted seeds become a ticket DAG with explicit dependency edges. Foreman dispatches only ready tickets, within worker/resource limits, and keeps one writer per ticket worktree. Each ticket moves through separate bounded Plan, Implement, Review, and QA worker phases. Routing uses task complexity plus phase or explicit per-dispatch choices.
 
 Foreman waits for worker reports, questions, or escalations through Orca; it does not poll terminals or start retry timers. It checks each phase's artifacts, revisions, and verdicts before advancing. Once a ticket passes its gates, its configured finish policy (`review`, `land`, or `pr`) controls delivery. Foreman verifies the receipt, releases settled workers and leases, closes owned Orca surfaces, and removes only eligible clean worktrees while retaining branches.
 

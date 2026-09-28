@@ -110,8 +110,8 @@ esac
 		}
 	}
 	t.Setenv("PATH", dir)
-	// PATH holds no git either; agent resolution uses only the unified config
-	// under BABYSIT_STATE_DIR, which is a temp dir per test.
+	// PATH holds no git either; the fake Orca current-agent fixture identifies
+	// the active harness, while legacy preferences live in the temp state dir.
 	t.Setenv("BABYSIT_STATE_DIR", t.TempDir())
 	t.Setenv("BABYSIT_AGENT", "")
 	t.Setenv("BABYSIT_CURRENT_AGENT", "claude")
@@ -300,48 +300,57 @@ func TestSpawnLeavesAnExplicitCommandAlone(t *testing.T) {
 	}
 }
 
-// setGlobalAgent writes ~/.babysit/config.yaml (redirected to a temp dir by
-// fakeOrcaFor) with a role key.
-func setGlobalAgent(t *testing.T, key, name string) {
+func writeRetiredAgentConfig(t *testing.T, content string) string {
 	t.Helper()
-	p := filepath.Join(os.Getenv("BABYSIT_STATE_DIR"), "config.yaml")
-	if err := os.WriteFile(p, []byte(key+": "+name+"\n"), 0o644); err != nil {
+	path := filepath.Join(os.Getenv("BABYSIT_STATE_DIR"), "config.yaml")
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	return path
 }
 
-// `worker_agent:` selects the workers. The foreman audits their design gates and QA
-// evidence, so it must not follow them onto a different CLI by implication.
-func TestSpawnKeepsTheForemanOnClaudeWhenOnlyWorkersMoved(t *testing.T) {
+func TestSpawnUsesCurrentHarnessWithoutLegacyFallback(t *testing.T) {
 	log, _ := fakeOrcaFor(t)
-	setGlobalAgent(t, "worker_agent", "grok")
-
-	if _, err := spawnForeman("fm-a", trustedDir(t), "", ""); err != nil {
-		t.Fatal(err)
+	settings := "worker_agent: grok\nworker_provider: stale-provider\nworker_model: stale-model\nworker_effort: low\nforeman_agent: grok\nforeman_provider: stale-provider\nforeman_model: stale-model\nforeman_effort: low\n"
+	path := writeRetiredAgentConfig(t, settings)
+	t.Setenv("BABYSIT_WORKER_AGENT", "grok")
+	t.Setenv("BABYSIT_FOREMAN_AGENT", "grok")
+	t.Setenv("BABYSIT_AGENT", "omp")
+	t.Setenv("BABYSIT_MODEL", "stale-model")
+	stderr := captureStderr(t, func() {
+		if _, err := spawnForeman("fm-a", trustedDir(t), "", ""); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if got := strings.Count(stderr, "legacy worker/foreman agent settings are ignored"); got != 1 {
+		t.Fatalf("got %d retirement diagnostics, want one: %q", got, stderr)
 	}
 	calls := readCalls(t, log)
-	if !strings.Contains(calls, "claude --dangerously-skip-permissions --session-id") {
-		t.Errorf("`worker_agent: grok` moved the foreman off claude:\n%s", calls)
+	if !strings.Contains(calls, "claude --dangerously-skip-permissions --session-id") ||
+		strings.Contains(calls, "grok --") || strings.Contains(calls, "omp --") ||
+		strings.Contains(calls, "stale-model") || strings.Contains(calls, "stale-provider") {
+		t.Fatalf("retired settings changed the default launch:\n%s", calls)
 	}
-	if rec, _ := foreman.Load("fm-a"); rec.Agent != "claude" {
-		t.Errorf("recorded agent %q, want claude", rec.Agent)
+	if rec, err := foreman.Load("fm-a"); err != nil || rec.Agent != "claude" || rec.Model != "" || rec.Provider != "" || rec.Effort != "" {
+		t.Fatalf("new session recorded retired settings: %+v %v", rec, err)
+	}
+	if got, err := os.ReadFile(path); err != nil || string(got) != settings {
+		t.Fatalf("legacy config changed: %q %v", got, err)
 	}
 }
 
-func TestSpawnHonorsForemanAgent(t *testing.T) {
+func TestSpawnHonorsExplicitForemanAgent(t *testing.T) {
 	log, _ := fakeOrcaFor(t)
-	setGlobalAgent(t, "foreman_agent", "grok")
 	dir := t.TempDir()
 	trustDir(t, dir)
-
-	if _, err := spawnForeman("fm-a", dir, "", ""); err != nil {
+	if _, err := spawnForeman("fm-a", dir, "", "grok"); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(readCalls(t, log), "grok --always-approve --session-id") {
-		t.Errorf("foreman_agent: grok did not launch grok:\n%s", readCalls(t, log))
+		t.Fatalf("explicit --agent grok did not launch grok:\n%s", readCalls(t, log))
 	}
-	if rec, _ := foreman.Load("fm-a"); rec.Agent != "grok" {
-		t.Errorf("spawn did not pin the agent on the record: %q", rec.Agent)
+	if rec, err := foreman.Load("fm-a"); err != nil || rec.Agent != "grok" {
+		t.Fatalf("spawn did not pin the explicit agent: %+v %v", rec, err)
 	}
 }
 
@@ -350,9 +359,7 @@ func TestSpawnHonorsForemanAgent(t *testing.T) {
 // terminal, or the pane sits on a question nobody is watching for.
 func TestSpawnRefusesADirectoryTheAgentWouldStopAndAskAbout(t *testing.T) {
 	log, _ := fakeOrcaFor(t)
-	setGlobalAgent(t, "foreman_agent", "grok")
-
-	_, err := spawnForeman("fm-a", t.TempDir(), "", "") // deliberately untrusted
+	_, err := spawnForeman("fm-a", t.TempDir(), "", "grok") // deliberately untrusted
 	if err == nil {
 		t.Fatal("want a refusal for an untrusted directory")
 	}
@@ -363,39 +370,39 @@ func TestSpawnRefusesADirectoryTheAgentWouldStopAndAskAbout(t *testing.T) {
 		t.Error("a terminal was created for an agent that would have hung in it")
 	}
 	// claude has no trust gate, so the same directory must spawn fine.
-	setGlobalAgent(t, "foreman_agent", "claude")
-	if _, err := spawnForeman("fm-b", trustedDir(t), "", ""); err != nil {
+	if _, err := spawnForeman("fm-b", trustedDir(t), "", "claude"); err != nil {
 		t.Errorf("claude was gated by grok's trust rule: %v", err)
 	}
 }
 
 // The agent is pinned at spawn and read back on resume. A session uuid only
-// means something to the CLI that minted it, so a config change between spawn
-// and resume must not redirect the resume.
-func TestResumeUsesThePinnedAgentNotCurrentConfig(t *testing.T) {
+// means something to the CLI that minted it, so later ambient preferences must
+// not redirect the resume.
+func TestResumeUsesThePinnedAgentNotCurrentPreferences(t *testing.T) {
 	log, titles := fakeOrcaFor(t)
-	dir := t.TempDir()
-	trustDir(t, dir)
-	setGlobalAgent(t, "foreman_agent", "grok")
-
-	if _, err := spawnForeman("fm-a", dir, "", ""); err != nil {
+	dir := trustedDir(t)
+	if _, err := spawnForeman("fm-a", dir, "", "grok"); err != nil {
 		t.Fatal(err)
 	}
-	first, _ := foreman.Load("fm-a")
+	first, err := foreman.Load("fm-a")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(titles, nil, 0o644); err != nil { // human closes it
 		t.Fatal(err)
 	}
-	setGlobalAgent(t, "foreman_agent", "claude") // config changes underneath
-
+	writeRetiredAgentConfig(t, "foreman_agent: claude\nforeman_model: changed-model\n")
+	t.Setenv("BABYSIT_FOREMAN_AGENT", "claude")
+	t.Setenv("BABYSIT_FOREMAN_MODEL", "changed-model")
 	if _, err := spawnForeman("fm-a", dir, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	calls := readCalls(t, log)
 	if !strings.Contains(calls, "grok --always-approve --resume "+first.Session) {
-		t.Errorf("resume did not use the agent that minted the session:\n%s", calls)
+		t.Fatalf("resume did not use the agent that minted the session:\n%s", calls)
 	}
-	if strings.Contains(calls, "claude --resume") {
-		t.Errorf("resumed a grok session with claude:\n%s", calls)
+	if strings.Contains(calls, "claude --resume") || strings.Contains(calls, "changed-model") {
+		t.Fatalf("ambient settings redirected pinned session:\n%s", calls)
 	}
 }
 
@@ -404,8 +411,7 @@ func TestResumeUsesThePinnedAgentNotCurrentConfig(t *testing.T) {
 func TestSpawnRefusesAnAgentThatContradictsThePinnedSession(t *testing.T) {
 	_, titles := fakeOrcaFor(t)
 	dir := trustedDir(t)
-
-	if _, err := spawnForeman("fm-a", dir, "", ""); err != nil {
+	if _, err := spawnForeman("fm-a", dir, "", "claude"); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(titles, nil, 0o644); err != nil {
@@ -425,9 +431,7 @@ func TestSpawnPreflightsTheAgentBeforeCreatingAWorkspace(t *testing.T) {
 	if err := os.Remove(filepath.Join(filepath.Dir(log), "grok")); err != nil {
 		t.Fatal(err)
 	}
-	setGlobalAgent(t, "foreman_agent", "grok")
-
-	_, err := spawnForeman("fm-a", trustedDir(t), "", "")
+	_, err := spawnForeman("fm-a", trustedDir(t), "", "grok")
 	if err == nil || !strings.Contains(err.Error(), "grok plugin install") {
 		t.Fatalf("want a preflight failure naming the install, got %v", err)
 	}
@@ -439,115 +443,52 @@ func TestSpawnPreflightsTheAgentBeforeCreatingAWorkspace(t *testing.T) {
 	}
 }
 
-func TestWorkerCommandResolvesConfiguredWorkerSettingsWithoutOrcaDefault(t *testing.T) {
-	for _, tc := range []struct {
-		name      string
-		configure func(*testing.T)
-	}{
-		{
-			name: "config",
-			configure: func(t *testing.T) {
-				path := filepath.Join(os.Getenv("BABYSIT_STATE_DIR"), "config.yaml")
-				if err := os.WriteFile(path, []byte("worker_agent: omp\nworker_provider: custom\nworker_model: \"@slow\"\nworker_effort: high\n"), 0o644); err != nil {
-					t.Fatal(err)
-				}
-			},
-		},
-		{
-			name: "environment",
-			configure: func(t *testing.T) {
-				t.Setenv("BABYSIT_WORKER_AGENT", "omp")
-				t.Setenv("BABYSIT_WORKER_PROVIDER", "custom")
-				t.Setenv("BABYSIT_WORKER_MODEL", "@slow")
-				t.Setenv("BABYSIT_WORKER_EFFORT", "high")
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			fakeOrcaFor(t)
-			clearWorkerSettingsEnv(t)
-			tc.configure(t)
-			out := captureStdout(t, func() {
-				if err := foremanWorkerCommand([]string{"--prompt", "/bbs:autopilot ship it"}); err != nil {
-					t.Fatal(err)
-				}
-			})
-			want := `omp --auto-approve --provider 'custom' --model '@slow' --thinking 'high' '/bbs:autopilot ship it'`
-			if strings.TrimSpace(out) != want {
-				t.Fatalf("worker-command printed %q, want %q", strings.TrimSpace(out), want)
-			}
-		})
-	}
-}
-
-func TestWorkerCommandComposesResolvedRouteWithConfiguredFields(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		args []string
-		want string
-	}{
-		{
-			name: "configured fields fill route omissions",
-			args: []string{"--agent", "omp", "--prompt", "ship it"},
-			want: `omp --auto-approve --provider 'custom' --model 'configured-model' --thinking 'low' 'ship it'`,
-		},
-		{
-			name: "route fields and CLI provider override config",
-			args: []string{"--pinned-agent", "omp", "--pinned-model", "route-model", "--pinned-effort", "high", "--provider", "cli-provider", "--prompt", "ship it"},
-			want: `omp --auto-approve --provider 'cli-provider' --model 'route-model' --thinking 'high' 'ship it'`,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			fakeOrcaFor(t)
-			clearWorkerSettingsEnv(t)
-			path := filepath.Join(os.Getenv("BABYSIT_STATE_DIR"), "config.yaml")
-			if err := os.WriteFile(path, []byte("worker_provider: custom\nworker_model: configured-model\nworker_effort: low\n"), 0o644); err != nil {
+func TestWorkerCommandUsesExplicitRouteAndWarnsAboutRetiredSettings(t *testing.T) {
+	fakeOrcaFor(t)
+	clearWorkerSettingsEnv(t)
+	settings := "worker_agent: grok\nworker_provider: stale-provider\nworker_model: stale-model\nworker_effort: low\n"
+	writeRetiredAgentConfig(t, settings)
+	var out string
+	stderr := captureStderr(t, func() {
+		out = captureStdout(t, func() {
+			if err := foremanWorkerCommand([]string{"--prompt", "ship it", "--agent", "omp", "--model", "chosen-model", "--effort", "high"}); err != nil {
 				t.Fatal(err)
 			}
-			out := captureStdout(t, func() {
-				if err := foremanWorkerCommand(tc.args); err != nil {
-					t.Fatal(err)
-				}
-			})
-			if strings.TrimSpace(out) != tc.want {
-				t.Fatalf("worker-command printed %q, want %q", strings.TrimSpace(out), tc.want)
-			}
 		})
+	})
+	want := `omp --auto-approve --model 'chosen-model' --thinking 'high' 'ship it'`
+	if strings.TrimSpace(out) != want {
+		t.Fatalf("worker-command printed %q, want %q", strings.TrimSpace(out), want)
+	}
+	if got := strings.Count(stderr, "legacy worker/foreman agent settings are ignored"); got != 1 {
+		t.Fatalf("got %d retirement diagnostics, want one: %q", got, stderr)
 	}
 }
 
-func TestWorkerCommandNonAgentSettingsCannotBypassDiscovery(t *testing.T) {
-	for _, tc := range []struct {
-		name     string
-		config   string
-		envName  string
-		envValue string
-	}{
-		{name: "provider config", config: "worker_provider: custom\n"},
-		{name: "model config", config: "worker_model: configured-model\n"},
-		{name: "effort config", config: "worker_effort: high\n"},
-		{name: "provider environment", envName: "BABYSIT_WORKER_PROVIDER", envValue: "custom"},
-		{name: "model environment", envName: "BABYSIT_WORKER_MODEL", envValue: "configured-model"},
-		{name: "effort environment", envName: "BABYSIT_WORKER_EFFORT", envValue: "high"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			fakeOrcaFor(t)
-			clearWorkerSettingsEnv(t)
-			if tc.config != "" {
-				path := filepath.Join(os.Getenv("BABYSIT_STATE_DIR"), "config.yaml")
-				if err := os.WriteFile(path, []byte(tc.config), 0o644); err != nil {
-					t.Fatal(err)
-				}
-			}
-			if tc.envName != "" {
-				t.Setenv(tc.envName, tc.envValue)
-			}
-			err := foremanWorkerCommand([]string{"--prompt", "ship it"})
-			if err == nil || !strings.Contains(err.Error(), "agent.discovery.v1") ||
-				!strings.Contains(err.Error(), "orca agent-context --json") {
-				t.Fatalf("non-agent setting bypassed discovery: %v", err)
-			}
-		})
+func TestWorkerCommandRetiredSettingsCannotBypassDiscovery(t *testing.T) {
+	fakeOrcaFor(t)
+	clearWorkerSettingsEnv(t)
+	writeRetiredAgentConfig(t, "worker_agent: omp\nworker_provider: custom\nworker_model: configured-model\nworker_effort: high\n")
+	t.Setenv("BABYSIT_WORKER_AGENT", "omp")
+	t.Setenv("BABYSIT_WORKER_MODEL", "configured-model")
+	var err error
+	stderr := captureStderr(t, func() {
+		err = foremanWorkerCommand([]string{"--prompt", "ship it"})
+	})
+	if err == nil || !strings.Contains(err.Error(), "agent.discovery.v1") ||
+		!strings.Contains(err.Error(), "orca agent-context --json") {
+		t.Fatalf("retired settings bypassed Orca discovery: %v", err)
+	}
+	if got := strings.Count(stderr, "legacy worker/foreman agent settings are ignored"); got != 1 {
+		t.Fatalf("got %d retirement diagnostics after failed discovery, want one: %q", got, stderr)
+	}
+}
+
+func TestWorkerCommandRejectsProviderOverride(t *testing.T) {
+	fakeOrcaFor(t)
+	err := foremanWorkerCommand([]string{"--prompt", "ship it", "--agent", "omp", "--provider", "custom"})
+	if err == nil || !strings.Contains(err.Error(), "provider") {
+		t.Fatalf("expected explicit provider migration error, got %v", err)
 	}
 }
 
@@ -611,6 +552,24 @@ func captureStdout(t *testing.T, fn func()) string {
 	fn()
 	w.Close()
 	os.Stdout = saved
+	b, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := os.Stderr
+	os.Stderr = w
+	fn()
+	w.Close()
+	os.Stderr = saved
 	b, err := io.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)

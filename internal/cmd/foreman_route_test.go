@@ -109,9 +109,16 @@ func TestForemanRouteUsesDestinationDefaultAndPersistsHandoff(t *testing.T) {
 
 func TestForemanRouteBlocksUnpinnedSelectionWithoutContractA(t *testing.T) {
 	routeCommandFixture(t, `"orchestration.contract.v1"`)
-	err := foremanRoute([]string{"--ticket", "bs-child", "--task", "task-2"})
+	writeRetiredAgentConfig(t, "worker_model: legacy-model\n")
+	var err error
+	stderr := captureStderr(t, func() {
+		err = foremanRoute([]string{"--ticket", "bs-child", "--task", "task-2"})
+	})
 	if err == nil || !strings.Contains(err.Error(), "agent.discovery.v1") || !strings.Contains(err.Error(), "orca agent-context --json") {
 		t.Fatalf("missing discovery error = %v", err)
+	}
+	if got := strings.Count(stderr, "legacy worker/foreman agent settings are ignored"); got != 1 {
+		t.Fatalf("got %d retirement diagnostics after failed route, want one: %q", got, stderr)
 	}
 }
 

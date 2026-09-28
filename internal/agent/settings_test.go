@@ -8,34 +8,6 @@ import (
 	"testing"
 )
 
-func TestSettingsPrecedenceAndRoleIndependence(t *testing.T) {
-	isolate(t)
-	writeGlobal(t, "worker_agent: omp\nworker_provider: global\nworker_model: global-model\nworker_effort: low\nforeman_model: audit-model\n")
-	check := func(opts Options, provider, model, effort string) {
-		t.Helper()
-		p, err := ResolveWith(WorkerKey, opts)
-		if err != nil || p.Name != "omp" || p.Provider != provider || p.Model != model || p.Effort != effort {
-			t.Fatalf("resolved %+v, err %v; want omp/%s/%s/%s", p, err, provider, model, effort)
-		}
-	}
-	check(Options{}, "global", "global-model", "low")
-	t.Setenv("BABYSIT_PROVIDER", "env")
-	t.Setenv("BABYSIT_MODEL", "env-model")
-	t.Setenv("BABYSIT_EFFORT", "high")
-	check(Options{}, "env", "env-model", "high")
-	t.Setenv("BABYSIT_WORKER_PROVIDER", "role")
-	t.Setenv("BABYSIT_WORKER_MODEL", "role-model")
-	check(Options{}, "role", "role-model", "high")
-	check(Options{Provider: "flag", Model: "flag-model", Effort: "max"}, "flag", "flag-model", "max")
-	t.Setenv("BABYSIT_PROVIDER", "")
-	t.Setenv("BABYSIT_MODEL", "")
-	t.Setenv("BABYSIT_EFFORT", "")
-	foreman, err := Resolve(ForemanKey, "")
-	if err != nil || foreman.Name != "claude" || foreman.Model != "audit-model" || foreman.Provider != "" || foreman.Effort != "" {
-		t.Fatalf("worker settings leaked into foreman: %+v, %v", foreman, err)
-	}
-}
-
 func TestLaunchSettingsUseNativeFlags(t *testing.T) {
 	for _, tc := range []struct{ name, provider, effort, want string }{
 		{"omp", "my-provider", "high", "omp --auto-approve --provider 'my-provider' --model 'future-model' --thinking 'high' 'prompt'"},
@@ -63,13 +35,17 @@ func TestLaunchSettingsUseNativeFlags(t *testing.T) {
 }
 
 func TestUnsupportedSettingsFailBeforeLaunch(t *testing.T) {
-	isolate(t)
-	for _, opts := range []Options{
-		{Agent: "grok", Provider: "openai"}, {Agent: "cursor", Provider: "anthropic"},
-		{Agent: "claude", Provider: "made-up"}, {Agent: "cursor", Effort: "high"},
+	for _, tc := range []struct{ agent, provider, effort string }{
+		{"grok", "openai", ""}, {"cursor", "anthropic", ""},
+		{"claude", "made-up", ""}, {"cursor", "", "high"},
 	} {
-		if _, err := ResolveWith(WorkerKey, opts); err == nil {
-			t.Fatalf("accepted unsupported settings: %+v", opts)
+		p, err := ByName(tc.agent)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p.Provider, p.Effort = tc.provider, tc.effort
+		if err := p.ValidateSettings(); err == nil {
+			t.Fatalf("accepted unsupported settings: %+v", tc)
 		}
 	}
 }
@@ -90,15 +66,5 @@ func TestLaunchValuesRemainLiteralShellArguments(t *testing.T) {
 	want := "--auto-approve\n--provider\n" + p.Provider + "\n--model\n" + p.Model + "\ndon't expand $HOME\n"
 	if string(out) != want {
 		t.Fatalf("arguments changed: %q, want %q", out, want)
-	}
-}
-
-func TestUnspecifiedModelDoesNotOverrideNativeConfig(t *testing.T) {
-	isolate(t)
-	for _, name := range Names() {
-		p, err := Resolve(WorkerKey, name)
-		if err != nil || p.Provider != "" || p.Model != "" || p.Effort != "" {
-			t.Fatalf("fabricated preferences for %s: %+v %v", name, p, err)
-		}
 	}
 }

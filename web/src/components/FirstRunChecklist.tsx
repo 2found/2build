@@ -43,7 +43,7 @@ export function FirstRunChecklist({
               Confirm the Foreman session
             </h3>
             <p className="m-0 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-              Choose the agent/provider once. Authentication stays in that agent.
+              Configure your agents in Orca, then start Foreman in your project.
             </p>
           </div>
           <a
@@ -60,7 +60,7 @@ export function FirstRunChecklist({
                   borderRadius: 'var(--radius-sm)',
                 }}
           >
-            Open settings
+            Agent setup
           </a>
         </li>
         <li

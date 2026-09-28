@@ -59,23 +59,22 @@ for f in "$WORKFLOWS"/*.md; do
 done
 
 # --- foreman selects the route before opening each phase worker ------------
-require '`foreman`' "$REF"
 require '`autopilot` does not select models' "$REF"
 require 'Foreman splits work into phase assignments' "$REF"
 forbid '`autopilot` routes its planner' "$REF"
-require 'bbs agent resolve --role worker --json' "$REF"
-require 'worker_provider' "$REF"
-require 'worker_model' "$REF"
-require 'worker_effort' "$REF"
-require 'An empty provider/model/effort means native default' "$REF"
+require 'bbs agent detect --json' "$REF"
+require 'bbs agent list --json' "$REF"
+require 'New worker routes select the explicit agent first' "$REF"
+require 'BBS global agent/provider/model/effort preferences' "$REF"
+require 'bytes remain unchanged' "$REF"
+require '`bbs config set` rejects new writes' "$REF"
+require '`bbs agent resolve`' "$REF"
 require '## Phase routing' "$REF"
-require 'launch flag' "$REF"
+require 'launch.effective' "$REF"
 require 'came back short' "$REF"
-require '| `simple` | an obvious local docs/config edit' "$REF"
-require '| `hard` | security, auth, money' "$REF"
+require 'an obvious local docs/config edit' "$REF"
+require 'security, auth, money' "$REF"
 require 'complexity `critical` to `hard`' "$REF"
-require 'Generic `worker_model` and' "$REF"
-require '`worker_effort` defaults do not override the tier table' "$REF"
 require 'explicit phase-specific user selection first, then a valid persisted' "$REF"
 require 'config changes alone do not change it' "$REF"
 require 'Legacy strong/normal routes lacking the' "$REF"
@@ -84,13 +83,9 @@ require 'unknown binding needs `NEEDS_CONTEXT`' "$REF"
 require '`BLOCKED` before dispatch' "$REF"
 require 'Never replace a live writer' "$REF"
 require 'Do not invent an OMP effort' "$REF"
-require 'override the binding' "$REF"
-require 'inherit' "$REF"
-require 'generic provider/effort settings even when those flags are omitted or empty' "$REF"
-require 'cannot be cleared by that launcher, stop with `BLOCKED`' "$REF"
-require 'alias is usable only if the live binding identifies that version' "$REF"
 require 'Standalone Autopilot runs all steps in the human-opened session' "$REF"
 require 'load this routing table, recommend a tier, or change models between phases' "$REF"
+
 
 # Parse the policy's data tables: assert every task/phase and harness outcome,
 # rather than merely checking that tier/model names occur somewhere in the file.
@@ -110,9 +105,9 @@ expected_routes = {
 assert routes == expected_routes, routes
 models = {r[0]: r[1:] for r in rows if len(r) == 6 and r[0] in ('flash', 'pro', 'max')}
 expected_models = {
-    'flash': ['gpt-6-luna', 'max', 'Opus 5.5', 'high', '@normal'],
-    'pro': ['gpt-5.6-sol', 'high', 'Opus 5.5', 'high', '@slow'],
-    'max': ['gpt-6-astra', 'high', 'Opus 5.5', 'high', '@plan'],
+    'flash': ['gpt-6-luna', 'high', 'opus', 'high', '@normal'],
+    'pro': ['gpt-5.6-sol', 'high', 'opus', 'high', '@slow'],
+    'max': ['gpt-6-astra', 'high', 'opus', 'high', '@plan'],
 }
 assert models == expected_models, models
 phases = {r[0]: r[1] for r in rows if len(r) == 2 and r[1] in ('critical', 'normal')}

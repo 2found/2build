@@ -2,13 +2,14 @@
 // (~/.babysit/config.yaml).
 //
 // Scalar get/set operations preserve existing text. Structured writers update
-// only their YAML subtree under a shared lock, so agent settings and workspace
-// registrations cannot overwrite each other.
+// only their YAML subtree under a shared lock, so workspace registrations cannot
+// overwrite each other.
 package config
 
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -30,22 +31,6 @@ const configHeader = `# babysit configuration — edit freely, changes take effe
 # ─── Behavior ────────────────────────────────────────────────────────
 # proactive: true           # Auto-invoke skills when the request matches one.
 #                           # Set to false to only run skills explicitly typed.
-#
-# ─── Coding agent ────────────────────────────────────────────────────
-# worker_agent: auto        # auto | claude | codex | omp | grok | cursor
-#                           # auto detects the current agent, then PATH.
-# foreman_agent: auto       # which CLI the foreman itself runs on. Separate
-#                           # from worker_agent on purpose — the foreman audits
-#                           # its workers, so moving them does not move the audit.
-#                           # Non-claude agents need babysit's skills reachable
-#                           # from their own store; an unmet one fails fast at
-#                           # spawn with the setup step it needs.
-# worker_provider:         # native provider identifier; no credentials here
-# worker_model:            # model ID or OMP role; empty uses CLI config
-# worker_effort:           # native reasoning/thinking level (if supported)
-# foreman_provider:        # independent from worker settings
-# foreman_model:
-# foreman_effort:
 #
 # ─── Telemetry ───────────────────────────────────────────────────────
 # telemetry: local          # off | local
@@ -72,13 +57,46 @@ const configHeader = `# babysit configuration — edit freely, changes take effe
 # workspaces:               # managed by bbs config workspace; repo paths,
 #                           # roles, metadata, and harness version live here.
 #
-
-#
 # ─── Updates ─────────────────────────────────────────────────────────
 # auto_upgrade: false       # true = silently run bbs-upgrade on session start
 # update_check: true        # false = suppress upgrade-available notifications
 #
 `
+
+var retiredAgentSettings = map[string]struct{}{
+	"worker_agent": {}, "worker_provider": {}, "worker_model": {}, "worker_effort": {},
+	"foreman_agent": {}, "foreman_provider": {}, "foreman_model": {}, "foreman_effort": {},
+}
+
+const retiredAgentSettingsNotice = "legacy worker/foreman agent settings are ignored; configure enabled agents and the default in Orca, or pass an explicit per-dispatch agent/model/effort"
+
+func isRetiredAgentSetting(key string) bool {
+	_, ok := retiredAgentSettings[key]
+	return ok
+}
+
+// WarnRetiredAgentSettings emits one migration diagnostic when the config file
+// still contains any retired launch preference. It does not modify the file.
+func WarnRetiredAgentSettings(w io.Writer) {
+	b, err := Read()
+	if err != nil {
+		return
+	}
+	var doc yaml.Node
+	if yaml.Unmarshal(b, &doc) != nil || len(doc.Content) == 0 {
+		return
+	}
+	mapping := doc.Content[0]
+	if mapping.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		if isRetiredAgentSetting(mapping.Content[i].Value) {
+			fmt.Fprintln(w, retiredAgentSettingsNotice)
+			return
+		}
+	}
+}
 
 // Dir returns the babysit state directory, honoring BABYSIT_STATE_DIR
 // (default ~/.babysit) — matching bin/bbs-config.
@@ -193,6 +211,9 @@ func Get(key string) (string, bool) {
 // file the documented header is seeded first. An existing `key:` line is
 // replaced in place; otherwise `key: value` is appended.
 func Set(key, value string) error {
+	if isRetiredAgentSetting(key) {
+		return fmt.Errorf("config key %q is retired; configure agents in Orca", key)
+	}
 	if i := strings.IndexByte(value, '\n'); i >= 0 {
 		value = value[:i]
 	}
