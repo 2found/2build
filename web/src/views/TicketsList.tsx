@@ -72,8 +72,7 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
     ).project;
     if (state.project !== intentProject) return;
     if (projects.includes(intentProject)) setNewOpen(true);
-    params.delete('create');
-    const remaining = params.toString();
+    const remaining = query.split('&').filter(part => !new URLSearchParams(part).has('create')).join('&');
     history.replaceState(null, '', `${route}${remaining ? `?${remaining}` : ''}`);
   }, [hash, snapshot.meta.active_project, projects, state.project]);
   const narrow = useMediaQuery('(max-width: 767px)');
@@ -217,7 +216,7 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
 
       {tickets.length === 0 ? (
         <FirstRunChecklist
-          onCreateTicket={state.project ? () => setNewOpen(true) : undefined}
+          onCreateTicket={projects.length > 0 && state.project ? () => setNewOpen(true) : undefined}
           createTicketReason={reason}
         />
       ) : filtered.length === 0 ? (
@@ -685,6 +684,8 @@ function NewTicketModal({
   foremen: string[];
   canMutate: boolean;
 }) {
+  const controlStyle = { ...inputStyle, minHeight: 44, padding: '8px 10px', fontSize: 14 };
+  const actionStyle = { height: 44, padding: '0 16px', fontSize: 14 };
   const [proj, setProj] = useState(projects.includes(project) ? project : projects[0] ?? '');
   const previousProject = useRef(project);
   useEffect(() => {
@@ -735,9 +736,10 @@ function NewTicketModal({
       width={520}
       actions={
         <>
-          <Button size="lg" onClick={close}>Cancel</Button>
+          <Button size="lg" style={actionStyle} onClick={close}>Cancel</Button>
           <Button
             size="lg"
+            style={actionStyle}
             variant="primary"
             onClick={submit}
             disabled={pending || !canMutate || !title.trim() || !proj}
@@ -749,14 +751,14 @@ function NewTicketModal({
     >
       <Field label="Project">
         {id => (
-          <select id={id} style={inputStyle} value={proj} onChange={e => setProj(e.target.value)}>
+          <select id={id} style={controlStyle} value={proj} onChange={e => setProj(e.target.value)}>
             {projects.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         )}
       </Field>
       <Field label="Title">
         {id => (
-          <input id={id} style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} />
+          <input id={id} style={controlStyle} value={title} onChange={e => setTitle(e.target.value)} />
         )}
       </Field>
       <Field
@@ -766,7 +768,7 @@ function NewTicketModal({
         {id => (
           <textarea
             id={id}
-            style={{ ...inputStyle, minHeight: 120, resize: 'vertical' }}
+            style={{ ...controlStyle, minHeight: 120, resize: 'vertical' }}
             value={requirement}
             onChange={e => setRequirement(e.target.value)}
           />
@@ -779,7 +781,7 @@ function NewTicketModal({
         hint="The foreman that picks it up. It is woken now if its workspace is reachable, otherwise on its next tick."
       >
         {id => (
-          <select id={id} style={inputStyle} value={assignee} onChange={e => setAssignee(e.target.value)}>
+          <select id={id} style={controlStyle} value={assignee} onChange={e => setAssignee(e.target.value)}>
             <option value="">Unassigned</option>
             {foremen.map(f => <option key={f} value={f}>{f}</option>)}
           </select>
