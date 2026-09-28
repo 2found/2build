@@ -59,8 +59,6 @@ var idRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 func (s *dashServer) mux() *http.ServeMux {
 	m := http.NewServeMux()
 	m.HandleFunc("GET /api/snapshot", s.handleSnapshot)
-	m.HandleFunc("GET /api/agent-settings", s.handleAgentSettings)
-	m.HandleFunc("POST /api/agent-settings", s.handleAgentSettings)
 	m.HandleFunc("POST /api/tickets", s.handleCreateTicket)
 	m.HandleFunc("POST /api/tickets/{project}/{ticket}/assign", s.handleAssign)
 	m.HandleFunc("POST /api/tickets/{project}/{ticket}/status", s.handleSetStatus)
