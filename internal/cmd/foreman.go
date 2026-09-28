@@ -41,8 +41,19 @@ const foremanUsage = `Usage:
   bbs foreman spawn [<id>] [--dir <path>] [--command <text>] [--agent <name>]
                     [--provider <id>] [--model <id>] [--effort <level>] [--auto]
   bbs foreman ensure <id>
-  bbs foreman worker-command --prompt <text> [--skill <name>] [--agent <name>] [--dir <path>]
+  bbs foreman worker-command --prompt <text> [--skill <name>] [--agent <id>] [--pinned-agent <id>]
+                            [--pinned-model <id>] [--pinned-effort <level>] [--host <host-id>] [--exact-session] [--dir <path>]
                             [--provider <id>] [--model <id>] [--effort <level>]
+  bbs foreman route --ticket <ticket> --task <task> [--agent <id>]
+                    [--pinned-agent <id>] [--model <id>] [--effort <level>]
+                    [--pinned-model <id>] [--pinned-effort <level>]
+                    [--host <host-id>] [--exact-session]
+                    [--complexity <value>] [--phase-class <value>]
+                    [--selected-tier <value>] [--override-provenance <source>]
+                    [--pinned-model-provenance <source>] [--pinned-effort-provenance <source>]
+  bbs foreman route verify --ticket <ticket> --task <task> --agent <id>
+                           [--host <host-id>] [--model <id>] [--effort <level>]
+                           [--receipt-file <json>] [--rate-limited]
   bbs foreman resource <status|reserve|release> ...
   bbs foreman watch [<id>] [--interval <sec>] [--idle <sec>] [--lines <n>]
                     [--status-interval <sec>] [--nudge <text>] [--max-nudges <n>] [--once]
@@ -133,6 +144,8 @@ func dispatchForeman(args []string) error {
 		return foremanWorkerCommand(rest)
 	case "resource":
 		return foremanResource(rest)
+	case "route":
+		return foremanRoute(rest)
 	case "watch":
 		return foremanWatch(rest)
 	case "retire":
@@ -165,7 +178,7 @@ func foremanFlags(args []string) (id string, kv map[string]string, err error) {
 			return "", nil, fmt.Errorf("foreman: unexpected argument '%s'", a)
 		}
 		key := strings.TrimPrefix(a, "--")
-		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" { // the boolean flags
+		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "exact-session" || key == "rate-limited" { // the boolean flags
 			kv[key] = "1"
 			continue
 		}
@@ -550,11 +563,32 @@ func foremanWorkerCommand(args []string) error {
 	if prompt == "" {
 		return fmt.Errorf("foreman worker-command: needs --prompt <text>\n%s", foremanUsage)
 	}
-	prof, err := agent.ResolveWith(agent.WorkerKey, agent.Options{
-		Agent: kv["agent"], Provider: kv["provider"], Model: kv["model"], Effort: kv["effort"], Dir: kv["dir"],
-	})
-	if err != nil {
-		return err
+	discovery, discoveryErr := foremanAgentDiscovery()
+	route, routeErr := resolveForemanRouteWithDiscovery(kv, discovery, discoveryErr)
+	var prof agent.Profile
+	if routeErr != nil {
+		hasPinnedRoute := kv["pinned-agent"] != "" || kv["pinned-model"] != "" ||
+			kv["pinned-effort"] != "" || kv["exact-session"] != ""
+		hasOrcaDefault := discoveryErr == nil && discovery != nil &&
+			strings.TrimSpace(discovery.EffectiveDefaultAgent) != ""
+		if hasPinnedRoute || kv["agent"] != "" || hasOrcaDefault || !hasConfiguredWorkerAgent() {
+			return routeErr
+		}
+		prof, err = agent.ResolveWith(agent.WorkerKey, agent.Options{
+			Agent: kv["agent"], Provider: kv["provider"], Model: kv["model"],
+			Effort: kv["effort"], Dir: kv["dir"],
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		prof, err = agent.ResolveWith(agent.WorkerKey, agent.Options{
+			Agent: route.Agent, Provider: kv["provider"], Model: route.Model,
+			Effort: route.Effort, Dir: kv["dir"],
+		})
+		if err != nil {
+			return err
+		}
 	}
 	// --skill is how a caller names the skill without knowing how this agent
 	// namespaces it. It exists for the same reason agent selection lives here
