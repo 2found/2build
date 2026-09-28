@@ -15,9 +15,10 @@ export function Field({
 }: {
   label: string;
   hint?: string;
-  children: (id: string) => ReactNode;
+  children: (id: string, hintId?: string) => ReactNode;
 }) {
   const id = useId();
+  const hintId = hint ? `${id}-hint` : undefined;
   return (
     <div>
       <label
@@ -27,9 +28,9 @@ export function Field({
       >
         {label}
       </label>
-      {children(id)}
+      {children(id, hintId)}
       {hint && (
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{hint}</div>
+        <div id={hintId} style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{hint}</div>
       )}
     </div>
   );
