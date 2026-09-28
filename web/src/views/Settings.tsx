@@ -84,9 +84,7 @@ export function Settings() {
   const disabled = !canMutate || loading || mutation.pending || !!loadError;
   const overrides = data ? LEGACY_KEYS.filter(key => data.values[key] !== '') : [];
   const canClear = !!draft && overrides.some(key => draft[key] !== '');
-  const pendingClearCount = data && draft
-    ? overrides.filter(key => data.values[key] !== '' && draft[key] === '').length
-    : 0;
+  const pendingClearCount = draft ? overrides.filter(key => draft[key] === '').length : 0;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -149,7 +147,7 @@ export function Settings() {
         <p style={secondary}>Configure new Foreman sessions. Workers are selected automatically for each task and phase.</p>
       </div>
 
-      {reason && <p role="status" style={secondary}>{reason}</p>}
+      {!readonly && reason && <p role="status" style={secondary}>{reason}</p>}
       <div className="space-y-1">
         <p style={secondary}>All Babysit settings and workspace registrations live in one machine-local file.</p>
         {data && <p className="font-mono break-all" style={secondary}>{data.path}</p>}
@@ -198,8 +196,9 @@ export function Settings() {
                 </select>}</Field>
               </fieldset>
               <fieldset className="min-w-0" disabled={disabled}>
-                <Field label="Provider" hint="Optional native provider identifier. Authentication stays in your agent.">{id => <input
+                <Field label="Provider" hint="Optional native provider identifier. Authentication stays in your agent.">{(id, hintId) => <input
                   id={id}
+                  aria-describedby={hintId}
                   name="foreman_provider"
                   type="text"
                   className="font-mono"
