@@ -1,9 +1,14 @@
 package agent
 
 import (
+	"context"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestRuntimeMarkers(t *testing.T) {
@@ -57,6 +62,20 @@ func TestNearestAgentProcessBeatsInheritedSession(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(os.Getenv("PATH"), "ps"), []byte("#!/bin/sh\necho '1 /opt/tools/omp'\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, "ps").CombinedOutput()
+	if err == nil && ctx.Err() != nil {
+		err = ctx.Err()
+	}
+	if err == nil && !strings.Contains(string(output), "omp") {
+		err = fmt.Errorf("probe output did not contain marker %q", "omp")
+	}
+	if err != nil {
+		t.Skipf("environment cannot execute test ps stubs: %v", err)
+	}
+
 	if got := Detect(); got.Agent != "omp" || got.Source != "parent process" {
 		t.Fatalf("got %+v", got)
 	}
