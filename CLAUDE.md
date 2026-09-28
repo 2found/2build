@@ -244,9 +244,9 @@ babysit/
 │   │                  #                 slug / branch / ticket from git remote + branch
 │   │                  #   bbs design    query DESIGN.md tokens / suggest products / list components / ux-check
 │   │                  #   bbs upgrade (+ upgrade check), dashboard, foreman, …
-│   ├── bbs-*          # argv0 symlinks to bbs, kept for legacy callers — skills call `bbs <sub>`
 │   ├── hooks/         # release gate, session writer, and repo pre-commit check
-│   └── setup-skills   # Builds bbs, links it into ~/.local/bin/ and the bbs-* aliases into ~/.claude/
+│   ├── lib/           # shared shell library (lock.sh)
+│   └── setup-skills   # Builds bbs and links it into ~/.local/bin/
 ├── hooks/             # command-hook manifest + OMP extension adapter (see docs/artifact-gated-approval.md)
 ├── tests/             # shell + python suites for bins, workflows, and autopilot integration
 ├── docs/              # roadmap, identity, workspaces, operations, artifact-gated-approval

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tests/test_bbs_ticket_safe_cut.sh — coverage for the safe-cut gate in
-# bin/bbs-ticket § ensure.
+# bin/bbs ticket § ensure.
 #
 # Cutting a ticket branch in place is only safe from a clean checkout of the
 # base branch. Anywhere else (another ticket's branch, or a dirty tree) the
@@ -28,7 +28,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -70,7 +70,7 @@ T="$(mktemp -d)"
   build_repo "$T"
   cd "$T/repo"
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint feat-a --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint feat-a --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^CREATED=1$' \
     || { echo "expected CREATED=1; out: $out"; exit 1; }
@@ -99,7 +99,7 @@ T="$(mktemp -d)"
   git add a.txt && git -c user.email=t@t -c user.name=t commit -q -m "feat a wip"
   echo "uncommitted" > dirty.txt
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint feat-b --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint feat-b --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   wt="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
   [ -n "$wt" ] || { echo "expected WORKTREE= in output; out: $out"; exit 1; }
@@ -146,7 +146,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   echo "uncommitted" > dirty.txt
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint feat-c --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint feat-c --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   wt="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
   [ -n "$wt" ] || { echo "expected WORKTREE= on dirty base; out: $out"; exit 1; }
@@ -172,7 +172,7 @@ T="$(mktemp -d)"
   git checkout -q main
   git -c user.email=t@t -c user.name=t merge -q --no-ff feat/landed -m "integrate landed"
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint feat-f --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint feat-f --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^WORKTREE=' \
     && { echo "unexpected WORKTREE= on a clean base cut; out: $out"; exit 1; }
@@ -203,7 +203,7 @@ T="$(mktemp -d)"
   git -c user.email=t@t -c user.name=t merge -q --no-ff feat/landed -m "integrate landed"
   git checkout -q -b feat/next
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint feat-g --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint feat-g --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   wt="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
   [ -n "$wt" ] || { echo "expected WORKTREE= in output; out: $out"; exit 1; }
@@ -223,7 +223,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   git checkout -q -b feat/a
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint feat-d --type feat 2>"$T/err")"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint feat-d --type feat 2>"$T/err")"; rc=$?
   [ "$rc" -eq 0 ] || { echo "expected rc=0 (worktree divert, no confirm), got $rc: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^WORKTREE=' \
     || { echo "expected WORKTREE=; out: $out"; exit 1; }
@@ -239,7 +239,7 @@ T="$(mktemp -d)"
   build_repo "$T"
   cd "$T/repo"
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint feat-e --type feat 2>&1)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint feat-e --type feat 2>&1)"; rc=$?
   [ "$rc" -eq 3 ] || { echo "expected rc=3 NEEDS_CONFIRM, got $rc: $out"; exit 1; }
   printf '%s\n' "$out" | grep -q 'NEEDS_CONFIRM' \
     || { echo "expected NEEDS_CONFIRM; got: $out"; exit 1; }

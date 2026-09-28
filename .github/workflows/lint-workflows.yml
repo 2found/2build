@@ -20,10 +20,8 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # bin/bbs-autopilot is a tracked symlink to bin/bbs, which is gitignored
-      # and therefore absent on a fresh checkout — the linter has to be built
-      # before it can run, and is then called in the space form like every
-      # other caller.
+      # bin/bbs is gitignored and therefore absent on a fresh checkout —
+      # the linter has to be built before it can run.
       - name: Build bbs
         run: go build -o bin/bbs ./cmd/bbs
 

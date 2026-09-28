@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # tests/test_bbs_slug_env_identity.sh — regression guard for env-first identity.
 #
-# bbs-slug must let BABYSIT_TICKET (and the legacy BBS_TICKET alias) override
+# `bbs slug` must let BABYSIT_TICKET (and the legacy BBS_TICKET alias) override
 # the branch-derived ticket. When both are set and disagree, it must abort
 # loudly so the caller can pick one — silent picking is a correctness bug.
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_SLUG="$SCRIPT_DIR/bin/bbs-slug"
+BBS_SLUG="$SCRIPT_DIR/bin/bbs"
 [ -x "$BBS_SLUG" ] || { echo "FAIL: $BBS_SLUG not executable" >&2; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -29,7 +29,7 @@ T="$(mktemp -d)"
   unset BABYSIT_TICKET BBS_TICKET
   mk_repo "$T/r" "feat/bs-abc123_my-slug"
   cd "$T/r"
-  out="$("$BBS_SLUG" ticket)"
+  out="$("$BBS_SLUG" slug ticket)"
   [ "$out" = "bs-abc123" ] || { echo "got: $out"; exit 1; }
 ) && ok "branch-derived-ticket-when-no-env" || fail "branch-derived-ticket-when-no-env"
 rm -rf "$T"
@@ -42,7 +42,7 @@ T="$(mktemp -d)"
   export BABYSIT_TICKET="bs-zzz999"
   mk_repo "$T/r" "feat/bs-abc123_my-slug"
   cd "$T/r"
-  out="$("$BBS_SLUG" ticket)"
+  out="$("$BBS_SLUG" slug ticket)"
   [ "$out" = "bs-zzz999" ] || { echo "got: $out"; exit 1; }
 ) && ok "BABYSIT_TICKET-overrides-branch" || fail "BABYSIT_TICKET-overrides-branch"
 rm -rf "$T"
@@ -55,7 +55,7 @@ T="$(mktemp -d)"
   export BBS_TICKET="bs-legacy"
   mk_repo "$T/r" "feat/bs-abc123_my-slug"
   cd "$T/r"
-  out="$("$BBS_SLUG" ticket)"
+  out="$("$BBS_SLUG" slug ticket)"
   [ "$out" = "bs-legacy" ] || { echo "got: $out"; exit 1; }
 ) && ok "BBS_TICKET-legacy-alias-still-works" || fail "BBS_TICKET-legacy-alias-still-works"
 rm -rf "$T"
@@ -68,7 +68,7 @@ T="$(mktemp -d)"
   export BBS_TICKET="bs-bbb"
   mk_repo "$T/r" "feat/bs-abc123_my-slug"
   cd "$T/r"
-  out="$("$BBS_SLUG" ticket 2>&1)"
+  out="$("$BBS_SLUG" slug ticket 2>&1)"
   rc=$?
   [ "$rc" = "1" ] || { echo "expected rc=1, got rc=$rc"; exit 1; }
   printf '%s' "$out" | grep -q "BABYSIT_TICKET=bs-aaa" || { echo "missing BABYSIT_TICKET in error: $out"; exit 1; }
@@ -84,7 +84,7 @@ T="$(mktemp -d)"
   export BBS_TICKET="bs-same"
   mk_repo "$T/r" "feat/bs-abc123_my-slug"
   cd "$T/r"
-  out="$("$BBS_SLUG" ticket)"
+  out="$("$BBS_SLUG" slug ticket)"
   [ "$out" = "bs-same" ] || { echo "got: $out"; exit 1; }
 ) && ok "env-agreement-passes" || fail "env-agreement-passes"
 rm -rf "$T"

@@ -8,8 +8,8 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
-BBS_SLUG_BIN="$SCRIPT_DIR/bin/bbs-slug"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_SLUG_BIN="$SCRIPT_DIR/bin/bbs"
 [ -x "$BBS_TICKET_BIN" ] && [ -x "$BBS_SLUG_BIN" ] || { echo "FAIL" >&2; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -27,18 +27,18 @@ T="$(mktemp -d)"
   cd "$T/r"
   PATH="$SCRIPT_DIR/bin:$PATH"
 
-  SLUG="$("$BBS_SLUG_BIN" slug)"
+  SLUG="$("$BBS_SLUG_BIN" slug slug)"
   TH="$HOME/.babysit/projects/$SLUG/tickets/bs-legacy"
   mkdir -p "$TH/handoffs"
   # Mimic legacy artifacts — no manifest.yaml.
   echo '{"id": "bs-legacy"}' > "$TH/index.json"
   touch "$TH/plan.md"
 
-  out="$("$BBS_TICKET_BIN" resolve)"
+  out="$("$BBS_TICKET_BIN" ticket resolve)"
   [ "$out" = "bs-legacy" ] || { echo "got: $out"; exit 1; }
 
   # And get-manifest must error cleanly (rc=1, not crash).
-  err="$("$BBS_TICKET_BIN" get-manifest "bs-legacy" 2>&1 1>/dev/null)"; rc=$?
+  err="$("$BBS_TICKET_BIN" ticket get-manifest "bs-legacy" 2>&1 1>/dev/null)"; rc=$?
   [ "$rc" = "1" ] || { echo "expected rc=1, got rc=$rc; err=$err"; exit 1; }
   printf '%s' "$err" | grep -q "no manifest" || { echo "unexpected error: $err"; exit 1; }
 ) && ok "legacy-ticket-dir-resolves-via-branch" || fail "legacy-ticket-dir-resolves-via-branch"

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # tests/test_session_rehydrate.sh — round-trip:
 #   1. preamble session-writer hook persists ~/.babysit/sessions/<uuid>.yaml
-#   2. `bbs-ticket session attach <uuid>` echoes the right exports
-#   3. eval-ing those exports lets `bbs-ticket resolve` recover the ticket
+#   2. `bbs ticket session attach <uuid>` echoes the right exports
+#   3. eval-ing those exports lets `bbs ticket resolve` recover the ticket
 #      with no branch context (cwd is /tmp).
 #
 # This is the "I crashed, where was I" recovery path.
@@ -10,7 +10,7 @@
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PREAMBLE="$SCRIPT_DIR/.claude/skills/references/preamble.md"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
 [ -f "$PREAMBLE" ] && [ -x "$BBS_TICKET_BIN" ] \
   || { echo "FAIL: missing bins" >&2; exit 1; }
 
@@ -37,7 +37,7 @@ T="$(mktemp -d)"
 
   # Session 2: attach
   BABYSIT_HOME="$HOME/.babysit"; export BABYSIT_HOME
-  exports="$("$BBS_TICKET_BIN" session attach "sess-rehydrate")"
+  exports="$("$BBS_TICKET_BIN" ticket session attach "sess-rehydrate")"
   printf '%s' "$exports" | grep -qx "export BABYSIT_TICKET=bs-recovered" \
     || { echo "missing TICKET export: $exports"; exit 1; }
   eval "$exports"
@@ -45,7 +45,7 @@ T="$(mktemp -d)"
 
   # cd somewhere with no branch context — resolve must still recover via env (step 1).
   cd "$T"
-  out="$("$BBS_TICKET_BIN" resolve)"
+  out="$("$BBS_TICKET_BIN" ticket resolve)"
   [ "$out" = "bs-recovered" ] || { echo "resolve returned: $out"; exit 1; }
 ) && ok "attach-then-resolve-recovers-ticket" || fail "attach-then-resolve-recovers-ticket"
 rm -rf "$T"

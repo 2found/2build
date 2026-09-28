@@ -65,10 +65,10 @@ class TestImplementE2E(unittest.TestCase):
       1. Read app/page.tsx from the scaffold.
       2. Insert the footer element.
       3. Commit the change.
-      4. Write a verdict via `bbs-ticket set-verdict --skill implement`.
+      4. Write a verdict via `bbs ticket set-verdict --skill implement`.
 
     Assertions verify the ticket system received the verdict — proving the full
-    implement → bbs-ticket broker chain works end-to-end.
+    implement → `bbs ticket` broker chain works end-to-end.
     """
 
     @classmethod

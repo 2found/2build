@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # tests/test_concurrent_sessions.sh — two autopilot sessions for the same
 # ticket coexist without colliding. Each gets its own session yaml; neither
-# mutates the other's started_at; bbs-ticket session list shows both.
+# mutates the other's started_at; bbs ticket session list shows both.
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PREAMBLE="$SCRIPT_DIR/.claude/skills/references/preamble.md"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
 [ -f "$PREAMBLE" ] && [ -x "$BBS_TICKET_BIN" ] || { echo "FAIL: missing bins" >&2; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -38,7 +38,7 @@ T="$(mktemp -d)"
 
   # Both sessions appear in list
   BABYSIT_HOME="$HOME/.babysit"; export BABYSIT_HOME
-  out="$("$BBS_TICKET_BIN" session list)"
+  out="$("$BBS_TICKET_BIN" ticket session list)"
   printf '%s' "$out" | grep -q "sess-A" || { echo "list missing A: $out"; exit 1; }
   printf '%s' "$out" | grep -q "sess-B" || { echo "list missing B: $out"; exit 1; }
 ) && ok "two-sessions-same-ticket-coexist" || fail "two-sessions-same-ticket-coexist"

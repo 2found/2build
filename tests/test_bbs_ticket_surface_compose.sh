@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tests/test_bbs_ticket_surface_compose.sh — coverage for
-# bin/bbs-ticket § surface compose.
+# bin/bbs ticket § surface compose.
 #
 # Single-repo trunk flow: the dev server runs in the primary checkout (on the
 # base branch), tickets are implemented in linked worktrees, and before QA the
@@ -23,7 +23,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -72,7 +72,7 @@ T="$(mktemp -d)"
   build_repo_with_worktree "$T" mba
   cd "$T/repo/.babysit/worktrees/mba"
 
-  out="$("$BBS_TICKET_BIN" surface compose 2>"$T/err")"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket surface compose 2>"$T/err")"; rc=$?
   [ "$rc" -eq 0 ] || { echo "expected rc=0, got $rc: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^SERVING=bs-mba$' \
     || { echo "expected SERVING=bs-mba; out: $out"; exit 1; }
@@ -96,9 +96,9 @@ T="$(mktemp -d)"
   build_repo_with_worktree "$T" mbb
   cd "$T/repo/.babysit/worktrees/mbb"
 
-  "$BBS_TICKET_BIN" surface compose >/dev/null 2>&1 || { echo "first compose failed"; exit 1; }
+  "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>&1 || { echo "first compose failed"; exit 1; }
   head1="$(git -C "$T/repo" rev-parse HEAD)"
-  out="$("$BBS_TICKET_BIN" surface compose 2>/dev/null)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket surface compose 2>/dev/null)"; rc=$?
   [ "$rc" -eq 0 ] || { echo "re-compose expected rc=0, got $rc"; exit 1; }
   printf '%s\n' "$out" | grep -q '^SERVING=bs-mbb$' \
     || { echo "expected SERVING=bs-mbb on re-compose; out: $out"; exit 1; }
@@ -110,7 +110,7 @@ T="$(mktemp -d)"
   # QA found a bug: fix in the worktree, commit, re-compose.
   echo fix > fix.txt
   git add fix.txt && git commit -q -m "fix: qa finding"
-  out="$("$BBS_TICKET_BIN" surface compose 2>/dev/null)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket surface compose 2>/dev/null)"; rc=$?
   [ "$rc" -eq 0 ] || { echo "fix re-compose expected rc=0, got $rc"; exit 1; }
   printf '%s\n' "$out" | grep -q '^SERVING=bs-mbb$' \
     || { echo "expected SERVING=bs-mbb after fix; out: $out"; exit 1; }
@@ -141,7 +141,7 @@ T="$(mktemp -d)"
   pre="$(git -C "$T/repo" rev-parse HEAD)"
   cd "$T/repo/.babysit/worktrees/mbc"
 
-  out="$("$BBS_TICKET_BIN" surface compose 2>&1)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket surface compose 2>&1)"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2, got $rc: $out"; exit 1; }
   printf '%s\n' "$out" | grep -q '^STATUS: BLOCKED$' \
     || { echo "no STATUS: BLOCKED; got: $out"; exit 1; }
@@ -165,7 +165,7 @@ T="$(mktemp -d)"
   cd "$T/repo/.babysit/worktrees/mbd"
   echo uncommitted > dirty.txt
 
-  out="$("$BBS_TICKET_BIN" surface compose 2>&1)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket surface compose 2>&1)"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2, got $rc: $out"; exit 1; }
   printf '%s\n' "$out" | grep -qi 'uncommitted changes' \
     || { echo "no uncommitted-changes reason; got: $out"; exit 1; }
@@ -180,7 +180,7 @@ T="$(mktemp -d)"
   echo uncommitted > "$T/repo/dirty.txt"
   cd "$T/repo/.babysit/worktrees/mbe"
 
-  out="$("$BBS_TICKET_BIN" surface compose 2>&1)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket surface compose 2>&1)"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2, got $rc: $out"; exit 1; }
   printf '%s\n' "$out" | grep -qi 'primary checkout.*uncommitted' \
     || { echo "no primary-dirty reason; got: $out"; exit 1; }
@@ -195,7 +195,7 @@ T="$(mktemp -d)"
   git -C "$T/repo" checkout -q -b elsewhere
   cd "$T/repo/.babysit/worktrees/mbf"
 
-  out="$("$BBS_TICKET_BIN" surface compose 2>&1)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket surface compose 2>&1)"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2, got $rc: $out"; exit 1; }
   printf '%s\n' "$out" | grep -q "is on 'elsewhere', not base 'main'" \
     || { echo "no off-base reason; got: $out"; exit 1; }
@@ -211,7 +211,7 @@ T="$(mktemp -d)"
   build_repo_with_worktree "$T" mbg
   cd "$T/repo"
 
-  out="$("$BBS_TICKET_BIN" surface compose 2>&1)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket surface compose 2>&1)"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2, got $rc: $out"; exit 1; }
   printf '%s\n' "$out" | grep -qi 'usage:.*surface compose' \
     || { echo "no usage error; got: $out"; exit 1; }
@@ -236,22 +236,22 @@ T="$(mktemp -d)"
   )
   GD="$(git -C "$T/repo" rev-parse --absolute-git-dir)"
 
-  ( cd "$T/repo/.babysit/worktrees/mbh" && "$BBS_TICKET_BIN" surface compose >/dev/null 2>&1 ) \
+  ( cd "$T/repo/.babysit/worktrees/mbh" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>&1 ) \
     || { echo "compose mbh failed"; exit 1; }
   [ "$(cat "$GD/bbs-serving")" = "bs-mbh" ] \
     || { echo "expected serving=bs-mbh: $(cat "$GD/bbs-serving")"; exit 1; }
   # A bare compose from mbi's worktree replaces the surface, not appends.
-  ( cd "$T/repo/.babysit/worktrees/mbi" && "$BBS_TICKET_BIN" surface compose >/dev/null 2>&1 ) \
+  ( cd "$T/repo/.babysit/worktrees/mbi" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>&1 ) \
     || { echo "compose mbi failed"; exit 1; }
   [ "$(cat "$GD/bbs-serving")" = "bs-mbi" ] \
     || { echo "expected serving=bs-mbi (set, not append): $(cat "$GD/bbs-serving")"; exit 1; }
   # Composing both tickets by name serves both.
-  ( cd "$T/repo" && "$BBS_TICKET_BIN" surface compose bs-mbh bs-mbi >/dev/null 2>&1 ) \
+  ( cd "$T/repo" && "$BBS_TICKET_BIN" ticket surface compose bs-mbh bs-mbi >/dev/null 2>&1 ) \
     || { echo "compose mbh mbi failed"; exit 1; }
   [ "$(cat "$GD/bbs-serving")" = "bs-mbh,bs-mbi" ] \
     || { echo "expected serving=bs-mbh,bs-mbi: $(cat "$GD/bbs-serving")"; exit 1; }
   # Re-compose of a single ticket narrows the surface back to it.
-  ( cd "$T/repo/.babysit/worktrees/mbh" && "$BBS_TICKET_BIN" surface compose >/dev/null 2>&1 ) \
+  ( cd "$T/repo/.babysit/worktrees/mbh" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>&1 ) \
     || { echo "re-compose mbh failed"; exit 1; }
   [ "$(cat "$GD/bbs-serving")" = "bs-mbh" ] \
     || { echo "expected serving=bs-mbh after re-compose: $(cat "$GD/bbs-serving")"; exit 1; }
@@ -276,7 +276,7 @@ T="$(mktemp -d)"
   GD="$(git -C "$T/repo" rev-parse --absolute-git-dir)"
 
   # From mbj's worktree, compose mbk explicitly.
-  out="$(cd "$T/repo/.babysit/worktrees/mbj" && "$BBS_TICKET_BIN" surface compose bs-mbk 2>"$T/err")"; rc=$?
+  out="$(cd "$T/repo/.babysit/worktrees/mbj" && "$BBS_TICKET_BIN" ticket surface compose bs-mbk 2>"$T/err")"; rc=$?
   [ "$rc" -eq 0 ] || { echo "explicit compose from other worktree failed rc=$rc: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^SERVING=bs-mbk$' \
     || { echo "expected SERVING=bs-mbk; out: $out"; exit 1; }
@@ -284,7 +284,7 @@ T="$(mktemp -d)"
   [ ! -d "$GD/bbs-qa-lease" ] || { echo "lease leaked after compose"; exit 1; }
 
   # And a BLOCKED explicit compose (unknown ticket) leaves no lease either.
-  ( cd "$T/repo/.babysit/worktrees/mbj" && "$BBS_TICKET_BIN" surface compose bs-nope0000 >/dev/null 2>&1 ); rc=$?
+  ( cd "$T/repo/.babysit/worktrees/mbj" && "$BBS_TICKET_BIN" ticket surface compose bs-nope0000 >/dev/null 2>&1 ); rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2 for unknown ticket, got $rc"; exit 1; }
   [ ! -d "$GD/bbs-qa-lease" ] || { echo "lease leaked after blocked compose"; exit 1; }
 ) && ok "explicit-compose-from-other-worktree" || fail "explicit-compose-from-other-worktree"

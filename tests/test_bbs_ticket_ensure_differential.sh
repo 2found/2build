@@ -15,7 +15,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-GO_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+GO_BIN="$SCRIPT_DIR/bin/bbs"
 REF="$SCRIPT_DIR/tests/fixtures/bbs-ticket.reference"
 
 command -v git >/dev/null 2>&1 || { echo "SKIP: git not installed"; exit 0; }
@@ -31,14 +31,23 @@ trap 'rm -rf "$ROOT"' EXIT
 
 export HOME="$ROOT/home"
 export BABYSIT_HOME="$ROOT/home/.babysit"
-export PATH="$SCRIPT_DIR/bin:$PATH"
+# The Go side must see argv0 `bbs-ticket` so its output stays byte-identical to
+# the oracle (retarget() only rewrites `bbs-*` spellings under a plain `bbs`
+# argv0), and the oracle resolves its own `bbs-slug`/`bbs-autopilot` siblings
+# through PATH. The tracked compat symlinks were removed, so mint them in the
+# sandbox.
+mkdir -p "$ROOT/bin"
+for link in bbs-ticket bbs-slug bbs-autopilot; do
+  ln -s "$GO_BIN" "$ROOT/bin/$link"
+done
+export PATH="$ROOT/bin:$SCRIPT_DIR/bin:$PATH"
 export BBS_LIB="$SCRIPT_DIR/bin/lib"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 export GIT_AUTHOR_DATE="2026-01-01T00:00:00 +0000" GIT_COMMITTER_DATE="2026-01-01T00:00:00 +0000"
 unset BBS_TICKET BABYSIT_TICKET AGENT_ROLE GT_ROLE 2>/dev/null || true
 mkdir -p "$HOME"
 
-printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$GO_BIN" > "$ROOT/go-cmd"
+printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$ROOT/bin/bbs-ticket" > "$ROOT/go-cmd"
 printf '#!/usr/bin/env bash\nexec bash "%s" "$@"\n' "$REF" > "$ROOT/bash-cmd"
 chmod +x "$ROOT/go-cmd" "$ROOT/bash-cmd"
 

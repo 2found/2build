@@ -26,7 +26,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -51,10 +51,10 @@ build_two_tickets() {
   )
   cd "$t/repo"
   local out
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint tick-a --type feat 2>/dev/null)" || return 1
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint tick-a --type feat 2>/dev/null)" || return 1
   TK_A="$(printf '%s\n' "$out" | sed -n 's|^TICKET=||p')"
   WT_A="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint tick-b --type feat 2>/dev/null)" || return 1
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint tick-b --type feat 2>/dev/null)" || return 1
   TK_B="$(printf '%s\n' "$out" | sed -n 's|^TICKET=||p')"
   WT_B="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
   [ -n "$WT_A" ] && [ -n "$WT_B" ] || return 1
@@ -66,8 +66,8 @@ build_two_tickets() {
 
 # finish <ticket> writes the two verdicts land gates on.
 finish() {
-  BABYSIT_TICKET="$1" "$BBS_TICKET_BIN" set-verdict --skill qa --body "STATUS: DONE" >/dev/null
-  BABYSIT_TICKET="$1" "$BBS_TICKET_BIN" set-verdict --skill review-pr --body "STATUS: DONE" >/dev/null
+  BABYSIT_TICKET="$1" "$BBS_TICKET_BIN" ticket set-verdict --skill qa --body "STATUS: DONE" >/dev/null
+  BABYSIT_TICKET="$1" "$BBS_TICKET_BIN" ticket set-verdict --skill review-pr --body "STATUS: DONE" >/dev/null
 }
 
 # ── land-merges-and-keeps ─────────────────────────────────────────────
@@ -80,7 +80,7 @@ T="$(mktemp -d)"
   finish "$TK_A"
 
   before="$(git rev-parse HEAD)"
-  out="$("$BBS_TICKET_BIN" land "$TK_A" 2>"$T/err")"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket land "$TK_A" 2>"$T/err")"; rc=$?
   [ "$rc" -eq 0 ] || { echo "land failed rc=$rc: $(cat "$T/err")"; exit 1; }
   [ -f a.txt ] || { echo "a.txt missing on base after land"; exit 1; }
   printf '%s\n' "$out" | grep -q "^LANDED=1 $TK_A " \
@@ -106,10 +106,10 @@ T="$(mktemp -d)"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
   finish "$TK_A"
-  "$BBS_TICKET_BIN" land "$TK_A" >/dev/null 2>&1 || { echo "first land failed"; exit 1; }
+  "$BBS_TICKET_BIN" ticket land "$TK_A" >/dev/null 2>&1 || { echo "first land failed"; exit 1; }
   after_first="$(git rev-parse HEAD)"
 
-  out="$("$BBS_TICKET_BIN" land "$TK_A" 2>"$T/err")"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket land "$TK_A" 2>"$T/err")"; rc=$?
   [ "$rc" -eq 0 ] || { echo "re-land failed rc=$rc: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q "^LANDED=0 $TK_A .*already on main" \
     || { echo "expected already-landed row; out: $out"; exit 1; }
@@ -127,10 +127,10 @@ T="$(mktemp -d)"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
   # review-pr only: qa is the missing half.
-  BABYSIT_TICKET="$TK_A" "$BBS_TICKET_BIN" set-verdict --skill review-pr --body "STATUS: DONE" >/dev/null
+  BABYSIT_TICKET="$TK_A" "$BBS_TICKET_BIN" ticket set-verdict --skill review-pr --body "STATUS: DONE" >/dev/null
 
   before="$(git rev-parse HEAD)"
-  "$BBS_TICKET_BIN" land "$TK_A" >"$T/out" 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket land "$TK_A" >"$T/out" 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc 2, got $rc"; exit 1; }
   grep -q "STATUS: BLOCKED" "$T/err" || { echo "no BLOCKED; err: $(cat "$T/err")"; exit 1; }
   grep -q "qa verdict is not DONE" "$T/err" || { echo "reason must name qa; err: $(cat "$T/err")"; exit 1; }
@@ -149,7 +149,7 @@ T="$(mktemp -d)"
   finish "$TK_A"   # B is left unfinished
 
   before="$(git rev-parse HEAD)"
-  "$BBS_TICKET_BIN" land "$TK_A" "$TK_B" >"$T/out" 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket land "$TK_A" "$TK_B" >"$T/out" 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc 2, got $rc"; exit 1; }
   # The finished ticket must NOT have landed: every ticket is checked before any
   # merge, or a blocked batch leaves a base nobody asked for.
@@ -168,7 +168,7 @@ T="$(mktemp -d)"
   finish "$TK_A"
   git checkout -q -b detour
 
-  "$BBS_TICKET_BIN" land "$TK_A" >"$T/out" 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket land "$TK_A" >"$T/out" 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc 2, got $rc"; exit 1; }
   grep -q "is on 'detour', not base 'main'" "$T/err" \
     || { echo "reason must name the branch; err: $(cat "$T/err")"; exit 1; }
@@ -186,7 +186,7 @@ T="$(mktemp -d)"
   finish "$TK_A"
   echo "scratch" > dirty.txt
 
-  "$BBS_TICKET_BIN" land "$TK_A" >"$T/out" 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket land "$TK_A" >"$T/out" 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc 2, got $rc"; exit 1; }
   grep -q "uncommitted changes" "$T/err" || { echo "err: $(cat "$T/err")"; exit 1; }
   [ -f dirty.txt ] || { echo "land destroyed uncommitted work"; exit 1; }
@@ -202,13 +202,13 @@ T="$(mktemp -d)"
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
   finish "$TK_A"
   # B is mid-QA on the shared surface; landing A would move it under B.
-  "$BBS_TICKET_BIN" surface acquire --ticket "$TK_B" >/dev/null 2>&1 || { echo "seed lease failed"; exit 1; }
+  "$BBS_TICKET_BIN" ticket surface acquire --ticket "$TK_B" >/dev/null 2>&1 || { echo "seed lease failed"; exit 1; }
 
   before="$(git rev-parse HEAD)"
-  "$BBS_TICKET_BIN" land "$TK_A" >"$T/out" 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket land "$TK_A" >"$T/out" 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc 2, got $rc"; exit 1; }
   [ "$(git rev-parse HEAD)" = "$before" ] || { echo "landed through another ticket's lease"; exit 1; }
-  "$BBS_TICKET_BIN" surface status | grep -q "^OWNER=$TK_B$" \
+  "$BBS_TICKET_BIN" ticket surface status | grep -q "^OWNER=$TK_B$" \
     || { echo "lease owner changed"; exit 1; }
 ) && ok "land-blocks-on-foreign-lease" || fail "land-blocks-on-foreign-lease"
 rm -rf "$T"
@@ -222,7 +222,7 @@ T="$(mktemp -d)"
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
   finish "$TK_A"; finish "$TK_B"
 
-  out="$("$BBS_TICKET_BIN" land "$TK_A" "$TK_B" 2>"$T/err")"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket land "$TK_A" "$TK_B" 2>"$T/err")"; rc=$?
   [ "$rc" -eq 0 ] || { echo "land failed rc=$rc: $(cat "$T/err")"; exit 1; }
   [ -f a.txt ] && [ -f b.txt ] || { echo "both tickets should be on base"; exit 1; }
   printf '%s\n' "$out" | grep -q "^LANDED=2 ALREADY=0$" \
@@ -241,10 +241,10 @@ T="$(mktemp -d)"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
   finish "$TK_A"
-  "$BBS_TICKET_BIN" surface compose "$TK_A" >/dev/null 2>&1 || { echo "compose failed"; exit 1; }
+  "$BBS_TICKET_BIN" ticket surface compose "$TK_A" >/dev/null 2>&1 || { echo "compose failed"; exit 1; }
 
   before="$(git rev-parse HEAD)"
-  "$BBS_TICKET_BIN" land "$TK_A" >"$T/out" 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket land "$TK_A" >"$T/out" 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc 2, got $rc"; exit 1; }
   grep -q "STATUS: BLOCKED" "$T/err" || { echo "no BLOCKED; err: $(cat "$T/err")"; exit 1; }
   grep -q "scratch composition" "$T/err" || { echo "reason must name scratch composition; err: $(cat "$T/err")"; exit 1; }
@@ -252,8 +252,8 @@ T="$(mktemp -d)"
   [ "$(git rev-parse HEAD)" = "$before" ] || { echo "base moved on a blocked land"; exit 1; }
 
   # After revert discards the composition, land succeeds for real.
-  "$BBS_TICKET_BIN" surface revert >/dev/null 2>&1 || { echo "revert failed"; exit 1; }
-  out="$("$BBS_TICKET_BIN" land "$TK_A" 2>"$T/err")"; rc=$?
+  "$BBS_TICKET_BIN" ticket surface revert >/dev/null 2>&1 || { echo "revert failed"; exit 1; }
+  out="$("$BBS_TICKET_BIN" ticket land "$TK_A" 2>"$T/err")"; rc=$?
   [ "$rc" -eq 0 ] || { echo "land after revert failed rc=$rc: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q "^LANDED=1 $TK_A " \
     || { echo "expected LANDED=1 after reset; out: $out"; exit 1; }
@@ -274,9 +274,9 @@ T="$(mktemp -d)"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
   finish "$TK_A"
-  "$BBS_TICKET_BIN" land "$TK_A" >/dev/null 2>&1 || { echo "land failed"; exit 1; }
+  "$BBS_TICKET_BIN" ticket land "$TK_A" >/dev/null 2>&1 || { echo "land failed"; exit 1; }
 
-  "$BBS_TICKET_BIN" surface revert >"$T/out" 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket surface revert >"$T/out" 2>"$T/err"; rc=$?
   [ "$rc" -eq 0 ] || { echo "revert blocked after a land rc=$rc: $(cat "$T/err")"; exit 1; }
   grep -q "^RESET=1$" "$T/out" || { echo "expected RESET=1; out: $(cat "$T/out")"; exit 1; }
   # And the work is not lost — the ticket branch still has it.

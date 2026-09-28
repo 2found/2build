@@ -1,7 +1,7 @@
 # setup-skills.ps1 — Babysit companion-bin setup for native Windows
-# (PowerShell 5.1+/pwsh). Mirror of bin/setup-skills: builds bbs, installs the
-# bbs-* bins, links bbs onto PATH, validates skills, installs the pre-commit
-# hook. Skills themselves are managed by the agent's plugin system.
+# (PowerShell 5.1+/pwsh). Mirror of bin/setup-skills: builds bbs, links it
+# onto PATH, validates skills, installs the pre-commit hook. Skills
+# themselves are managed by the agent's plugin system.
 #
 #   pwsh -NoProfile -File bin/setup-skills.ps1 [-DryRun] [-Full] [-Uninstall]
 #
@@ -37,10 +37,8 @@ function Invoke-Step {
     if ($DryRun) { Write-Host "  [dry-run] $What" } else { & $Action }
 }
 
-# The bins every install links: bbs plus the bbs-* argv0 aliases.
-$Bins = @('bbs', 'bbs-config', 'bbs-dashboard', 'bbs-design', 'bbs-env',
-          'bbs-autopilot', 'bbs-slug', 'bbs-ticket', 'bbs-qa-config',
-          'bbs-secrets', 'bbs-update-check', 'bbs-update', 'bbs-upgrade')
+# The only bin an install links is bbs — subcommands run as `bbs <sub>`.
+$Bins = @('bbs')
 
 if ($Uninstall) {
     info 'Uninstalling Babysit bins...'
@@ -76,7 +74,7 @@ info 'Building bbs Go CLI...'
 $bbsExe = Join-Path $ProjectDir 'bin/bbs.exe'
 $bbsBin = Join-Path $ProjectDir 'bin/bbs'
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
-    warn 'go not found — skipping bbs build (install Go to enable the bbs CLI and its bbs-* bins)'
+    warn 'go not found — skipping bbs build (install Go to enable the bbs CLI)'
 } elseif ($DryRun) {
     Write-Host '  [dry-run] go build -o bin/bbs.exe ./cmd/bbs'
 } else {
@@ -90,7 +88,7 @@ if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
             if (-not (Test-Path $bbsBin)) { Copy-Item $bbsExe $bbsBin }
             ok 'bbs built → bin/bbs.exe'
         } else {
-            warn 'go build failed — the bbs-* bins will not resolve until built'
+            warn 'go build failed — bbs will not resolve until built'
         }
     } finally { Pop-Location }
 }

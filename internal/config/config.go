@@ -22,9 +22,9 @@ import (
 )
 
 // configHeader is written verbatim on the first `set` into a fresh file. It
-// began as a byte-for-byte copy of CONFIG_HEADER in bin/bbs-config; that script
-// is gone (bin/bbs-config is now a symlink to this binary), so the header is
-// owned here and documents new keys as they land.
+// began as a byte-for-byte copy of CONFIG_HEADER in the former bin/bbs-config;
+// that script is gone, so the header is owned here and documents new keys as
+// they land.
 const configHeader = `# babysit configuration — edit freely, changes take effect on next skill run.
 # Docs: https://github.com/reallongnguyen/babysit
 #

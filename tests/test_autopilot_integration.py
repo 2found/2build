@@ -1,7 +1,7 @@
 """Autopilot integration tests — Parse/Probe/Assign/Dispatch routing surface.
 
 Four test classes sharing a single eval-set JSON:
-  TestAutopilotBinary       — calls bbs-autopilot subcommands directly (rows 15, 17, 20)
+  TestAutopilotBinary       — calls `bbs autopilot` subcommands directly (rows 15, 17, 20)
   TestAutopilotWiring       — skip_claude=True, validates harness machinery
   TestAutopilotE2E          — real claude -p "/bbs:autopilot ..."
   TestSingleRepoRegression  — pins §0.X byte-equality in single-repo mode
@@ -36,18 +36,18 @@ def _load_eval_set() -> list[dict]:
     return json.loads(EVAL_SET_PATH.read_text())
 
 
-# ── Binary tests (bbs-autopilot subcommands, no Claude) ──────────────────
+# ── Binary tests (`bbs autopilot` subcommands, no Claude) ───────────────
 
 
 class TestAutopilotBinary:
-    """Rows 15, 17, 20 — call bbs-autopilot directly."""
+    """Rows 15, 17, 20 — call `bbs autopilot` directly."""
 
     BINARY_ROWS = {"P15", "P17", "P20", "P28", "P29", "P31", "P32"}
 
     @pytest.fixture(autouse=True)
     def _check_deps(self):
-        if not (HERE / ".." / "bin" / "bbs-autopilot").resolve().exists():
-            pytest.skip("bbs-autopilot binary not found")
+        if not (HERE / ".." / "bin" / "bbs").resolve().exists():
+            pytest.skip("bbs binary not found")
 
     @pytest.mark.parametrize("case", _load_eval_set(), ids=lambda c: c["name"])
     def test_binary(self, case: dict):

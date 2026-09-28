@@ -5,11 +5,11 @@ your `PATH` at `~/.local/bin/bbs` (`brew install bbs` gets you the same binary
 with no checkout). Every command below is a subcommand of it — call them as
 `bbs <sub>`. Run `bbs <sub> --help` for full usage.
 
-`bbs` is a multicall binary: it also dispatches on `argv[0]`, so the
-`bbs-<name>` symlinks `setup-skills` drops into `~/.claude/` still work
-(`bbs-config` → `bbs config`). Those are **legacy aliases only**, and a
-Homebrew install ships just two of those aliases (`bbs-config`, `bbs-env`) —
-which is why skills and docs always use the space form.
+`bbs` is a multicall binary: it also dispatches on `argv[0]`, so a `bbs-<name>`
+argv0 alias still works (`bbs-config` → `bbs config`). Those are **legacy
+aliases only** — a checkout install ships none, and a Homebrew install ships
+just two (`bbs-config`, `bbs-env`) — which is why skills and docs always use
+the space form.
 
 Every subcommand is now native Go, behaving identically to the bash it
 replaced (guarded by the differential harnesses in `tests/`). `ticket` was the

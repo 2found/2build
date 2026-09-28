@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/test_bbs_ticket_refresh.sh — coverage for bin/bbs-ticket § refresh.
+# tests/test_bbs_ticket_refresh.sh — coverage for `bbs ticket` § refresh.
 #
 # refresh is the one sanctioned way to pull latest base into a ticket branch:
 # fetch + merge origin/<base>. It must never reference local <base> — under
@@ -17,7 +17,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -60,7 +60,7 @@ T="$(mktemp -d)"
   export HOME="$T/home"; mkdir -p "$HOME"
   build_repo "$T"
   cd "$T/repo"
-  out="$("$BBS_TICKET_BIN" refresh 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket refresh 2>"$T/err")" || {
     echo "refresh failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^UPDATED=0$' \
     || { echo "expected UPDATED=0; out: $out"; exit 1; }
@@ -78,7 +78,7 @@ T="$(mktemp -d)"
   echo "ticket work" > ticket.txt
   git add ticket.txt && git -c user.email=t@t -c user.name=t commit -q -m "ticket work"
 
-  out="$("$BBS_TICKET_BIN" refresh 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket refresh 2>"$T/err")" || {
     echo "refresh failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^UPDATED=1$' \
     || { echo "expected UPDATED=1; out: $out"; exit 1; }
@@ -106,7 +106,7 @@ T="$(mktemp -d)"
   git -c user.email=t@t -c user.name=t merge -q --no-ff feat/pile -m "integrate pile"
   git checkout -q feat/bs-test_x
 
-  out="$("$BBS_TICKET_BIN" refresh 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket refresh 2>"$T/err")" || {
     echo "refresh failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^UPDATED=0$' \
     || { echo "expected UPDATED=0 (origin unchanged); out: $out"; exit 1; }
@@ -126,7 +126,7 @@ T="$(mktemp -d)"
   git add base.txt && git -c user.email=t@t -c user.name=t commit -q -m "ticket edit"
   pre="$(git rev-parse HEAD)"
 
-  out="$("$BBS_TICKET_BIN" refresh 2>&1)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket refresh 2>&1)"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2, got $rc: $out"; exit 1; }
   printf '%s\n' "$out" | grep -q 'STATUS: BLOCKED' \
     || { echo "expected BLOCKED; got: $out"; exit 1; }
@@ -146,7 +146,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   echo "uncommitted" > dirty.txt
 
-  out="$("$BBS_TICKET_BIN" refresh 2>&1)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket refresh 2>&1)"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2, got $rc: $out"; exit 1; }
   printf '%s\n' "$out" | grep -qi 'uncommitted' \
     || { echo "expected uncommitted reason; got: $out"; exit 1; }
@@ -162,7 +162,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   git checkout -q main
 
-  out="$("$BBS_TICKET_BIN" refresh 2>&1)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket refresh 2>&1)"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2 on base branch, got $rc: $out"; exit 1; }
   printf '%s\n' "$out" | grep -qi 'base branch' \
     || { echo "expected on-base refusal; got: $out"; exit 1; }

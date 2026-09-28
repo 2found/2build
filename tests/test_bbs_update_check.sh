@@ -150,7 +150,7 @@ c() {
     mkdir -p "$r/dir/bin" "$r/state" "$r/home"
     # Stage a real bbs-config into BABYSIT_DIR so the bash's exec probe and the
     # Go's native config read agree (see the known-divergence note above).
-    ln -sf "$REPO/bin/bbs-config" "$r/dir/bin/bbs-config" 2>/dev/null
+    ln -sf "$BIN" "$r/dir/bin/bbs-config" 2>/dev/null
     _setup "$r"
   done
   case "$urlpath" in
@@ -204,7 +204,7 @@ c0() {
   A="$T/a0.$$.$RANDOM"; B="$T/b0.$$.$RANDOM"
   for r in "$A" "$B"; do
     mkdir -p "$r/repo/bin" "$r/claude" "$r/state" "$r/home"
-    ln -sf "$REPO/bin/bbs-config" "$r/repo/bin/bbs-config" 2>/dev/null
+    ln -sf "$BIN" "$r/repo/bin/bbs-config" 2>/dev/null
     [ "$vloc" = "none" ] || printf '1.2.3\n' > "$r/$vloc/VERSION"
     ln -s "$r/repo/bin/bbs-update-check" "$r/claude/bbs-update-check"
   done
@@ -383,7 +383,7 @@ chelp() {
   local flag="$1" B out rc msg="" before after
   B="$T/h.$$.$RANDOM"
   mkdir -p "$B/dir/bin" "$B/state" "$B/home"
-  ln -sf "$REPO/bin/bbs-config" "$B/dir/bin/bbs-config" 2>/dev/null
+  ln -sf "$BIN" "$B/dir/bin/bbs-config" 2>/dev/null
   eval "$FRESH_UTD"; _setup "$B"
   before="$(snapshot "$B/state")"
   out=$(env HOME="$B/home" BABYSIT_DIR="$B/dir" BABYSIT_STATE_DIR="$B/state" \

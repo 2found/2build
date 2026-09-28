@@ -3,13 +3,13 @@
 
 For each test case:
   1. Create a fresh sandbox (BABYSIT_HOME=tempdir, BBS_TICKET=bs-test-N)
-  2. Run any pre-setup `bbs-ticket` commands (seed existing artifacts)
+  2. Run any pre-setup `bbs ticket` commands (seed existing artifacts)
   3. Invoke `claude -p <prompt>` — a real skill run against the sandbox ticket
   4. Assert filesystem state on the ticket (paths present/absent/content regex)
 
 Unlike run_eval.py (which measures trigger rate), this measures SIDE EFFECTS:
 did the skill actually write the expected handoffs, verdicts, and pointers
-through the bbs-ticket broker?
+through the `bbs ticket` broker?
 """
 
 import argparse
@@ -39,41 +39,26 @@ def find_project_root() -> Path:
     return current
 
 
-def find_bbs_ticket() -> str:
-    """Locate bbs-ticket binary. Prefer project-local, fall back to ~/.claude."""
+def find_bbs() -> str:
+    """Locate the bbs multicall binary. Prefer project-local, fall back to ~/.claude."""
     root = find_project_root()
-    local = root / "bin" / "bbs-ticket"
+    local = root / "bin" / "bbs"
     if local.is_file() and os.access(local, os.X_OK):
         return str(local)
-    user = Path.home() / ".claude" / "bbs-ticket"
+    user = Path.home() / ".claude" / "bbs"
     if user.is_file():
         return str(user)
-    found = shutil.which("bbs-ticket")
+    found = shutil.which("bbs")
     if found:
         return found
-    raise FileNotFoundError("bbs-ticket not found in repo bin/, ~/.claude/, or PATH")
+    raise FileNotFoundError("bbs not found in repo bin/, ~/.claude/, or PATH")
 
 
-def find_bbs_autopilot() -> str:
-    """Locate bbs-autopilot binary. Prefer project-local, fall back to ~/.claude."""
-    root = find_project_root()
-    local = root / "bin" / "bbs-autopilot"
-    if local.is_file() and os.access(local, os.X_OK):
-        return str(local)
-    user = Path.home() / ".claude" / "bbs-autopilot"
-    if user.is_file():
-        return str(user)
-    found = shutil.which("bbs-autopilot")
-    if found:
-        return found
-    raise FileNotFoundError("bbs-autopilot not found in repo bin/, ~/.claude/, or PATH")
-
-
-def run_pre_setup(commands: list[list[str]], env: dict, bbs_ticket: str,
+def run_pre_setup(commands: list[list[str]], env: dict, bbs: str,
                   cwd: str | None = None) -> None:
-    """Run each pre-setup command. First arg is always implicitly bbs-ticket."""
+    """Run each pre-setup command. First arg is always implicitly `bbs ticket`."""
     for cmd in commands:
-        full = [bbs_ticket, *cmd]
+        full = [bbs, "ticket", *cmd]
         result = subprocess.run(full, env=env, capture_output=True, text=True,
                                 cwd=cwd)
         if result.returncode != 0:
@@ -239,7 +224,7 @@ def scaffold_fixture(fixture: dict) -> Path:
 
     The scaffold cmd runs once per cache_key per machine. The resulting tree
     is git-init'd with a single "scaffold" commit AND a fake origin remote
-    (so `bbs-slug` derives a deterministic SLUG matching the harness's
+    (so `bbs slug` derives a deterministic SLUG matching the harness's
     ticket-home derivation). Cases copy this cache dir; the original is
     never mutated. Sentinel lives OUTSIDE cache_dir so `copy_fixture`
     doesn't carry it into the working tree.
@@ -272,7 +257,7 @@ def scaffold_fixture(fixture: dict) -> Path:
          "--allow-empty"],
         cwd=cache_dir, check=True,
     )
-    # Fake remote so bbs-slug derives SLUG=fixtures-<cache_key> instead of
+    # Fake remote so `bbs slug` derives SLUG=fixtures-<cache_key> instead of
     # falling back to the (ephemeral, per-run) tempdir basename.
     fake_remote = f"https://babysit-eval.invalid/fixtures/{cache_key}.git"
     subprocess.run(
@@ -325,22 +310,22 @@ def warm_scaffolds(eval_set: list, verbose: bool) -> None:
         scaffold_fixture(fixture)
 
 
-def resolve_ticket_home(bbs_ticket: str, env: dict, cwd: str | None = None) -> Path:
-    """Query bbs-ticket for the real ticket home under the current env.
+def resolve_ticket_home(bbs: str, env: dict, cwd: str | None = None) -> Path:
+    """Query `bbs ticket` for the real ticket home under the current env.
 
-    Pass `cwd` when a fixture is in play — `bbs-slug` derives SLUG from the
+    Pass `cwd` when a fixture is in play — `bbs slug` derives SLUG from the
     git remote of the working directory, so the harness must resolve from
     the same spot the skill will run.
     """
     result = subprocess.run(
-        [bbs_ticket, "env"], env=env, capture_output=True, text=True,
+        [bbs, "ticket", "env"], env=env, capture_output=True, text=True,
         check=True, cwd=cwd,
     )
     for line in result.stdout.splitlines():
         if line.startswith("TICKET_HOME="):
             # Values are POSIX single-quoted for eval safety; strip the quotes.
             return Path(line.split("=", 1)[1].strip().strip("'"))
-    raise RuntimeError(f"bbs-ticket env did not emit TICKET_HOME: {result.stdout!r}")
+    raise RuntimeError(f"`bbs ticket env` did not emit TICKET_HOME: {result.stdout!r}")
 
 
 def run_single_case(
@@ -386,25 +371,18 @@ def run_single_case(
     fixture_branch = case.get("fixture_branch")
     setup_commits = case.get("setup_commits", [])
 
-    # Pre-set bin paths so skills can call bbs-ticket/bbs-slug even when the
+    # Pre-set bin paths so skills can call `bbs ticket`/`bbs slug` even when the
     # preamble bash block is only partially executed in headless claude -p mode.
-    _claude_dir = Path.home() / ".claude"
-    _bbs_bins = {
-        name: str(_claude_dir / name)
-        for name in ("bbs-ticket", "bbs-slug", "bbs-autopilot")
-        if (_claude_dir / name).exists()
-    }
+    bbs = find_bbs()
 
     env = {
         **{k: v for k, v in os.environ.items() if k != "CLAUDECODE"},
         "BBS_TICKET": ticket,
         "AGENT_ROLE": os.environ.get("AGENT_ROLE", os.environ.get("INVOKER", "general")),
-        "BBS_TICKET_BIN": _bbs_bins.get("bbs-ticket", "bbs-ticket"),
-        "BBS_SLUG_BIN": _bbs_bins.get("bbs-slug", "bbs-slug"),
-        "BBS_AUTOPILOT_BIN": _bbs_bins.get("bbs-autopilot", "bbs-autopilot"),
+        "BBS_TICKET_BIN": f"{bbs} ticket",
+        "BBS_SLUG_BIN": f"{bbs} slug",
+        "BBS_AUTOPILOT_BIN": f"{bbs} autopilot",
     }
-
-    bbs_ticket = find_bbs_ticket()
 
     # Decision-log isolation: each case gets its own analytics dir.
     decisions_dir = Path(tempfile.mkdtemp(prefix="bbs-decisions-"))
@@ -445,7 +423,7 @@ def run_single_case(
                 apply_setup_commits(setup_commits, fixture_dir)
 
         resolve_cwd = str(fixture_dir) if fixture_dir else None
-        ticket_home = resolve_ticket_home(bbs_ticket, env, cwd=resolve_cwd)
+        ticket_home = resolve_ticket_home(bbs, env, cwd=resolve_cwd)
         result["ticket_home"] = str(ticket_home)
 
         # Per-case stub for the external `bbs` CLI. Workflows probe this;
@@ -456,12 +434,12 @@ def run_single_case(
         env["PATH"] = f"{stub_dir}:{env.get('PATH', '')}"
 
         subprocess.run(
-            [bbs_ticket, "init"], env=env, capture_output=True, text=True,
+            [bbs, "ticket", "init"], env=env, capture_output=True, text=True,
             check=False, cwd=resolve_cwd,
         )
 
         if pre_setup:
-            run_pre_setup(pre_setup, env, bbs_ticket, cwd=resolve_cwd)
+            run_pre_setup(pre_setup, env, bbs, cwd=resolve_cwd)
 
         for rel, content in seed_files.items():
             target = ticket_home / rel
@@ -475,11 +453,10 @@ def run_single_case(
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(content)
 
-        # Run autopilot_setup commands (bbs-autopilot, not bbs-ticket)
+        # Run autopilot_setup commands (bbs autopilot, not bbs ticket)
         if autopilot_setup_cmds:
-            bbs_autopilot = find_bbs_autopilot()
             for cmd in autopilot_setup_cmds:
-                full_cmd = [bbs_autopilot] + [c.replace("$TICKET", ticket) for c in cmd]
+                full_cmd = [bbs, "autopilot"] + [c.replace("$TICKET", ticket) for c in cmd]
                 subprocess.run(full_cmd, env=env, capture_output=True, text=True,
                                check=False, cwd=resolve_cwd)
 
@@ -497,11 +474,10 @@ def run_single_case(
             # Skip claude -p; broker-only or wiring validation
             result["skill_exit"] = 0
         elif binary_test_cmd:
-            # Binary test: run bbs-autopilot directly, no Claude.
+            # Binary test: run `bbs autopilot` directly, no Claude.
             # Substitute $TICKET in binary_test args.
-            bbs_autopilot = find_bbs_autopilot()
             bin_args = [a.replace("$TICKET", ticket) for a in binary_test_cmd]
-            cmd = [bbs_autopilot, *bin_args]
+            cmd = [bbs, "autopilot", *bin_args]
             proc = subprocess.run(cmd, env=env, cwd=resolve_cwd,
                                   capture_output=True, text=True, timeout=30)
             result["skill_exit"] = proc.returncode
@@ -545,7 +521,7 @@ def run_single_case(
         # Re-resolve ticket_home if the skill may have created the ticket
         if expect_ticket_create and ticket_home:
             try:
-                ticket_home = resolve_ticket_home(bbs_ticket, env, cwd=resolve_cwd)
+                ticket_home = resolve_ticket_home(bbs, env, cwd=resolve_cwd)
                 result["ticket_home"] = str(ticket_home)
                 # Re-check assertions with updated ticket_home
                 passed2, failures2 = assert_ticket_state(

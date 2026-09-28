@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/test_qa_evidence.sh — coverage for `bbs-ticket qa-evidence`.
+# tests/test_qa_evidence.sh — coverage for `bbs ticket qa-evidence`.
 #
 # Classifies the persisted qa verdict body against the coverage rubric it
 # claims: a PASS/FIXED must show freshness=A, no C/D dimension, and evidence
@@ -8,8 +8,8 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
-[ -x "$BBS_TICKET_BIN" ] || { echo "FAIL: bbs-ticket not executable" >&2; exit 1; }
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+[ -x "$BBS_TICKET_BIN" ] || { echo "FAIL: $BBS_TICKET_BIN not executable" >&2; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -34,7 +34,7 @@ run_case() {
       : > "$T/proj/tickets/bs-x/evidence/qa/signup.png"
     fi
     if [ "$#" -gt 0 ]; then printf '%s\n' "$@" > "$T/proj/tickets/bs-x/verdicts/qa.md"; fi
-    "$BBS_TICKET_BIN" qa-evidence 2>/dev/null
+    "$BBS_TICKET_BIN" ticket qa-evidence 2>/dev/null
   )"; rc=$?
   rm -rf "$T"
   if [ "$rc" = 0 ] && [ "$out" = "$want" ]; then ok "$name"; else fail "$name" "want='$want' got='$out' rc=$rc"; fi

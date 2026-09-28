@@ -54,7 +54,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -127,7 +127,7 @@ mkctl() { # $1 home, $2 id, $3 control state, [$4 status]
 dag_run() { # $1 fixture root, rest = dag args
   local root="$1"; shift
   ( cd "$root" && HOME="$root/home" BABYSIT_PROJECT_HOME="$root/home/projects/demo" \
-      "$BBS_TICKET_BIN" dag "$@" 2>&1 )
+      "$BBS_TICKET_BIN" ticket dag "$@" 2>&1 )
 }
 
 # ticket_cli runs the public `bbs ticket` form in an isolated project home.
@@ -276,7 +276,7 @@ fi
   # A project with nothing decomposed succeeds and says why it printed nothing.
   mkdir -p "$T/empty/projects/demo/tickets/bs-solo"
   printf '{"id":"bs-solo","status":"triage","children":[]}\n' > "$T/empty/projects/demo/tickets/bs-solo/index.json"
-  OUT="$(cd "$T/empty" && HOME="$T/empty/home" BABYSIT_PROJECT_HOME="$T/empty/projects/demo" "$BBS_TICKET_BIN" dag 2>&1)"; RC=$?
+  OUT="$(cd "$T/empty" && HOME="$T/empty/home" BABYSIT_PROJECT_HOME="$T/empty/projects/demo" "$BBS_TICKET_BIN" ticket dag 2>&1)"; RC=$?
   [ "$RC" -eq 0 ] || { echo "empty project exited $RC"; exit 1; }
   echo "$OUT" | grep -q "no decomposed tickets" || { echo "no empty-project message: $OUT"; exit 1; }
 ) && ok "dag-bare-and-leaves" || fail "dag-bare-and-leaves"
@@ -484,10 +484,13 @@ fi
 # ─── dag-usage-spelling ──────────────────────────────────────────────────────
 (
   T="$(mktemp -d)"; build_dag_fixture "$T/home"
-  # help echoes the spelling the caller used: the compat symlink keeps the
-  # hyphen form, plain `bbs` gets the space form.
-  dag_run "$T" --help | grep -q "^usage: bbs-ticket dag" \
-    || { echo "symlink help did not keep the hyphen form: $(dag_run "$T" --help | head -1)"; exit 1; }
+  # help echoes the spelling the caller used: a `bbs-ticket` argv0 compat
+  # symlink (minted here — the tracked ones were removed) keeps the hyphen
+  # form, plain `bbs` gets the space form.
+  ln -s "$BBS_TICKET_BIN" "$T/bbs-ticket"
+  ( cd "$T" && HOME="$T/home" BABYSIT_PROJECT_HOME="$T/home/projects/demo" \
+      "$T/bbs-ticket" dag --help 2>&1 ) | grep -q "^usage: bbs-ticket dag" \
+    || { echo "symlink help did not keep the hyphen form"; exit 1; }
   ( cd "$T" && HOME="$T/home" BABYSIT_PROJECT_HOME="$T/home/projects/demo" \
       "$SCRIPT_DIR/bin/bbs" ticket dag --help 2>&1 ) | grep -q "^usage: bbs ticket dag" \
     || { echo "space-form help not retargeted"; exit 1; }

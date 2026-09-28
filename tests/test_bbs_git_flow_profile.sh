@@ -24,7 +24,7 @@
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BBS_BIN="$SCRIPT_DIR/bin/bbs"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -202,7 +202,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   set_git_flow "profile: pet"
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint pet-a --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint pet-a --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^WORKTREE=' \
     && { echo "pet cut a worktree; out: $out"; exit 1; }
@@ -223,7 +223,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   set_git_flow "profile: enterprise"
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint ent-a --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint ent-a --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^WORKTREE=' \
     && { echo "enterprise cut a worktree unasked; out: $out"; exit 1; }
@@ -244,7 +244,7 @@ T="$(mktemp -d)"
   build_repo "$T"
   cd "$T/repo"
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint wt-a --type feat --mode worktree 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint wt-a --type feat --mode worktree 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^WORKTREE=' \
     || { echo "--mode=worktree did not divert; out: $out"; exit 1; }
@@ -269,7 +269,7 @@ T="$(mktemp -d)"
   set_git_flow "$(printf 'profile: startup\nmode: branch\nland: pr')"
   echo "uncommitted" > dirty.txt
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint dirty-a --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint dirty-a --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^WORKTREE=' \
     || { echo "expected a worktree divert on a dirty tree; out: $out"; exit 1; }

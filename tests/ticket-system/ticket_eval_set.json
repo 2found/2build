@@ -22,7 +22,7 @@
     ],
     "assert_path_contents": {
       "index.json": "\"id\":",
-      "history.jsonl": "\"event\": \"ticket_initialized\""
+      "history.jsonl": "\"event\":\"ticket_initialized\""
     }
   },
   {
@@ -84,7 +84,7 @@
         "--skill",
         "plan-draft",
         "--body",
-        "VERDICT: PLANNED(M)\nSUMMARY: OK"
+        "STATUS: DONE\nVERDICT: PLANNED(M)\nSUMMARY: OK"
       ]
     ],
     "seed_files": {
@@ -386,7 +386,7 @@
         "--skill",
         "implement",
         "--body",
-        "BUILT(S): 1 commit, tests green"
+        "STATUS: DONE\nVERDICT: BUILT(S)\nSUMMARY: 1 commit, tests green"
       ]
     ],
     "seed_files": {
@@ -398,7 +398,7 @@
       "verdicts/implement.md"
     ],
     "assert_path_contents": {
-      "history.jsonl": "\"event\": \"(handoff|verdict)\""
+      "history.jsonl": "\"event\":\"(handoff|verdict)\""
     }
   },
   {
@@ -435,7 +435,7 @@
       "verdicts/implement.md"
     ],
     "assert_path_contents": {
-      "history.jsonl": "\"actor\": \"(review-pr|qa|work)\""
+      "history.jsonl": "\"actor\":\"(review-pr|qa|work)\""
     }
   }
 ]

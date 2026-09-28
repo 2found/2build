@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# bbs-ticket-test — smoke test for `bbs-ticket path` / `list` subcommands.
+# bbs-ticket-test — smoke test for `bbs ticket path` / `list` subcommands.
 #
 # Tests run against a tracer ticket under the project's real
-# $BABYSIT_PROJECT_HOME (we can't override it: bbs-slug exports it
+# $BABYSIT_PROJECT_HOME (we can't override it: `bbs slug` exports it
 # unconditionally). The tracer is wiped clean before and after.
 #
 # Exit 0 on full pass, 1 on any failure.
@@ -10,15 +10,15 @@
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bbs-ticket"
-[ -x "$BBS_TICKET_BIN" ] || { echo "FATAL: $BBS_TICKET_BIN not executable" >&2; exit 1; }
+BBS_TICKET_BIN=("$SCRIPT_DIR/bbs" ticket)
+[ -x "${BBS_TICKET_BIN[0]}" ] || { echo "FATAL: ${BBS_TICKET_BIN[0]} not executable" >&2; exit 1; }
 
 export BBS_TICKET="bs-tracer-$$"
 # Pin legacy sunset/hard-fail to far-future so test outcomes don't drift after
 # the real _LEGACY_HARDFAIL date (2026-09-29) silently flips the resolver.
 export BBS_LEGACY_SUNSET="2099-01-01"
 export BBS_LEGACY_HARDFAIL="2099-01-01"
-SLUG_OUT="$("$SCRIPT_DIR/bbs-slug" env 2>/dev/null || true)"
+SLUG_OUT="$("$SCRIPT_DIR/bbs" slug env 2>/dev/null || true)"
 eval "$SLUG_OUT"
 PROJECT_HOME="${BABYSIT_PROJECT_HOME:-$HOME/.babysit/projects/${SLUG:-unknown}}"
 TH="$PROJECT_HOME/tickets/$BBS_TICKET"
@@ -96,7 +96,7 @@ expect_stdout_lines() {
   fi
 }
 
-bbs() { "$BBS_TICKET_BIN" "$@"; }
+bbs() { "${BBS_TICKET_BIN[@]}" "$@"; }
 
 # ============================================================================
 # Resolver — read/write semantics
@@ -413,7 +413,7 @@ expect_stdout "S4: read implement verdict back" 0 "$TH/verdicts/implement.md" \
 
 echo "== Lifecycle: scenario 5 — work build workflow =="
 rm -rf "$TH" && mkdir -p "$TH"
-expect_stdout "S5: bbs-ticket init creates index.json" 0 "$TH/index.json" \
+expect_stdout "S5: ticket init creates index.json" 0 "$TH/index.json" \
   bbs init
 expect_exit "S5: set-pointer base_branch" 0 \
   bbs set-pointer base_branch main

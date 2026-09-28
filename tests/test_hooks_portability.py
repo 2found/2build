@@ -4,7 +4,7 @@ The hooks are compiled into the bbs binary (`bbs hooks <name>`), so the
 manifest commands carry no shell syntax at all — the portability claim this
 suite guards. Decisions are driven by real ticket state (verdict files under
 BABYSIT_PROJECT_HOME), not stubs: the gate resolves identity in-process now,
-so a fake bbs-ticket shim could never intercept it.
+so a fake bbs shim could never intercept it.
 """
 import json
 import os

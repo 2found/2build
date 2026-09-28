@@ -10,7 +10,7 @@
 # are out of scope here.
 #
 # Method: replay one identical command sequence against the Go binary
-# (bin/bbs-ticket) and the frozen bash reference (tests/fixtures/
+# (`bbs ticket`) and the frozen bash reference (tests/fixtures/
 # bbs-ticket.reference), each pinned to its own BABYSIT_PROJECT_HOME, under an
 # identical sandbox. Assert per-command stdout/stderr/exit match, then assert
 # the resulting index.json + history.jsonl are JSON-equivalent (jq -S, with
@@ -18,7 +18,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-GO_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+GO_BIN="$SCRIPT_DIR/bin/bbs"
 REF="$SCRIPT_DIR/tests/fixtures/bbs-ticket.reference"
 
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not installed"; exit 0; }
@@ -33,12 +33,16 @@ ROOT="$(mktemp -d)"
 trap 'rm -rf "$ROOT"' EXIT
 
 # Sandbox: pinned HOME + PATH so both impls resolve the same bbs-slug and never
-# touch the real ~/.babysit. bbs-slug (Go) sits in bin/ next to bbs; put bin/ on
-# PATH so the bash reference's `command -v bbs-slug` finds it too.
+# touch the real ~/.babysit. The tracked bin/bbs-* argv0 links are gone, so the
+# sandbox mints its own for the oracle's `command -v` probes (bbs-slug,
+# bbs-autopilot); bin/ stays on PATH for the repo's own `bbs` too.
 export HOME="$ROOT/home"
 export BABYSIT_HOME="$ROOT/home/.babysit"
 export BABYSIT_TICKET="bs-state01"
-export PATH="$SCRIPT_DIR/bin:$PATH"
+mkdir -p "$ROOT/bin"
+ln -sf "$GO_BIN" "$ROOT/bin/bbs-slug"
+ln -sf "$GO_BIN" "$ROOT/bin/bbs-autopilot"
+export PATH="$ROOT/bin:$SCRIPT_DIR/bin:$PATH"
 export BBS_LIB="$SCRIPT_DIR/bin/lib"
 unset BBS_TICKET AGENT_ROLE GT_ROLE 2>/dev/null || true
 mkdir -p "$HOME"
@@ -69,7 +73,7 @@ run_impl() {
 }
 
 # Wrapper scripts so run_impl can invoke either impl uniformly.
-printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$GO_BIN" > "$ROOT/go-cmd"
+printf '#!/usr/bin/env bash\nexec "%s" ticket "$@"\n' "$GO_BIN" > "$ROOT/go-cmd"
 printf '#!/usr/bin/env bash\nexec bash "%s" "$@"\n' "$REF" > "$ROOT/bash-cmd"
 chmod +x "$ROOT/go-cmd" "$ROOT/bash-cmd"
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/test_bbs_ticket_surface_switch.sh — coverage for bin/bbs-ticket § surface compose.
+# tests/test_bbs_ticket_surface_switch.sh — coverage for bin/bbs ticket § surface compose.
 #
 # surface compose <ticket>... = revert + merge each named ticket's branch into
 # the primary checkout: the fast QA hop that points the shared test surface at
@@ -23,7 +23,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -49,10 +49,10 @@ build_two_tickets() {
   )
   cd "$t/repo"
   local out
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint tick-a --type feat 2>/dev/null)" || return 1
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint tick-a --type feat 2>/dev/null)" || return 1
   TK_A="$(printf '%s\n' "$out" | sed -n 's|^TICKET=||p')"
   WT_A="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint tick-b --type feat 2>/dev/null)" || return 1
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint tick-b --type feat 2>/dev/null)" || return 1
   TK_B="$(printf '%s\n' "$out" | sed -n 's|^TICKET=||p')"
   WT_B="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
   [ -n "$WT_A" ] && [ -n "$WT_B" ] || return 1
@@ -70,7 +70,7 @@ T="$(mktemp -d)"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
 
-  out="$("$BBS_TICKET_BIN" surface compose "$TK_A" 2>"$T/err")"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket surface compose "$TK_A" 2>"$T/err")"; rc=$?
   [ "$rc" -eq 0 ] || { echo "compose failed rc=$rc: $(cat "$T/err")"; exit 1; }
   [ -f a.txt ] || { echo "a.txt missing on primary after compose A"; exit 1; }
   [ ! -f b.txt ] || { echo "b.txt unexpectedly on primary"; exit 1; }
@@ -89,8 +89,8 @@ T="$(mktemp -d)"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
 
-  "$BBS_TICKET_BIN" surface compose "$TK_A" >/dev/null 2>&1 || { echo "compose A failed"; exit 1; }
-  "$BBS_TICKET_BIN" surface compose "$TK_B" >/dev/null 2>"$T/err" || {
+  "$BBS_TICKET_BIN" ticket surface compose "$TK_A" >/dev/null 2>&1 || { echo "compose A failed"; exit 1; }
+  "$BBS_TICKET_BIN" ticket surface compose "$TK_B" >/dev/null 2>"$T/err" || {
     echo "compose B failed: $(cat "$T/err")"; exit 1; }
   [ -f b.txt ] || { echo "b.txt missing after compose B"; exit 1; }
   [ ! -f a.txt ] || { echo "a.txt still on primary after composing B"; exit 1; }
@@ -109,7 +109,7 @@ T="$(mktemp -d)"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
 
-  out="$("$BBS_TICKET_BIN" surface compose "$TK_A" "$TK_B" 2>"$T/err")"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket surface compose "$TK_A" "$TK_B" 2>"$T/err")"; rc=$?
   [ "$rc" -eq 0 ] || { echo "compose A B failed rc=$rc: $(cat "$T/err")"; exit 1; }
   [ -f a.txt ] && [ -f b.txt ] || { echo "expected both a.txt and b.txt"; exit 1; }
   printf '%s\n' "$out" | grep -q "^SERVING=$TK_A,$TK_B$" \
@@ -124,10 +124,10 @@ T="$(mktemp -d)"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
-  "$BBS_TICKET_BIN" surface compose "$TK_A" >/dev/null 2>&1 || { echo "compose A failed"; exit 1; }
+  "$BBS_TICKET_BIN" ticket surface compose "$TK_A" >/dev/null 2>&1 || { echo "compose A failed"; exit 1; }
   pre="$(git rev-parse HEAD)"
 
-  "$BBS_TICKET_BIN" surface compose bs-nope0000 >/dev/null 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket surface compose bs-nope0000 >/dev/null 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2 on unknown ticket, got $rc"; exit 1; }
   grep -q "no local branch matches" "$T/err" \
     || { echo "expected unknown-ticket reason: $(cat "$T/err")"; exit 1; }
@@ -147,7 +147,7 @@ T="$(mktemp -d)"
   echo "uncommitted surface work" > dirty.txt
   pre="$(git rev-parse HEAD)"
 
-  "$BBS_TICKET_BIN" surface compose "$TK_A" >/dev/null 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket surface compose "$TK_A" >/dev/null 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2 on dirty surface, got $rc"; exit 1; }
   grep -q "uncommitted changes" "$T/err" \
     || { echo "expected dirty-tree reason: $(cat "$T/err")"; exit 1; }
@@ -166,7 +166,7 @@ T="$(mktemp -d)"
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
   git checkout -q -b feat/manual-work
 
-  "$BBS_TICKET_BIN" surface compose "$TK_A" >/dev/null 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket surface compose "$TK_A" >/dev/null 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2 off base, got $rc"; exit 1; }
   grep -q "not base" "$T/err" || { echo "expected off-base reason: $(cat "$T/err")"; exit 1; }
   [ "$(git branch --show-current)" = "feat/manual-work" ] \
@@ -187,7 +187,7 @@ T="$(mktemp -d)"
   ( cd "$WT_B" && echo "B version" > clash.txt && git add clash.txt \
       && git -c user.email=t@t -c user.name=t commit -q -m "b clash" )
 
-  "$BBS_TICKET_BIN" surface compose "$TK_A" "$TK_B" >/dev/null 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket surface compose "$TK_A" "$TK_B" >/dev/null 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2 on conflict, got $rc"; exit 1; }
   grep -q "merge conflict" "$T/err" || { echo "expected conflict reason: $(cat "$T/err")"; exit 1; }
   # No half-merged state left behind: tree clean, A landed, B's merge aborted.
@@ -214,13 +214,13 @@ T="$(mktemp -d)"
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
   GD="$(git rev-parse --absolute-git-dir)"
 
-  "$BBS_TICKET_BIN" surface compose "$TK_A" >/dev/null 2>&1 || { echo "compose A failed"; exit 1; }
+  "$BBS_TICKET_BIN" ticket surface compose "$TK_A" >/dev/null 2>&1 || { echo "compose A failed"; exit 1; }
   [ "$(cat "$GD/bbs-serving")" = "$TK_A" ] || { echo "expected serving=$TK_A: $(cat "$GD/bbs-serving")"; exit 1; }
-  "$BBS_TICKET_BIN" surface compose "$TK_B" >/dev/null 2>&1 || { echo "compose B failed"; exit 1; }
+  "$BBS_TICKET_BIN" ticket surface compose "$TK_B" >/dev/null 2>&1 || { echo "compose B failed"; exit 1; }
   [ "$(cat "$GD/bbs-serving")" = "$TK_B" ] || { echo "set semantics: A should be replaced"; exit 1; }
-  "$BBS_TICKET_BIN" surface compose "$TK_A" "$TK_B" >/dev/null 2>&1 || { echo "compose A B failed"; exit 1; }
+  "$BBS_TICKET_BIN" ticket surface compose "$TK_A" "$TK_B" >/dev/null 2>&1 || { echo "compose A B failed"; exit 1; }
   [ "$(cat "$GD/bbs-serving")" = "$TK_A,$TK_B" ] || { echo "expected $TK_A,$TK_B: $(cat "$GD/bbs-serving")"; exit 1; }
-  "$BBS_TICKET_BIN" surface revert >/dev/null 2>&1 || { echo "revert failed"; exit 1; }
+  "$BBS_TICKET_BIN" ticket surface revert >/dev/null 2>&1 || { echo "revert failed"; exit 1; }
   [ -z "$(cat "$GD/bbs-serving")" ] || { echo "revert should clear serving"; exit 1; }
 ) && ok "compose-persists-serving" || fail "compose-persists-serving"
 rm -rf "$T"
@@ -244,7 +244,7 @@ T="$(mktemp -d)"
   git config --local --unset user.name  2>/dev/null || true
   unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
 
-  out="$("$BBS_TICKET_BIN" surface compose "$TK_A" "$TK_B" 2>&1)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket surface compose "$TK_A" "$TK_B" 2>&1)"; rc=$?
   [ "$rc" -ne 0 ] || { echo "expected a non-zero exit; out: $out"; exit 1; }
   printf '%s\n' "$out" | grep -q "no files conflicted" \
     || { echo "blamed a conflict for a merge that never conflicted; out: $out"; exit 1; }

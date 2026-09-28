@@ -8,10 +8,9 @@
 set -uo pipefail
 
 # Resolve the linter into an argv array — the multicall fallback is two words,
-# so a bare string won't do. The hyphenated alias comes first for a checkout
-# that has it, then the `bbs` multicall: a brew + marketplace-plugin install
-# ships `bbs` and no bbs-autopilot at all, and this hook used to fall back to
-# the bare name and fail every commit that touched a workflow.
+# so a bare string won't do. Legacy bbs-<sub> argv0 aliases come first for
+# installs that still have them (old setup-skills linked them into ~/.claude/);
+# current installs only ship `bbs`, resolved as the space form.
 _bbs_resolve() { # $1=bbs-<sub>
   local name="$1" sub="${1#bbs-}" c
   BBS_ARGV=()

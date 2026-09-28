@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tests/test_bbs_ticket_git_flow_mode.sh — coverage for the git-flow mode
-# (trunk|branch|worktree) in bin/bbs-ticket § ensure, and for surface revert.
+# (trunk|branch|worktree) in `bbs ticket` § ensure, and for surface revert.
 #
 # The mode decides where a new ticket's branch lives:
 #   trunk     no cut; identity rides BABYSIT_TICKET
@@ -26,7 +26,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -65,7 +65,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   set_git_flow "mode: worktree"
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint feat-a --type feat 2>"$T/err")"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint feat-a --type feat 2>"$T/err")"; rc=$?
   [ "$rc" -eq 0 ] || { echo "expected rc=0, got $rc: $(cat "$T/err")"; exit 1; }
   wt="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
   [ -n "$wt" ] || { echo "expected WORKTREE= on clean base under mode: worktree; out: $out"; exit 1; }
@@ -92,7 +92,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   set_git_flow "mode: trunk"
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint feat-b --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint feat-b --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^WORKTREE=' \
     && { echo "unexpected WORKTREE= under mode: trunk; out: $out"; exit 1; }
@@ -115,7 +115,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   set_git_flow "mode: trunk   # trunk | branch | worktree — see references/git-flow.md"
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint feat-ic --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint feat-ic --type feat 2>"$T/err")" || {
     echo "ensure failed (inline comment not stripped?): $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^WORKTREE=' \
     && { echo "unexpected WORKTREE= — mode: trunk not honored with inline comment; out: $out"; exit 1; }
@@ -134,7 +134,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   set_git_flow "mode: trunk"
 
-  out="$("$BBS_TICKET_BIN" ensure --mode worktree --slug-hint feat-c --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --mode worktree --slug-hint feat-c --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^WORKTREE=' \
     || { echo "expected --mode worktree to override mode: trunk; out: $out"; exit 1; }
@@ -156,14 +156,14 @@ T="$(mktemp -d)"
   cd "$T/repo"
   set_git_flow "mode: trunk"
 
-  out="$("$BBS_TICKET_BIN" ensure --mode=worktree --slug-hint feat-e --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --mode=worktree --slug-hint feat-e --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^WORKTREE=' \
     || { echo "expected --mode=worktree to divert; out: $out"; exit 1; }
   [ "$(git branch --show-current)" = "main" ] \
     || { echo "primary checkout moved off main"; exit 1; }
 
-  if "$BBS_TICKET_BIN" ensure --mode=bogus --slug-hint x 2>"$T/err2"; then
+  if "$BBS_TICKET_BIN" ticket ensure --mode=bogus --slug-hint x 2>"$T/err2"; then
     echo "expected --mode=bogus to exit nonzero"; exit 1
   fi
   grep -q "invalid --mode 'bogus'" "$T/err2" \
@@ -181,7 +181,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   set_git_flow "ticket_branch: optional"
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint feat-d --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint feat-d --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   printf '%s\n' "$out" | grep -q '^export BABYSIT_TICKET=' \
     || { echo "expected legacy ticket_branch: optional to behave as trunk; out: $out"; exit 1; }
@@ -200,7 +200,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   set_git_flow "mode: bogus"
 
-  "$BBS_TICKET_BIN" ensure --slug-hint feat-e --type feat >/dev/null 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket ensure --slug-hint feat-e --type feat >/dev/null 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2 on mode: bogus, got $rc"; exit 1; }
   grep -q "invalid mode" "$T/err" || { echo "expected invalid-mode message: $(cat "$T/err")"; exit 1; }
 ) && ok "invalid-config-mode" || fail "invalid-config-mode"
@@ -216,7 +216,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   set_git_flow "mode: worktree"
 
-  out="$("$BBS_TICKET_BIN" ensure --slug-hint feat-f --type feat 2>"$T/err")" || {
+  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint feat-f --type feat 2>"$T/err")" || {
     echo "ensure failed: $(cat "$T/err")"; exit 1; }
   wt="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
   [ -n "$wt" ] || { echo "expected WORKTREE=; out: $out"; exit 1; }
@@ -224,12 +224,12 @@ T="$(mktemp -d)"
     cd "$wt"
     echo "ticket work" > f.txt
     git add f.txt && git -c user.email=t@t -c user.name=t commit -q -m "ticket work"
-    "$BBS_TICKET_BIN" surface compose >/dev/null 2>"$T/mb-err" \
+    "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>"$T/mb-err" \
       || { echo "compose failed: $(cat "$T/mb-err")"; exit 1; }
   ) || exit 1
   [ -f f.txt ] || { echo "compose did not land f.txt on the primary"; exit 1; }
 
-  rb="$("$BBS_TICKET_BIN" surface revert 2>"$T/rb-err")"; rc=$?
+  rb="$("$BBS_TICKET_BIN" ticket surface revert 2>"$T/rb-err")"; rc=$?
   [ "$rc" -eq 0 ] || { echo "revert failed rc=$rc: $(cat "$T/rb-err")"; exit 1; }
   printf '%s\n' "$rb" | grep -q '^RESET=1$' \
     || { echo "expected RESET=1; out: $rb"; exit 1; }
@@ -251,7 +251,7 @@ T="$(mktemp -d)"
   echo "direct work" > direct.txt
   git add direct.txt && git -c user.email=t@t -c user.name=t commit -q -m "committed directly on main"
 
-  "$BBS_TICKET_BIN" surface revert >/dev/null 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket surface revert >/dev/null 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2, got $rc"; exit 1; }
   grep -q "BLOCKED" "$T/err" || { echo "expected BLOCKED: $(cat "$T/err")"; exit 1; }
   git rev-parse --verify -q HEAD >/dev/null || { echo "history damaged"; exit 1; }
@@ -268,7 +268,7 @@ T="$(mktemp -d)"
   cd "$T/repo"
   echo "uncommitted" > dirty.txt
 
-  "$BBS_TICKET_BIN" surface revert >/dev/null 2>"$T/err"; rc=$?
+  "$BBS_TICKET_BIN" ticket surface revert >/dev/null 2>"$T/err"; rc=$?
   [ "$rc" -eq 2 ] || { echo "expected rc=2 on dirty primary, got $rc"; exit 1; }
   grep -q "uncommitted changes" "$T/err" || { echo "expected dirty-tree reason: $(cat "$T/err")"; exit 1; }
   [ -f dirty.txt ] || { echo "dirty.txt lost despite BLOCK"; exit 1; }

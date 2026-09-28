@@ -7,16 +7,17 @@
 # get-manifest, set-branch. `ensure` and the base-ops stay bash-delegated and are
 # out of scope here.
 #
-# Method: run each command against the Go binary (bin/bbs-ticket) and the frozen
+# Method: run each command against the Go binary (bin/bbs, driven through a
+# temp bbs-ticket argv0 link so output keeps the hyphen spelling) and the frozen
 # bash reference (tests/fixtures/bbs-ticket.reference), each inside its own clone
-# of one source repo (so bbs-slug derives an identical SLUG/BRANCH) and pinned to
+# of one source repo (so bbs slug derives an identical SLUG/BRANCH) and pinned to
 # its own BABYSIT_PROJECT_HOME. Assert per-command stdout/stderr/exit match, then
 # assert the resulting index.json (jq -S), manifest.yaml (timestamps masked), and
 # history.jsonl (jq -Sc) are equivalent.
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-GO_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+GO_BIN="$SCRIPT_DIR/bin/bbs"
 REF="$SCRIPT_DIR/tests/fixtures/bbs-ticket.reference"
 
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not installed"; exit 0; }
@@ -52,7 +53,16 @@ trap 'rm -rf "$ROOT"' EXIT
 
 export HOME="$ROOT/home"
 export BABYSIT_HOME="$ROOT/home/.babysit"
-export PATH="$SCRIPT_DIR/bin:$PATH"
+# The Go side must see argv0 `bbs-ticket` so its output stays byte-identical to
+# the oracle (retarget() only rewrites `bbs-*` spellings under a plain `bbs`
+# argv0), and the oracle resolves its own `bbs-slug`/`bbs-autopilot` siblings
+# through PATH. The tracked compat symlinks were removed, so mint them in the
+# sandbox.
+mkdir -p "$ROOT/bin"
+for link in bbs-ticket bbs-slug bbs-autopilot; do
+  ln -s "$GO_BIN" "$ROOT/bin/$link"
+done
+export PATH="$ROOT/bin:$SCRIPT_DIR/bin:$PATH"
 export BBS_LIB="$SCRIPT_DIR/bin/lib"
 unset BBS_TICKET BABYSIT_TICKET AGENT_ROLE GT_ROLE 2>/dev/null || true
 mkdir -p "$HOME"
@@ -81,7 +91,7 @@ git clone -q "$GITSRC" "$ROOT/go-repo" 2>/dev/null
 ( cd "$ROOT/bash-repo" && git checkout -q feat/bs-mfst1_demo )
 ( cd "$ROOT/go-repo"   && git checkout -q feat/bs-mfst1_demo )
 
-printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$GO_BIN" > "$ROOT/go-cmd"
+printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$ROOT/bin/bbs-ticket" > "$ROOT/go-cmd"
 printf '#!/usr/bin/env bash\nexec bash "%s" "$@"\n' "$REF" > "$ROOT/bash-cmd"
 chmod +x "$ROOT/go-cmd" "$ROOT/bash-cmd"
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/test_autopilot_checkpoint_refresh.sh — `bbs-autopilot checkpoint --refresh`.
+# tests/test_autopilot_checkpoint_refresh.sh — `bbs autopilot checkpoint --refresh`.
 #
 # The former clean-handoff audit exposed checkpoints older than the last
 # commit — because commits
@@ -13,7 +13,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_AUTOPILOT="$SCRIPT_DIR/bin/bbs-autopilot"
+BBS_AUTOPILOT="$SCRIPT_DIR/bin/bbs"
 [ -x "$BBS_AUTOPILOT" ] || { echo "FAIL: $BBS_AUTOPILOT not executable" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not installed"; exit 0; }
 
@@ -26,7 +26,7 @@ fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m
 mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null; }
 
 # ── refresh re-stamps mtime + head_sha, preserves the step ──────────
-# bbs-slug (which bbs-autopilot evals for its project home) keys off $HOME, so
+# bbs slug (which `bbs autopilot` evals for its project home) keys off $HOME, so
 # overriding HOME is what makes the state dir hermetic. Commits use `git -c`
 # so the missing HOME gitconfig doesn't matter.
 T="$(mktemp -d)"
@@ -38,7 +38,7 @@ T="$(mktemp -d)"
 
   CP="$T/.babysit/projects/repo/tickets/tkt/checkpoint.json"
 
-  "$BBS_AUTOPILOT" checkpoint --ticket tkt --workflow builder --step implement --status in_progress --note n1 >/dev/null
+  "$BBS_AUTOPILOT" autopilot checkpoint --ticket tkt --workflow builder --step implement --status in_progress --note n1 >/dev/null
   [ -f "$CP" ] || { echo "checkpoint not written"; exit 1; }
   [ "$(jq -r .head_sha "$CP")" = "$SHA1" ] || { echo "initial head_sha != c1"; exit 1; }
   [ "$(jq -r .iteration_count "$CP")" = "1" ] || { echo "initial iteration != 1"; exit 1; }
@@ -49,7 +49,7 @@ T="$(mktemp -d)"
   SHA2="$(git rev-parse HEAD)"
   sleep 1   # guarantee a wall-clock tick so the mtime advance is observable
 
-  "$BBS_AUTOPILOT" checkpoint --refresh --ticket tkt >/dev/null
+  "$BBS_AUTOPILOT" autopilot checkpoint --refresh --ticket tkt >/dev/null
   M1="$(mtime "$CP")"
 
   [ "$M1" -gt "$M0" ]                              || { echo "mtime did not advance ($M0 -> $M1)"; exit 1; }
@@ -68,7 +68,7 @@ T="$(mktemp -d)"
   export HOME="$T"
   git init -q "$T/repo"; cd "$T/repo"
   git -c user.email=t@t -c user.name=t commit --allow-empty -q -m c1
-  "$BBS_AUTOPILOT" checkpoint --refresh --ticket ghost 2>/dev/null && { echo "refresh succeeded with no checkpoint"; exit 1; }
+  "$BBS_AUTOPILOT" autopilot checkpoint --refresh --ticket ghost 2>/dev/null && { echo "refresh succeeded with no checkpoint"; exit 1; }
   exit 0
 ) && ok "refresh-no-checkpoint-errors" || fail "refresh-no-checkpoint-errors"
 rm -rf "$T"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/test_bbs_dashboard.sh -- coverage for bin/bbs-dashboard snapshot writer.
+# tests/test_bbs_dashboard.sh -- coverage for `bbs dashboard` snapshot writer.
 #
 # Codepaths covered (per plan acceptance criteria #5 + Test plan section):
 #   --help exits 0
@@ -20,7 +20,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_DASHBOARD="$SCRIPT_DIR/bin/bbs-dashboard"
+BBS_DASHBOARD="$SCRIPT_DIR/bin/bbs"
 [ -x "$BBS_DASHBOARD" ] || { echo "FAIL: $BBS_DASHBOARD not executable" >&2; exit 1; }
 
 PASS=0
@@ -52,14 +52,14 @@ EOF
 
 mk_repo_root() {
   local t="$1"
-  # Provide a minimal "repo root" that bbs-dashboard can use for VERSION + WEB_DIR.
+  # Provide a minimal "repo root" that bbs dashboard can use for VERSION + WEB_DIR.
   mkdir -p "$t/repo/web/dist"
   echo "9.9.9" > "$t/repo/VERSION"
 }
 
 # ---- --help ------------------------------------------------------
 case_header "--help"
-out=$("$BBS_DASHBOARD" --help 2>&1) && rc=0 || rc=$?
+out=$("$BBS_DASHBOARD" dashboard --help 2>&1) && rc=0 || rc=$?
 if [ "$rc" = "0" ] && printf '%s' "$out" | grep -q "Usage:"; then
   ok "--help exits 0 with Usage"
 else
@@ -83,7 +83,7 @@ fi
 case_header "--no-open happy path"
 T=$(mktemp -d); mk_state "$T"; mk_repo_root "$T"
 if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-   "$BBS_DASHBOARD" --no-open > "$T/out1.txt" 2> "$T/err1.txt"; then
+   "$BBS_DASHBOARD" dashboard --no-open > "$T/out1.txt" 2> "$T/err1.txt"; then
   if [ -f "$T/repo/web/dist/data.js" ] \
      && grep -q '^window\.__BBS_DATA__ = ' "$T/repo/web/dist/data.js"; then
     ok "data.js written with window.__BBS_DATA__ assignment"
@@ -123,7 +123,7 @@ if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
     fail "ticketDetail has verdict_statuses.qa=DONE"
   fi
   # stdout message check
-  if grep -q "bbs-dashboard: wrote.*data.js" "$T/out1.txt"; then
+  if grep -q "bbs dashboard: wrote.*data.js" "$T/out1.txt"; then
     ok "stdout message: wrote <path>"
   else
     fail "stdout message: wrote <path>" "out=$(cat "$T/out1.txt")"
@@ -136,7 +136,7 @@ fi
 case_header "--slug <unknown>"
 T=$(mktemp -d); mk_repo_root "$T"
 if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-   "$BBS_DASHBOARD" --no-open --slug nonexistent > "$T/out.txt" 2> "$T/err.txt"; then
+   "$BBS_DASHBOARD" dashboard --no-open --slug nonexistent > "$T/out.txt" 2> "$T/err.txt"; then
   fail "unknown slug should exit non-zero"
 else
   rc=$?
@@ -152,11 +152,11 @@ case_header "idempotent re-run"
 T=$(mktemp -d); mk_state "$T"; mk_repo_root "$T"
 # Strip generated_at (v2) to allow timestamp to differ between runs
 BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-  "$BBS_DASHBOARD" --no-open > /dev/null 2>&1
+  "$BBS_DASHBOARD" dashboard --no-open > /dev/null 2>&1
 A=$(sed 's/"generated_at":"[^"]*"/"generated_at":""/' "$T/repo/web/dist/data.js")
 sleep 1
 BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-  "$BBS_DASHBOARD" --no-open > /dev/null 2>&1
+  "$BBS_DASHBOARD" dashboard --no-open > /dev/null 2>&1
 B=$(sed 's/"generated_at":"[^"]*"/"generated_at":""/' "$T/repo/web/dist/data.js")
 if [ "$A" = "$B" ]; then
   ok "re-run is byte-identical (modulo generated_at)"
@@ -171,7 +171,7 @@ mkdir -p "$T/repo"; echo 9.9.9 > "$T/repo/VERSION"
 # Default invocation: --no-open omitted; should snapshot then fail at open
 # stage with exit 1 because dist/index.html is missing.
 if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-   "$BBS_DASHBOARD" > "$T/out.txt" 2> "$T/err.txt"; then
+   "$BBS_DASHBOARD" dashboard > "$T/out.txt" 2> "$T/err.txt"; then
   fail "missing dist should exit 1"
 else
   rc=$?
@@ -188,7 +188,7 @@ T=$(mktemp -d); mk_state "$T"; mk_repo_root "$T"
 mkdir -p "$T/state/projects/sample/tickets/bs-bad000"
 echo "not json" > "$T/state/projects/sample/tickets/bs-bad000/index.json"
 if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-   "$BBS_DASHBOARD" --no-open > "$T/out.txt" 2> "$T/err.txt"; then
+   "$BBS_DASHBOARD" dashboard --no-open > "$T/out.txt" 2> "$T/err.txt"; then
   if grep -q "skipping bs-bad000 -- corrupt index" "$T/err.txt" \
      && grep -q '"id":"bs-tt0001"' "$T/repo/web/dist/data.js"; then
     ok "corrupt ticket skipped, others snapshotted, exit 0"
@@ -204,7 +204,7 @@ case_header "empty timeline.jsonl"
 T=$(mktemp -d); mk_state "$T"; mk_repo_root "$T"
 : > "$T/state/projects/sample/tickets/bs-tt0001/history.jsonl"
 if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-   "$BBS_DASHBOARD" --no-open > "$T/out.txt" 2> "$T/err.txt"; then
+   "$BBS_DASHBOARD" dashboard --no-open > "$T/out.txt" 2> "$T/err.txt"; then
   # v2: timeline is nested under projects.sample.timeline
   if node -e "global.window={}; $(cat "$T/repo/web/dist/data.js"); \
     var d=window.__BBS_DATA__; \
@@ -222,7 +222,7 @@ case_header "no analytics file"
 T=$(mktemp -d); mk_state "$T"; mk_repo_root "$T"
 rm -f "$T/state/analytics/skill-usage.jsonl"
 if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-   "$BBS_DASHBOARD" --no-open > "$T/out.txt" 2> "$T/err.txt"; then
+   "$BBS_DASHBOARD" dashboard --no-open > "$T/out.txt" 2> "$T/err.txt"; then
   # v2: skillEvents at top-level should be empty; per-project analytics.rows also empty
   if node -e "global.window={}; $(cat "$T/repo/web/dist/data.js"); \
     var d=window.__BBS_DATA__; \
@@ -240,7 +240,7 @@ case_header "no active sessions"
 T=$(mktemp -d); mk_state "$T"; mk_repo_root "$T"
 rm -rf "$T/state/sessions"
 if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-   "$BBS_DASHBOARD" --no-open > "$T/out.txt" 2> "$T/err.txt"; then
+   "$BBS_DASHBOARD" dashboard --no-open > "$T/out.txt" 2> "$T/err.txt"; then
   # v2: sessions is {count:0, slugs:[]}
   if node -e "global.window={}; $(cat "$T/repo/web/dist/data.js"); \
     var d=window.__BBS_DATA__; \
@@ -260,7 +260,7 @@ T=$(mktemp -d); mk_state "$T"; mk_repo_root "$T"
 printf '# Evil </script><script>alert(1)</script> and a U+2028\xe2\x80\xa8 here\n' \
   > "$T/state/projects/sample/tickets/bs-tt0001/requirement.md"
 if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-   "$BBS_DASHBOARD" --no-open > "$T/out.txt" 2> "$T/err.txt"; then
+   "$BBS_DASHBOARD" dashboard --no-open > "$T/out.txt" 2> "$T/err.txt"; then
   # The literal sequence "</script>" must NOT appear in data.js (escaped to <\/script>).
   if grep -q '</script>' "$T/repo/web/dist/data.js"; then
     fail "</script> not escaped in data.js -- script-injection vector open"
@@ -287,7 +287,7 @@ cat > "$T/state/projects/sample-two/tickets/bs-zz0001/index.json" <<'EOF'
 EOF
 echo "# Second project ticket" > "$T/state/projects/sample-two/tickets/bs-zz0001/requirement.md"
 if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-   "$BBS_DASHBOARD" --no-open > "$T/out.txt" 2> "$T/err.txt"; then
+   "$BBS_DASHBOARD" dashboard --no-open > "$T/out.txt" 2> "$T/err.txt"; then
   if node -e "global.window={}; $(cat "$T/repo/web/dist/data.js"); \
     var d=window.__BBS_DATA__; var keys=Object.keys(d.projects).sort(); \
     if(keys.indexOf('sample')===-1||keys.indexOf('sample-two')===-1){process.exit(1);}" 2>/dev/null; then
@@ -309,7 +309,7 @@ cat > "$T/state/projects/bad@slug/tickets/bs-x0001/index.json" <<'EOF'
 {"id":"bs-x0001","status":"planned","phase":"plan","parent":null,"created_at":"2026-04-23T00:00:00Z","updated_at":"2026-04-25T00:00:00Z","pointers":{"branch":"feat/bs-x0001","ticket_size":"S"}}
 EOF
 if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-   "$BBS_DASHBOARD" --no-open > "$T/out.txt" 2> "$T/err.txt"; then
+   "$BBS_DASHBOARD" dashboard --no-open > "$T/out.txt" 2> "$T/err.txt"; then
   # The bad slug must appear in stderr as a skip message
   if grep -q "skipping 'bad@slug' (rejected by path-traversal guard)" "$T/err.txt"; then
     ok "path-traversal slug skipped with stderr message"
@@ -334,7 +334,7 @@ T=$(mktemp -d); mk_repo_root "$T"
 mkdir -p "$T/state/projects"
 mkdir -p "$T/state/analytics"
 if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-   "$BBS_DASHBOARD" --no-open > "$T/out.txt" 2> "$T/err.txt"; then
+   "$BBS_DASHBOARD" dashboard --no-open > "$T/out.txt" 2> "$T/err.txt"; then
   # Should exit 0 with empty projects and stderr message
   if grep -q "no projects found; run autopilot first" "$T/err.txt"; then
     ok "empty projects dir prints stderr message"
@@ -376,7 +376,7 @@ fi
 # Also verify that a v2 snapshot is NOT stale
 T2=$(mktemp -d); mk_state "$T2"; mk_repo_root "$T2"
 BABYSIT_STATE_DIR="$T2/state" BABYSIT_DASHBOARD_REPO="$T2/repo" \
-  "$BBS_DASHBOARD" --no-open > /dev/null 2>&1
+  "$BBS_DASHBOARD" dashboard --no-open > /dev/null 2>&1
 NODE_RESULT2=$(node -e "
   global.window={};
   $(cat "$T2/repo/web/dist/data.js")
@@ -415,7 +415,7 @@ if (!trunc || trunc.kept !== 2000 || trunc.total !== 2005) process.exit(1);
 if (d.decisions.length !== 2000) process.exit(1);
 JS
 if BABYSIT_STATE_DIR="$T/state" BABYSIT_DASHBOARD_REPO="$T/repo" \
-   "$BBS_DASHBOARD" --no-open > "$T/out.txt" 2> "$T/err.txt"; then
+   "$BBS_DASHBOARD" dashboard --no-open > "$T/out.txt" 2> "$T/err.txt"; then
   if node "$T/check.js" "$T/repo/web/dist/data.js" 2>/dev/null; then
     ok "truncation: decisions capped at 2000, meta.truncations records total=2005"
   else

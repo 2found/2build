@@ -39,8 +39,8 @@ var renamedRe = []struct {
 // compat symlink it returns the text byte-for-byte unchanged.
 //
 // That conditional is what makes this safe: the differential harnesses in
-// tests/ drive the Go binary through the hyphenated symlinks (bin/bbs-ticket,
-// bin/bbs-env) and diff its output against the frozen bash oracles in
+// tests/ drive the Go binary through argv0 aliases (a temp-dir bbs-ticket or
+// bbs-env symlinked to the binary) and diff its output against the frozen
 // tests/fixtures/*.reference, so those comparisons stay byte-identical. Only
 // the space-form invocation — the one every skill and doc now uses — gets the
 // rewritten text, so help always echoes back the spelling the caller used.

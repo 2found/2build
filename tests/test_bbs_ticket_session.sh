@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# tests/test_bbs_ticket_session.sh — coverage for `bbs-ticket session list|attach|end`.
+# tests/test_bbs_ticket_session.sh — coverage for `bbs ticket session list|attach|end`.
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET="$SCRIPT_DIR/bin/bbs"
 [ -x "$BBS_TICKET" ] || { echo "FAIL: bin not executable" >&2; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -36,7 +36,7 @@ T="$(mktemp -d)"
   BABYSIT_HOME="$T/.babysit"; export BABYSIT_HOME
   mkdir -p "$BABYSIT_HOME/sessions"
   write_session "$BABYSIT_HOME/sessions" "abc-fresh" "bs-aaa"
-  out="$("$BBS_TICKET" session list)"
+  out="$("$BBS_TICKET" ticket session list)"
   printf '%s' "$out" | grep -q "abc-fresh" || { echo "missing recent session: $out"; exit 1; }
   printf '%s' "$out" | grep -q "bs-aaa"    || { echo "missing ticket: $out"; exit 1; }
 ) && ok "session-list-shows-recent" || fail "session-list-shows-recent"
@@ -49,7 +49,7 @@ T="$(mktemp -d)"
   mkdir -p "$BABYSIT_HOME/sessions"
   write_session "$BABYSIT_HOME/sessions" "old-stale" "bs-old" 200
   write_session "$BABYSIT_HOME/sessions" "new-fresh" "bs-new" 0
-  out="$("$BBS_TICKET" session list)"
+  out="$("$BBS_TICKET" ticket session list)"
   printf '%s' "$out" | grep -q "new-fresh" || { echo "missing fresh: $out"; exit 1; }
   if printf '%s' "$out" | grep -q "old-stale"; then
     echo "stale session leaked into list: $out"; exit 1
@@ -63,7 +63,7 @@ T="$(mktemp -d)"
   BABYSIT_HOME="$T/.babysit"; export BABYSIT_HOME
   mkdir -p "$BABYSIT_HOME/sessions"
   write_session "$BABYSIT_HOME/sessions" "att-ok" "bs-att"
-  out="$("$BBS_TICKET" session attach "att-ok")"
+  out="$("$BBS_TICKET" ticket session attach "att-ok")"
   printf '%s' "$out" | grep -qx "export BABYSIT_TICKET=bs-att"        || { echo "no TICKET export: $out"; exit 1; }
   printf '%s' "$out" | grep -qx "export BABYSIT_SESSION=att-ok"       || { echo "no SESSION export: $out"; exit 1; }
 ) && ok "session-attach-emits-exports" || fail "session-attach-emits-exports"
@@ -74,7 +74,7 @@ T="$(mktemp -d)"
 (
   BABYSIT_HOME="$T/.babysit"; export BABYSIT_HOME
   mkdir -p "$BABYSIT_HOME/sessions"
-  err="$("$BBS_TICKET" session attach "no-such-id" 2>&1 1>/dev/null)"; rc=$?
+  err="$("$BBS_TICKET" ticket session attach "no-such-id" 2>&1 1>/dev/null)"; rc=$?
   [ "$rc" -ne 0 ] || { echo "expected non-zero, got 0"; exit 1; }
   printf '%s' "$err" | grep -q "no session file" || { echo "missing diagnostic: $err"; exit 1; }
 ) && ok "session-attach-missing-errors" || fail "session-attach-missing-errors"
@@ -87,13 +87,13 @@ T="$(mktemp -d)"
   mkdir -p "$BABYSIT_HOME/sessions"
   write_session "$BABYSIT_HOME/sessions" "end-me" "bs-end"
   [ -f "$BABYSIT_HOME/sessions/end-me.yaml" ] || { echo "setup wrong"; exit 1; }
-  "$BBS_TICKET" session end "end-me" >/dev/null 2>&1
+  "$BBS_TICKET" ticket session end "end-me" >/dev/null 2>&1
   [ ! -f "$BABYSIT_HOME/sessions/end-me.yaml" ] || { echo "end did not remove file"; exit 1; }
 ) && ok "session-end-removes-file" || fail "session-end-removes-file"
 rm -rf "$T"
 
 # ── session-bad-verb-usage-errors ──────────────────────────────────────
-err="$("$BBS_TICKET" session bogus 2>&1 1>/dev/null)"; rc=$?
+err="$("$BBS_TICKET" ticket session bogus 2>&1 1>/dev/null)"; rc=$?
 if [ "$rc" -ne 0 ] && printf '%s' "$err" | grep -q "usage:"; then
   ok "session-bad-verb-usage-errors"
 else
@@ -110,9 +110,9 @@ T="$(mktemp -d)"
   # Plant a sentinel that traversal would otherwise reach.
   touch "$T/sentinel.yaml"
   for bad in "../sentinel" "./../sentinel" ".." "." "abc/def" "abc;rm" ""; do
-    err="$("$BBS_TICKET" session end "$bad" 2>&1 1>/dev/null)"; rc=$?
+    err="$("$BBS_TICKET" ticket session end "$bad" 2>&1 1>/dev/null)"; rc=$?
     [ "$rc" -ne 0 ] || { echo "session end '$bad' rc=$rc; expected non-zero" >&2; exit 1; }
-    err="$("$BBS_TICKET" session attach "$bad" 2>&1 1>/dev/null)"; rc=$?
+    err="$("$BBS_TICKET" ticket session attach "$bad" 2>&1 1>/dev/null)"; rc=$?
     [ "$rc" -ne 0 ] || { echo "session attach '$bad' rc=$rc; expected non-zero" >&2; exit 1; }
   done
   [ -f "$T/sentinel.yaml" ] || { echo "sentinel was deleted — traversal not blocked" >&2; exit 1; }

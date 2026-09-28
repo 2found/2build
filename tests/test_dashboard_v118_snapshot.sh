@@ -12,8 +12,8 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DASH="$SCRIPT_DIR/bin/bbs-dashboard"
-[ -x "$DASH" ] || { echo "FAIL: bbs-dashboard not executable" >&2; exit 1; }
+DASH="$SCRIPT_DIR/bin/bbs"
+[ -x "$DASH" ] || { echo "FAIL: $DASH not executable" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "FAIL: jq required" >&2; exit 1; }
 command -v node >/dev/null 2>&1 || { echo "FAIL: node required to eval data.js" >&2; exit 1; }
 
@@ -63,7 +63,7 @@ YAML
 
   # Run dashboard with custom STATE_DIR + DASHBOARD_REPO
   BABYSIT_STATE_DIR="$STATE" BABYSIT_DASHBOARD_REPO="$T/repo" \
-    "$DASH" --no-open >/dev/null 2>&1 \
+    "$DASH" dashboard --no-open >/dev/null 2>&1 \
     || { echo "dashboard run failed"; exit 1; }
 
   DATA_JS="$T/repo/web/dist/data.js"
@@ -130,7 +130,7 @@ YAML
   cp "$SCRIPT_DIR/VERSION" "$T/repo/VERSION"
 
   BABYSIT_STATE_DIR="$STATE" BABYSIT_DASHBOARD_REPO="$T/repo" \
-    "$DASH" --no-open >/dev/null 2>&1 \
+    "$DASH" dashboard --no-open >/dev/null 2>&1 \
     || { echo "dashboard run failed"; exit 1; }
 
   DATA_JS="$T/repo/web/dist/data.js"
@@ -170,7 +170,7 @@ JSON
   cp "$SCRIPT_DIR/VERSION" "$T/repo/VERSION"
 
   BABYSIT_STATE_DIR="$STATE" BABYSIT_DASHBOARD_REPO="$T/repo" \
-    "$DASH" --no-open >/dev/null 2>&1 \
+    "$DASH" dashboard --no-open >/dev/null 2>&1 \
     || { echo "dashboard run failed"; exit 1; }
 
   json="$(read_snapshot_json "$T/repo/web/dist/data.js")"
@@ -214,7 +214,7 @@ YAML
   cp "$SCRIPT_DIR/VERSION" "$T/repo/VERSION"
 
   BABYSIT_STATE_DIR="$STATE" BABYSIT_DASHBOARD_REPO="$T/repo" \
-    "$DASH" --no-open >/dev/null 2>&1 \
+    "$DASH" dashboard --no-open >/dev/null 2>&1 \
     || { echo "dashboard run failed"; exit 1; }
 
   json="$(read_snapshot_json "$T/repo/web/dist/data.js")"

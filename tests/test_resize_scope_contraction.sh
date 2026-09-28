@@ -18,7 +18,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RUBRIC_MD="$SCRIPT_DIR/.claude/skills/references/ticket-size-rubric.md"
 PLAN_MD="$SCRIPT_DIR/.claude/skills/plan-draft/SKILL.md"
 IMPL_MD="$SCRIPT_DIR/.claude/skills/implement/SKILL.md"
-BBS_TICKET="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET="$SCRIPT_DIR/bin/bbs"
 [ -f "$RUBRIC_MD" ]  || { echo "FAIL: $RUBRIC_MD missing" >&2; exit 1; }
 [ -x "$BBS_TICKET" ] || { echo "FAIL: $BBS_TICKET not executable" >&2; exit 1; }
 
@@ -46,12 +46,13 @@ run_downgrade() {
   export HOME="$t/home"; mkdir -p "$HOME"
   export BABYSIT_ANALYTICS_DIR="$t/analytics"
   export BBS_TICKET_BIN="$BBS_TICKET"
+  export PATH="$SCRIPT_DIR/bin:$PATH"
   export BBS_TICKET="bs-resize-1"
   git init -q "$t/repo"; cd "$t/repo"
   git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init
   git checkout -q -b feat/bs-resize-1_scratch
-  "$BBS_TICKET_BIN" init >/dev/null 2>&1
-  "$BBS_TICKET_BIN" set-pointer ticket_size "$size" >/dev/null
+  "$BBS_TICKET_BIN" ticket init >/dev/null 2>&1
+  "$BBS_TICKET_BIN" ticket set-pointer ticket_size "$size" >/dev/null
   SKILL_NAME="plan-draft"; TICKET="bs-resize-1"; TRIGGER="deferral_ratio>=40%"
   set +u; . "$BLOCK"; set -u
 }
@@ -61,7 +62,7 @@ run_downgrade() {
 T="$(mktemp -d)"
 (
   run_downgrade "$T" L
-  got="$("$BBS_TICKET_BIN" get pointers.ticket_size)"
+  got="$("$BBS_TICKET_BIN" ticket get pointers.ticket_size)"
   [ "$got" = "M" ] || { echo "pointer=$got, expected M"; exit 1; }
   log="$T/analytics/decisions.jsonl"
   [ -f "$log" ] || { echo "no decisions.jsonl written"; exit 1; }
@@ -75,7 +76,7 @@ rm -rf "$T"
 T="$(mktemp -d)"
 (
   run_downgrade "$T" XS
-  got="$("$BBS_TICKET_BIN" get pointers.ticket_size)"
+  got="$("$BBS_TICKET_BIN" ticket get pointers.ticket_size)"
   [ "$got" = "XS" ] || { echo "pointer=$got, expected XS"; exit 1; }
   [ ! -f "$T/analytics/decisions.jsonl" ] \
     || { echo "unexpected audit line: $(cat "$T/analytics/decisions.jsonl")"; exit 1; }

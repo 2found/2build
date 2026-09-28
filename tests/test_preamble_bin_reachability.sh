@@ -121,7 +121,11 @@ done
 #    Excluded outright: CHANGELOG.md and blogs/ (dated records — rewriting them
 #    would falsify history) and docs/bin-decomposition-spike.md (a bash-era
 #    spike whose subject *is* the standalone scripts).
-ALIAS_RE='(^|[^/[:alnum:]_-])bbs-(ticket|design|secrets|qa-config|autopilot|config|slug|env|update|upgrade|update-check|dashboard)([^[:alnum:]_-]|$)'
+#    The tail char after the alias must be invocation-shaped (letter, digit, -,
+#    / or end-of-line): that still matches `bbs-ticket init` and bare-name calls,
+#    while backticked prose mentions like (`bbs-config`, `bbs-env`) in
+#    docs/companion-cli.md no longer trip the scan.
+ALIAS_RE='(^|[^/[:alnum:]_-])bbs-(ticket|design|secrets|qa-config|autopilot|config|slug|env|update|upgrade|update-check|dashboard)([^[:alnum:]_`-]|$)'
 STRAY="$(grep -rnoE "$ALIAS_RE" \
     "$REPO/.claude/skills" "$REPO/docs" "$REPO"/README*.md "$REPO/CLAUDE.md" \
     --include='*.md' 2>/dev/null \

@@ -30,7 +30,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -61,7 +61,7 @@ build_tickets() {
   TKS=(); WTS=()
   cd "$t/repo"
   for i in $(seq 1 "$n"); do
-    out="$("$BBS_TICKET_BIN" ensure --slug-hint "tick-$i" --type feat 2>/dev/null)" || return 1
+    out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint "tick-$i" --type feat 2>/dev/null)" || return 1
     TKS+=("$(printf '%s\n' "$out" | sed -n 's|^TICKET=||p')")
     WTS+=("$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')")
   done
@@ -87,7 +87,7 @@ T="$(mktemp -d)"
   rm -f "$T/go"
   for i in $(seq 1 16); do
     ( while [ ! -f "$T/go" ]; do :; done      # start barrier: collide, don't queue
-      "$BBS_TICKET_BIN" ensure --slug-hint "para-$i" --type feat >"$T/e$i" 2>&1 ) &
+      "$BBS_TICKET_BIN" ticket ensure --slug-hint "para-$i" --type feat >"$T/e$i" 2>&1 ) &
   done
   : > "$T/go"; wait
 
@@ -114,7 +114,7 @@ T="$(mktemp -d)"
   build_repo "$T"; cd "$T/repo"
 
   mkdir "$T/repo/.git/bbs-worktree-add.lock"      # stand in for an add in flight
-  "$BBS_TICKET_BIN" ensure --slug-hint held --type feat >"$T/out" 2>&1 &
+  "$BBS_TICKET_BIN" ticket ensure --slug-hint held --type feat >"$T/out" 2>&1 &
   pid=$!
   sleep 2
   kill -0 "$pid" 2>/dev/null || { echo "ensure finished while the add-lock was held"; exit 1; }
@@ -145,7 +145,7 @@ T="$(mktemp -d)"
   rm -f "$T/go"
   for i in 1 2 3 4 5; do
     ( while [ ! -f "$T/go" ]; do :; done
-      cd "${WTS[$((i-1))]}" && "$BBS_TICKET_BIN" surface compose >"$T/m$i" 2>&1 ) &
+      cd "${WTS[$((i-1))]}" && "$BBS_TICKET_BIN" ticket surface compose >"$T/m$i" 2>&1 ) &
   done
   : > "$T/go"; wait
 
@@ -188,11 +188,11 @@ exit 0
 EOF
   chmod +x "$T/repo/.git/hooks/prepare-commit-msg"
 
-  ( cd "${WTS[0]}" && "$BBS_TICKET_BIN" surface compose >"$T/m1" 2>&1 ) &
+  ( cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose >"$T/m1" 2>&1 ) &
   for _ in $(seq 1 400); do [ -f "$T/in_merge" ] && break; sleep 0.05; done
   [ -f "$T/in_merge" ] || { echo "setup: the peer merge never started: $(cat "$T/m1")"; exit 1; }
 
-  ( cd "${WTS[1]}" && "$BBS_TICKET_BIN" surface compose >"$T/m2" 2>&1 )
+  ( cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface compose >"$T/m2" 2>&1 )
   wait
   grep -q "^SERVING=${TKS[1]}\$" "$T/m2" \
     || { echo "composing during a peer's merge was refused:"; cat "$T/m2"; exit 1; }
@@ -217,9 +217,9 @@ T="$(mktemp -d)"
     (cd "$T/repo" && git reset -q --hard origin/main && rm -f .git/bbs-serving)
     rm -f "$T/go"
     ( while [ ! -f "$T/go" ]; do :; done
-      cd "${WTS[0]}" && "$BBS_TICKET_BIN" surface compose >"$T/mb" 2>&1 ) &
+      cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose >"$T/mb" 2>&1 ) &
     ( while [ ! -f "$T/go" ]; do :; done
-      cd "$T/repo" && "$BBS_TICKET_BIN" surface revert >"$T/rb" 2>&1 ) &
+      cd "$T/repo" && "$BBS_TICKET_BIN" ticket surface revert >"$T/rb" 2>&1 ) &
     : > "$T/go"; wait
 
     sv="$(serving_of "$T/repo")"
@@ -276,7 +276,7 @@ HOOK
 
   LOCK="$T/repo/.git/bbs-qa-lease"
   : > "$T/hold"
-  ( cd "${WTS[0]}" && "$BBS_TICKET_BIN" surface compose "${TKS[0]}" >"$T/w1" 2>&1 ) &
+  ( cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose "${TKS[0]}" >"$T/w1" 2>&1 ) &
   for _ in $(seq 1 200); do [ -f "$T/parked" ] && break; sleep 0.05; done
   [ -f "$T/parked" ] || { echo "compose never reached its reset"; exit 1; }
   [ -d "$LOCK" ] || { echo "compose is resetting without holding the surface lease"; exit 1; }
@@ -309,16 +309,16 @@ T="$(mktemp -d)"
   export AGENT_ROLE=mayor
   build_repo "$T"; build_tickets "$T" 4 || { echo "fixture failed"; exit 1; }
 
-  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" surface acquire >/dev/null 2>&1) || { echo "acquire failed"; exit 1; }
+  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface acquire >/dev/null 2>&1) || { echo "acquire failed"; exit 1; }
   head_before="$(cd "$T/repo" && git rev-parse HEAD)"
 
   rm -f "$T/go"
   for i in 2 3 4; do
     ( while [ ! -f "$T/go" ]; do :; done
-      cd "${WTS[$((i-1))]}" && "$BBS_TICKET_BIN" surface compose >"$T/q$i" 2>&1 ) &
+      cd "${WTS[$((i-1))]}" && "$BBS_TICKET_BIN" ticket surface compose >"$T/q$i" 2>&1 ) &
   done
   ( while [ ! -f "$T/go" ]; do :; done
-    cd "$T/repo" && "$BBS_TICKET_BIN" surface revert >"$T/qr" 2>&1 ) &
+    cd "$T/repo" && "$BBS_TICKET_BIN" ticket surface revert >"$T/qr" 2>&1 ) &
   : > "$T/go"; wait
 
   for i in 2 3 4; do
@@ -361,14 +361,14 @@ exit 0
 EOF
   chmod +x "$T/repo/.git/hooks/prepare-commit-msg"
 
-  ( cd "${WTS[0]}" && "$BBS_TICKET_BIN" surface compose >"$T/mb" 2>&1 ) &
+  ( cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose >"$T/mb" 2>&1 ) &
   mb_pid=$!
   # Generous: a loaded CI runner takes its time getting through the git calls
   # that precede the merge, and a short wait here would read as a failure.
   for _ in $(seq 1 400); do [ -f "$T/merge_start" ] && break; sleep 0.05; done
   [ -f "$T/merge_start" ] || { echo "setup: merge never reached the hook: $(cat "$T/mb")"; exit 1; }
 
-  out="$(cd "${WTS[1]}" && "$BBS_TICKET_BIN" surface acquire 2>&1)"
+  out="$(cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface acquire 2>&1)"
   landed=no; [ -f "$T/merge_end" ] && landed=yes
   wait $mb_pid 2>/dev/null
 
@@ -393,13 +393,13 @@ T="$(mktemp -d)"
 
   for trial in 1 2 3 4 5 6 7 8; do
     rm -rf "$T/repo/.git/bbs-qa-lease"
-    (cd "${WTS[0]}" && "$BBS_TICKET_BIN" surface acquire >/dev/null 2>&1) || { echo "seed acquire failed"; exit 1; }
+    (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface acquire >/dev/null 2>&1) || { echo "seed acquire failed"; exit 1; }
     rm -f "$T/go"
     ( while [ ! -f "$T/go" ]; do :; done
-      cd "$T/repo" && "$BBS_TICKET_BIN" surface release --force >"$T/fr" 2>&1 ) &
+      cd "$T/repo" && "$BBS_TICKET_BIN" ticket surface release --force >"$T/fr" 2>&1 ) &
     for i in 2 3; do
       ( while [ ! -f "$T/go" ]; do :; done
-        cd "${WTS[$((i-1))]}" && "$BBS_TICKET_BIN" surface acquire >"$T/a$i" 2>&1 ) &
+        cd "${WTS[$((i-1))]}" && "$BBS_TICKET_BIN" ticket surface acquire >"$T/a$i" 2>&1 ) &
     done
     : > "$T/go"; wait
 
@@ -411,7 +411,7 @@ T="$(mktemp -d)"
     if [ "$won" -eq 1 ]; then
       claimed=$(grep -l 'ACQUIRED=1' "$T"/a[23] | head -1)
       want=$(sed -n 's|^OWNER=||p' "$claimed" | head -1)
-      got=$(cd "$T/repo" && "$BBS_TICKET_BIN" surface status 2>/dev/null | sed -n 's|^OWNER=||p')
+      got=$(cd "$T/repo" && "$BBS_TICKET_BIN" ticket surface status 2>/dev/null | sed -n 's|^OWNER=||p')
       [ -n "$got" ] && [ "$want" = "$got" ] \
         || { echo "trial $trial: winner '$want' but the lease on disk says '$got'"; exit 1; }
     fi
@@ -437,22 +437,22 @@ T="$(mktemp -d)"
     ! grep -qs '^kind=short' "$R/.git/bbs-qa-lease/owner" \
       || { echo "$1: a surface op left its lease standing"; exit 1; }
   }
-  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" surface acquire >/dev/null 2>&1); no_locks "acquire"
-  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" surface acquire >/dev/null 2>&1); no_locks "reentrant refresh"
-  (cd "${WTS[1]}" && "$BBS_TICKET_BIN" surface acquire >/dev/null 2>&1); no_locks "blocked acquire"
-  (cd "${WTS[1]}" && "$BBS_TICKET_BIN" surface compose >/dev/null 2>&1);       no_locks "lease-blocked compose"
-  (cd "${WTS[1]}" && "$BBS_TICKET_BIN" surface release >/dev/null 2>&1); no_locks "refused release"
+  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface acquire >/dev/null 2>&1); no_locks "acquire"
+  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface acquire >/dev/null 2>&1); no_locks "reentrant refresh"
+  (cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface acquire >/dev/null 2>&1); no_locks "blocked acquire"
+  (cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>&1);       no_locks "lease-blocked compose"
+  (cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface release >/dev/null 2>&1); no_locks "refused release"
   # stale steal: the one path that nests the steal lock inside the merge lock
   ownerf="$R/.git/bbs-qa-lease/owner"; aged=$(( $(date +%s) - 3900 ))
   sed "s/^since_epoch=.*/since_epoch=$aged/" "$ownerf" > "$ownerf.t" && mv "$ownerf.t" "$ownerf"
-  out="$(cd "${WTS[1]}" && "$BBS_TICKET_BIN" surface acquire 2>&1)"
+  out="$(cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface acquire 2>&1)"
   printf '%s' "$out" | grep -q 'STOLE_FROM=' || { echo "expected a steal, got: $out"; exit 1; }
   no_locks "stale steal"
-  (cd "$R" && "$BBS_TICKET_BIN" surface release --force >/dev/null 2>&1); no_locks "forced release"
-  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" surface compose >/dev/null 2>&1);        no_locks "successful compose"
-  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" surface compose "${TKS[0]}" >/dev/null 2>&1); no_locks "successful explicit compose"
+  (cd "$R" && "$BBS_TICKET_BIN" ticket surface release --force >/dev/null 2>&1); no_locks "forced release"
+  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>&1);        no_locks "successful compose"
+  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose "${TKS[0]}" >/dev/null 2>&1); no_locks "successful explicit compose"
   # and the surface is still usable — a wedged lock only shows up on the next op
-  (cd "${WTS[1]}" && "$BBS_TICKET_BIN" surface compose 2>&1) | grep -q '^SERVING=' \
+  (cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface compose 2>&1) | grep -q '^SERVING=' \
     || { echo "compose wedged after the lease/compose cycle"; exit 1; }
 ) && ok "no-lock-leaked" || fail "no-lock-leaked"
 rm -rf "$T"
@@ -479,10 +479,10 @@ T="$(mktemp -d)"
         3) op=(surface release) ;;
       esac
       ( while [ ! -f "$T/go" ]; do :; done
-        cd "$wt" && "$BBS_TICKET_BIN" "${op[@]}" >"$T/o$i" 2>&1 ) &
+        cd "$wt" && "$BBS_TICKET_BIN" ticket "${op[@]}" >"$T/o$i" 2>&1 ) &
     done
     ( while [ ! -f "$T/go" ]; do :; done
-      cd "$R" && "$BBS_TICKET_BIN" surface revert >"$T/o6" 2>&1 ) &
+      cd "$R" && "$BBS_TICKET_BIN" ticket surface revert >"$T/o6" 2>&1 ) &
     : > "$T/go"; wait
 
     [ ! -d "$R/.git/bbs-qa-lease.steal" ] || { echo "round $round: steal lock leaked"; exit 1; }
@@ -498,9 +498,9 @@ T="$(mktemp -d)"
       esac
     done
   done
-  (cd "$R" && "$BBS_TICKET_BIN" surface release --force >/dev/null 2>&1)
-  (cd "$R" && "$BBS_TICKET_BIN" surface revert >/dev/null 2>&1) || { echo "revert wedged at the end"; exit 1; }
-  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" surface compose 2>&1) | grep -q '^SERVING=' \
+  (cd "$R" && "$BBS_TICKET_BIN" ticket surface release --force >/dev/null 2>&1)
+  (cd "$R" && "$BBS_TICKET_BIN" ticket surface revert >/dev/null 2>&1) || { echo "revert wedged at the end"; exit 1; }
+  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose 2>&1) | grep -q '^SERVING=' \
     || { echo "compose wedged at the end"; exit 1; }
 ) && ok "mixed-op-stress" || fail "mixed-op-stress"
 rm -rf "$T"

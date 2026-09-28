@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/test_qa_config_loader.sh — coverage for `bbs-qa-config`.
+# tests/test_qa_config_loader.sh — coverage for `bbs qa-config`.
 #
 # Scenarios (per bs-82x4oym0 acceptance criteria):
 #   list-empty, list-standalone, list-product-merge,
@@ -15,8 +15,8 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_QA_CONFIG="$SCRIPT_DIR/bin/bbs-qa-config"
-# bbs-qa-config symlinks to the gitignored Go binary; build it if absent.
+BBS_QA_CONFIG="$SCRIPT_DIR/bin/bbs"
+# bin/bbs is the gitignored Go binary; build it if absent.
 [ -x "$BBS_QA_CONFIG" ] || (cd "$SCRIPT_DIR" && go build -o bin/bbs ./cmd/bbs) 2>/dev/null || true
 [ -x "$BBS_QA_CONFIG" ] || { echo "FAIL: $BBS_QA_CONFIG not executable" >&2; exit 1; }
 
@@ -36,10 +36,10 @@ mk_repo() {
   printf '%s' "$t"
 }
 
-# Run bbs-qa-config from a given CWD (so git-toplevel resolution works).
+# Run bbs qa-config from a given CWD (so git-toplevel resolution works).
 run_in() {
   local dir="$1"; shift
-  ( cd "$dir" && PATH="$SCRIPT_DIR/bin:$PATH" "$BBS_QA_CONFIG" "$@" )
+  ( cd "$dir" && PATH="$SCRIPT_DIR/bin:$PATH" "$BBS_QA_CONFIG" qa-config "$@" )
 }
 
 # ─── list ─────────────────────────────────────────────────────────────

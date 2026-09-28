@@ -185,17 +185,16 @@ if [ -d "$CODEX_SKILLS" ]; then
 fi
 
 # ─── Step 1c: Build the bbs Go CLI ────────────────────────────
-# The bin/bbs-* compat symlinks point at the built bin/bbs (multicall binary);
-# they only resolve once the binary exists.
+# bin/bbs is the single multicall binary; every subcommand is `bbs <sub>`.
 info "Building bbs Go CLI..."
 if ! command -v go >/dev/null 2>&1; then
-  warn "go not found — skipping bbs build (install Go to enable the bbs CLI and its bbs-* compat symlinks)"
+  warn "go not found — skipping bbs build (install Go to enable the bbs CLI)"
 elif [ "$DRY_RUN" -eq 1 ]; then
   echo "  [dry-run] go build -o bin/bbs ./cmd/bbs"
 elif (cd "$PROJECT_DIR" && go build -o bin/bbs ./cmd/bbs); then
   # Windows can't exec an extension-less binary natively, and some Go
-  # versions emit bbs.exe for -o bin/bbs — keep both names so the committed
-  # bbs-* symlinks (→ bbs) and native callers (bbs.exe) both resolve.
+  # versions emit bbs.exe for -o bin/bbs — keep both names so POSIX and
+  # native callers both resolve.
   if [ -f "$PROJECT_DIR/bin/bbs.exe" ] && [ ! -f "$PROJECT_DIR/bin/bbs" ]; then
     cp "$PROJECT_DIR/bin/bbs.exe" "$PROJECT_DIR/bin/bbs"
   elif [ -f "$PROJECT_DIR/bin/bbs" ] && [ "$(go env GOOS 2>/dev/null)" = "windows" ]; then
@@ -203,10 +202,10 @@ elif (cd "$PROJECT_DIR" && go build -o bin/bbs ./cmd/bbs); then
   fi
   ok "bbs built → bin/bbs"
 else
-  warn "go build failed — the bbs-* compat symlinks will not resolve until built"
+  warn "go build failed — bbs will not resolve until built"
 fi
 
-# ─── Step 2: Symlink babysit CLI + bbs-* bins ───────────────
+# ─── Step 2: Symlink the bbs CLI ──────────────────────────────
 info "Installing babysit bins..."
 
 INSTALLED_BINS=()
@@ -248,9 +247,7 @@ link_bin() {
   if [ "$track" = 1 ]; then INSTALLED_BINS+=("$name"); fi
 }
 
-for BIN in bbs bbs-config bbs-dashboard bbs-design bbs-env bbs-autopilot bbs-slug bbs-ticket bbs-qa-config bbs-secrets bbs-update-check bbs-update bbs-upgrade; do
-  link_bin "$BIN"
-done
+link_bin bbs
 
 # ─── Step 2b: Put bbs on PATH (~/.local/bin) ────────────────
 # ~/.claude/ is not on PATH — skills resolve bins there directly, but a bare

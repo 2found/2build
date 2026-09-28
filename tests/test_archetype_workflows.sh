@@ -4,20 +4,20 @@
 #
 # The workflows are prose, so refactors can silently drop load-bearing
 # lines (this happened to the readiness gate in v1.47.0). Pin:
-#   1. All five workflow files exist and pass `bbs-autopilot lint-workflow`.
+#   1. All five workflow files exist and pass `bbs autopilot lint-workflow`.
 #   2. Each has a **Final status** block with a STATUS line, a VERDICT line
 #      carrying that archetype's verdict vocabulary, and a NEXT line.
 #   3. Builder keeps only one-ticket modes and leaves all branch/worktree and
 #      decomposed-parent ownership to foreman.
 #   4. Code-touching workflows run review-pr in the current autopilot session,
 #      then persist the QA verdict the PR gate reads.
-#   5. `bbs-autopilot explain` routes a committed non-base branch to builder
+#   5. `bbs autopilot explain` routes a committed non-base branch to builder
 #      (verify mode) — needs a real origin, which the eval-set fixtures lack.
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 WF_DIR="$SCRIPT_DIR/.claude/skills/autopilot/workflows"
-BBS_AUTOPILOT="$SCRIPT_DIR/bin/bbs-autopilot"
+BBS_AUTOPILOT="$SCRIPT_DIR/bin/bbs"
 AUTOPILOT_SKILL="$SCRIPT_DIR/.claude/skills/autopilot/SKILL.md"
 [ -x "$BBS_AUTOPILOT" ] || { echo "FAIL: $BBS_AUTOPILOT not executable" >&2; exit 1; }
 
@@ -34,10 +34,10 @@ check_workflow() {  # $1=name $2=verdict-vocab regex (matched on the VERDICT lin
   [ -f "$f" ] || { fail "$name-exists" "missing $f"; return; }
   ok "$name-exists"
 
-  if "$BBS_AUTOPILOT" lint-workflow "$f" >/dev/null 2>&1; then
+  if "$BBS_AUTOPILOT" autopilot lint-workflow "$f" >/dev/null 2>&1; then
     ok "$name-lint"
   else
-    fail "$name-lint" "$("$BBS_AUTOPILOT" lint-workflow "$f" 2>&1 | head -3)"
+    fail "$name-lint" "$("$BBS_AUTOPILOT" autopilot lint-workflow "$f" 2>&1 | head -3)"
   fi
 
   if grep -q '^\*\*Final status\*\*' "$f" \
@@ -158,7 +158,7 @@ T="$(mktemp -d)"
   git checkout -q -b feat/bs-verify-1_scratch
   echo x > f.txt; git add f.txt
   git -c user.email=t@t -c user.name=t commit -q -m "feat: work"
-  out="$("$BBS_AUTOPILOT" explain 2>/dev/null)"
+  out="$("$BBS_AUTOPILOT" autopilot explain 2>/dev/null)"
   printf '%s\n' "$out" | grep -q 'builder (verify mode)' \
     || { echo "no verify-mode route; got:"; printf '%s\n' "$out" | head -20; exit 1; }
 ) && ok "explain-routes-verify-mode" || fail "explain-routes-verify-mode"
@@ -182,16 +182,16 @@ route_mode_test() {
     git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init
     git checkout -q -b "feat/${ticket}_scratch"
     "$seed"
-    out="$(bbs-autopilot explain 2>/dev/null)"
+    out="$(bbs autopilot explain 2>/dev/null)"
     printf '%s\n' "$out" | grep -q "$expect" \
       || { echo "expected '$expect'; got:"; printf '%s\n' "$out" | grep -A1 'recommended workflow'; exit 1; }
   ) && ok "explain-routes-$label" || fail "explain-routes-$label"
   rm -rf "$D"
 }
-seed_sub_ticket()  { bbs-ticket init --origin-type sub_ticket >/dev/null 2>&1; }
-seed_manifest()    { bbs-ticket init >/dev/null 2>&1; local m; m="$(bbs-ticket path manifest --write 2>/dev/null)"; [ -n "$m" ] && echo "# manifest" > "$m"; }
-seed_plan()        { bbs-ticket init >/dev/null 2>&1; local p; p="$(bbs-ticket path plan --write 2>/dev/null)"; [ -n "$p" ] && echo "# plan" > "$p"; }
-seed_requirement() { bbs-ticket init >/dev/null 2>&1; local r; r="$(bbs-ticket path requirement --write 2>/dev/null)"; [ -n "$r" ] && echo "# req" > "$r"; }
+seed_sub_ticket()  { bbs ticket init --origin-type sub_ticket >/dev/null 2>&1; }
+seed_manifest()    { bbs ticket init >/dev/null 2>&1; local m; m="$(bbs ticket path manifest --write 2>/dev/null)"; [ -n "$m" ] && echo "# manifest" > "$m"; }
+seed_plan()        { bbs ticket init >/dev/null 2>&1; local p; p="$(bbs ticket path plan --write 2>/dev/null)"; [ -n "$p" ] && echo "# plan" > "$p"; }
+seed_requirement() { bbs ticket init >/dev/null 2>&1; local r; r="$(bbs ticket path requirement --write 2>/dev/null)"; [ -n "$r" ] && echo "# req" > "$r"; }
 
 route_mode_test child       bs-child-1  'builder (child mode)'       seed_sub_ticket
 route_mode_test project     bs-orch-1   'foreman (project orchestration)' seed_manifest

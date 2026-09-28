@@ -22,7 +22,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS="$SCRIPT_DIR/bin/bbs-ticket"
+BBS="$SCRIPT_DIR/bin/bbs"
 
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not installed"; exit 0; }
 [ -x "$BBS" ] || { echo "FAIL: $BBS not built (go build -o bin/bbs ./cmd/bbs)"; exit 1; }
@@ -47,8 +47,8 @@ field() { jq -r "$1 // empty" "$IDX"; }
 T="$(mktemp -d)"
 (
   sandbox "$T"
-  "$BBS" set-status planned >/dev/null 2>&1 || { echo "set-status failed"; exit 1; }
-  "$BBS" pause --note "waiting on design" >/dev/null 2>&1 || { echo "pause failed"; exit 1; }
+  "$BBS" ticket set-status planned >/dev/null 2>&1 || { echo "set-status failed"; exit 1; }
+  "$BBS" ticket pause --note "waiting on design" >/dev/null 2>&1 || { echo "pause failed"; exit 1; }
 
   [ "$(field .status)" = "planned" ] || { echo "status moved: $(field .status)"; exit 1; }
   [ "$(field .control.state)" = "paused" ] || { echo "control.state: $(field .control.state)"; exit 1; }
@@ -67,8 +67,8 @@ rm -rf "$T"
 T="$(mktemp -d)"
 (
   sandbox "$T"
-  "$BBS" pause --note first >/dev/null 2>&1 || { echo "pause failed"; exit 1; }
-  out="$("$BBS" pause --note second 2>&1)"; rc=$?
+  "$BBS" ticket pause --note first >/dev/null 2>&1 || { echo "pause failed"; exit 1; }
+  out="$("$BBS" ticket pause --note second 2>&1)"; rc=$?
   [ "$rc" -eq 0 ] || { echo "second pause rc=$rc: $out"; exit 1; }
   printf '%s' "$out" | grep -q "already paused" || { echo "unexpected: $out"; exit 1; }
   [ "$(field .control.note)" = "first" ] || { echo "record was overwritten: $(field .control.note)"; exit 1; }
@@ -79,13 +79,13 @@ rm -rf "$T"
 T="$(mktemp -d)"
 (
   sandbox "$T"
-  "$BBS" pause >/dev/null 2>&1 || { echo "pause failed"; exit 1; }
+  "$BBS" ticket pause >/dev/null 2>&1 || { echo "pause failed"; exit 1; }
 
-  out="$("$BBS" cancel 2>&1)"; rc=$?
+  out="$("$BBS" ticket cancel 2>&1)"; rc=$?
   [ "$rc" -eq 2 ] || { echo "cancel-while-paused rc=$rc: $out"; exit 1; }
   printf '%s' "$out" | grep -q "resume" || { echo "error must name the fix: $out"; exit 1; }
 
-  out="$("$BBS" restore 2>&1)"; rc=$?
+  out="$("$BBS" ticket restore 2>&1)"; rc=$?
   [ "$rc" -eq 2 ] || { echo "restore-a-pause rc=$rc: $out"; exit 1; }
   printf '%s' "$out" | grep -q "resume" || { echo "error must name the fix: $out"; exit 1; }
   [ "$(field .control.state)" = "paused" ] || { echo "state changed: $(field .control.state)"; exit 1; }
@@ -96,18 +96,18 @@ rm -rf "$T"
 T="$(mktemp -d)"
 (
   sandbox "$T"
-  "$BBS" set-status in_progress >/dev/null 2>&1
+  "$BBS" ticket set-status in_progress >/dev/null 2>&1
   before="$(jq -S 'del(.control, .updated_at)' "$IDX")"
 
-  "$BBS" pause >/dev/null 2>&1   || { echo "pause failed"; exit 1; }
-  "$BBS" resume >/dev/null 2>&1  || { echo "resume failed"; exit 1; }
+  "$BBS" ticket pause >/dev/null 2>&1   || { echo "pause failed"; exit 1; }
+  "$BBS" ticket resume >/dev/null 2>&1  || { echo "resume failed"; exit 1; }
   [ "$(field .control.state)" = "" ] || { echo "control not cleared: $(field .control.state)"; exit 1; }
   [ "$(jq -r '.control | type' "$IDX")" = "null" ] || { echo "control should be null"; exit 1; }
 
-  "$BBS" cancel >/dev/null 2>&1  || { echo "cancel failed"; exit 1; }
+  "$BBS" ticket cancel >/dev/null 2>&1  || { echo "cancel failed"; exit 1; }
   [ "$(field .control.state)" = "cancelled" ] || { echo "not cancelled"; exit 1; }
   [ "$(field .status)" = "in_progress" ] || { echo "cancel moved status: $(field .status)"; exit 1; }
-  "$BBS" restore >/dev/null 2>&1 || { echo "restore failed"; exit 1; }
+  "$BBS" ticket restore >/dev/null 2>&1 || { echo "restore failed"; exit 1; }
 
   after="$(jq -S 'del(.control, .updated_at)' "$IDX")"
   [ "$before" = "$after" ] || { echo "round trip lost state"; diff <(echo "$before") <(echo "$after"); exit 1; }
@@ -118,8 +118,8 @@ rm -rf "$T"
 T="$(mktemp -d)"
 (
   sandbox "$T"
-  "$BBS" set-status backlog >/dev/null 2>&1
-  out="$("$BBS" resume 2>&1)"; rc=$?
+  "$BBS" ticket set-status backlog >/dev/null 2>&1
+  out="$("$BBS" ticket resume 2>&1)"; rc=$?
   [ "$rc" -eq 0 ] || { echo "resume rc=$rc: $out"; exit 1; }
   printf '%s' "$out" | grep -q "nothing to clear" || { echo "unexpected: $out"; exit 1; }
 ) && ok "clear-when-unset" || fail "clear-when-unset"
@@ -129,26 +129,26 @@ rm -rf "$T"
 T="$(mktemp -d)"
 (
   sandbox "$T"
-  "$BBS" set-status triage >/dev/null 2>&1
+  "$BBS" ticket set-status triage >/dev/null 2>&1
   echo "# plan" > "$(dirname "$IDX")/plan.md"   # would derive target=planned
 
-  "$BBS" pause >/dev/null 2>&1 || { echo "pause failed"; exit 1; }
-  out="$("$BBS" reconcile --ticket "$BABYSIT_TICKET" 2>&1)"
+  "$BBS" ticket pause >/dev/null 2>&1 || { echo "pause failed"; exit 1; }
+  out="$("$BBS" ticket reconcile --ticket "$BABYSIT_TICKET" 2>&1)"
   printf '%s' "$out" | grep -q "skip — paused" || { echo "unexpected: $out"; exit 1; }
   [ "$(field .status)" = "triage" ] || { echo "reconcile advanced a paused ticket: $(field .status)"; exit 1; }
 
   # …and the same ticket does advance once the pause is lifted.
-  "$BBS" resume >/dev/null 2>&1
-  "$BBS" reconcile --ticket "$BABYSIT_TICKET" >/dev/null 2>&1
+  "$BBS" ticket resume >/dev/null 2>&1
+  "$BBS" ticket reconcile --ticket "$BABYSIT_TICKET" >/dev/null 2>&1
   [ "$(field .status)" = "planned" ] || { echo "reconcile stuck after resume: $(field .status)"; exit 1; }
 
   # A ticket paused before it ever had a status still names a rung in the skip
   # line — "bs-x:  (skip — paused)" would read like the status was lost.
   export BABYSIT_TICKET="bs-ctl0002"
   IDX="$BABYSIT_PROJECT_HOME/tickets/$BABYSIT_TICKET/index.json"
-  "$BBS" pause >/dev/null 2>&1 || { echo "pause of fresh ticket failed"; exit 1; }
-  "$BBS" reconcile --ticket "$BABYSIT_TICKET" 2>&1 | grep -q "triage (skip — paused)" \
-    || { echo "skip line lost the status: $("$BBS" reconcile --ticket "$BABYSIT_TICKET" 2>&1)"; exit 1; }
+  "$BBS" ticket pause >/dev/null 2>&1 || { echo "pause of fresh ticket failed"; exit 1; }
+  "$BBS" ticket reconcile --ticket "$BABYSIT_TICKET" 2>&1 | grep -q "triage (skip — paused)" \
+    || { echo "skip line lost the status: $("$BBS" ticket reconcile --ticket "$BABYSIT_TICKET" 2>&1)"; exit 1; }
 ) && ok "reconcile-skips-control" || fail "reconcile-skips-control"
 rm -rf "$T"
 
@@ -156,13 +156,13 @@ rm -rf "$T"
 T="$(mktemp -d)"
 (
   sandbox "$T"
-  "$BBS" assign fm-alpha >/dev/null 2>&1 || { echo "assign failed"; exit 1; }
+  "$BBS" ticket assign fm-alpha >/dev/null 2>&1 || { echo "assign failed"; exit 1; }
   [ "$(field .assignee)" = "fm-alpha" ] || { echo "assignee: $(field .assignee)"; exit 1; }
 
-  "$BBS" assign --none >/dev/null 2>&1 || { echo "unassign failed"; exit 1; }
+  "$BBS" ticket assign --none >/dev/null 2>&1 || { echo "unassign failed"; exit 1; }
   [ "$(jq -r '.assignee | type' "$IDX")" = "null" ] || { echo "assignee not cleared"; exit 1; }
 
-  out="$("$BBS" assign 2>&1)"; rc=$?
+  out="$("$BBS" ticket assign 2>&1)"; rc=$?
   [ "$rc" -eq 2 ] || { echo "bare assign rc=$rc: $out"; exit 1; }
 ) && ok "assign-and-unassign" || fail "assign-and-unassign"
 rm -rf "$T"
@@ -171,8 +171,8 @@ rm -rf "$T"
 T="$(mktemp -d)"
 (
   sandbox "$T"
-  "$BBS" claim fm-alpha >"$T/a.out" 2>&1 & a_pid=$!
-  "$BBS" claim fm-beta  >"$T/b.out" 2>&1 & b_pid=$!
+  "$BBS" ticket claim fm-alpha >"$T/a.out" 2>&1 & a_pid=$!
+  "$BBS" ticket claim fm-beta  >"$T/b.out" 2>&1 & b_pid=$!
   a_rc=0; wait "$a_pid" || a_rc=$?
   b_rc=0; wait "$b_pid" || b_rc=$?
 
@@ -182,10 +182,10 @@ T="$(mktemp -d)"
   [ $(( (a_rc == 0) + (b_rc == 0) )) -eq 1 ] \
     || { echo "claim results: alpha=$a_rc beta=$b_rc"; exit 1; }
 
-  "$BBS" claim "$owner" >/dev/null 2>&1 \
+  "$BBS" ticket claim "$owner" >/dev/null 2>&1 \
     || { echo "same-owner claim was not idempotent"; exit 1; }
   other="fm-alpha"; [ "$owner" = "fm-alpha" ] && other="fm-beta"
-  out="$("$BBS" claim "$other" 2>&1)"; rc=$?
+  out="$("$BBS" ticket claim "$other" 2>&1)"; rc=$?
   [ "$rc" -eq 2 ] || { echo "conflicting claim rc=$rc: $out"; exit 1; }
   printf '%s' "$out" | grep -q "already claimed by $owner" \
     || { echo "conflict omits owner: $out"; exit 1; }
@@ -197,10 +197,10 @@ rm -rf "$T"
 T="$(mktemp -d)"
 (
   sandbox "$T"
-  "$BBS" set-status planned >/dev/null 2>&1
-  "$BBS" pause --note "awaiting design" >/dev/null 2>&1
+  "$BBS" ticket set-status planned >/dev/null 2>&1
+  "$BBS" ticket pause --note "awaiting design" >/dev/null 2>&1
 
-  out="$("$BBS" board --all 2>&1)"
+  out="$("$BBS" ticket board --all 2>&1)"
   # The control state is a sub-row, not a STATUS cell — the row must still
   # report the real rung, and the line must name the verb that undoes it.
   printf '%s' "$out" | grep -q "paused by mayor — status stays planned" \
@@ -210,9 +210,9 @@ T="$(mktemp -d)"
   # control.state=cancelled is not status=cancelled: the default (non---all)
   # board hides the terminal status but must still list a controlled ticket.
   export BABYSIT_TICKET="bs-ctl0003"
-  "$BBS" set-status planned >/dev/null 2>&1
-  "$BBS" cancel >/dev/null 2>&1
-  out="$("$BBS" board 2>&1)"
+  "$BBS" ticket set-status planned >/dev/null 2>&1
+  "$BBS" ticket cancel >/dev/null 2>&1
+  out="$("$BBS" ticket board 2>&1)"
   printf '%s' "$out" | grep -q "^bs-ctl0003" || { echo "control-cancelled ticket hidden: $out"; exit 1; }
   printf '%s' "$out" | grep -q "cancelled by mayor — status stays planned" \
     || { echo "no cancel sub-row: $out"; exit 1; }

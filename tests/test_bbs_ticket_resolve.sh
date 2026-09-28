@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/test_bbs_ticket_resolve.sh — coverage for `bbs-ticket resolve`.
+# tests/test_bbs_ticket_resolve.sh — coverage for `bbs ticket resolve`.
 #
 # Resolution ladder (docs/identity.md):
 #   step 1: env BABYSIT_TICKET / BBS_TICKET (or conflict → exit 2)
@@ -9,8 +9,8 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs-ticket"
-BBS_SLUG_BIN="$SCRIPT_DIR/bin/bbs-slug"
+BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_SLUG_BIN="$SCRIPT_DIR/bin/bbs"
 [ -x "$BBS_TICKET_BIN" ] && [ -x "$BBS_SLUG_BIN" ] || { echo "FAIL: bins not executable" >&2; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -32,7 +32,7 @@ T="$(mktemp -d)"
   mk_repo "$T/r" "main"
   cd "$T/r"
   PATH="$SCRIPT_DIR/bin:$PATH"
-  out="$("$BBS_TICKET_BIN" resolve)"
+  out="$("$BBS_TICKET_BIN" ticket resolve)"
   [ "$out" = "bs-fromenv" ] || { echo "got: $out"; exit 1; }
 ) && ok "step1-env-resolves" || fail "step1-env-resolves"
 rm -rf "$T"
@@ -45,7 +45,7 @@ T="$(mktemp -d)"
   mk_repo "$T/r" "main"
   cd "$T/r"
   PATH="$SCRIPT_DIR/bin:$PATH"
-  err="$("$BBS_TICKET_BIN" resolve 2>&1 1>/dev/null)"; rc=$?
+  err="$("$BBS_TICKET_BIN" ticket resolve 2>&1 1>/dev/null)"; rc=$?
   [ "$rc" = "2" ] || { echo "expected rc=2, got rc=$rc; err=$err"; exit 1; }
   printf '%s' "$err" | grep -q "STATUS: BLOCKED" || { echo "missing BLOCKED in: $err"; exit 1; }
 ) && ok "step1-env-conflict-blocks" || fail "step1-env-conflict-blocks"
@@ -59,7 +59,7 @@ T="$(mktemp -d)"
   mk_repo "$T/r" "feat/bs-zzz_topic"
   cd "$T/r"
   PATH="$SCRIPT_DIR/bin:$PATH"
-  out="$("$BBS_TICKET_BIN" resolve)"
+  out="$("$BBS_TICKET_BIN" ticket resolve)"
   [ "$out" = "bs-zzz" ] || { echo "got: $out"; exit 1; }
 ) && ok "step3-branch-fallback" || fail "step3-branch-fallback"
 rm -rf "$T"
@@ -72,7 +72,7 @@ T="$(mktemp -d)"
   mk_repo "$T/r" "main"
   cd "$T/r"
   PATH="$SCRIPT_DIR/bin:$PATH"
-  out="$("$BBS_TICKET_BIN" resolve 2>/dev/null)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket resolve 2>/dev/null)"; rc=$?
   [ "$rc" = "1" ] || { echo "expected rc=1, got rc=$rc; out=$out"; exit 1; }
   [ -z "$out" ]   || { echo "expected empty stdout, got: $out"; exit 1; }
 ) && ok "no-resolution-exits-1" || fail "no-resolution-exits-1"
@@ -85,7 +85,7 @@ T="$(mktemp -d)"
   mk_repo "$T/r" "feat/bs-env_topic"
   cd "$T/r"
   PATH="$SCRIPT_DIR/bin:$PATH"
-  out="$("$BBS_TICKET_BIN" env)"; rc=$?
+  out="$("$BBS_TICKET_BIN" ticket env)"; rc=$?
   [ "$rc" = "0" ] || { echo "expected rc=0, got rc=$rc"; exit 1; }
   for want in "^SLUG='[^']+'\$" "^BRANCH='feat/bs-env_topic'\$" "^TICKET='bs-env'\$" "^BABYSIT_PROJECT_HOME='[^']+'\$" "^TICKET_HOME='[^']+'\$" "^INDEX='[^']+'\$"; do
     printf '%s\n' "$out" | grep -qE "$want" || { echo "missing $want in: $out"; exit 1; }

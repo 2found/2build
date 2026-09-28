@@ -22,9 +22,9 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # The suites invoke bin/bbs-<sub>, committed argv0 symlinks pointing at
-      # bin/bbs — a build artifact that is gitignored. Without this they all
-      # fail on a dangling symlink rather than on anything real.
+      # The suites invoke bin/bbs — a build artifact that is gitignored.
+      # Without this they all fail on a missing binary rather than on
+      # anything real.
       - name: Build the multicall binary
         run: go build -o bin/bbs ./cmd/bbs
 

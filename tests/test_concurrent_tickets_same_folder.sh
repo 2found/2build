@@ -9,16 +9,16 @@
 # shell's env, and per-ticket files live in per-ticket dirs.
 #
 # Asserts, with both shells anchored at the same cwd:
-#   1. bbs-slug ticket returns each shell's own BABYSIT_TICKET
-#   2. bbs-ticket init seeds two different tickets/<id>/index.json dirs
+#   1. bbs slug ticket returns each shell's own BABYSIT_TICKET
+#   2. bbs ticket init seeds two different tickets/<id>/index.json dirs
 #   3. Per-ticket pointer writes never cross-contaminate
 #   4. Two distinct sessions coexist for the two tickets in ~/.babysit/sessions/
 #   5. session list shows both with the right ticket attribution
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_SLUG="$SCRIPT_DIR/bin/bbs-slug"
-BBS_TICKET="$SCRIPT_DIR/bin/bbs-ticket"
+BBS_SLUG="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET="$SCRIPT_DIR/bin/bbs"
 PREAMBLE="$SCRIPT_DIR/.claude/skills/references/preamble.md"
 [ -x "$BBS_SLUG" ] && [ -x "$BBS_TICKET" ] && [ -f "$PREAMBLE" ] \
   || { echo "FAIL: missing bins" >&2; exit 1; }
@@ -47,8 +47,8 @@ T="$(mktemp -d)"
   HOME="$T/h"; export HOME; mkdir -p "$HOME"
   mk_repo "$T/r" "feat/bs-shared_demo"
 
-  out_a="$( cd "$T/r" && BABYSIT_TICKET="bs-aaa" "$BBS_SLUG" ticket )"
-  out_b="$( cd "$T/r" && BABYSIT_TICKET="bs-bbb" "$BBS_SLUG" ticket )"
+  out_a="$( cd "$T/r" && BABYSIT_TICKET="bs-aaa" "$BBS_SLUG" slug ticket )"
+  out_b="$( cd "$T/r" && BABYSIT_TICKET="bs-bbb" "$BBS_SLUG" slug ticket )"
 
   [ "$out_a" = "bs-aaa" ] || { echo "shell A got '$out_a', want bs-aaa"; exit 1; }
   [ "$out_b" = "bs-bbb" ] || { echo "shell B got '$out_b', want bs-bbb"; exit 1; }
@@ -65,14 +65,14 @@ T="$(mktemp -d)"
   cd "$T/r"
 
   # Shell A — ticket bs-aaa
-  ( BABYSIT_TICKET="bs-aaa" "$BBS_TICKET" init >/dev/null 2>&1 ) \
+  ( BABYSIT_TICKET="bs-aaa" "$BBS_TICKET" ticket init >/dev/null 2>&1 ) \
     || { echo "init A failed"; exit 1; }
-  TH_A="$( BABYSIT_TICKET="bs-aaa" "$BBS_SLUG" ticket-home )"
+  TH_A="$( BABYSIT_TICKET="bs-aaa" "$BBS_SLUG" slug ticket-home )"
 
   # Shell B — ticket bs-bbb
-  ( BABYSIT_TICKET="bs-bbb" "$BBS_TICKET" init >/dev/null 2>&1 ) \
+  ( BABYSIT_TICKET="bs-bbb" "$BBS_TICKET" ticket init >/dev/null 2>&1 ) \
     || { echo "init B failed"; exit 1; }
-  TH_B="$( BABYSIT_TICKET="bs-bbb" "$BBS_SLUG" ticket-home )"
+  TH_B="$( BABYSIT_TICKET="bs-bbb" "$BBS_SLUG" slug ticket-home )"
 
   [ "$TH_A" != "$TH_B" ] || { echo "ticket-homes equal: $TH_A"; exit 1; }
   [ -f "$TH_A/index.json" ] || { echo "no index.json at $TH_A"; exit 1; }
@@ -90,15 +90,15 @@ T="$(mktemp -d)"
   mk_repo "$T/r" "feat/bs-shared_demo"
   cd "$T/r"
 
-  ( BABYSIT_TICKET="bs-aaa" "$BBS_TICKET" init >/dev/null 2>&1 )
-  ( BABYSIT_TICKET="bs-bbb" "$BBS_TICKET" init >/dev/null 2>&1 )
+  ( BABYSIT_TICKET="bs-aaa" "$BBS_TICKET" ticket init >/dev/null 2>&1 )
+  ( BABYSIT_TICKET="bs-bbb" "$BBS_TICKET" ticket init >/dev/null 2>&1 )
 
   # Shell A writes a pointer; shell B writes a different one.
-  ( BABYSIT_TICKET="bs-aaa" "$BBS_TICKET" set-pointer ticket_size "L" >/dev/null 2>&1 )
-  ( BABYSIT_TICKET="bs-bbb" "$BBS_TICKET" set-pointer ticket_size "S" >/dev/null 2>&1 )
+  ( BABYSIT_TICKET="bs-aaa" "$BBS_TICKET" ticket set-pointer ticket_size "L" >/dev/null 2>&1 )
+  ( BABYSIT_TICKET="bs-bbb" "$BBS_TICKET" ticket set-pointer ticket_size "S" >/dev/null 2>&1 )
 
-  size_a="$( BABYSIT_TICKET="bs-aaa" "$BBS_TICKET" get-pointer ticket_size 2>/dev/null )"
-  size_b="$( BABYSIT_TICKET="bs-bbb" "$BBS_TICKET" get-pointer ticket_size 2>/dev/null )"
+  size_a="$( BABYSIT_TICKET="bs-aaa" "$BBS_TICKET" ticket get-pointer ticket_size 2>/dev/null )"
+  size_b="$( BABYSIT_TICKET="bs-bbb" "$BBS_TICKET" ticket get-pointer ticket_size 2>/dev/null )"
 
   [ "$size_a" = "L" ] || { echo "A's ticket_size: '$size_a', want L"; exit 1; }
   [ "$size_b" = "S" ] || { echo "B's ticket_size: '$size_b', want S"; exit 1; }
@@ -124,7 +124,7 @@ T="$(mktemp -d)"
   grep -qx "ticket: bs-bbb" "$FB" || { echo "FB: bad ticket"; cat "$FB"; exit 1; }
 
   BABYSIT_HOME="$HOME/.babysit"; export BABYSIT_HOME
-  out="$("$BBS_TICKET" session list)"
+  out="$("$BBS_TICKET" ticket session list)"
   printf '%s' "$out" | grep -q "sess-A" | : ; printf '%s' "$out" | grep -q "bs-aaa" \
     || { echo "list missing bs-aaa: $out"; exit 1; }
   printf '%s' "$out" | grep -q "bs-bbb" || { echo "list missing bs-bbb: $out"; exit 1; }
