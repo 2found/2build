@@ -20,11 +20,11 @@ import (
 const defaultRemoteURL = "https://raw.githubusercontent.com/reallongnguyen/babysit/main/VERSION"
 
 // versionRe rejects non-version remote responses (HTML error pages, empty
-// bodies) — bin/bbs-update-check:118. The body is space-stripped first, so it
+// bodies) — tests/fixtures/bbs-update-check.reference:118. The body is space-stripped first, so it
 // is always a single line and ^/$ need no multiline flag.
 var versionRe = regexp.MustCompile(`^[0-9]+\.[0-9.]+$`)
 
-// newUpdateCheckCmd ports bin/bbs-update-check as `bbs update-check`, matching
+// newUpdateCheckCmd ports the retired bbs-update-check script as `bbs update-check`, matching
 // its stdout and exit codes exactly. Every path exits 0 except an fs write
 // failure, which the bash's `set -e` turns into an exit 1 (see runUpdateCheck).
 //
@@ -88,7 +88,7 @@ func runUpdateCheck(args []string) error {
 	}
 
 	// ─── Step 0: Check if updates are disabled ────────────────────
-	// The bash execs "$BABYSIT_DIR/bin/bbs-config get update_check"; reading
+	// The bash execs "bbs-config get update_check"; reading
 	// the config natively is the documented divergence (see the header of
 	// tests/test_bbs_update_check.sh).
 	if v, _ := config.Get("update_check"); v == "false" {
@@ -106,7 +106,7 @@ func runUpdateCheck(args []string) error {
 
 	// ─── Step 2: Check "just upgraded" marker ────────────────────
 	// Deliberately falls through: a JUST_UPGRADED line and a cached
-	// UPGRADE_AVAILABLE line can both print in one run (bin/bbs-update-check:70).
+	// UPGRADE_AVAILABLE line can both print in one run (tests/fixtures/bbs-update-check.reference:70).
 	if isRegularFile(markerFile) {
 		old := stripSpace(readFile(markerFile))
 		if err := rmF(markerFile); err != nil {
@@ -202,8 +202,8 @@ func rmF(path string) error {
 // (A script gets this free: the kernel hands the interpreter the path execve
 // resolved, which is why the bash this replaced needed no such step.)
 //
-// EvalSymlinks, because no real install invokes <checkout>/bin/bbs directly.
-// setup-skills links ~/.local/bin/bbs and ~/.claude/bbs at it, and the preamble
+// EvalSymlinks, because no real install invokes <checkout>/bbs directly.
+// `bbs setup` links ~/.local/bin/bbs and ~/.claude/bbs at it, and the preamble
 // puts both on PATH — so the lexical parent of whichever wins is ~/.local or
 // $HOME, neither of which holds a VERSION. Untouched, that made update-check
 // silently exit 0 (no upgrade notification ever fires) and made upgrade report
@@ -227,19 +227,30 @@ func babysitDir() string {
 		}
 	}
 	// Best-effort: a missing or unreadable argv[0] leaves the lexical path,
-	// which is still right for a direct <checkout>/bin/bbs invocation.
+	// which is still right for a direct <checkout>/bbs invocation.
 	if resolved, err := filepath.EvalSymlinks(argv0); err == nil {
 		argv0 = resolved
 	}
-	parent := filepath.Join(filepath.Dir(argv0), "..")
-	abs, err := filepath.Abs(parent)
+	// The binary lives at the checkout root (or in bin/ on older checkouts):
+	// VERSION marks the root, so check the binary's own dir before its parent.
+	dir := filepath.Dir(argv0)
+	for _, cand := range []string{dir, filepath.Join(dir, "..")} {
+		abs, err := filepath.Abs(cand)
+		if err != nil {
+			abs = cand
+		}
+		if fileExists(filepath.Join(abs, "VERSION")) {
+			return abs
+		}
+	}
+	abs, err := filepath.Abs(filepath.Join(dir, ".."))
 	if err != nil {
-		return parent
+		return filepath.Join(dir, "..")
 	}
 	return abs
 }
 
-// checkSnooze ports check_snooze (bin/bbs-update-check:36-62).
+// checkSnooze ports check_snooze (tests/fixtures/bbs-update-check.reference:36-62).
 // Snooze file format: "<version> <level> <epoch>"; level 1=24h, 2=48h, 3+=7d.
 // A missing field, a non-numeric level/epoch, or a version mismatch (i.e. a new
 // remote version) means "not snoozed".
@@ -286,7 +297,7 @@ func checkSnooze(snoozeFile, remoteVer string) bool {
 	return time.Now().Unix() < epoch+duration
 }
 
-// staleByMmin ports `find "$CACHE_FILE" -mmin +N` (bin/bbs-update-check:87).
+// staleByMmin ports `find "$CACHE_FILE" -mmin +N` (tests/fixtures/bbs-update-check.reference:87).
 // BSD find rounds the age up to the next full minute before comparing, so a
 // 61-second-old file is 2 minutes to `-mmin`.
 func staleByMmin(path string, ttlMin int) bool {

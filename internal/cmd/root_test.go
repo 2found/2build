@@ -26,7 +26,7 @@ func TestResolveVersion(t *testing.T) {
 		}
 	})
 
-	// The setup-skills path: no ldflags, so the checkout's VERSION is the
+	// The `bbs setup` path: no ldflags, so the checkout's VERSION is the
 	// source, and it must track a `git pull` without a rebuild.
 	t.Run("falls back to VERSION file", func(t *testing.T) {
 		dir := t.TempDir()

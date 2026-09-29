@@ -97,7 +97,7 @@ workflow 上，于是一次运行可以扮演任务所需的任何队友。
 **每个 archetype 都守的 invariant** —— 它们只在*使命与成功标准*
 上不同，在严格程度上从不不同：决策走
 [Auto-Decision Framework](.claude/skills/references/auto-decision-framework.md)
-（taste 决策留档，绝不悄悄猜）；在“done”之前先自我验证；
+（taste 决策按框架处理，绝不悄悄猜）；在“done”之前先自我验证；
 爆炸半径有界（不 force-push、不丢数据、没有持久授权就不发外部消息）；
 大声且就地失败（`BLOCKED`/`NEEDS_CONTEXT` 好过一个错误假设）。
 
@@ -134,7 +134,7 @@ codex plugin add bbs@babysit
 bbs update
 ```
 
-**`brew install bbs` 不是可选项。** `bin/bbs` 是构建产物，没有进
+**`brew install bbs` 不是可选项。** `./bbs` 是构建产物，没有进
 commit，所以从 GitHub 装的 plugin 不带任何编译好的二进制。`bbs` 不在你的 `PATH` 上时，
 push/PR gate 读不到 ticket 的 verdict，而且它
 fail closed —— 每一次 `git push` 都被拒。Linux 用户改用
@@ -143,12 +143,12 @@ tarball：[docs/install.md](docs/install.md)。
 <details>
 <summary><b>或者从 checkout 装</b> —— 如果你想读或改 babysit 本身</summary>
 
-checkout 是唯一一种让你的 skill 改动无需发布就生效的形态。`setup-skills` 构建二进制并把一切接好：
+checkout 是唯一一种让你的 skill 改动无需发布就生效的形态。`bbs setup` 构建二进制并把一切接好：
 
 ```bash
 git clone https://github.com/lohi-ai/babysit.git ~/src/babysit
 cd ~/src/babysit
-./bin/setup-skills --full
+go run ./cmd/bbs setup --full
 ```
 
 然后在任一 agent 里注册这个 checkout：
@@ -164,7 +164,7 @@ codex plugin add bbs@babysit
 ```
 
 这样 `bbs` 就通过 `~/.local/bin/bbs` → 你的 checkout 出现在 `PATH` 上，所以你
-不需要再装 Homebrew 那份。用 `git pull && ./bin/setup-skills` 升级。
+不需要再装 Homebrew 那份。用 `git pull && go run ./cmd/bbs setup` 升级。
 
 注意 marketplace plugin 是*复制*进 agent 的 cache 的
 （`~/.claude/plugins/cache/` 或 `~/.codex/plugins/cache/`）。`~/.claude/skills/<name>/`
@@ -374,7 +374,7 @@ bbs ticket serve            # 不带参数：把所有已完成的 ticket（qa +
 
 ## 配套 CLI
 
-一切都在这一个二进制里，以 `bbs <sub>` 调用 —— `bbs autopilot`（runner）、`bbs ticket env`（身份解析器：`BABYSIT_TICKET` → manifest → branch），外加 env、config、db 快照和升级检查的辅助命令。`brew install lohi-ai/babysit/bbs` 把它放进你的 `PATH`；从 checkout 装时，`setup-skills` 构建它并改为软链 `~/.local/bin/bbs`，另外为旧调用者在 `~/.claude/` 下放入 `bbs-*` argv0 别名。完整表格与用途见 [`docs/companion-cli.md`](docs/companion-cli.md)。对其中任何一个运行 `bbs <sub> --help` 看用法。
+一切都在这一个二进制里，以 `bbs <sub>` 调用 —— `bbs autopilot`（runner）、`bbs ticket env`（身份解析器：`BABYSIT_TICKET` → manifest → branch），外加 env、config、db 快照和升级检查的辅助命令。`brew install lohi-ai/babysit/bbs` 把它放进你的 `PATH`；从 checkout 装时，`bbs setup` 构建它并改为软链 `~/.local/bin/bbs`，另外为旧调用者在 `~/.claude/` 下放入 `bbs-*` argv0 别名。完整表格与用途见 [`docs/companion-cli.md`](docs/companion-cli.md)。对其中任何一个运行 `bbs <sub> --help` 看用法。
 
 ## 运维
 
@@ -405,7 +405,7 @@ brew uninstall bbs
 rm -rf ~/.babysit          # 你的 ticket 和 analytics —— 想保留就跳过
 ```
 
-从 checkout 装的话，删掉它之前还要先跑 `./bin/setup-skills --uninstall`。如果 pre-plugin 时代留下的旧软链还在，手动清理：
+从 checkout 装的话，删掉它之前还要先跑 `go run ./cmd/bbs setup --uninstall`。如果 pre-plugin 时代留下的旧软链还在，手动清理：
 
 ```bash
 find ~/.claude/skills -maxdepth 1 -type l -name 'bbs:*' -delete

@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// qaConfigUsage must stay byte-identical to the heredoc in bin/bbs-qa-config.
+// qaConfigUsage must stay byte-identical to the heredoc in tests/fixtures/bbs-qa-config.reference.
 const qaConfigUsage = `Usage:
   bbs-qa-config probe --env <name> [--repo <name>]
   bbs-qa-config list
@@ -18,7 +18,7 @@ const qaConfigUsage = `Usage:
   bbs-qa-config leak-check <file>
 `
 
-// newQAConfigCmd ports bin/bbs-qa-config as `bbs qa-config`, matching its
+// newQAConfigCmd ports the retired bbs-qa-config script as `bbs qa-config`, matching its
 // output bytes and exit codes exactly. Flag parsing is disabled: the bash's
 // arg loop (including its silent exit-1 on a dangling --env/--repo under
 // set -e) is part of the contract.

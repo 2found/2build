@@ -16,11 +16,11 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-GO_BIN="$SCRIPT_DIR/bin/bbs"
+GO_BIN="$SCRIPT_DIR/bbs"
 REF="$SCRIPT_DIR/tests/fixtures/bbs-ticket.reference"
 
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not installed"; exit 0; }
-[ -x "$GO_BIN" ] || { echo "FAIL: $GO_BIN not built (go build -o bin/bbs ./cmd/bbs)"; exit 1; }
+[ -x "$GO_BIN" ] || { echo "FAIL: $GO_BIN not built (go build -o bbs ./cmd/bbs)"; exit 1; }
 [ -f "$REF" ]    || { echo "FAIL: missing $REF"; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -41,8 +41,7 @@ mkdir -p "$ROOT/bin"
 for link in bbs-ticket bbs-slug bbs-autopilot; do
   ln -s "$GO_BIN" "$ROOT/bin/$link"
 done
-export PATH="$ROOT/bin:$SCRIPT_DIR/bin:$PATH"
-export BBS_LIB="$SCRIPT_DIR/bin/lib"
+export PATH="$ROOT/bin:$SCRIPT_DIR:$PATH"
 # Pin legacy dates far in the future so no sunset/hardfail branch fires, and
 # silence the telemetry-gated BBS_PATH_* stderr so the diff is on behavior only.
 export BBS_LEGACY_SUNSET="2099-01-01"

@@ -15,12 +15,14 @@
 # `git pull` failed and blamed conflicts that don't exist).
 #
 # Both implementations are staged into their own throwaway project root (bin/ +
-# VERSION + a setup-skills stub) so BABYSIT_DIR resolves the same way for each.
-# The git cases clone ONE prepared remote twice: independently *built* repos
-# would commit at different timestamps, and `git pull` echoes the SHA range
-# ("Updating 3e7acfc..af9b8d1"), which would make the stdout diff flaky. Cloning
-# a single remote makes every SHA — and therefore every byte of git's own output
-# — identical on both sides.
+# VERSION + a .claude/skills dir + a setup-skills stub for the oracle) so
+# BABYSIT_DIR resolves the same way for each. The Go side runs the compiled-in
+# `setup` step in-process — its only hard failure is a missing .claude/skills/
+# (exit 1), replacing the old stub-exit-code matrix. The git cases clone ONE
+# prepared remote twice: independently *built* repos would commit at different
+# timestamps, and `git pull` echoes the SHA range ("Updating 3e7acfc..af9b8d1"),
+# which would make the stdout diff flaky. Cloning a single remote makes every
+# SHA — and therefore every byte of git's own output — identical on both sides.
 
 set -u
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
@@ -74,21 +76,37 @@ for c in brew claude codex; do
   chmod +x "$STUBS/$c"
 done
 
+# `go` must resolve but never compile: the Go side's in-process setup runs
+# `go build -o <root>/bbs` inside the staged root, which has no go.mod. The
+# stub writes the -o target so the build "succeeds" silently on every PATH —
+# a real go build would spill "cannot find main module" onto stderr and fail
+# every diff. Put it in SANDPATH too since the no-checkout cases build one.
+for d in "$SANDPATH" "$T/gostub"; do
+  mkdir -p "$d"
+  printf '#!/bin/sh\nout=""; prev=""\nfor a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done\n[ -n "$out" ] && printf "#!/bin/sh\\n" > "$out"\nexit 0\n' > "$d/go"
+  chmod +x "$d/go"
+done
+RUNPATH="$T/gostub:$RUNPATH"
+
 N=0
-# stage_root <dir> [setup_exit] — a project root serving one implementation.
+# stage_root <dir> — a project root serving one implementation.
 stage_root() {
-  local r="$1" rc="${2:-0}"
-  mkdir -p "$r/bin"
+  local r="$1"
+  mkdir -p "$r/bin" "$r/.claude/skills/x"
+
   cp "$REFERENCE" "$r/bin/bbs-upgrade-oracle"; chmod +x "$r/bin/bbs-upgrade-oracle"
   cp "$BIN" "$r/bin/bbs"
   ln -sf bbs "$r/bin/bbs-update"    # canonical multicall command
   ln -sf bbs "$r/bin/bbs-upgrade"   # multicall: basename bbs-upgrade -> `upgrade`
-  # stdout must be swallowed by the caller (`setup-skills >/dev/null`); stderr
-  # must survive.
-  printf '#!/bin/sh\necho "relink stdout noise"\necho "relink stderr noise" >&2\nexit %s\n' "$rc" \
-    > "$r/bin/setup-skills"
+  # A stub for the ORACLE — its output is dropped on both channels, so the
+  # one line is the exit status. The Go side runs setup in-process and its
+  # stdout is discarded by the same `>/dev/null` contract.
+  printf '#!/bin/sh\nexit 0\n' > "$r/bin/setup-skills"
   chmod +x "$r/bin/setup-skills"
+  # The in-process setup hard-fails without a skills dir.
+  echo '---' > "$r/.claude/skills/x/SKILL.md"
 }
+
 
 # Per-case scratch: two roots + two state dirs.
 AD=""; BD=""; S1=""; S2=""
@@ -96,7 +114,7 @@ new_case() {
   N=$((N + 1))
   AD="$T/c$N/a"; BD="$T/c$N/b"; S1="$T/c$N/s1"; S2="$T/c$N/s2"
   mkdir -p "$AD" "$BD" "$S1" "$S2"
-  stage_root "$AD" "${1:-0}"; stage_root "$BD" "${1:-0}"
+  stage_root "$AD"; stage_root "$BD"
 }
 
 CMP_MSG=""
@@ -342,22 +360,20 @@ done
 cmp_run; same_state just-upgraded-from
 report "upgrade-pull-not-fast-forwardable-exits-1"
 
-# `set -e` exits with setup-skills' own status, not a flattened 1.
-for rc in 1 2 3 42 127; do
-  new_case "$rc"; prep_clones "1.0.0\n" "2.0.0\n"
-  cmp_run; same_state just-upgraded-from
-  report "upgrade-propagates-setup-skills-exit-$rc"
-done
-
-# A signal-killed setup-skills exits 128+N, not 1.
+# The setup step failing aborts the upgrade. The bash exec'd bin/setup-skills
+# and propagated its status; the port runs setup in-process, whose only hard
+# failure is a missing .claude/skills (exit 1). The oracle's stub takes the
+# exit code as an argument, so both sides exit 1 here.
 new_case; prep_clones "1.0.0\n" "2.0.0\n"
-for d in "$AD" "$BD"; do printf '#!/bin/sh\nkill -TERM $$\n' > "$d/bin/setup-skills"; done
-# The killing shell announces the signal itself, and the wording is not
-# portable: macOS bash says `Terminated: 15`, Linux bash says bare `Terminated`.
-# Match the word only, or the filter silently misses on Linux.
-CASE_ERR_FILTER='^Terminated'; cmp_run; CASE_ERR_FILTER=""
+printf '#!/bin/sh\nexit 1\n' > "$AD/bin/setup-skills"
+printf '#!/bin/sh\nexit 1\n' > "$BD/bin/setup-skills"
+rm -rf "$BD/.claude"
+# The in-process setup names the missing dir on stderr; the oracle's stub is
+# silent. Filter the diagnostic, keep comparing exit + stdout.
+CASE_ERR_FILTER='not found at'; cmp_run; CASE_ERR_FILTER=""
 same_state just-upgraded-from
-report "upgrade-setup-skills-killed-by-SIGTERM-exits-143"
+report "upgrade-setup-failure-exits-1"
+
 
 # `rm -f` forgives only a missing file; a directory is a hard error under set -e.
 new_case; prep_clones "1.0.0\n" "2.0.0\n"

@@ -17,7 +17,7 @@ PR. Older or unsupported binaries fall back to the existing text commands and
 their historical exit behavior.
 
 The plugin does not ship a compiled `bbs` binary. Install or rebuild it with
-`bin/setup-skills --full` from a checkout, or install the published formula.
+`go run ./cmd/bbs setup --full` from a checkout, or install the published formula.
 After updating a plugin, restart/reload the agent session so it reads the
 matching skill files. Do not write a policy file, migrate ticket state, or
 reinterpret a legacy Markdown verdict merely to make a version check pass.

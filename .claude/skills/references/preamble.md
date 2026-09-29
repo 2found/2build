@@ -1,380 +1,131 @@
 # Skill Preamble
-Runtime bootstrap for every babysit skill: run the bash block first, follow
-the status contract when reporting. Route every decision through the
-[Auto-Decision Framework](auto-decision-framework.md) (Mechanical / Taste /
-User Challenge). Trust your own judgment for everything these rules don't pin
-down.
+Run the bootstrap first and telemetry last. Decisions follow the
+[Auto-Decision Framework](auto-decision-framework.md); deliverables follow
+[Handoff Contracts](handoff-contracts.md).
 
 ## Agent-specific skill references
-
-The preamble prints `AGENT` and `SKILL_REF`. Use that prefix for every
-user-facing or spawned babysit skill invocation, including literal `/bbs:`
-examples later in this pack: Codex uses `$bbs:<skill>`, omp/Cursor use `/<skill>`,
-and Claude Code/grok use `/bbs:<skill>`.
+Use the printed `SKILL_REF` for all babysit invocations, including examples:
+Codex `$bbs:<skill>`, OMP/Cursor `/<skill>`, Claude Code/grok `/bbs:<skill>`.
 
 ## Resolving shared references
+Resolve `../references/<file>.md` from the skill's filesystem directory.
+Do not use `skill://` for sibling references: some harnesses strip `..`.
 
-This pack's shared references live in one directory beside the skills
-(`references/`), and skills link them as `../references/<file>.md`.
-Those are **filesystem paths resolved against the skill's own directory**, not
-`skill://` targets: that scheme addresses one skill directory only, so a
-harness that strips `..` from the URL silently retargets it —
-`skill://autopilot/../references/preamble.md` becomes
-`skill://autopilot/references/preamble.md` and fails as `File not found`
-(OMP). The invoking harness prints the skill's directory
-(`[Skill directory: …]`); join that with `../references/<file>.md` and read
-the file by path.
 ## Output style — terse by default
-Drop filler, pleasantries, hedging. Route by consumer:
+Keep machine output terse, human output concise, and downstream artifacts
+complete: preserve reasons, constraints and gotchas. Use full explanations
+for security, destructive actions or ambiguity. Skill-specific formats win.
 
-| Consumer | Mode | Rules |
-|----------|------|-------|
-| Machine — checkpoint, telemetry, status lines | **Full** | Drop articles too. Maximum terseness. |
-| Downstream model — handoffs, plan.md, requirement.md | **Dense** | Complete sentences. Keep the why, constraints, gotchas — these files are the next step's only memory; never cut information. |
-| Human — terminal, AskUserQuestion, NEEDS_CONTEXT | **Lite** | Full sentences, professional but tight. |
-| Security/destructive/ambiguous | **Normal** | Full prose. Resume terse after. |
-Skills with their own output format take precedence.
+<a id="escalation-channels"></a>
+
 ## One mode, four escalation channels
-Skills always run autonomously — never prompt mid-flight for taste or
-cosmetic choices. Escalate only when proceeding on a guess would land
-incorrect work: ambiguous requirement with materially different readings,
-irreversible/high-blast-radius action without durable authorization, or
-missing config/credentials that can't be inferred from the repo. Anything
-derivable from the codebase, look up; recoverable forks, try the likely path
-and report `BLOCKED` on failure. A second `NEEDS_CONTEXT` in one run means
-you're steering — stop and report.
-`AGENT_ROLE` (fallback `GT_ROLE`) picks the delivery channel:
-`developer` (default, unset) → render as a single `AskUserQuestion`;
-`dashboard` → publish an approval record and wait (below);
-`orca` → ask the coordinator over the message bus and block (below);
-anything else (`mayor`, `general`, `scanner`, …) → print the structured block
-verbatim (an orchestrator relays it; `AskUserQuestion` would hang the run).
-An authenticated current Orca Dispatch preamble plus a Task spec declaring
-effective `AGENT_ROLE=orca` is authoritative when the launcher cannot export
-environment variables into an already-running agent. Treat that worker as
-`orca`/spawned even if a legacy state echo still prints the defaults.
-Only the channel changes. The analysis, the artifacts, and the decision itself
-are identical in all four.
+Never prompt for taste or cosmetics mid-run. Classify escalation through the
+Auto-Decision Framework; look up derivable facts and try recoverable paths.
+A second `NEEDS_CONTEXT` in one run means stop and report.
+
+`AGENT_ROLE` (fallback `GT_ROLE`, default `developer`) selects delivery:
+
+| Channel | Action |
+|---------|--------|
+| `developer` | One `AskUserQuestion`. |
+| `dashboard` | Publish an approval record and await its answer. |
+| Caller-supplied | Follow the injected escalation adapter. |
+| Other roles | Print `NEEDS_CONTEXT` for the orchestrator; never prompt locally. |
+
+An authenticated caller assignment overrides a stale role/spawned shell echo.
+Only delivery changes; analysis, artifacts and decisions stay the same.
+
 ### `AGENT_ROLE=dashboard`
-The human is at the web dashboard, not at this terminal. A design checkpoint
-publishes a record on the ticket and blocks on the answer:
 ```bash
-bbs ticket approval publish --kind plan --note "<the one question, in one line>"
-DECISION=$(bbs ticket approval await)   # approved | redirected | dropped
+bbs ticket approval publish --kind plan --note "<one question>"
+bbs ticket approval await
 ```
-`await` polls the record every 10s and prints the outcome to stdout, the
-human's note to stderr. Rules for anything that consumes it:
-- **No hard timeout, ever.** Resuming on a timer means resuming on a *guess* at
-  the decision — the exact failure this channel exists to prevent. It reminds
-  the assigned foreman's workspace once at 30 minutes (`--reminder-min`) and
-  then keeps waiting.
-- **`dropped` ends the wait like any other answer.** Stop work on the ticket
-  and report; a drop is a decision, not a failure.
-- **`redirected` always carries a note** (the server rejects an empty one) —
-  rework against it and publish again. The second publish is a new checkpoint,
-  not a retry.
-- Publish once per checkpoint: re-publishing over a `pending` record is a no-op,
-  so a resumed run re-running its checkpoint step will not reset the clock on a
-  decision the human is already reading.
-Foreman's `kind=project-plan` binds the reviewed artifacts. `status`/`await`
-may return `stale` if they changed: re-publish and review the current revision,
-never treat stale as approved. An unchanged pending record stays idempotent.
-Honored by `autopilot` (its `/goal` handoff), `foreman` (the design gate), and
-any skill that would otherwise call `AskUserQuestion` at a design checkpoint.
-### `AGENT_ROLE=orca`
-Set only by a foreman that dispatched this worker over Orca's message bus, so
-the bus is known to be there. The coordinator is another agent reading a
-mailbox, not a human at this terminal. Read
-`~/.claude/skills/orchestration/SKILL.md` and the version-matched guide it loads.
-The live injected Orca preamble is authoritative: use its exact executable,
-handle, capability, Task ID, and Dispatch ID for all worker communication.
-- Use the injected `orca orchestration ask` command for a blocking coordinator
-  question; do not reconstruct its authority arguments from ticket names or
-  environment variables.
-- `ask` blocks until the coordinator answers and returns a durable message id.
-  A timeout leaves the question *pending*, not dropped — resume the same
-  question with `--resume <message_id>` rather than asking it again, or the
-  coordinator sees two questions and answers one.
-- Never `AskUserQuestion` here: nobody is watching this pane, and it would hang
-  the run in a way a batch cannot recover from.
-- If `ask` fails outright (no bus, no coordinator), fall through to the
-  structured block below. A dispatched worker that cannot reach its foreman is
-  in the orchestrator case, and the block is what an orchestrator reads.
+Await without a hard timeout: elapsed time is not approval. `await` polls
+every 10s, returns the outcome on stdout and the human's note on stderr;
+`--reminder-min` defaults to 30. Handle outcomes:
 
-Follow the injected lifecycle for the whole Dispatch, not each nested skill:
-- Read coordinator follow-ups with `orca orchestration check` at natural
-  checkpoints and immediately before reporting completion. Follow the injected
-  heartbeat cadence.
-- Persist the handoff and verdicts, then send exactly one `worker_done` through
-  the injected `orca orchestration send` command with both lifecycle IDs and a
-  three-sentence summary of what you did, found, and left. Use explicit
-  `--outcome succeeded` for `DONE`/`DONE_WITH_CONCERNS`, or `--outcome failed`
-  when ending the Dispatch as `BLOCKED`/`NEEDS_CONTEXT`. A pending question
-  continues through `ask`; it is not a terminal report.
-- Include `--files-modified` and `--report-path` only for real files/artifacts.
-  After `worker_done`, end the dispatched turn and idle. Ordinary sessions
-  without a live injected Dispatch never emit lifecycle messages.
-- It is the **doorbell, not the verdict**: the coordinator still reads
-  `bbs ticket verdict-status` off disk. Print the status block either way.
-  A send error or lifecycle rejection is a reporting failure; preserve the
-  handoff, surface the error, and follow Orca's recovery contract. Never silently
-  treat it as delivered or guess a replacement Dispatch.
+- `approved`: continue.
+- `dropped`: stop the ticket and report.
+- `redirected`: rework from the required note and publish a new checkpoint.
+- `stale`: reviewed `project-plan` artifacts changed; re-publish for review.
 
-The installed `worker-report-gate` Stop hook checks the current Orca assignment
-before the worker ends its turn. If it blocks, follow the injected lifecycle
-and resolve the report failure; a stop-hook continuation is not proof of
-delivery. The hook never reports for you or waits for a Foreman reply.
+Publish once per checkpoint. Re-publishing an unchanged pending record is
+idempotent and does not reset its clock.
 
 ### `NEEDS_CONTEXT` shape
-```
+```text
 STATUS: NEEDS_CONTEXT
-REASON: Requirement "handle duplicate invoices" could mean (a) reject with 409,
-(b) merge and sum, or (c) keep newest. Existing code does none of these.
-ATTEMPTED: Grepped invoices/*.ts for prior handling — only happy path present.
-RECOMMENDATION: Ask the ticket owner which of A/B/C applies before implementing.
+REASON: <missing fact or conflicting interpretations>
+ATTEMPTED: <what you checked>
+RECOMMENDATION: <specific question or next action>
 ```
+
 ## Native task list
-Multi-step work MUST mirror into the harness's native task list — resolve
-the surface explicitly: Claude Code `TaskCreate`/`TaskUpdate`, Codex
-`update_plan`, OMP `todo`; if the harness exposes none, checkpoint milestones
-on disk instead. Seed tasks from the skill's driving artifact — `plan.md`,
-the QA flow matrix, workflow milestones — and mark each in_progress on start,
-completed only when its check passes. The task list is the visible progress
-view; disk artifacts stay the durable state — on cold resume rebuild the list
-from them, never the reverse.
+Multi-step work MUST mirror the driving artifact into the native task list:
+Claude Code `TaskCreate`/`TaskUpdate`, Codex `update_plan`, OMP `todo`.
+If unavailable, checkpoint milestones on disk. Mark work in progress when
+started, complete after verification. On cold resume, rebuild from disk.
+
 ## Preamble (run first)
-```bash
-# ── Skill preamble ───────────────────────────────────────────────
-_SKILL_NAME="SKILL_NAME"          # set before running
-_SESSION_ID="$$-$(date +%s)"
-_TEL_START=$(date +%s)
-
-# ── Bin reachability ─────────────────────────────────────────────
-# Install guarantees exactly one thing: the `bbs` multicall binary on PATH
-# (bin/setup-skills links ~/.local/bin/bbs; `brew install bbs` installs it).
-# Skills call it as `bbs <sub>` — never a hyphenated alias, which a brew-only
-# install does not ship (Formula/bbs.rb aliases just two subcommands).
-# Net for shells that don't inherit a login PATH (cron, tmux workers, spawned
-# orchestrators): prepend the absolute install dirs when they exist.
-# $CLAUDE_PLUGIN_ROOT covers a marketplace / skills-dir plugin install, whose
-# root is not ~/.claude/skills/babysit. Codex exports the same compatibility
-# variable for plugin hooks; `:-/nonexistent` keeps it inert unset.
-for _d in "$HOME/.local/bin" "$HOME/.claude" "${CLAUDE_PLUGIN_ROOT:-/nonexistent}/bin" "$HOME/.claude/skills/babysit/bin"; do
-  case ":$PATH:" in *":$_d:"*) ;; *) [ -d "$_d" ] && PATH="$_d:$PATH" ;; esac
-done
-export PATH
-# Capability probe, once. A binary built before a subcommand existed exits 1
-# *silently* (internal/cmd/root.go sets SilenceErrors) — byte-identical to a
-# legit "no ticket" exit 1 — so probe rather than trust. `bbs ticket --help` is
-# the honest test: cobra-backed, exit 0 when served. Probe only this one: the
-# hand-rolled subcommands exit 2 on `--help`, and `bbs update --help` would
-# run a real git pull. (`bbs help <sub>` is NOT usable: cobra exits 0 for
-# unknown topics.)
-bbs ticket --help >/dev/null 2>&1 || echo \
-  "BBS_DEGRADED: no working \`bbs\` on PATH — run bin/setup-skills from a checkout, or \`brew install lohi-ai/babysit/bbs\` (a plugin install ships no compiled binary)" >&2
-
-# Auto-update check — cache-friendly, silent when up-to-date.
-# Prints UPGRADE_AVAILABLE <old> <new> or JUST_UPGRADED <old> <new> to stderr.
-_UPD=$(bbs update check 2>/dev/null || true)
-[ -n "$_UPD" ] && echo "$_UPD" >&2 || true
-
-# Session tracking — count concurrent babysit sessions, prune stale (>120 min).
-# Portable loop, not `find -mmin`: on Windows, C:\Windows\System32\find.exe
-# shadows POSIX find on PATH and silently eats these calls (audit
-# bs-b3m7rnkw #9). stat GNU/BSD fallback mirrors bin/hooks/session-writer.
-mkdir -p ~/.babysit/sessions
-touch ~/.babysit/sessions/"$PPID"
-_SESSIONS=0
-_NOW=$(date +%s)
-# `ls -A`, not a glob: zsh aborts a sourced script on an unmatched glob
-# (nomatch), and find.exe shadows POSIX find on Windows. Session filenames
-# are [a-zA-Z0-9._-] by construction (the writer rejects anything else), so
-# word-splitting ls output is safe here.
-for _f in $(ls -A ~/.babysit/sessions 2>/dev/null); do
-  _f="$HOME/.babysit/sessions/$_f"
-  [ -f "$_f" ] || continue
-  _MT="$(stat -c %Y "$_f" 2>/dev/null || stat -f %m "$_f" 2>/dev/null || echo 0)"
-  if [ $((_NOW - _MT)) -gt 7200 ]; then rm -f "$_f" 2>/dev/null; else _SESSIONS=$((_SESSIONS + 1)); fi
-done
-
-# Session-writer hook — persist (or refresh) ~/.babysit/sessions/<id>.yaml.
-# Best-effort: the guaranteed path is the bin/hooks/session-writer plugin
-# hook (SessionStart + PostToolUse); this block additionally records the
-# ticket from $BABYSIT_TICKET when a skill runs it.
-# $BABYSIT_SESSION defaults from the host agent's own session id, so every real
-# tab gets a yaml (feeds `session list`, `board`, dashboard); autopilot's
-# explicit $BABYSIT_SESSION still wins. Atomic mktemp+mv so the file's mtime
-# gets bumped (in-place edit on Linux preserves mtime — see docs/identity.md
-# § Atomic writes). Skipped when neither id is available.
-if [ -z "${BABYSIT_SESSION:-}" ]; then
-  if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then BABYSIT_SESSION="cc-${CLAUDE_CODE_SESSION_ID}"
-  elif [ -n "${CODEX_SESSION_ID:-}" ]; then BABYSIT_SESSION="cx-${CODEX_SESSION_ID}"
-  fi
-fi
-if [ -n "${BABYSIT_SESSION:-}" ]; then
-  _SF="$HOME/.babysit/sessions/${BABYSIT_SESSION}.yaml"
-  _STMP="$(mktemp "$HOME/.babysit/sessions/.session.XXXXXX" 2>/dev/null)" || _STMP=""
-  if [ -n "$_STMP" ]; then
-    {
-      echo "version: 1"
-      echo "session_id: ${BABYSIT_SESSION}"
-      echo "ticket: ${BABYSIT_TICKET:-}"
-      if [ -f "$_SF" ]; then
-        awk '/^started_at:/ { print; found=1 } END { if (!found) exit 1 }' "$_SF" 2>/dev/null \
-          || echo "started_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-      else
-        echo "started_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-      fi
-      echo "last_seen_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-      echo "pid: $$"
-      echo "cwd: $(pwd)"
-    } > "$_STMP" 2>/dev/null && mv "$_STMP" "$_SF" 2>/dev/null \
-      || rm -f "$_STMP" 2>/dev/null
-  fi
-fi
-
-# Config + repo state.
-_bbs_cfg() { bbs config get "$1" 2>/dev/null || true; }
-_PROACTIVE=$(_bbs_cfg proactive); _PROACTIVE=${_PROACTIVE:-true}
-_TEL=$(_bbs_cfg telemetry);       _TEL=${_TEL:-local}
-_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
-_REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo "unknown")")
-_INVOKER="${AGENT_ROLE:-${GT_ROLE:-developer}}"
-_AGENT="$(bbs agent detect 2>/dev/null || true)"
-if [ -z "$_AGENT" ] || [ "$_AGENT" = "unknown" ]; then
-  # No usable bbs on PATH (plugin-only install, or a binary that predates
-  # `agent detect`): fall back to the session markers the shell already sees.
-  if [ -n "${CODEX_SESSION_ID:-}${CODEX_THREAD_ID:-}" ]; then _AGENT="codex"
-  elif [ -n "${GROK_SESSION_ID:-}${GROK_AGENT:-}" ]; then _AGENT="grok"
-  elif [ -n "${CLAUDE_CODE_SESSION_ID:-}${CLAUDECODE:-}" ]; then _AGENT="claude"
-  elif [ -n "${CURSOR_AGENT:-}" ]; then _AGENT="cursor"
-  else _AGENT="unknown"; fi
-fi
-case "$_AGENT" in codex) _SKILL_REF='$bbs:' ;; omp|cursor) _SKILL_REF='/' ;; *) _SKILL_REF='/bbs:' ;; esac
-[ -n "$OPENCLAW_SESSION" ] && _SPAWNED="true" || _SPAWNED="false"
-
-# Project scope — slug + ticket re-derived through the identity ladder on every
-# preamble (env → manifest cwd-match → branch), never from conversation memory.
-# Empty TICKET = no identity resolved (e.g. main with no env) — the skill decides whether that's OK.
-eval "$(bbs ticket env 2>/dev/null || true)"
-SLUG="${SLUG:-unknown}"
-TICKET="${TICKET:-}"
-BABYSIT_PROJECT_HOME="${BABYSIT_PROJECT_HOME:-$HOME/.babysit/projects/$SLUG}"
-
-echo "SKILL: $_SKILL_NAME"
-echo "SESSION_ID: $_SESSION_ID"
-echo "SESSIONS_ACTIVE: $_SESSIONS"
-echo "SLUG: $SLUG"
-echo "BRANCH: $_BRANCH"
-echo "REPO: $_REPO"
-echo "INVOKER: $_INVOKER"
-echo "AGENT: ${_AGENT:-unknown}"
-echo "SKILL_REF: $_SKILL_REF"
-echo "TICKET: ${TICKET:-<none>}"
-echo "PROJECT_HOME: $BABYSIT_PROJECT_HOME"
-echo "PROACTIVE: $_PROACTIVE"
-echo "TELEMETRY: $_TEL"
-echo "SPAWNED: $_SPAWNED"
-
-# Ticket folder — idempotent. Seeds index.json if missing; no-op otherwise.
-# Layout C (see ticket-layout.md) stores all per-ticket state here.
-if [ -n "$TICKET" ]; then
-  bbs ticket init 2>/dev/null || true
-fi
-
-# Context Recovery — prefer the versioned, read-only state packet when the
-# installed binary advertises it. An older binary or missing jq keeps the
-# legacy recovery path unchanged; a successful read is facts, never release
-# permission.
-_V2_SNAPSHOT="$(bbs autopilot snapshot --json 2>/dev/null || true)"
-if command -v jq >/dev/null 2>&1 \
-  && printf '%s' "$_V2_SNAPSHOT" | jq -e '.schema_version == 2 and .ok == true' >/dev/null 2>&1; then
-  echo "AUTOPILOT_CONTRACT: v2"
-  printf '%s' "$_V2_SNAPSHOT" | jq -c '.data | {snapshot_id,state_revision,ticket,run,git,policy,gates,obligations}'
-elif [ -n "$TICKET" ]; then
-  bbs autopilot recover 2>/dev/null || true
-fi
-
-# Record skill start as JSONL (local-only, unless telemetry=off).
-if [ "$_TEL" != "off" ]; then
-  mkdir -p ~/.babysit/analytics
-  printf '{"ts":"%s","skill":"%s","event":"start","session":"%s","repo":"%s","branch":"%s","invoker":"%s"}\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$_SKILL_NAME" "$_SESSION_ID" "$_REPO" "$_BRANCH" "$_INVOKER" \
-    >> ~/.babysit/analytics/skill-usage.jsonl 2>/dev/null || true
-fi
+```sh
+bbs skill enter --name <skill>
 ```
-Replace `SKILL_NAME` with the skill's `name:` from frontmatter.
+Use the skill's frontmatter `name:`. Keep the returned `SESSION_ID` for the
+exit call. The command loads config/identity, checks updates, refreshes
+sessions, initializes ticket state, recovers context and logs skill start.
+A v2 snapshot supplies facts, never release permission. `--json` retains the
+telemetry-only API for callers that own bootstrap.
+
+If `bbs` is missing from PATH, try its installed absolute path (usually
+`~/.local/bin/bbs`, or the plugin's `bbs` at the plugin root). If absent or
+too old, report `BBS_DEGRADED` with `bbs setup` (`go run ./cmd/bbs setup`
+from a checkout) / `brew upgrade lohi-ai/babysit/bbs` guidance and continue
+the skill where possible.
+
 ### Interpreting the state echo
-- **`INVOKER`** — picks the `NEEDS_CONTEXT` channel (above).
-- **`PROACTIVE=false`** — don't auto-invoke other babysit skills; run only
-  what the user typed. Skip silently, never ask.
-- **`TELEMETRY=off`** — disable all telemetry writes. Nothing ever leaves the
-  machine either way.
-- **`SPAWNED=true`** — an orchestrator started this session; skip welcome
-  text and optional summaries.
-### Ticket consistency — the four-layer invariant
-1. **The resolve ladder is the anchor** — `bbs ticket resolve` walks
-   `BABYSIT_TICKET` → `manifest.yaml` cwd-match → branch regex
-   (`feat/<ticket>_<slug>`). `TICKET` is re-derived every wake-up;
-   conversation memory is never trusted. Trunk tickets (the default) are
-   env/manifest-identified and share the current branch — a branch name is
-   a valid identity source, never a required one.
-2. **Checkpoint cross-check** — `checkpoint.json` records `ticket`; if it
-   doesn't match the resolved ticket, stop and report (block below).
-3. **Timeline audit** — `bbs autopilot` appends step boundaries to
-   `timeline.jsonl`.
-4. **Ticket system is the oracle** — `bbs ticket get status` is ground truth
-   for whether the ticket exists / is open.
-Divergence (layers 1↔2 disagree):
-```
-STATUS: BLOCKED
-VERDICT: —
-SUMMARY: Ticket/checkpoint divergence — cannot safely resume.
-REASON: resolved ticket='<current>' but checkpoint.ticket='<recorded>'
-ATTEMPTED: Resolved ticket via the ladder, read checkpoint.json, compared ticket fields
-RECOMMENDATION: Human triages — export the recorded BABYSIT_TICKET, or clear state with `bbs autopilot clear <ticket>`
-```
-**No-ticket scope** — empty `TICKET` is a valid shape: skip ticket-state
-writes with a one-line note, take requirement/plan from conversation, do the
-work. Branch shape and git-flow policy are the workflow layer's concern, not
-a skill precondition. Never invent a ticket id; to attach identity without a
-checkout, `export BABYSIT_TICKET=<id>` (wins the resolve ladder).
-### Handling update-check output
-- `UPGRADE_AVAILABLE <old> <new>` — mention once ("babysit update available
-  — run `bbs update`") and continue; never auto-run or block.
-- `JUST_UPGRADED <from> <to>` — emit this exact line at top of response:
-  > babysit upgraded v\<from\> → v\<to\>. Restart your coding agent to pick up the new skills.
-## Telemetry (run last)
-After the skill completes (success, error, abort), append a completion row
-correlated by `_SESSION_ID`.
-```bash
-_TEL_END=$(date +%s)
-_TEL_DUR=$(( _TEL_END - _TEL_START ))
-rm -f ~/.babysit/sessions/"$PPID" 2>/dev/null || true
+- `INVOKER`: escalation channel above.
+- `PROACTIVE=false`: run only requested skills; silently skip auto-invocation.
+- `TELEMETRY=off`: skip all telemetry; otherwise local only.
+- `SPAWNED=true`: skip welcome text and optional summaries.
 
-if [ "$_TEL" != "off" ]; then
-  mkdir -p ~/.babysit/analytics
-  printf '{"ts":"%s","skill":"%s","event":"end","session":"%s","duration_s":%d,"outcome":"%s"}\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${_SKILL_NAME}" "${_SESSION_ID}" "${_TEL_DUR}" "OUTCOME" \
-    >> ~/.babysit/analytics/skill-usage.jsonl 2>/dev/null || true
-fi
+### Ticket consistency — the four-layer invariant
+1. Resolve identity on startup/resume: `BABYSIT_TICKET` → manifest cwd-match →
+   branch regex. Never infer it from conversation; trunk tickets are valid.
+2. Compare `checkpoint.json.ticket` with the resolved ticket. Mismatch →
+   `BLOCKED`, naming both IDs and recommending identity correction or
+   `bbs autopilot clear <ticket>`; do not resume mismatched state.
+3. `bbs autopilot` records step boundaries in `timeline.jsonl`.
+4. `bbs ticket get status` is authoritative for ticket existence/status.
+
+No ticket is valid: skip ticket-state writes with a one-line note and use
+conversation requirements/plans. Never invent an ID. Branch shape and git-flow
+prerequisites belong to workflows.
+
+### Handling update-check output
+- `UPGRADE_AVAILABLE <old> <new>`: mention `bbs update` once; continue without updating.
+- `JUST_UPGRADED <from> <to>`: start the response with:
+  “babysit upgraded v<from> → v<to>. Restart your coding agent to pick up the new skills.”
+
+## Telemetry (run last)
+```sh
+bbs skill exit --invocation <SESSION_ID> --outcome <outcome>
 ```
-Replace `OUTCOME` with one of: `success`, `error`, `abort`, `unknown`.
+Run after success, error or abort. Outcomes: `success`, `error`, `abort`,
+`unknown`. Exit correlates the event, computes duration and removes only its
+invocation marker. Session records remain available for recovery.
+
 ## Completion Status Protocol
-Every skill ends with exactly one status code, printed last:
-```
+End with one status block. Verdicts are defined in [Handoff Contracts](handoff-contracts.md).
+```text
 STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-VERDICT: <skill-specific verdict per handoff-contracts.md>
-SUMMARY: <1-2 sentences of what happened>
+VERDICT: <skill-specific verdict>
+SUMMARY: <1–2 sentences>
 ```
-`DONE` = completed with evidence; `DONE_WITH_CONCERNS` = completed, caller
-should read the concerns; `BLOCKED` = cannot proceed (broken tool, missing
-access, same step failed 3×, security uncertainty); `NEEDS_CONTEXT` = missing
-info only a human has — including scope exceeded: the work outgrew what you
-can self-verify, so stop and report rather than ship unverified. Non-happy-path
-statuses add `REASON`, `ATTEMPTED`, `RECOMMENDATION` lines. Bad work is worse
-than no work — when in doubt, stop; never guess silently.
-Two verdict→status rules are hook-enforced, not judgment calls:
-`qa` `FAIL` reports `BLOCKED`, never `DONE*` (the PR gate reads `DONE*` as
-ready); `review-pr` with unresolved material findings reports `BLOCKED`
-(minor residuals → `DONE_WITH_CONCERNS`).
+- `DONE`: completed with evidence.
+- `DONE_WITH_CONCERNS`: completed with nonblocking concerns.
+- `BLOCKED`: cannot proceed: tool/access failure, three failed attempts or security uncertainty.
+- `NEEDS_CONTEXT`: requires human information, or scope exceeds what you can self-verify.
+
+Non-happy statuses add `REASON`, `ATTEMPTED`, `RECOMMENDATION`.
+Hook-enforced: QA `FAIL` → `BLOCKED`; unresolved material review findings →
+`BLOCKED`; minor review residuals → `DONE_WITH_CONCERNS`.

@@ -17,13 +17,13 @@ const (
 	badKeyMsg = "Error: key must contain only alphanumeric characters and underscores"
 )
 
-// newConfigCmd ports bin/bbs-config as `bbs config`, matching its get/set/list
+// newConfigCmd ports the retired bbs-config script as `bbs config`, matching its get/set/list
 // behavior and exit codes exactly.
 func newConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "read/write the single babysit config file",
-		// Bare `config` or an unknown subcommand mirrors bin/bbs-config's
+		// Bare `config` or an unknown subcommand mirrors bbs-config's
 		// default case: print usage to stdout, exit 1.
 		RunE: func(_ *cobra.Command, _ []string) error {
 			fmt.Println(retarget(configUsage))

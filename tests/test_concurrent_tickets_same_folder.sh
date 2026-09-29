@@ -17,8 +17,8 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_SLUG="$SCRIPT_DIR/bin/bbs"
-BBS_TICKET="$SCRIPT_DIR/bin/bbs"
+BBS_SLUG="$SCRIPT_DIR/bbs"
+BBS_TICKET="$SCRIPT_DIR/bbs"
 PREAMBLE="$SCRIPT_DIR/.claude/skills/references/preamble.md"
 [ -x "$BBS_SLUG" ] && [ -x "$BBS_TICKET" ] && [ -f "$PREAMBLE" ] \
   || { echo "FAIL: missing bins" >&2; exit 1; }
@@ -34,11 +34,10 @@ mk_repo() {
   git -C "$d" checkout -q -b "$branch"
 }
 
-# Extract the preamble session-writer hook so we can replay it with two
+# Run the Go bootstrap so we can replay it with two
 # different BABYSIT_TICKET values — same as test_concurrent_sessions.sh.
 HOOK_BLOCK="$(mktemp)"
-awk '/^# Session-writer hook/,/^# Config \+ repo state/' "$PREAMBLE" \
-  | sed '$d' > "$HOOK_BLOCK"
+printf '\"%s\" skill enter --name test\n' "$SCRIPT_DIR/bbs" > "$HOOK_BLOCK"
 
 # ── bbs-slug-resolves-per-shell-ticket ─────────────────────────────────
 # Two subshells, same pwd, different BABYSIT_TICKET → each gets its own.

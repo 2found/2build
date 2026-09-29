@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// envUsage must stay byte-identical to the usage() heredoc in bin/bbs-env.
+// envUsage must stay byte-identical to the usage() heredoc in tests/fixtures/bbs-env.reference.
 const envUsage = `bbs-env — env resolution for babysit skills
 
 Usage:
@@ -33,10 +33,10 @@ Examples:
   bbs-env is-set --prefix DB_URL
 `
 
-// newEnvCmd ports bin/bbs-env as `bbs env`, matching its subcommands, output
+// newEnvCmd ports the retired bbs-env script as `bbs env`, matching its subcommands, output
 // bytes, and exit codes exactly.
 //
-// Flag parsing is disabled and done by hand: bin/bbs-env accepts --env-file /
+// Flag parsing is disabled and done by hand: bbs-env accepts --env-file /
 // --app only *before* the subcommand and treats --prefix as a positional
 // marker, and its error text and exit codes are part of the contract. Letting
 // cobra/pflag near the arguments would replace all of that with cobra's own.

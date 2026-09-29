@@ -12,7 +12,7 @@ import (
 
 const slugUsage = "usage: bbs-slug [env|home|ticket-home|slug|branch|ticket]"
 
-// newSlugCmd ports bin/bbs-slug as `bbs slug`, matching its subcommands,
+// newSlugCmd ports the retired bbs-slug script as `bbs slug`, matching its subcommands,
 // output, and exit codes exactly. Flag parsing is disabled so an unknown
 // argument routes to the bash default case (exit 2) instead of cobra's help.
 //
@@ -37,7 +37,7 @@ func newSlugCmd() *cobra.Command {
 			// Derivation (including the env-conflict abort) runs before the
 			// dispatch for every subcommand, matching the bash ordering.
 			info, err := slug.Resolve()
-			// Outside a git repo bin/bbs-slug dies at its unguarded
+			// Outside a git repo the bash original dies at its unguarded
 			// `git worktree list` under `set -euo pipefail`: exit 128, no
 			// output, for every subcommand and even when the ticket env vars
 			// conflict. Reproduce that before anything else can print.

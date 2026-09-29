@@ -20,7 +20,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_DASHBOARD="$SCRIPT_DIR/bin/bbs"
+BBS_DASHBOARD="$SCRIPT_DIR/bbs"
 [ -x "$BBS_DASHBOARD" ] || { echo "FAIL: $BBS_DASHBOARD not executable" >&2; exit 1; }
 
 PASS=0

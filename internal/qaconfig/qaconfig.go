@@ -1,5 +1,5 @@
 // Package qaconfig reads named-environment QA config from project files
-// (.babysit/qa.yaml and .babysit/qa.local.yaml), porting bin/bbs-qa-config's
+// (.babysit/qa.yaml and .babysit/qa.local.yaml), porting the retired bbs-qa-config script's
 // hand-rolled awk parsers bug-for-bug.
 //
 // This is deliberately NOT a YAML parser and does not use yaml.v3: the awk

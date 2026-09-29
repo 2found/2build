@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/test_bbs_env.sh — differential guard for the bbs-env Go port.
 #
-# `bbs env` replaced the bin/bbs-env bash script, and skills depend on its exact
+# `bbs env` replaced the bbs-env bash script, and skills depend on its exact
 # stdout/stderr/exit contract. Rather than assert hand-written goldens, every
 # case runs the frozen pre-port bash (tests/fixtures/bbs-env.reference) and the
 # Go binary side by side under an identical environment and diffs all three
@@ -201,7 +201,7 @@ CASE_CWD="$ROOT/work/unrelated"; CASE_ENV=();       diff_case "cwd-no-match-load
 # ── Summary ────────────────────────────────────────────────────────────
 echo ""
 if [ "$FAIL" -eq 0 ]; then
-  printf '\033[0;32mPASS\033[0m  %d/%d cases match bin/bbs-env exactly\n' "$PASS" "$((PASS + FAIL))"
+  printf '\033[0;32mPASS\033[0m  %d/%d cases match the bbs-env oracle exactly\n' "$PASS" "$((PASS + FAIL))"
   exit 0
 fi
 printf '\033[0;31mFAIL\033[0m  %d/%d failed: %s\n' "$FAIL" "$((PASS + FAIL))" "${FAIL_NAMES[*]}"

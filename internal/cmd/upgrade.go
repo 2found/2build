@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -15,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newUpgradeCmd ports bin/bbs-upgrade as `bbs update`, matching its output
+// newUpgradeCmd ports the retired bbs-upgrade script as `bbs update`, matching its output
 // bytes and exit codes exactly.
 //
 // Flag parsing is disabled: the bash never parses flags. `--snooze` is special
@@ -99,12 +100,13 @@ func runUpgrade(args []string) error {
 	}
 
 	fmt.Println("→ Relinking skills...")
-	setup := setupSkillsCmd(filepath.Join(babysit, "bin", "setup-skills"))
-	setup.Stderr = os.Stderr // stdout is dropped, as in `setup-skills >/dev/null`
-	if err := setup.Run(); err != nil {
-		// `set -e` propagates setup-skills' own status, so exit with it rather
-		// than flattening every failure to 1.
-		os.Exit(setupExitCode(err))
+	// The installer is compiled in now: run it in-process with stdout dropped,
+	// the same channel contract as `bbs setup >/dev/null`.
+	if err := runSetup(setupCtx{out: io.Discard, err: os.Stderr, projectDir: babysit}); err != nil {
+		// bash: bbs-upgrade ran setup-skills under `set -e` — a failed relink
+		// aborted the upgrade. Propagate the first action failure the same way.
+		fmt.Fprintln(os.Stderr, "relink failed: "+err.Error())
+		return errSilent
 	}
 
 	// The pull + relink above refreshed the checkout and the skills-dir symlinks
@@ -175,7 +177,7 @@ func runUpgrade(args []string) error {
 // `git rev-parse --git-dir` walks up the tree, so it answers yes for a brew
 // install: /opt/homebrew is itself a git clone, and the Cellar lives inside it.
 // Testing only that made `bbs upgrade` run `git pull` against Homebrew's
-// repository and then fail hunting for a setup-skills the formula never ships.
+// repository and then fail hunting for an installer the formula never ships.
 // Requiring the enclosing repo's toplevel to BE this directory is what
 // distinguishes babysit's own clone from whatever repo it was dropped into.
 //
@@ -492,30 +494,4 @@ func removeF(path string) error {
 		return &fs.PathError{Op: "unlink", Path: path, Err: err}
 	}
 	return nil
-}
-
-// setupExitCode maps a failed setup-skills run to the status bash would exit
-// with: its own code when it ran, 128+N when a signal killed it, else 127/126
-// as the shell reports a command it could not execute.
-func setupExitCode(err error) int {
-	var ee *exec.ExitError
-	if errors.As(err, &ee) {
-		if code := ee.ExitCode(); code >= 0 {
-			return code
-		}
-		if ws, ok := ee.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
-			return 128 + int(ws.Signal())
-		}
-		return 1
-	}
-	if errors.Is(err, exec.ErrNotFound) || errors.Is(err, fs.ErrNotExist) {
-		fmt.Fprintln(os.Stderr, err)
-		return 127
-	}
-	if errors.Is(err, fs.ErrPermission) {
-		fmt.Fprintln(os.Stderr, err)
-		return 126
-	}
-	fmt.Fprintln(os.Stderr, err)
-	return 1
 }

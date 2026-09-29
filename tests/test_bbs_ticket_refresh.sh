@@ -17,7 +17,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -56,7 +56,7 @@ advance_origin() {  # $1=tmpdir $2=file $3=content
 # ── refresh-noop ──────────────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   build_repo "$T"
   cd "$T/repo"
@@ -70,7 +70,7 @@ rm -rf "$T"
 # ── refresh-pulls-latest ──────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   build_repo "$T"
   advance_origin "$T" upstream.txt "new upstream work"
@@ -92,7 +92,7 @@ rm -rf "$T"
 # ── refresh-ignores-local-pile ────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   build_repo "$T"
   cd "$T/repo"
@@ -117,7 +117,7 @@ rm -rf "$T"
 # ── refresh-conflict-BLOCK ────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   build_repo "$T"
   advance_origin "$T" base.txt "origin version"
@@ -140,7 +140,7 @@ rm -rf "$T"
 # ── refresh-dirty-BLOCK ───────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   build_repo "$T"
   cd "$T/repo"
@@ -156,7 +156,7 @@ rm -rf "$T"
 # ── refresh-on-base-refuses ───────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   build_repo "$T"
   cd "$T/repo"

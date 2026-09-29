@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newTicketCmd is the full Go port of the former bin/bbs-ticket.bash as
-// `bbs ticket`; the bin/bbs-ticket compat symlink dispatches on argv[0].
+// newTicketCmd is the full Go port of the retired bbs-ticket.bash script as
+// `bbs ticket`; a `bbs-ticket` argv0 compat alias dispatches to it.
 //
 // Every subcommand now runs natively: the identity core (resolve/verdicts/
 // session/board), the index.json state-accessors (env/get/set-status/set-phase/
@@ -127,6 +127,8 @@ func newTicketCmd() *cobra.Command {
 				runList(args[1:])
 			case "reconcile":
 				runReconcile(args[1:])
+			case "lint":
+				runTicketLint(args[1:])
 			case "worktree-remove":
 				runWorktreeRemove(args[1:])
 			default:
@@ -138,7 +140,7 @@ func newTicketCmd() *cobra.Command {
 	}
 }
 
-// ticketUsage prints the subcommand listing (bbs-ticket.bash:170-237) to stderr.
+// ticketUsage prints the subcommand listing (tests/fixtures/bbs-ticket.reference:170-237) to stderr.
 // help/-h/--help exit 0 after this; empty and unknown subcommands exit 2.
 func ticketUsage() {
 	fmt.Fprint(os.Stderr, ticketUsageText)
@@ -252,6 +254,8 @@ standing on, so none of the next four apply:
   list <kind> [selectors]                  list ticket files of a kind
   reconcile [--ticket <id> | --all] [--dry-run] [--quiet]
                     advance index.json.status from observable filesystem state
+  lint --mode discovery|enforce [--path DIR] [--manifest FILE]
+                    flag inline $TH/… constructions inside bash fenced blocks
   worktree-remove <path>       git worktree remove with bounded retry — survives
                                transient NTFS open handles during close-out
   session <list|attach|end>      inspect/rehydrate ~/.babysit/sessions/
@@ -261,7 +265,7 @@ standing on, so none of the next four apply:
 
 // ─── shared helpers ──────────────────────────────────────────────────────
 
-// needTicket mirrors bash need_ticket() (bbs-ticket.bash:262-266).
+// needTicket mirrors bash need_ticket() (tests/fixtures/bbs-ticket.reference:262-266).
 func needTicket(env identity.Env) {
 	if env.Ticket == "" {
 		fmt.Fprintf(os.Stderr, retarget("bbs-ticket: no ticket in scope (branch='%s'; set BBS_TICKET to override)\n"), env.Branch)
@@ -269,7 +273,7 @@ func needTicket(env identity.Env) {
 	}
 }
 
-// safePathComponent mirrors bash _safe_path_component() (bbs-ticket.bash:690-708)
+// safePathComponent mirrors bash _safe_path_component() (tests/fixtures/bbs-ticket.reference:690-708)
 // with _PATH_KIND=verdict: traversal exits 3, other validation exits 2.
 func safePathComponent(kind, label, value string) string {
 	if value == "" {

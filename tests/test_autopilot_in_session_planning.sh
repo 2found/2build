@@ -6,7 +6,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SKILL="$ROOT/.claude/skills/autopilot/SKILL.md"
-REF="$ROOT/.claude/skills/references/model-routing.md"
+REF="$ROOT/.claude/skills/foreman/references/model-routing.md"
 WORKFLOWS="$ROOT/.claude/skills/autopilot/workflows"
 
 require() {

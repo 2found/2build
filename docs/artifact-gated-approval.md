@@ -16,10 +16,9 @@ Install the companion `bbs` CLI — the hooks are compiled into it as
 `bbs hooks pre-tool-gate`, `bbs hooks session-writer`, and
 `bbs hooks worker-report-gate`, so neither bash nor
 jq is required on any OS. Plugins ship no compiled `bbs`; use
-`bin/setup-skills` (POSIX) or `bin/setup-skills.ps1` (PowerShell) from a
-checkout, or the documented Homebrew install. The manifest commands invoke
-`bbs` by name, so it must be on PATH (setup-skills links it into
-`~/.local/bin`).
+`go run ./cmd/bbs setup` from a checkout, or the documented Homebrew install.
+The manifest commands invoke `bbs` by name, so it must be on PATH (`bbs setup`
+links it into `~/.local/bin`).
 
 | Agent | Wiring | Payload / decision |
 | --- | --- | --- |
@@ -29,9 +28,9 @@ checkout, or the documented Homebrew install. The manifest commands invoke
 | OMP | Load `hooks/omp.ts` as an extension | `tool_call` / `tool_result` / `session_start` / `session_stop`; native block result |
 
 The command manifest calls `bbs hooks <name>` directly — no shell syntax, so
-the same manifest works under POSIX shells, PowerShell, and cmd. The
-`bin/hooks/*` scripts remain as thin `exec bbs hooks <name>` shims for
-installations that still invoke them by path.
+the same manifest works under POSIX shells, PowerShell, and cmd. Hooks are
+compiled subcommands; there are no per-hook scripts, so older callers that
+invoked a `bin/hooks/<name>` path must switch to `bbs hooks <name>`.
 
 For OMP, skills configuration alone does **not** activate these hooks:
 

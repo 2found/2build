@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/test_hook_session_writer.sh — verifies bin/hooks/session-writer, the
+# tests/test_hook_session_writer.sh — verifies `bbs hooks session-writer`, the
 # guaranteed (hook-based) session-tracking path. The preamble block only runs
 # when a skill executes it; this hook fires on SessionStart + PostToolUse(Bash)
 # and mints ~/.babysit/sessions/cc-<session_id>.yaml with the ticket derived
@@ -10,11 +10,11 @@
 set -u
 unset CODEX_SESSION_ID CODEX_THREAD_ID
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-HOOK="$SCRIPT_DIR/bin/hooks/session-writer"
-[ -x "$HOOK" ] || { echo "FAIL: $HOOK missing or not executable" >&2; exit 1; }
-# The shim execs `bbs hooks session-writer` — build bbs and put it on PATH.
+# Build a throwaway bbs and drive its `hooks session-writer` subcommand.
 BIN_DIR="$(mktemp -d)"; trap 'rm -rf "$BIN_DIR"' EXIT
 ( cd "$SCRIPT_DIR" && go build -o "$BIN_DIR/bbs" ./cmd/bbs ) || { echo "FAIL: go build" >&2; exit 1; }
+HOOK=("$BIN_DIR/bbs" hooks session-writer)
+[ -x "${HOOK[0]}" ] || { echo "FAIL: ${HOOK[0]} missing or not executable" >&2; exit 1; }
 PATH="$BIN_DIR:$PATH"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -25,7 +25,7 @@ fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m
 T="$(mktemp -d)"
 (
   HOME="$T/h"; export HOME
-  printf '%s' '{"cwd":"/tmp"}' | "$HOOK"
+  printf '%s' '{"cwd":"/tmp"}' | "${HOOK[@]}"
   count="$(find "$HOME/.babysit/sessions" -type f 2>/dev/null | wc -l | tr -d ' ')"
   [ "${count:-0}" = "0" ] || { echo "expected no files, got $count"; exit 1; }
 ) && ok "no-op-without-session-id" || fail "no-op-without-session-id"
@@ -36,7 +36,7 @@ T="$(mktemp -d)"
 (
   HOME="$T/h"; export HOME
   mkdir -p "$T/repo/.babysit/worktrees/bs-wt1_some-slug"
-  printf '%s' "{\"session_id\":\"s1\",\"cwd\":\"$T/repo/.babysit/worktrees/bs-wt1_some-slug\"}" | "$HOOK"
+  printf '%s' "{\"session_id\":\"s1\",\"cwd\":\"$T/repo/.babysit/worktrees/bs-wt1_some-slug\"}" | "${HOOK[@]}"
   F="$HOME/.babysit/sessions/cc-s1.yaml"
   [ -f "$F" ] || { echo "no yaml at $F"; exit 1; }
   grep -qx "session_id: cc-s1" "$F" || { echo "bad session_id"; cat "$F"; exit 1; }
@@ -49,7 +49,7 @@ T="$(mktemp -d)"
 (
   HOME="$T/h"; export HOME
   export CODEX_SESSION_ID="codex-host"
-  printf '%s' '{"session_id":"s-codex","cwd":"/tmp"}' | "$HOOK"
+  printf '%s' '{"session_id":"s-codex","cwd":"/tmp"}' | "${HOOK[@]}"
   F="$HOME/.babysit/sessions/cx-s-codex.yaml"
   [ -f "$F" ] || { echo "no yaml at $F"; exit 1; }
   grep -qx "session_id: cx-s-codex" "$F" || { echo "bad session_id"; cat "$F"; exit 1; }
@@ -61,7 +61,7 @@ T="$(mktemp -d)"
 (
   HOME="$T/h"; export HOME
   git -C "$T" init -q -b "feat/bs-br1_add-thing" repo
-  printf '%s' "{\"session_id\":\"s2\",\"cwd\":\"$T/repo\"}" | "$HOOK"
+  printf '%s' "{\"session_id\":\"s2\",\"cwd\":\"$T/repo\"}" | "${HOOK[@]}"
   grep -qx "ticket: bs-br1" "$HOME/.babysit/sessions/cc-s2.yaml" \
     || { echo "bad ticket"; cat "$HOME/.babysit/sessions/cc-s2.yaml"; exit 1; }
 ) && ok "derives-ticket-from-feat-branch" || fail "derives-ticket-from-feat-branch"
@@ -73,7 +73,7 @@ T="$(mktemp -d)"
 (
   HOME="$T/h"; export HOME
   git -C "$T" init -q -b "feat/bs-parent/003_bs-child_do-part" repo
-  printf '%s' "{\"session_id\":\"s3\",\"cwd\":\"$T/repo\"}" | "$HOOK"
+  printf '%s' "{\"session_id\":\"s3\",\"cwd\":\"$T/repo\"}" | "${HOOK[@]}"
   grep -qx "ticket: bs-child" "$HOME/.babysit/sessions/cc-s3.yaml" \
     || { echo "bad ticket"; cat "$HOME/.babysit/sessions/cc-s3.yaml"; exit 1; }
 ) && ok "derives-ticket-from-sub-ticket-branch" || fail "derives-ticket-from-sub-ticket-branch"
@@ -84,7 +84,7 @@ T="$(mktemp -d)"
 (
   HOME="$T/h"; export HOME
   git -C "$T" init -q -b main repo
-  printf '%s' "{\"session_id\":\"s4\",\"cwd\":\"$T/repo\"}" | "$HOOK"
+  printf '%s' "{\"session_id\":\"s4\",\"cwd\":\"$T/repo\"}" | "${HOOK[@]}"
   grep -qx "ticket: " "$HOME/.babysit/sessions/cc-s4.yaml" \
     || { echo "expected empty ticket"; cat "$HOME/.babysit/sessions/cc-s4.yaml"; exit 1; }
 ) && ok "empty-ticket-on-base-branch" || fail "empty-ticket-on-base-branch"
@@ -94,10 +94,10 @@ rm -rf "$T"
 T="$(mktemp -d)"
 (
   HOME="$T/h"; export HOME
-  printf '%s' '{"session_id":"s5","cwd":"/tmp"}' | "$HOOK"
+  printf '%s' '{"session_id":"s5","cwd":"/tmp"}' | "${HOOK[@]}"
   F="$HOME/.babysit/sessions/cc-s5.yaml"
   grep -qx "cwd: /tmp" "$F" || { echo "first write missing"; exit 1; }
-  printf '%s' '{"session_id":"s5","cwd":"/elsewhere"}' | "$HOOK"
+  printf '%s' '{"session_id":"s5","cwd":"/elsewhere"}' | "${HOOK[@]}"
   grep -qx "cwd: /tmp" "$F" || { echo "throttle failed: file rewritten within 60s"; cat "$F"; exit 1; }
 ) && ok "throttles-rewrites-within-60s" || fail "throttles-rewrites-within-60s"
 rm -rf "$T"
@@ -106,12 +106,12 @@ rm -rf "$T"
 T="$(mktemp -d)"
 (
   HOME="$T/h"; export HOME
-  printf '%s' '{"session_id":"s6","cwd":"/tmp"}' | "$HOOK"
+  printf '%s' '{"session_id":"s6","cwd":"/tmp"}' | "${HOOK[@]}"
   F="$HOME/.babysit/sessions/cc-s6.yaml"
   ORIG="$(grep '^started_at:' "$F")"
   # age the file past the throttle window, then rewrite
   touch -t 202001010000 "$F"
-  printf '%s' '{"session_id":"s6","cwd":"/tmp"}' | "$HOOK"
+  printf '%s' '{"session_id":"s6","cwd":"/tmp"}' | "${HOOK[@]}"
   [ "$(grep '^started_at:' "$F")" = "$ORIG" ] \
     || { echo "started_at not preserved"; cat "$F"; exit 1; }
   grep -qx "session_id: cc-s6" "$F" || { echo "rewrite lost fields"; cat "$F"; exit 1; }

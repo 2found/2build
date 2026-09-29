@@ -7,7 +7,7 @@
 # get-manifest, set-branch. `ensure` and the base-ops stay bash-delegated and are
 # out of scope here.
 #
-# Method: run each command against the Go binary (bin/bbs, driven through a
+# Method: run each command against the Go binary (./bbs, driven through a
 # temp bbs-ticket argv0 link so output keeps the hyphen spelling) and the frozen
 # bash reference (tests/fixtures/bbs-ticket.reference), each inside its own clone
 # of one source repo (so bbs slug derives an identical SLUG/BRANCH) and pinned to
@@ -17,11 +17,11 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-GO_BIN="$SCRIPT_DIR/bin/bbs"
+GO_BIN="$SCRIPT_DIR/bbs"
 REF="$SCRIPT_DIR/tests/fixtures/bbs-ticket.reference"
 
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not installed"; exit 0; }
-[ -x "$GO_BIN" ] || { echo "FAIL: $GO_BIN not built (go build -o bin/bbs ./cmd/bbs)"; exit 1; }
+[ -x "$GO_BIN" ] || { echo "FAIL: $GO_BIN not built (go build -o bbs ./cmd/bbs)"; exit 1; }
 [ -f "$REF" ]    || { echo "FAIL: missing $REF"; exit 1; }
 
 # The oracle is frozen at the 2026-07-18 port, so index.json fields the schema
@@ -62,8 +62,7 @@ mkdir -p "$ROOT/bin"
 for link in bbs-ticket bbs-slug bbs-autopilot; do
   ln -s "$GO_BIN" "$ROOT/bin/$link"
 done
-export PATH="$ROOT/bin:$SCRIPT_DIR/bin:$PATH"
-export BBS_LIB="$SCRIPT_DIR/bin/lib"
+export PATH="$ROOT/bin:$SCRIPT_DIR:$PATH"
 unset BBS_TICKET BABYSIT_TICKET AGENT_ROLE GT_ROLE 2>/dev/null || true
 mkdir -p "$HOME"
 

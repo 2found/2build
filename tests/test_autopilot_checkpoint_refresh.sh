@@ -13,7 +13,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_AUTOPILOT="$SCRIPT_DIR/bin/bbs"
+BBS_AUTOPILOT="$SCRIPT_DIR/bbs"
 [ -x "$BBS_AUTOPILOT" ] || { echo "FAIL: $BBS_AUTOPILOT not executable" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not installed"; exit 0; }
 

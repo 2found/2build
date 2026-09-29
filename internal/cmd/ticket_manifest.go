@@ -8,7 +8,7 @@ import (
 	"github.com/reallongnguyen/babysit/internal/ticket"
 )
 
-// This file ports the manifest.yaml family of bin/bbs-ticket.bash: get-manifest,
+// This file ports the manifest.yaml family of the retired bbs-ticket.bash: get-manifest,
 // set-branch, and init (index.json seed + first manifest.yaml). The parser and
 // writer live in internal/ticket/manifest.go. `ensure` stays delegated — it cuts
 // git branches (safe-cut gate) and belongs with the base-ops slice.

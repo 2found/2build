@@ -1,16 +1,11 @@
 # Handoff Contracts
-What one skill leaves for the next actor (skill, human, or orchestrator).
-Everything a downstream actor needs must be reachable from four surfaces: the
-stdout status block ([preamble.md § Completion Status Protocol](preamble.md#completion-status-protocol)),
-git state (branch + commits — the diff is the primary deliverable), the
-ticket directory `~/.babysit/projects/<slug>/tickets/<ticket>/`
-([ticket-layout.md](ticket-layout.md)), and — `developer` runs only —
-conversation context. `<ticket>` resolves through the identity ladder —
-`BABYSIT_TICKET` → manifest cwd-match → branch regex — never conversation
-memory
-([preamble.md § Ticket consistency](preamble.md#ticket-consistency--the-four-layer-invariant)).
+Downstream actors use the [status block](preamble.md#completion-status-protocol),
+git diff/commits, and ticket artifacts under
+`~/.babysit/projects/<slug>/tickets/<ticket>/` ([layout](ticket-layout.md)).
+Only developer runs may also rely on conversation. Resolve identity via the
+[preamble](preamble.md#ticket-consistency--the-four-layer-invariant).
+
 ## Verdicts per skill
-A verdict is a short fixed-shape string reported next to `STATUS`:
 
 | Skill | Verdict shape |
 |-------|--------------|
@@ -30,49 +25,49 @@ A verdict is a short fixed-shape string reported next to `STATUS`:
 | `recon` | `STEAL(<approach>)` \| `PASS` |
 | `social-content` | `SCRIPTS` |
 | `setup-project` | `CONFIGURED` |
-New skills pick a one-line verdict and document it in their own SKILL.md.
-## CHANGE_BRIEF — the primary file artifact
-One per finished skill, appended via `bbs ticket` (never write the file
-directly — the helper claims the sequence number and logs the event):
-```bash
-eval "$(bbs ticket env)"
-cat > "${TMPDIR:-/tmp}/<skill>-brief.md" <<EOF
-SUMMARY: <1–3 sentences: what changed and why>
-FILES: <comma-separated changed files>
-APPROACH: <one-line implementation approach>
-BLAST_RADIUS: <what existing behavior could be affected>
-EOF
-bbs ticket add-handoff <skill> "${TMPDIR:-/tmp}/<skill>-brief.md"
-```
-Single-line fields, no markdown headers (downstream skills grep them). A
-field that doesn't apply gets `none`, not omission.
-## Evidence paths
-| Path (under the ticket dir) | Contents | Writer |
-|------|----------|--------|
-| `handoffs/<NNN>-<skill>.md` | Append-only change briefs | `bbs ticket add-handoff` |
-| `verdicts/<skill>.md` | Latest status block per skill | `bbs ticket set-verdict` |
-| `reviews/<skill>.md` | Latest review per skill | `bbs ticket set-review` |
-| `plan.md`, `design.md`, `manifest.md` | Ticket-root canonicals | skill + `bbs ticket set-pointer` |
-| `evidence/*.{png,json}` | Screenshots, structured outputs | skill writes directly |
-| `report.md` | Human-readable summary | skill writes directly |
-Metadata mutations go through `bbs ticket`. Don't write scratch files inside
-the repo working tree — use the ticket dir; the diff stays clean.
-### Typed evidence artifacts
-Written through `bbs ticket set-evidence` (validated; exit 2 on malformed →
-retry once, then escalate) and read back categorically — presence +
-structure, never a score, so a model can't self-grade past the gate. The
-hard-stage gate still keys on `verdicts/`
-(see [artifact-gated-approval](../../../docs/artifact-gated-approval.md)).
 
-| Kind | Owner skill | Required | Optional |
-|------|-------------|----------|----------|
-| `verification` | `implement`, `browse`, `investigate` | `result` (`PASS`\|`FAIL`) | `checks:[{cmd,result}]`, `before`, `after` |
-```bash
-bbs ticket set-evidence --kind verification \
-  --json '{"result":"PASS","checks":[{"cmd":"eslint changed","result":"pass"}],"before":"3 errs","after":"0"}'
-bbs ticket evidence-status --kind verification   # → none | valid | malformed
+New skills pick a one-line verdict and document it in their own SKILL.md.
+
+## CHANGE_BRIEF — the primary file artifact
+For each finished skill, write a brief with these single-line fields; use
+`none` for inapplicable fields. Preserve any skill-specific sections below them.
+```text
+SUMMARY: <what changed and why>
+FILES: <changed files>
+APPROACH: <implementation approach>
+BLAST_RADIUS: <existing behavior affected>
 ```
+With a ticket, publish through the helper; never write numbered handoffs directly:
+```bash
+bbs ticket add-handoff --skill <skill> --status <status> --body-file <brief-path>
+```
+Without a ticket, skip ticket writes and return the brief in the response or a
+caller-supplied artifact. Keep scratch files in the ticket directory or a temp
+directory, outside the repo diff.
+
+## Evidence paths
+Paths below are relative to the ticket directory. Mutate metadata through `bbs ticket`.
+
+| Path | Contents / writer |
+|------|-------------------|
+| `handoffs/<NNN>-<skill>.md` | Append-only briefs; `add-handoff` |
+| `verdicts/<skill>.md` | Latest status block; `set-verdict --skill <skill> --body-file <report>` |
+| `reviews/<skill>.md` | Latest review; `set-review --skill <skill> --body-file <report>` |
+| `plan.md`, `design.md`, `manifest.md` | Canonical artifacts; skill writes, `set-pointer` registers |
+| `evidence/*.{png,json}`, `report.md` | Screenshots, structured output, summary; skill writes |
+
+### Typed evidence artifacts
+`bbs ticket set-evidence` validates structure. Exit 2 → retry once, then escalate.
+Check presence/structure, never a self-assigned score. Release gates still read
+`verdicts/` ([approval contract](../../../docs/artifact-gated-approval.md)).
+
+`verification` belongs to `implement`, `browse`, `investigate`: required `result`
+(`PASS` or `FAIL`); optional `checks:[{cmd,result}]`, `before`, `after`.
+```bash
+bbs ticket set-evidence --kind verification --json '{"result":"PASS"}'
+bbs ticket evidence-status --kind verification   # none | valid | malformed
+```
+
 ## Git conventions
-Orchestrator-specific conventions (ticket IDs, review cards, auto-merge)
-belong to the orchestrator — a babysit skill works standalone with nothing
-but a git repo.
+Git topology, review cards and landing policy belong to the caller/workflow.
+Skills can run standalone in the current checkout.

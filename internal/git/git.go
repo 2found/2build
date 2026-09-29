@@ -44,9 +44,9 @@ func CurrentBranchIn(dir string) string {
 
 // PrimaryWorktree returns the first entry of `git worktree list --porcelain`,
 // which is always the primary checkout. This is the consistency anchor from
-// bin/bbs-slug: a linked worktree must resolve the same project home as its
+// the retired bbs-slug script: a linked worktree must resolve the same project home as its
 // primary checkout. The bool is false when git itself failed (not a repo) —
-// bin/bbs-slug crashes here under `set -euo pipefail`, so callers replicate
+// bbs-slug crashes here under `set -euo pipefail`, so callers replicate
 // that hard exit rather than falling back.
 func PrimaryWorktree() (string, bool) { return PrimaryWorktreeIn("") }
 

@@ -17,7 +17,7 @@
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 WF_DIR="$SCRIPT_DIR/.claude/skills/autopilot/workflows"
-BBS_AUTOPILOT="$SCRIPT_DIR/bin/bbs"
+BBS_AUTOPILOT="$SCRIPT_DIR/bbs"
 AUTOPILOT_SKILL="$SCRIPT_DIR/.claude/skills/autopilot/SKILL.md"
 [ -x "$BBS_AUTOPILOT" ] || { echo "FAIL: $BBS_AUTOPILOT not executable" >&2; exit 1; }
 
@@ -98,8 +98,8 @@ fi
 
 # ── review execution boundary + persisted QA verdict ────────────────
 
-if grep -q 'Never dispatch the whole review skill' "$AUTOPILOT_SKILL" \
-   && grep -q 'making it a child creates nested delegation' "$AUTOPILOT_SKILL"; then
+if grep -q 'step is ever dispatched to a child, a second session, or an external process' "$AUTOPILOT_SKILL" \
+   && grep -q 'unsupported nested delegation' "$AUTOPILOT_SKILL"; then
   ok "review-pr-stays-in-current-session"
 else
   fail "review-pr-stays-in-current-session"
@@ -108,10 +108,10 @@ fi
 # Goal support is capability-probed, never guessed from the harness brand.
 # Reading "without `/goal` support" as OMP's or Codex's path skips the
 # copy-paste handoff and with it the human design checkpoint.
-if grep -q 'verified for the harness actually running' "$AUTOPILOT_SKILL" \
+if grep -q 'Verify `/goal` against the active harness' "$AUTOPILOT_SKILL" \
    && grep -q 'omp config get goal.enabled' "$AUTOPILOT_SKILL" \
    && grep -q 'codex features list' "$AUTOPILOT_SKILL" \
-   && grep -q 'silently drops the design checkpoint' "$AUTOPILOT_SKILL"; then
+   && grep -q 'the human design checkpoint' "$AUTOPILOT_SKILL"; then
   ok "goal-support-probed-not-guessed"
 else
   fail "goal-support-probed-not-guessed"
@@ -145,7 +145,7 @@ done
 
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   # Isolate from the developer's ~/.babysit config (base_branch override
   # would shadow the origin/HEAD → main fallback under test).
   export HOME="$T/home"; mkdir -p "$HOME"
@@ -176,7 +176,7 @@ route_mode_test() {
   local seed="$1"
   local D; D="$(mktemp -d)"
   (
-    export PATH="$SCRIPT_DIR/bin:$PATH"
+    export PATH="$SCRIPT_DIR:$PATH"
     export HOME="$D/home"; mkdir -p "$HOME"
     git init -q "$D/repo"; cd "$D/repo"
     git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init

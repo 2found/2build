@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/test_bbs_ticket_serve.sh — coverage for bin/bbs ticket § serve.
+# tests/test_bbs_ticket_serve.sh — coverage for bbs ticket § serve.
 #
 # serve <ticket> = the human-review lever: long surface lease (240 min
 # default) + compose, in this repo and in each linked sibling repo, so the
@@ -32,7 +32,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -101,7 +101,7 @@ build_sibling_repo() {
 # ── serve-acquires-and-composes ───────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -124,7 +124,7 @@ rm -rf "$T"
 # ── serve-blocked-by-other-lease ──────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -144,7 +144,7 @@ rm -rf "$T"
 # ── serve-release-keeps-surface ───────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -163,7 +163,7 @@ rm -rf "$T"
 # ── serve-compose-block-lease-hygiene ──────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -190,7 +190,7 @@ rm -rf "$T"
 # ── serve-sibling-fanout ──────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -221,7 +221,7 @@ rm -rf "$T"
 # ── serve-sibling-unresolved ──────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -241,7 +241,7 @@ rm -rf "$T"
 # ── serve-multi-composes ──────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -267,7 +267,7 @@ rm -rf "$T"
 # ── serve-bare-finished-batch ─────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }

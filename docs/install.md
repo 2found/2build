@@ -6,7 +6,7 @@ users use the tarball.
 
 > **This is not how you install babysit.** Babysit is a coding-agent skill pack
 > for Claude Code and Codex;
-> it installs via `git clone` + `bin/setup-skills` (see the
+> it installs via `git clone` + `go run ./cmd/bbs setup` (see the
 > [README Quick start](../README.md#quick-start)) — which builds `bbs` and
 > symlinks it into `~/.local/bin/`. This page is only for getting the compiled
 > `bbs` binary onto your `PATH` on its own, with no checkout behind it.
@@ -21,7 +21,7 @@ core bins are now Go and ship inside this one binary, reachable as `bbs <sub>`:
 |---------|------|--------------|
 | `bbs config …` (alias `bbs-config`) | `config` | read/write `~/.babysit/config.yaml` |
 | `bbs ticket …` | `ticket` | ticket identity core (`env`, `resolve`, `set-verdict`, `verdict-status`, `session`, `board`) — see the strangler note below |
-| `bbs update` | `update` | `git pull` + `setup-skills`, refreshes installed Claude Code and Codex plugins, and writes a `JUST_UPGRADED` marker; `update check` prints `UPGRADE_AVAILABLE` when a newer release exists |
+| `bbs update` | `update` | `git pull` + `bbs setup`, refreshes installed Claude Code and Codex plugins, and writes a `JUST_UPGRADED` marker; `update check` prints `UPGRADE_AVAILABLE` when a newer release exists |
 | `bbs secrets …` (alias `bbs-env`) | `secrets` | project-local `.babysit/.env` credential loader (`load` / `seed` / `ensure-gitignore`), env resolution with `.env.base` auto-load (`resolve` / `is-set` / `list-prefix` / `prompt`), and `.babysit/qa.yaml` fields (`qa probe` / `qa list` / …) |
 | `bbs design …` | `design` | design-intelligence broker (`tokens` / `suggest` / `components` / `ux-check`) — the CSV/DESIGN.md data files ship with the skill pack |
 
@@ -50,7 +50,7 @@ but its CSV/DESIGN.md data files live in the skill pack, so a brew-only
 Every subcommand is now Go, `ticket` included — no production bash
 remains. `brew install bbs` still does not, and is not meant to, give you the
 whole toolkit: the skill pack (skills, workflows, DESIGN.md/CSV data) comes
-only from the clone + `bin/setup-skills`.
+only from the clone + `go run ./cmd/bbs setup`.
 
 `bbs --version` (or `-v`) prints the version. A release binary reports the tag
 it was built from, injected at build time; a clone install has no injected value
@@ -121,8 +121,8 @@ artifact is published.** The runtime hooks are compiled into `bbs`
 (`bbs hooks pre-tool-gate` / `bbs hooks session-writer`), so they run on any
 OS with no bash or jq on PATH. For native PowerShell/cmd, the skill pack
 ships `.claude/skills/references/preamble.ps1` (the shared preamble — same
-state-echo contract as the bash block) and `bin/setup-skills.ps1` (the
-install mirror); skill bodies still assume a POSIX shell for their own
+state-echo contract as the bash block) and `bbs setup` (the installer — `go
+run ./cmd/bbs setup` from a checkout); skill bodies still assume a POSIX
 commands, so Git-Bash/WSL remains the fully supported path.
 
 ## How the aliases work

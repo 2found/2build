@@ -9,8 +9,8 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
-BBS_SLUG_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
+BBS_SLUG_BIN="$SCRIPT_DIR/bbs"
 [ -x "$BBS_TICKET_BIN" ] && [ -x "$BBS_SLUG_BIN" ] || { echo "FAIL: bins not executable" >&2; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -31,7 +31,7 @@ T="$(mktemp -d)"
   unset BBS_TICKET; export BABYSIT_TICKET="bs-fromenv"
   mk_repo "$T/r" "main"
   cd "$T/r"
-  PATH="$SCRIPT_DIR/bin:$PATH"
+  PATH="$SCRIPT_DIR:$PATH"
   out="$("$BBS_TICKET_BIN" ticket resolve)"
   [ "$out" = "bs-fromenv" ] || { echo "got: $out"; exit 1; }
 ) && ok "step1-env-resolves" || fail "step1-env-resolves"
@@ -44,7 +44,7 @@ T="$(mktemp -d)"
   export BABYSIT_TICKET="bs-aaa" BBS_TICKET="bs-bbb"
   mk_repo "$T/r" "main"
   cd "$T/r"
-  PATH="$SCRIPT_DIR/bin:$PATH"
+  PATH="$SCRIPT_DIR:$PATH"
   err="$("$BBS_TICKET_BIN" ticket resolve 2>&1 1>/dev/null)"; rc=$?
   [ "$rc" = "2" ] || { echo "expected rc=2, got rc=$rc; err=$err"; exit 1; }
   printf '%s' "$err" | grep -q "STATUS: BLOCKED" || { echo "missing BLOCKED in: $err"; exit 1; }
@@ -58,7 +58,7 @@ T="$(mktemp -d)"
   unset BABYSIT_TICKET BBS_TICKET
   mk_repo "$T/r" "feat/bs-zzz_topic"
   cd "$T/r"
-  PATH="$SCRIPT_DIR/bin:$PATH"
+  PATH="$SCRIPT_DIR:$PATH"
   out="$("$BBS_TICKET_BIN" ticket resolve)"
   [ "$out" = "bs-zzz" ] || { echo "got: $out"; exit 1; }
 ) && ok "step3-branch-fallback" || fail "step3-branch-fallback"
@@ -71,7 +71,7 @@ T="$(mktemp -d)"
   unset BABYSIT_TICKET BBS_TICKET
   mk_repo "$T/r" "main"
   cd "$T/r"
-  PATH="$SCRIPT_DIR/bin:$PATH"
+  PATH="$SCRIPT_DIR:$PATH"
   out="$("$BBS_TICKET_BIN" ticket resolve 2>/dev/null)"; rc=$?
   [ "$rc" = "1" ] || { echo "expected rc=1, got rc=$rc; out=$out"; exit 1; }
   [ -z "$out" ]   || { echo "expected empty stdout, got: $out"; exit 1; }
@@ -84,7 +84,7 @@ T="$(mktemp -d)"
   unset BABYSIT_TICKET BBS_TICKET
   mk_repo "$T/r" "feat/bs-env_topic"
   cd "$T/r"
-  PATH="$SCRIPT_DIR/bin:$PATH"
+  PATH="$SCRIPT_DIR:$PATH"
   out="$("$BBS_TICKET_BIN" ticket env)"; rc=$?
   [ "$rc" = "0" ] || { echo "expected rc=0, got rc=$rc"; exit 1; }
   for want in "^SLUG='[^']+'\$" "^BRANCH='feat/bs-env_topic'\$" "^TICKET='bs-env'\$" "^BABYSIT_PROJECT_HOME='[^']+'\$" "^TICKET_HOME='[^']+'\$" "^INDEX='[^']+'\$"; do

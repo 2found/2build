@@ -95,7 +95,7 @@ still expected four values from `ticketV2Readiness`, while the hardened Core
 helper returns a verified-head value as well. The minimal dashboard adaptation
 is included in final code revision `4bfc9a5bf9be8587911b7f946cfed64ccc27c095`.
 
-- Checkout-built `bin/bbs`, the focused race suite, v2 context/readiness and
+- Checkout-built `./bbs`, the focused race suite, v2 context/readiness and
   checkpoint-refresh contracts, pre-tool gate (20), land (9), QA-lease (11),
   differential (18), and hook/plugin Python coverage (11 plus 8 subtests)
   passed.

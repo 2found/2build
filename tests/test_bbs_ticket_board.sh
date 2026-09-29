@@ -21,7 +21,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -63,7 +63,7 @@ build_two_tickets() {
 # ── board-rows-and-verdicts ───────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -87,7 +87,7 @@ rm -rf "$T"
 # ── board-lease-and-serving ───────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -114,7 +114,7 @@ rm -rf "$T"
 # ── board-status-filter ───────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -132,7 +132,7 @@ rm -rf "$T"
 # ── board-sibling-unresolved ──────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -150,7 +150,7 @@ rm -rf "$T"
 # ── board-base-drift ──────────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }

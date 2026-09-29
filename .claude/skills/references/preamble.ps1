@@ -64,12 +64,12 @@ $_SESSION_ID = "$PID-$([long](Get-Date -UFormat %s))"
 $_TEL_START = [long](Get-Date -UFormat %s)
 
 # ── Bin reachability ─────────────────────────────────────────────
-# Install guarantees `bbs` on PATH (setup-skills.ps1 copies it to
+# Install guarantees `bbs` on PATH (`bbs setup` copies it to
 # ~/.local/bin; brew installs it). Prepend the absolute install dirs for
 # shells that don't inherit a login PATH — same net as the bash block.
 foreach ($d in @((Join-Path $Home_ '.local/bin'), (Join-Path $Home_ '.claude'),
-                $(if ($env:CLAUDE_PLUGIN_ROOT) { Join-Path $env:CLAUDE_PLUGIN_ROOT 'bin' } else { $null }),
-                (Join-Path $Home_ '.claude/skills/babysit/bin'))) {
+                $(if ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } else { $null }),
+                (Join-Path $Home_ '.claude/skills/babysit'))) {
     if ($d -and (Test-Path $d) -and ($env:PATH -split [IO.Path]::PathSeparator) -notcontains $d) {
         $env:PATH = "$d$([IO.Path]::PathSeparator)$env:PATH"
     }
@@ -79,7 +79,7 @@ foreach ($d in @((Join-Path $Home_ '.local/bin'), (Join-Path $Home_ '.claude'),
 # actually serves the subcommand (a stale binary exits 1 silently). Invoke-Bbs
 # returns $null on any failure; --help always prints on success.
 if ($null -eq (Invoke-Bbs ticket --help)) {
-    [Console]::Error.WriteLine('BBS_DEGRADED: no working `bbs` on PATH — run bin/setup-skills.ps1 from a checkout, or `brew install lohi-ai/babysit/bbs` (a plugin install ships no compiled binary)')
+    [Console]::Error.WriteLine('BBS_DEGRADED: no working `bbs` on PATH — run `go run ./cmd/bbs setup` from a checkout, or `brew install lohi-ai/babysit/bbs` (a plugin install ships no compiled binary)')
 }
 
 # Auto-update check — prints UPGRADE_AVAILABLE/JUST_UPGRADED to stderr.

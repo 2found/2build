@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "1.93.6",
+  "version": "1.93.7",
   "description": "Autonomous product-building workflows for planning, implementation, review, and QA.",
   "author": {
     "name": "lohi-ai",
@@ -10,7 +10,7 @@
   "repository": "https://github.com/lohi-ai/babysit",
   "license": "MIT",
   "keywords": ["autonomy", "coding", "qa", "workflows"],
-  "skills": "./skills/",
+  "skills": "./.claude/skills",
   "interface": {
     "displayName": "Babysit",
     "shortDescription": "Plan, build, review, and QA while you are away.",

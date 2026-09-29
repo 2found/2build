@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/test_bbs_ticket_surface_lease.sh — coverage for bin/bbs ticket § surface lease verbs.
+# tests/test_bbs_ticket_surface_lease.sh — coverage for bbs ticket § surface lease verbs.
 #
 # `surface acquire` = exclusive QA-session lease on the shared test
 # surface. While a ticket holds it, `surface compose` / `surface revert` from
@@ -26,7 +26,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -77,7 +77,7 @@ backdate_lease() {
 # ── lease-acquire-status ──────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -99,7 +99,7 @@ rm -rf "$T"
 # ── lease-reentrant ───────────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -114,7 +114,7 @@ rm -rf "$T"
 # ── lease-blocked-other-owner ─────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -131,7 +131,7 @@ rm -rf "$T"
 # ── lease-stale-steal ─────────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -148,7 +148,7 @@ rm -rf "$T"
 # ── lease-release-owner-only ──────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -170,7 +170,7 @@ rm -rf "$T"
 # ── lease-blocks-compose ───────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -197,7 +197,7 @@ rm -rf "$T"
 # ── lease-blocks-surface-ops ──────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -224,7 +224,7 @@ rm -rf "$T"
 # ── lease-stale-guard-clears ──────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -245,7 +245,7 @@ rm -rf "$T"
 # work, while refusing a marker whose reviewed head is not actually on base.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -296,7 +296,7 @@ rm -rf "$T"
 # designed usage, not an edge case.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -325,7 +325,7 @@ rm -rf "$T"
 # plain acquire rather than a steal.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
@@ -360,7 +360,7 @@ rm -rf "$T"
 # lease and land a merge on a surface that was under QA.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }

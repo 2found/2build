@@ -18,7 +18,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 RUBRIC_MD="$SCRIPT_DIR/.claude/skills/references/ticket-size-rubric.md"
 PLAN_MD="$SCRIPT_DIR/.claude/skills/plan-draft/SKILL.md"
 IMPL_MD="$SCRIPT_DIR/.claude/skills/implement/SKILL.md"
-BBS_TICKET="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET="$SCRIPT_DIR/bbs"
 [ -f "$RUBRIC_MD" ]  || { echo "FAIL: $RUBRIC_MD missing" >&2; exit 1; }
 [ -x "$BBS_TICKET" ] || { echo "FAIL: $BBS_TICKET not executable" >&2; exit 1; }
 
@@ -46,7 +46,7 @@ run_downgrade() {
   export HOME="$t/home"; mkdir -p "$HOME"
   export BABYSIT_ANALYTICS_DIR="$t/analytics"
   export BBS_TICKET_BIN="$BBS_TICKET"
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export BBS_TICKET="bs-resize-1"
   git init -q "$t/repo"; cd "$t/repo"
   git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init

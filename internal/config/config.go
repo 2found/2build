@@ -22,7 +22,7 @@ import (
 )
 
 // configHeader is written verbatim on the first `set` into a fresh file. It
-// began as a byte-for-byte copy of CONFIG_HEADER in the former bin/bbs-config;
+// began as a byte-for-byte copy of CONFIG_HEADER in the former bbs-config script;
 // that script is gone, so the header is owned here and documents new keys as
 // they land.
 const configHeader = `# babysit configuration — edit freely, changes take effect on next skill run.
@@ -99,7 +99,7 @@ func WarnRetiredAgentSettings(w io.Writer) {
 }
 
 // Dir returns the babysit state directory, honoring BABYSIT_STATE_DIR
-// (default ~/.babysit) — matching bin/bbs-config.
+// (default ~/.babysit) — matching the retired bbs-config script.
 func Dir() string {
 	if d := os.Getenv("BABYSIT_STATE_DIR"); d != "" {
 		return d

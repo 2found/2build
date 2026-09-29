@@ -1,5 +1,5 @@
 // Package ticket reads and writes the per-ticket Layout C directory that
-// bin/bbs-ticket.bash owns: index.json, manifest.yaml, verdicts/, history.jsonl,
+// the retired bbs-ticket.bash owns: index.json, manifest.yaml, verdicts/, history.jsonl,
 // and the session files under ~/.babysit/sessions. Only the pieces the ported
 // (native) subcommands need live here — everything else still runs in bash.
 package ticket

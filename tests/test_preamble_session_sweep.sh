@@ -15,27 +15,8 @@ fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m
 T="$(mktemp -d)"
 trap 'rm -rf "$T"' EXIT
 
-# ── static: no `find` in the session-tracking section ──────────────────
-# The section is bounded by the "Session tracking" comment and the
-# "Session-writer hook" comment that follows it.
-SWEEP="$(awk '/^# Session tracking/,/^# Session-writer hook/' "$PREAMBLE")"
-[ -n "$SWEEP" ] || { echo "FAIL: could not extract sweep section" >&2; exit 1; }
-if printf '%s' "$SWEEP" | grep -qE '(^|[;|&]|\$\()\s*find\b'; then
-  fail "sweep-uses-no-find" "find invocation present in sweep section"
-else
-  ok "sweep-uses-no-find"
-fi
-
-# ── dynamic: run the real preamble block, assert sweep behavior ────────
-python3 - "$PREAMBLE" > "$T/preamble.sh" <<'PY'
-import re, sys
-src = open(sys.argv[1]).read()
-blocks = [m.group(1) for m in re.finditer(r'```bash\n(.*?)```', src, re.S)]
-block = next((b for b in blocks if 'Bin reachability' in b), blocks[0])
-print(block.replace('_SKILL_NAME="SKILL_NAME"', '_SKILL_NAME="test"', 1))
-PY
-grep -q 'Session tracking' "$T/preamble.sh" \
-  || { echo "FAIL: extracted block has no sweep — preamble restructured?" >&2; exit 1; }
+# Run the native bootstrap; it needs no find/stat/jq subprocesses.
+printf '\"%s\" skill enter --name test\n' "$REPO/bbs" > "$T/preamble.sh"
 
 SHELLS=(bash)
 command -v zsh >/dev/null 2>&1 && SHELLS+=(zsh)

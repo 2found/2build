@@ -1,6 +1,6 @@
 ---
 name: analytics-review
-description: Maintainer pass over babysit telemetry. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, which Taste decisions repeat, where runs go BLOCKED.
+description: Maintainer pass over babysit telemetry. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED.
 ---
 # analytics-review
 The Maintainer archetype pointed at babysit itself. Telemetry is the pack's
@@ -15,12 +15,8 @@ tickets, not dashboards. Read-only — it never edits the pack in the same run.
    skill (`event:"end"` rows carry `outcome` + `duration_s`), plus the audit
    events (`skill-verdict-audit`, Hook C rows). Flag skills with error rate
    ≥25% or that never fire.
-3. Aggregate `decisions.jsonl`. Classification vocabulary is dirty
-   (`Mechanical`/`mechanical`/`Taste`…) — lowercase before grouping. Two
-   signals matter:
-   - a **Taste decision repeated ≥3×** with the same `decision` value → candidate
-     for promotion to a Mechanical rule in the owning skill;
-   - `kind:"resize"` rows → is `plan-draft` habitually over-sizing?
+3. Aggregate `decisions.jsonl`. `kind:"resize"` rows → is `plan-draft`
+   habitually over-sizing?
 4. Find where runs die: `outcome:"error"` clusters, BLOCKED/NEEDS_CONTEXT in
    verdict audits, and tickets whose checkpoint stopped advancing (if ticket
    state is reachable). Also pair `start`/`end` rows by `(session, skill)` to

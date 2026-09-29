@@ -2,8 +2,8 @@
 #
 # What ships: the Go `bbs` multicall binary, with the dashboard SPA embedded in
 # it (see the before-hook below and internal/webui).
-# The babysit skill pack and the 18 bash bins are NOT in these artifacts — they
-# install via `git clone` + `bin/setup-skills` (see README / docs/install.md).
+# The babysit skill pack and the hooks are NOT in these artifacts — they
+# install via `git clone` + `go run ./cmd/bbs setup` (see README / docs/install.md).
 #
 # The pipeline is built but never fired here: the human tags a release
 # (`git tag vX.Y.Z && git push --tags`) and the release workflow runs goreleaser.

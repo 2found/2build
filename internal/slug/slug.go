@@ -1,4 +1,4 @@
-// Package slug ports bin/bbs-slug's derivation: project slug, sanitized
+// Package slug ports the retired bbs-slug script's derivation: project slug, sanitized
 // branch, and derived ticket id, computed from the git remote + branch.
 //
 // It deliberately hardcodes $HOME/.babysit (NOT BABYSIT_STATE_DIR): the bash
@@ -33,7 +33,7 @@ func (e *EnvConflictError) Error() string {
 	return fmt.Sprintf("bbs-slug: BABYSIT_TICKET=%s conflicts with BBS_TICKET=%s; unset one to proceed.", e.BabysitTicket, e.BBSTicket)
 }
 
-// Info is the resolved identity, mirroring the KEY=VALUE lines bin/bbs-slug
+// Info is the resolved identity, mirroring the KEY=VALUE lines bbs-slug
 // emits for `eval`.
 type Info struct {
 	Slug        string
@@ -42,7 +42,7 @@ type Info struct {
 	ProjectHome string
 }
 
-// The two sed substitutions from bin/bbs-slug, applied in sequence to the
+// The two sed substitutions from bbs-slug, applied in sequence to the
 // remote URL. First strips a trailing `.git`, capturing owner/repo; second
 // captures owner/repo when there is no `.git`. A non-match leaves the string
 // unchanged, exactly like sed.
@@ -66,7 +66,7 @@ func ResolveIn(dir string) (*Info, error) {
 	home, _ := os.UserHomeDir()
 	cacheDir := filepath.Join(home, ".babysit", "slug-cache")
 
-	// Key the cache by the repo's PRIMARY worktree, not the cwd. bin/bbs-slug
+	// Key the cache by the repo's PRIMARY worktree, not the cwd. bbs-slug
 	// distinguishes two outcomes here and so must we: git failing means we are
 	// outside a repo and its `set -e` aborts the whole script (ErrNoRepo);
 	// git succeeding with no worktree line falls back to the cwd.

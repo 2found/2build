@@ -22,8 +22,8 @@ code review, fixes, regression checks, and QA are agent work, not a checklist
 to hand back to the human. Keep the existing plan checkpoint and explicit
 `--stop-after` boundaries; after execution starts, do not stop for routine
 review findings, cosmetic choices, or locally repairable test failures.
-Composed skills' Taste decisions are logged and summarized in the handoff,
-not separate approval requests. Genuine User Challenges still escalate.
+Composed skills' Taste decisions are summarized in the handoff, not separate
+approval requests. Genuine User Challenges still escalate.
 
 `DONE` means every acceptance criterion has current evidence, no material
 finding remains, and the committed change can proceed to the authorized

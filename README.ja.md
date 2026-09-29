@@ -98,7 +98,7 @@ behavior-preserving な pass として回す。
 **あらゆる archetype が守る invariant** — 違うのは *mandate と成功
 基準* だけで、厳しさは決して変わらない: 決定は
 [Auto-Decision Framework](.claude/skills/references/auto-decision-framework.md) を通る
-(taste の決定は記録され、黙って推測されることはない)。「done」の前に
+(taste の決定はフレームワークに従い、黙って推測されることはない)。「done」の前に
 自己検証。blast radius は限定 (force-push なし、data loss なし、永続的な
 authorization なしの外部メッセージなし)。失敗は大きく、ローカルに
 (間違った前提を抱えるより `BLOCKED`/`NEEDS_CONTEXT`)。
@@ -136,7 +136,7 @@ CLI とインストール済みの全 agent plugin を `bbs update` でアップ
 bbs update
 ```
 
-**`brew install bbs` は任意ではない。** `bin/bbs` は build artifact で
+**`brew install bbs` は任意ではない。** `./bbs` は build artifact で
 commit されていないので、GitHub から入れた plugin にコンパイル済み binary は入っていない。
 `bbs` が `PATH` にないと push/PR gate が ticket の verdict を読めず、
 fail closed する — すべての `git push` が拒否される。Linux ユーザーは
@@ -146,12 +146,12 @@ fail closed する — すべての `git push` が拒否される。Linux ユー
 <summary><b>あるいは checkout から</b> — babysit 自体を読みたい、改造したいなら</summary>
 
 checkout は、skill への編集を publish せずに効かせられる唯一の形だ。
-`setup-skills` が binary を build し、すべてを配線する:
+`bbs setup` が binary を build し、すべてを配線する:
 
 ```bash
 git clone https://github.com/lohi-ai/babysit.git ~/src/babysit
 cd ~/src/babysit
-./bin/setup-skills --full
+go run ./cmd/bbs setup --full
 ```
 
 それからどちらかの agent に checkout を登録する:
@@ -167,7 +167,7 @@ codex plugin add bbs@babysit
 ```
 
 これで `bbs` が `~/.local/bin/bbs` → あなたの checkout として `PATH` に入るので、
-Homebrew のインストールは不要だ。アップグレードは `git pull && ./bin/setup-skills`。
+Homebrew のインストールは不要だ。アップグレードは `git pull && go run ./cmd/bbs setup`。
 
 marketplace plugin は agent の cache
 (`~/.claude/plugins/cache/` または `~/.codex/plugins/cache/`) に *コピー* される点に注意。
@@ -378,7 +378,7 @@ bbs ticket serve            # 引数なし: 完了した ticket (qa + review DON
 
 ## 付属 CLI
 
-すべては `bbs <sub>` として届く 1 つの binary だ — `bbs autopilot` (runner)、`bbs ticket env` (identity resolver: `BABYSIT_TICKET` → manifest → branch)、加えて env、config、db snapshot、upgrade check の helper 群。`brew install lohi-ai/babysit/bbs` が `PATH` に入れる。checkout からなら `setup-skills` が build して代わりに `~/.local/bin/bbs` を symlink し、legacy な呼び出し元のために `bbs-*` の argv0 alias を `~/.claude/` に入れる。全表と目的は [`docs/companion-cli.md`](docs/companion-cli.md) にある。どれでも `bbs <sub> --help` で使い方を表示する。
+すべては `bbs <sub>` として届く 1 つの binary だ — `bbs autopilot` (runner)、`bbs ticket env` (identity resolver: `BABYSIT_TICKET` → manifest → branch)、加えて env、config、db snapshot、upgrade check の helper 群。`brew install lohi-ai/babysit/bbs` が `PATH` に入れる。checkout からなら `bbs setup` が build して代わりに `~/.local/bin/bbs` を symlink し、legacy な呼び出し元のために `bbs-*` の argv0 alias を `~/.claude/` に入れる。全表と目的は [`docs/companion-cli.md`](docs/companion-cli.md) にある。どれでも `bbs <sub> --help` で使い方を表示する。
 
 ## 運用
 
@@ -409,7 +409,7 @@ brew uninstall bbs
 rm -rf ~/.babysit          # あなたの ticket と analytics — 残したいなら飛ばす
 ```
 
-checkout から入れた場合は、消す前に `./bin/setup-skills --uninstall` も実行する。plugin 以前のインストールから legacy symlink が残っている場合の手動 cleanup:
+checkout から入れた場合は、消す前に `go run ./cmd/bbs setup --uninstall` も実行する。plugin 以前のインストールから legacy symlink が残っている場合の手動 cleanup:
 
 ```bash
 find ~/.claude/skills -maxdepth 1 -type l -name 'bbs:*' -delete

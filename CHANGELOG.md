@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased — bin/ removal
+
+### Changed
+
+- **The `bin/` directory is gone** — the last shell scripts moved into the
+  Go multicall binary: `bin/setup-skills` → `bbs setup` (install/uninstall/
+  build/relink, plus the pre-commit hook), `bin/bbs-ticket-lint` →
+  `bbs ticket lint`, `bin/hooks/pre-commit` → `bbs hooks pre-commit`, and
+  `bin/bbs-ticket-test` → the Go e2e suite in
+  `internal/cmd/ticket_path_e2e_test.go`. `bin/lib/lock.sh` moved to
+  `tests/fixtures/lib/` next to the bash oracle that still sources it. The
+  compiled binary now lives at the checkout root (`./bbs`, still gitignored);
+  `go build -o bbs ./cmd/bbs` replaces `bin/setup-skills` for a plain build.
+- **`bbs update` runs setup in-process** — the checkout path no longer execs
+  `bin/setup-skills`; the relink step is the compiled `setup` with stdout
+  discarded, so upgrading on Windows no longer needs bash.
+
 ## 1.93.1 — 2026-09-24
 
 ### Added

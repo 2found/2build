@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-# Compat shim — session tracking is compiled into the bbs binary as
-# `bbs hooks session-writer` (internal/cmd/hooks.go). This script stays only
-# so manifests that invoke it by path keep working; it needs bbs on PATH, the
-# same contract hooks/hooks.json already relies on.
-exec bbs hooks session-writer "$@"

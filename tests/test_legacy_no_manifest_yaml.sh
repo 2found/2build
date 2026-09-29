@@ -8,8 +8,8 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
-BBS_SLUG_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
+BBS_SLUG_BIN="$SCRIPT_DIR/bbs"
 [ -x "$BBS_TICKET_BIN" ] && [ -x "$BBS_SLUG_BIN" ] || { echo "FAIL" >&2; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -25,7 +25,7 @@ T="$(mktemp -d)"
   git -C "$T/r" -c user.email=t@t -c user.name=t commit --allow-empty -q -m init
   git -C "$T/r" checkout -q -b "feat/bs-legacy_topic"
   cd "$T/r"
-  PATH="$SCRIPT_DIR/bin:$PATH"
+  PATH="$SCRIPT_DIR:$PATH"
 
   SLUG="$("$BBS_SLUG_BIN" slug slug)"
   TH="$HOME/.babysit/projects/$SLUG/tickets/bs-legacy"

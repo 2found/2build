@@ -5,7 +5,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 [ -x "$BBS_TICKET_BIN" ] || { echo "FAIL: bin not executable" >&2; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -26,9 +26,9 @@ T="$(mktemp -d)"
   unset BABYSIT_TICKET BBS_TICKET
   mk_repo "$T/r" "feat/bs-mfst1_demo"
   cd "$T/r"
-  PATH="$SCRIPT_DIR/bin:$PATH"
+  PATH="$SCRIPT_DIR:$PATH"
   "$BBS_TICKET_BIN" ticket init >/dev/null 2>&1 || { echo "init failed"; exit 1; }
-  TH="$("$SCRIPT_DIR/bin/bbs" slug ticket-home)"
+  TH="$("$SCRIPT_DIR/bbs" slug ticket-home)"
   M="$TH/manifest.yaml"
   [ -f "$M" ] || { echo "no manifest at $M"; exit 1; }
   grep -q "^version: 1$"        "$M" || { echo "missing version"; cat "$M"; exit 1; }
@@ -45,9 +45,9 @@ T="$(mktemp -d)"
   unset BABYSIT_TICKET BBS_TICKET
   mk_repo "$T/r" "feat/bs-mfst2_demo"
   cd "$T/r"
-  PATH="$SCRIPT_DIR/bin:$PATH"
+  PATH="$SCRIPT_DIR:$PATH"
   "$BBS_TICKET_BIN" ticket init >/dev/null 2>&1 || exit 1
-  TH="$("$SCRIPT_DIR/bin/bbs" slug ticket-home)"
+  TH="$("$SCRIPT_DIR/bbs" slug ticket-home)"
   M="$TH/manifest.yaml"
   # Read existing repo name out of the manifest
   REPO_NAME="$(awk '/^  - name:/ {sub(/^  - name:[[:space:]]*/, ""); print; exit}' "$M")"
@@ -69,7 +69,7 @@ T="$(mktemp -d)"
   unset BABYSIT_TICKET BBS_TICKET
   mk_repo "$T/r" "feat/bs-mfst3_demo"
   cd "$T/r"
-  PATH="$SCRIPT_DIR/bin:$PATH"
+  PATH="$SCRIPT_DIR:$PATH"
   "$BBS_TICKET_BIN" ticket init >/dev/null 2>&1 || exit 1
   out="$("$BBS_TICKET_BIN" ticket get-manifest "bs-mfst3" 2>/dev/null)" || { echo "get-manifest failed"; exit 1; }
   printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["ticket"]=="bs-mfst3", d; assert isinstance(d["repos"], list) and d["repos"], d' \
@@ -84,7 +84,7 @@ T="$(mktemp -d)"
   unset BABYSIT_TICKET BBS_TICKET
   mk_repo "$T/r" "feat/bs-mfst4_demo"
   cd "$T/r"
-  PATH="$SCRIPT_DIR/bin:$PATH"
+  PATH="$SCRIPT_DIR:$PATH"
   "$BBS_TICKET_BIN" ticket init >/dev/null 2>&1 || exit 1
   err="$("$BBS_TICKET_BIN" ticket set-branch "bs-mfst4" "no-such-repo" "main" 2>&1 1>/dev/null)"; rc=$?
   [ "$rc" -ne 0 ] || { echo "expected non-zero rc, got 0; err=$err"; exit 1; }

@@ -20,10 +20,10 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # bin/bbs is gitignored and therefore absent on a fresh checkout —
+      # ./bbs is gitignored and therefore absent on a fresh checkout —
       # the linter has to be built before it can run.
       - name: Build bbs
-        run: go build -o bin/bbs ./cmd/bbs
+        run: go build -o bbs ./cmd/bbs
 
       - name: Lint workflow files
         run: |
@@ -31,7 +31,7 @@ jobs:
           for wf in .claude/skills/autopilot/workflows/*.md .claude/workflows/*.md; do
             [ -f "$wf" ] || continue
             echo "linting $wf"
-            bin/bbs autopilot lint-workflow "$wf" || ERRORS=$((ERRORS + 1))
+            ./bbs autopilot lint-workflow "$wf" || ERRORS=$((ERRORS + 1))
           done
           if [ "$ERRORS" -gt 0 ]; then
             echo "::error::$ERRORS workflow file(s) failed lint"

@@ -22,10 +22,10 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS="$SCRIPT_DIR/bin/bbs"
+BBS="$SCRIPT_DIR/bbs"
 
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not installed"; exit 0; }
-[ -x "$BBS" ] || { echo "FAIL: $BBS not built (go build -o bin/bbs ./cmd/bbs)"; exit 1; }
+[ -x "$BBS" ] || { echo "FAIL: $BBS not built (go build -o bbs ./cmd/bbs)"; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }

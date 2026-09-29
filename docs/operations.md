@@ -260,7 +260,7 @@ Skill runs append JSON Lines to `~/.babysit/analytics/skill-usage.jsonl`. Becaus
 
 Nothing summarizes that file on demand — the reader is the `/bbs:analytics-review` skill. Dispatch it by hand (`/bbs:analytics-review`) when you want a report; to look at the raw rows, read the JSONL directly.
 
-The Auto-Decision Framework's audit trail is the companion file, `~/.babysit/analytics/decisions.jsonl` — one line per Taste/Mechanical decision. `investigate` can read it for prior-learnings context; grep or `jq` it directly.
+The companion file `~/.babysit/analytics/decisions.jsonl` is the audit trail for ticket-level events (size resizes, approval self-resolves) — one line per decision. Grep or `jq` it directly.
 
 ## Auto-update
 
@@ -292,10 +292,10 @@ done
 
 ### Pre-commit hook
 
-`setup-skills` installs a pre-commit hook that auto-lints staged workflow files. To install or reinstall:
+`bbs setup` installs a pre-commit hook that auto-lints staged workflow files. To install or reinstall:
 
 ```bash
-./bin/setup-skills
+go run ./cmd/bbs setup
 ```
 
 ### CI
@@ -369,7 +369,7 @@ slip past the stall bound.
 
 ## Health checks
 
-There is no health-check command. `./bin/setup-skills` reports what it linked and warns when `~/.local/bin` is missing from your `PATH`; beyond that, the preamble is the live check — it emits `BBS_DEGRADED` on stderr at the top of every skill run when no working `bbs` is reachable, which is the failure that actually matters.
+There is no health-check command. `bbs setup` reports what it linked and warns when `~/.local/bin` is missing from your `PATH`; beyond that, the preamble is the live check — it emits `BBS_DEGRADED` on stderr at the top of every skill run when no working `bbs` is reachable, which is the failure that actually matters.
 
 To verify an install by hand:
 

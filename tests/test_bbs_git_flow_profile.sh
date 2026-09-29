@@ -23,8 +23,8 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_BIN="$SCRIPT_DIR/bin/bbs"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_BIN="$SCRIPT_DIR/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -195,7 +195,7 @@ rm -rf "$T"
 # ── pet-ensure-rides-main ─────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -216,7 +216,7 @@ rm -rf "$T"
 # for babysit to move the user off the branch they were standing on.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -238,7 +238,7 @@ rm -rf "$T"
 # never inherited from a config file — including in an unconfigured repo.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -261,7 +261,7 @@ rm -rf "$T"
 # and gets an informational line instead.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"

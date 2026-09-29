@@ -8,7 +8,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 [ -x "$BBS_TICKET_BIN" ] || { echo "FAIL: $BBS_TICKET_BIN not executable" >&2; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()

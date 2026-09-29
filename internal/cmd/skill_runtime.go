@@ -14,6 +14,7 @@ import (
 
 	"github.com/reallongnguyen/babysit/internal/agent"
 	"github.com/reallongnguyen/babysit/internal/config"
+	"github.com/reallongnguyen/babysit/internal/ticket"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +45,7 @@ type skillRuntimeRecord struct {
 func newSkillRuntimeCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "skill {enter|exit} ...",
-		Short:              "record local skill invocation lifecycle",
+		Short:              "bootstrap skills and record local invocation lifecycle",
 		DisableFlagParsing: true,
 		RunE: func(_ *cobra.Command, args []string) error {
 			runSkillRuntime(args)
@@ -69,8 +70,8 @@ func runSkillRuntime(args []string) {
 
 func skillEnter(args []string) {
 	name := argValue(args, "--name")
-	if !hasArg(args, "--json") || name == "" || safeTicket(name) != name {
-		failV2("USAGE", "skill enter requires --name NAME --json", false, nil, 2)
+	if name == "" || safeTicket(name) != name {
+		failV2("USAGE", "skill enter requires --name NAME [--json]", false, nil, 2)
 	}
 	rec := currentSkillRuntimeRecord(name)
 	if harness := strings.TrimSpace(argValue(args, "--harness")); harness != "" {
@@ -82,6 +83,10 @@ func skillEnter(args []string) {
 	rec.Event = "start"
 	rec.InvocationID = newInvocationID()
 	rec.Session = rec.InvocationID
+	if !hasArg(args, "--json") {
+		skillPreamble(rec)
+		return
+	}
 	if err := appendSkillRuntime(rec); err != nil {
 		failV2("IO_ERROR", err.Error(), false, nil, 1)
 	}
@@ -122,6 +127,7 @@ func skillExit(args []string) {
 	if err := appendSkillRuntime(rec); err != nil {
 		failV2("IO_ERROR", err.Error(), false, nil, 1)
 	}
+	_ = os.Remove(filepath.Join(ticket.SessionsDir(), id+".active"))
 	printV2Envelope(map[string]interface{}{
 		"invocation_id": id, "outcome": outcome, "duration_s": rec.DurationS,
 		"provider_usage": rec.Usage, "telemetry": telemetryMode(),

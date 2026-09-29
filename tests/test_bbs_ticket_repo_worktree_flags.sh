@@ -7,8 +7,8 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET="$SCRIPT_DIR/bin/bbs"
-BBS_SLUG="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET="$SCRIPT_DIR/bbs"
+BBS_SLUG="$SCRIPT_DIR/bbs"
 [ -x "$BBS_TICKET" ] || { echo "FAIL: $BBS_TICKET not executable" >&2; exit 1; }
 
 PASS=0
@@ -23,7 +23,7 @@ fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m
 setup_env() {
   local t="$1"
   export HOME="$t/home"
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   mkdir -p "$HOME"
   git init -q "$t/repo"
   cd "$t/repo"

@@ -7,7 +7,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_SLUG="$SCRIPT_DIR/bin/bbs"
+BBS_SLUG="$SCRIPT_DIR/bbs"
 [ -x "$BBS_SLUG" ] || { echo "FAIL: $BBS_SLUG not executable" >&2; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()

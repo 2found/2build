@@ -18,11 +18,11 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-GO_BIN="$SCRIPT_DIR/bin/bbs"
+GO_BIN="$SCRIPT_DIR/bbs"
 REF="$SCRIPT_DIR/tests/fixtures/bbs-ticket.reference"
 
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not installed"; exit 0; }
-[ -x "$GO_BIN" ] || { echo "FAIL: $GO_BIN not built (go build -o bin/bbs ./cmd/bbs)"; exit 1; }
+[ -x "$GO_BIN" ] || { echo "FAIL: $GO_BIN not built (go build -o bbs ./cmd/bbs)"; exit 1; }
 [ -f "$REF" ]    || { echo "FAIL: missing $REF"; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -33,7 +33,7 @@ ROOT="$(mktemp -d)"
 trap 'rm -rf "$ROOT"' EXIT
 
 # Sandbox: pinned HOME + PATH so both impls resolve the same bbs-slug and never
-# touch the real ~/.babysit. The tracked bin/bbs-* argv0 links are gone, so the
+# touch the real ~/.babysit. The tracked bbs-* argv0 links are gone, so the
 # sandbox mints its own for the oracle's `command -v` probes (bbs-slug,
 # bbs-autopilot); bin/ stays on PATH for the repo's own `bbs` too.
 export HOME="$ROOT/home"
@@ -42,8 +42,7 @@ export BABYSIT_TICKET="bs-state01"
 mkdir -p "$ROOT/bin"
 ln -sf "$GO_BIN" "$ROOT/bin/bbs-slug"
 ln -sf "$GO_BIN" "$ROOT/bin/bbs-autopilot"
-export PATH="$ROOT/bin:$SCRIPT_DIR/bin:$PATH"
-export BBS_LIB="$SCRIPT_DIR/bin/lib"
+export PATH="$ROOT/bin:$SCRIPT_DIR:$PATH"
 unset BBS_TICKET AGENT_ROLE GT_ROLE 2>/dev/null || true
 mkdir -p "$HOME"
 

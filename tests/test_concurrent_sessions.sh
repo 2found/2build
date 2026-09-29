@@ -6,7 +6,7 @@
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PREAMBLE="$SCRIPT_DIR/.claude/skills/references/preamble.md"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 [ -f "$PREAMBLE" ] && [ -x "$BBS_TICKET_BIN" ] || { echo "FAIL: missing bins" >&2; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -14,8 +14,7 @@ ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m  %s\n' "$1"; [ $# -gt 1 ] && printf '        %s\n' "$2"; }
 
 BLOCK="$(mktemp)"
-awk '/^# Session-writer hook/,/^# Config \+ repo state/' "$PREAMBLE" \
-  | sed '$d' > "$BLOCK"
+printf '\"%s\" skill enter --name test\n' "$SCRIPT_DIR/bbs" > "$BLOCK"
 
 # ── two-sessions-same-ticket-coexist ───────────────────────────────────
 T="$(mktemp -d)"

@@ -14,8 +14,7 @@ WRAPPER="$ROOT/skills/foreman/SKILL.md"
 ENTRY="$F"
 F="$(mktemp)"
 trap 'rm -f "$F"' EXIT
-cat "$ENTRY" "$ROOT"/.claude/skills/foreman/references/*.md \
-  "$ROOT/.claude/skills/references/model-routing.md" > "$F"
+cat "$ENTRY" "$ROOT"/.claude/skills/foreman/references/*.md > "$F"
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m  %s\n' "$1"; }
@@ -70,12 +69,12 @@ has_all "autopilot-worker-execution-envelope" \
   'skips any developer `/goal`' 'worker-start --agent' \
   'exactly one `worker_done`'
 
-if grep -q 'authenticated, current Orca Dispatch preamble' "$A" \
-   && grep -q 'use the injected lifecycle instead' "$A" \
-   && grep -q 'developer `/goal` handoff' "$A"; then
-  ok "autopilot-accepts-orca-dispatch-envelope"
+if grep -q 'authenticated caller-supplied invocation envelope' "$A" \
+   && grep -q 'outer caller owns transport and lifecycle reporting' "$A" \
+   && ! grep -qi 'orca' "$A"; then
+  ok "autopilot-accepts-generic-invocation-envelope"
 else
-  fail "autopilot-accepts-orca-dispatch-envelope"
+  fail "autopilot-accepts-generic-invocation-envelope"
 fi
 
 has_all "agent-independent-design-gate" \
@@ -172,8 +171,8 @@ for required in (
     'Changed inputs mean STALE',
 ):
     assert required in contract, required
-assert 'Foreman final integration mode' in qa
-assert "coordinator's lease" in qa
+assert 'Caller-prepared read-only surface' in qa
+assert "caller's lease" in qa
 assert 'This explicit mode takes precedence' in qa
 PY
 then
@@ -216,7 +215,7 @@ has_all "orca-delivery-and-settlement" \
   'Process every message in a Delivery before acknowledging its' 'exact id' \
   'accepted lifecycle settlement' 'reports do not complete work'
 
-PREAMBLE="$ROOT/.claude/skills/references/preamble.md"
+PREAMBLE="$ROOT/.claude/skills/foreman/references/worker-lifecycle.md"
 if grep -q 'live injected Orca preamble is authoritative' "$PREAMBLE" \
    && grep -q 'orca orchestration ask' "$PREAMBLE" \
    && grep -q 'orca orchestration check' "$PREAMBLE" \
@@ -242,7 +241,7 @@ has_all "no-coordinator-polling-timer" \
   'or polls on empty waits' 'adopt/spawn start it automatically'
 
 has_all "phase-specific-worker-model-routing" \
-  '../references/model-routing.md' 'canonical contract' 'Never invent a model ID' \
+  'references/model-routing.md' 'canonical contract' 'Never invent a model ID' \
   'Classify each task' 'Parent/child planning, decomposition, design, design feedback' \
   'Code review and review diagnosis' \
   '--model <selected-model> --effort <selected-effort>' 'launch.effective' 'bbs foreman route' \
@@ -265,7 +264,7 @@ has_all "worker-model-config-discipline" \
   '`worker-start` selector'
 
 
-REF="$ROOT/.claude/skills/references/model-routing.md"
+REF="$ROOT/.claude/skills/foreman/references/model-routing.md"
 if grep -q 'model-routing.md' "$F" \
    && ! grep -q 'model-routing.md' "$A" \
    && grep -q '## Phase routing' "$REF" \

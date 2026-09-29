@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tests/test_bbs_ticket_safe_cut.sh — coverage for the safe-cut gate in
-# bin/bbs ticket § ensure.
+# bbs ticket § ensure.
 #
 # Cutting a ticket branch in place is only safe from a clean checkout of the
 # base branch. Anywhere else (another ticket's branch, or a dirty tree) the
@@ -28,7 +28,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -64,7 +64,7 @@ build_repo() {
 # ── in-place-on-clean-base ────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -87,7 +87,7 @@ rm -rf "$T"
 # ── worktree-on-feature-branch ────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -139,7 +139,7 @@ rm -rf "$T"
 # ── worktree-on-dirty-base ────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -159,7 +159,7 @@ rm -rf "$T"
 # ── in-place-cuts-from-origin ─────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -191,7 +191,7 @@ rm -rf "$T"
 # ── worktree-cuts-from-origin ─────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -216,7 +216,7 @@ rm -rf "$T"
 # ── developer-no-confirm-for-worktree ─────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   unset AGENT_ROLE GT_ROLE
   build_repo "$T"
@@ -233,7 +233,7 @@ rm -rf "$T"
 # ── developer-confirm-in-place ────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   unset AGENT_ROLE GT_ROLE
   build_repo "$T"

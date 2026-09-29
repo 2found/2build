@@ -26,7 +26,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -58,7 +58,7 @@ set_git_flow() {
 # ── worktree-mode-diverts-on-clean-base ───────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   unset AGENT_ROLE GT_ROLE   # developer role: divert must not NEEDS_CONFIRM
   build_repo "$T"
@@ -85,7 +85,7 @@ rm -rf "$T"
 # ── trunk-mode-no-cut ─────────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -108,7 +108,7 @@ rm -rf "$T"
 # value is validated (otherwise mode resolves to garbage → exit 2).
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -127,7 +127,7 @@ rm -rf "$T"
 # ── mode-flag-overrides-config ────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -148,7 +148,7 @@ rm -rf "$T"
 # parser used to silently ignore the = form (bs-ff4dokqk). Pin it.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export BABYSIT_HOME="$HOME/.babysit"
   export AGENT_ROLE=mayor
@@ -174,7 +174,7 @@ rm -rf "$T"
 # ── legacy-ticket-branch-optional ─────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -193,7 +193,7 @@ rm -rf "$T"
 # ── invalid-config-mode ───────────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -209,7 +209,7 @@ rm -rf "$T"
 # ── revert-after-compose ───────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"
@@ -244,7 +244,7 @@ rm -rf "$T"
 # ── revert-refuses-stray-commit ───────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   build_repo "$T"
   cd "$T/repo"
@@ -262,7 +262,7 @@ rm -rf "$T"
 # ── revert-refuses-dirty ──────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$T/home"; mkdir -p "$HOME"
   build_repo "$T"
   cd "$T/repo"

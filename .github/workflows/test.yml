@@ -6,7 +6,7 @@ name: Test
 # the push path executed them.
 #
 # No paths filter, deliberately. The shell suites cover git-flow moves, hooks,
-# and workspace layout, so a change to bin/, hooks/, or tests/ can break them
+# and workspace layout, so a change to the Go sources, hooks/, or tests/ can break them
 # without touching a single .go file.
 on:
   push:
@@ -22,11 +22,11 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # The suites invoke bin/bbs — a build artifact that is gitignored.
+      # The suites invoke ./bbs — a build artifact that is gitignored.
       # Without this they all fail on a missing binary rather than on
       # anything real.
       - name: Build the multicall binary
-        run: go build -o bin/bbs ./cmd/bbs
+        run: go build -o bbs ./cmd/bbs
 
       # Several suites commit inside throwaway repos. A runner has no global
       # identity, and git fails the commit rather than inventing one.
@@ -49,7 +49,7 @@ jobs:
             echo "GIT_COMMITTER_EMAIL=ci@babysit.test"
           } >> "$GITHUB_ENV"
           # Hooks and a few skills shell out to a bare `bbs`.
-          echo "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
 
       - name: go test
         run: go test ./...

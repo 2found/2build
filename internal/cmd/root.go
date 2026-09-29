@@ -18,7 +18,7 @@ var errSilent = errors.New("")
 // version is the CLI version, injected by release builds via
 // -ldflags "-X github.com/reallongnguyen/babysit/internal/cmd.version=X.Y.Z".
 // It is deliberately empty in a plain `go build`: a git-clone install (the
-// setup-skills path) resolves the VERSION file in the checkout instead, which
+// `bbs setup` path) resolves the VERSION file in the checkout instead, which
 // stays correct after a `git pull` without needing a rebuild.
 var version string
 
@@ -76,7 +76,8 @@ func NewRootCmd() *cobra.Command {
 		newConfigCmd(), newEnvCmd(), newSlugCmd(), newTicketCmd(), newQAConfigCmd(),
 		newSecretsCmd(), newDesignCmd(), newDashboardCmd(), newHooksCmd(),
 		newForemanCmd(), newWorkspaceCmd(),
-		newSkillRuntimeCmd(), newAgentCmd(),
+		guardHelp(newSkillRuntimeCmd()), newAgentCmd(),
+		newSetupCmd(),
 		guardHelp(newUpdateCheckCmd()), guardHelp(newUpgradeCmd()),
 		guardHelp(newAutopilotCmd()),
 	)

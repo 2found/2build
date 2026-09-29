@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/test_bbs_update_check.sh — differential guard for the bbs-update-check Go port.
 #
-# `bbs update-check` replaced the bin/bbs-update-check bash script, and the
+# `bbs update-check` replaced the bbs-update-check bash script, and the
 # session preamble depends on its exact stdout/stderr/exit contract. Rather than
 # assert hand-written goldens, every case runs the frozen pre-port bash
 # (tests/fixtures/bbs-update-check.reference) and the Go binary side by side
@@ -47,7 +47,7 @@
 # so a ~/.claude-style shim derived $HOME instead of the checkout: update-check
 # found no VERSION and exited 0 silently, and upgrade told a healthy clone it
 # was "not installed via git clone". Since no real install invokes
-# <checkout>/bin/bbs directly — setup-skills links ~/.local/bin/bbs and
+# <checkout>/bbs directly — setup-skills links ~/.local/bin/bbs and
 # ~/.claude/bbs at it — that disabled both commands for everyone. babysitDir now
 # calls EvalSymlinks, and the bash it diverges from is retired (deleted
 # 2026-07-18), so parity here would only preserve a dead binary's bug.

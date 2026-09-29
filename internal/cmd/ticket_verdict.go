@@ -8,7 +8,7 @@ import (
 	"github.com/reallongnguyen/babysit/internal/ticket"
 )
 
-// runSetVerdict ports bin/bbs-ticket.bash:1411-1440.
+// runSetVerdict ports tests/fixtures/bbs-ticket.reference:1411-1440.
 //
 // Unknown args fail loud: silently shifting them let callers run
 // `--verdict PASS --note ...` and persist a `<no verdict>` body that
@@ -82,7 +82,7 @@ func runSetVerdict(args []string) {
 	os.Exit(0)
 }
 
-// runVerdictStatus ports bin/bbs-ticket.bash:1446-1473 — emit one of
+// runVerdictStatus ports tests/fixtures/bbs-ticket.reference:1446-1473 — emit one of
 // {none|DONE|DONE_WITH_CONCERNS|BLOCKED|NEEDS_CONTEXT}.
 func runVerdictStatus(args []string) {
 	env := resolveEnv()

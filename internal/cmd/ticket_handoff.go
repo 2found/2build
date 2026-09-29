@@ -12,11 +12,11 @@ import (
 	"github.com/reallongnguyen/babysit/internal/ticket"
 )
 
-// This file ports the append-only artifact family of bin/bbs-ticket.bash:
+// This file ports the append-only artifact family of the retired bbs-ticket.bash:
 // add-handoff, set-review, set-evidence, evidence-status, qa-evidence. All are
 // file I/O over the Layout C ticket home; none touch git.
 
-// runAddHandoff ports add-handoff (bbs-ticket.bash:1340-1375): write the next
+// runAddHandoff ports add-handoff (tests/fixtures/bbs-ticket.reference:1340-1375): write the next
 // numbered <NNN>-<skill>-<status>.md handoff, update handoffs/LATEST, and append
 // a history row. Holds the index lock while allocating the sequence number.
 func runAddHandoff(args []string) {
@@ -95,7 +95,7 @@ func invalidLatestName(name string) bool {
 	return name == "" || strings.Contains(name, "/") || strings.Contains(name, "..") || strings.HasPrefix(name, ".")
 }
 
-// runSetReview ports set-review (bbs-ticket.bash:1475-1500): overwrite
+// runSetReview ports set-review (tests/fixtures/bbs-ticket.reference:1475-1500): overwrite
 // reviews/<skill>.md and append a history row. Unknown args fail loud (exit 2).
 func runSetReview(args []string) {
 	env := resolveEnv()
@@ -148,7 +148,7 @@ var evidenceReq = map[string][]string{
 	"adversarial":  {"disproven", "unverified"},
 }
 
-// runSetEvidence ports set-evidence (bbs-ticket.bash:1506-1547): validate a typed
+// runSetEvidence ports set-evidence (tests/fixtures/bbs-ticket.reference:1506-1547): validate a typed
 // JSON evidence blob on write (so a malformed blob never lands silently) and
 // persist it at evidence/<kind>/result.json.
 func runSetEvidence(args []string) {
@@ -238,7 +238,7 @@ func scalarStr(v interface{}) string {
 	return fmt.Sprintf("%v", v)
 }
 
-// runEvidenceStatus ports evidence-status (bbs-ticket.bash:1552-1577): {none|
+// runEvidenceStatus ports evidence-status (tests/fixtures/bbs-ticket.reference:1552-1577): {none|
 // valid|malformed} for a typed evidence artifact, by set-evidence's rules.
 func runEvidenceStatus(args []string) {
 	env := resolveEnv()
@@ -289,7 +289,7 @@ var (
 	qaArtifactRe = regexp.MustCompile(`evidence/[A-Za-z0-9_./-]+`)
 )
 
-// runQAEvidence ports qa-evidence (bbs-ticket.bash:1589-1632): audit the persisted
+// runQAEvidence ports qa-evidence (tests/fixtures/bbs-ticket.reference:1589-1632): audit the persisted
 // qa verdict against the coverage rubric it claims. Classifies, never scores.
 func runQAEvidence(args []string) {
 	env := resolveEnv()

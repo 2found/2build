@@ -123,8 +123,8 @@ test("OMP skips the stop gate outside Orca", async () => {
 });
 
 test("OMP executes the compiled hooks without a model or release command", async () => {
-  // The extension prefers the sibling build at ../bin/bbs; build it if absent.
-  const bbsPath = join(import.meta.dir, "..", "bin", "bbs");
+  // The extension prefers the sibling build at ../bbs; build it if absent.
+  const bbsPath = join(import.meta.dir, "..", "bbs");
   if (!existsSync(bbsPath)) {
     const build = spawnSync("go", ["build", "-o", bbsPath, "./cmd/bbs"],
       { cwd: join(import.meta.dir, ".."), encoding: "utf8" });

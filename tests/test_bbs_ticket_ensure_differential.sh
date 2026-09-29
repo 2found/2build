@@ -15,11 +15,11 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-GO_BIN="$SCRIPT_DIR/bin/bbs"
+GO_BIN="$SCRIPT_DIR/bbs"
 REF="$SCRIPT_DIR/tests/fixtures/bbs-ticket.reference"
 
 command -v git >/dev/null 2>&1 || { echo "SKIP: git not installed"; exit 0; }
-[ -x "$GO_BIN" ] || { echo "FAIL: $GO_BIN not built (go build -o bin/bbs ./cmd/bbs)"; exit 1; }
+[ -x "$GO_BIN" ] || { echo "FAIL: $GO_BIN not built (go build -o bbs ./cmd/bbs)"; exit 1; }
 [ -f "$REF" ]    || { echo "FAIL: missing $REF"; exit 1; }
 
 PASS=0; FAIL=0; FAIL_NAMES=()
@@ -40,8 +40,7 @@ mkdir -p "$ROOT/bin"
 for link in bbs-ticket bbs-slug bbs-autopilot; do
   ln -s "$GO_BIN" "$ROOT/bin/$link"
 done
-export PATH="$ROOT/bin:$SCRIPT_DIR/bin:$PATH"
-export BBS_LIB="$SCRIPT_DIR/bin/lib"
+export PATH="$ROOT/bin:$SCRIPT_DIR:$PATH"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 export GIT_AUTHOR_DATE="2026-01-01T00:00:00 +0000" GIT_COMMITTER_DATE="2026-01-01T00:00:00 +0000"
 unset BBS_TICKET BABYSIT_TICKET AGENT_ROLE GT_ROLE 2>/dev/null || true

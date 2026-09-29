@@ -16,7 +16,7 @@ import (
 	"github.com/reallongnguyen/babysit/internal/workspace"
 )
 
-// This file ports the git-mutating base-ops family of bin/bbs-ticket.bash:
+// This file ports the git-mutating base-ops family of the retired bbs-ticket.bash:
 // refresh, surface, serve, and land. `surface` is the one public lifecycle for
 // the shared test surface — acquire → compose → verify/review → revert/release
 // — replacing the scripted per-op sequences the bash callers ran by hand.
@@ -133,7 +133,7 @@ func gitPrimary() string {
 	return p
 }
 
-// lockAcquire / lockRelease mirror bin/lib/lock.sh: a spin-mkdir mutex at 100ms
+// lockAcquire / lockRelease mirror tests/fixtures/lib/lock.sh: a spin-mkdir mutex at 100ms
 // intervals. maxTries=300 ≈ 30s, matching bbs_lock_acquire "$LOCK" 300.
 func lockAcquire(lockdir string, maxTries int) bool {
 	for i := 0; i < maxTries; i++ {

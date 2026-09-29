@@ -1,4 +1,4 @@
-// Package dashboard ports the snapshot core of bin/bbs-dashboard: it walks
+// Package dashboard ports the snapshot core of the retired bbs-dashboard script: it walks
 // ~/.babysit state (projects → tickets, sessions, analytics) and composes the
 // nested JSON object the web SPA loads as `window.__BBS_DATA__`. The bash
 // shelled out to jq/python for every parse and accumulation; this builds the

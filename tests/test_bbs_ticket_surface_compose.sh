@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tests/test_bbs_ticket_surface_compose.sh — coverage for
-# bin/bbs ticket § surface compose.
+# bbs ticket § surface compose.
 #
 # Single-repo trunk flow: the dev server runs in the primary checkout (on the
 # base branch), tickets are implemented in linked worktrees, and before QA the
@@ -23,7 +23,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -58,7 +58,7 @@ build_repo_with_worktree() {
 }
 
 test_env() {
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   export HOME="$1/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t

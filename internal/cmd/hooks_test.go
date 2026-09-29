@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// hooks_test.go covers the Go port of bin/hooks/{pre-tool-gate,session-writer}:
+// hooks_test.go covers the Go port of the plugin hooks (pre-tool-gate, session-writer):
 // the gate's deny/ask/pass matrix, stage classification (incl. .exe and
 // git -C), Grok's deny-only contract, and the session writer's minting,
 // ticket derivation, throttle, started_at preservation, and stale sweep.

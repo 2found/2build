@@ -2,7 +2,7 @@
 set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BBS="$ROOT/bin/bbs"
+BBS="$ROOT/bbs"
 command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not installed"; exit 0; }
 [ -x "$BBS" ] || { echo "FAIL: build $BBS from this checkout first" >&2; exit 1; }
 

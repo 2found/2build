@@ -10,7 +10,7 @@ import (
 	"github.com/reallongnguyen/babysit/internal/ticket"
 )
 
-// runResolve ports bin/bbs-ticket.bash:922-1051 — the single identity entry
+// runResolve ports tests/fixtures/bbs-ticket.reference:922-1051 — the single identity entry
 // point documented in docs/identity.md.
 //
 // Ladder: env → manifest.yaml cwd match → branch regex.

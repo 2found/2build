@@ -163,17 +163,6 @@ class Hooks(unittest.TestCase):
             "cmd": "git push", "workdir": str(self.root / "does not exist")}})
         self.assertEqual(json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"], "deny")
 
-    def test_shim_invokes_compiled_gate(self):
-        # bin/hooks/pre-tool-gate is a compat shim → exec bbs hooks.
-        self.verdict("review-pr", "STATUS: BLOCKED\n")
-        result = subprocess.run(
-            ["/bin/sh", str(ROOT / "bin/hooks/pre-tool-gate")],
-            input=json.dumps({"tool_input": {"command": "git push", "workdir": str(self.repo)}}),
-            text=True, capture_output=True, env=self.env, timeout=15,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"], "deny")
-
     # ── session writer ───────────────────────────────────────────
     def test_session_payloads(self):
         for agent, prefix in (("claude", "cc"), ("codex", "cx"), ("grok", "grok"), ("omp", "omp")):

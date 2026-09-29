@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/test_lib_lock.sh — the shared mkdir-lock primitive (bin/lib/lock.sh).
+# tests/test_lib_lock.sh — the shared mkdir-lock primitive (tests/fixtures/lib/lock.sh).
 #
 # First module of the bin decomposition (docs/bin-decomposition-spike.md). Pins
 # the primitive bbs-ticket builds its lock policies
@@ -8,9 +8,9 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-LOCK_LIB="$SCRIPT_DIR/bin/lib/lock.sh"
+LOCK_LIB="$SCRIPT_DIR/tests/fixtures/lib/lock.sh"
 [ -f "$LOCK_LIB" ] || { echo "FAIL: $LOCK_LIB missing" >&2; exit 1; }
-# shellcheck source=../bin/lib/lock.sh
+# shellcheck source=fixtures/lib/lock.sh
 . "$LOCK_LIB"
 
 PASS=0

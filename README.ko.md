@@ -99,7 +99,7 @@ behavior-preserving pass로 돌리세요.
 **모든 archetype이 지키는 invariant** — *역할과 success
 criterion*에서만 다르고, rigor에서는 절대 다르지 않습니다. 결정은
 [Auto-Decision Framework](.claude/skills/references/auto-decision-framework.md)를 거치고
-(taste 결정은 기록되고, 조용히 추측되지 않습니다); "done" 전의
+(taste 결정은 프레임워크를 따르고, 조용히 추측되지 않습니다); "done" 전의
 self-verification; 제한된 blast radius (force-push 없음, data 손실 없음, durable
 authorization 없는 external message 없음); 크고 로컬하게 실패 (`BLOCKED`/`NEEDS_CONTEXT`
 틀린 가정보다 우선).
@@ -137,7 +137,7 @@ agent를 재시작하세요. Claude Code는 `/bbs:autopilot`을, Codex는
 bbs update
 ```
 
-**`brew install bbs`는 선택 사항이 아닙니다.** `bin/bbs`는 build artifact이고
+**`brew install bbs`는 선택 사항이 아닙니다.** `./bbs`는 build artifact이고
 commit되지 않으므로, GitHub에서 설치한 plugin에는 compiled binary가 없습니다.
 `PATH`에 `bbs`가 없으면 push/PR gate가 ticket의 verdict를 읽을 수 없고,
 fail closed합니다 — 모든 `git push`가 거부됩니다. Linux 사용자는 대신
@@ -147,12 +147,12 @@ tarball을 쓰세요: [docs/install.md](docs/install.md).
 <summary><b>또는 checkout에서</b> — babysit 자체를 읽거나 수정하고 싶다면</summary>
 
 checkout이 skill 수정을 publish하지 않고도 적용되는 유일한 형태입니다.
-`setup-skills`가 binary를 build하고 모든 것을 연결합니다:
+`bbs setup`가 binary를 build하고 모든 것을 연결합니다:
 
 ```bash
 git clone https://github.com/lohi-ai/babysit.git ~/src/babysit
 cd ~/src/babysit
-./bin/setup-skills --full
+go run ./cmd/bbs setup --full
 ```
 
 그런 다음 둘 중 어느 agent에든 checkout을 등록하세요:
@@ -168,7 +168,7 @@ codex plugin add bbs@babysit
 ```
 
 이렇게 하면 `~/.local/bin/bbs` → 당신의 checkout으로 `bbs`가 `PATH`에 올라가므로,
-Homebrew 설치까지 할 필요는 없습니다. Upgrade는 `git pull && ./bin/setup-skills`.
+Homebrew 설치까지 할 필요는 없습니다. Upgrade는 `git pull && go run ./cmd/bbs setup`.
 
 marketplace plugin은 agent의 cache로 *복사*됩니다
 (`~/.claude/plugins/cache/` 또는 `~/.codex/plugins/cache/`). `~/.claude/skills/<name>/`
@@ -378,7 +378,7 @@ bbs ticket serve            # 인자 없이: 끝난 모든 ticket(qa + review DO
 
 ## 함께 쓰는 CLI
 
-모든 것이 `bbs <sub>`로 접근하는 binary 하나입니다 — `bbs autopilot`(runner), `bbs ticket env`(identity resolver: `BABYSIT_TICKET` → manifest → branch), 그리고 env, config, db snapshot, upgrade 확인용 helper들. `brew install lohi-ai/babysit/bbs`가 이것을 `PATH`에 올립니다. checkout에서는 `setup-skills`가 대신 build해서 `~/.local/bin/bbs`를 symlink하고, legacy 호출자를 위해 `bbs-*` argv0 alias를 `~/.claude/`에 넣습니다. 전체 표와 용도는 [`docs/companion-cli.md`](docs/companion-cli.md)에 있습니다. 각 subcommand의 사용법은 `bbs <sub> --help`를 실행하세요.
+모든 것이 `bbs <sub>`로 접근하는 binary 하나입니다 — `bbs autopilot`(runner), `bbs ticket env`(identity resolver: `BABYSIT_TICKET` → manifest → branch), 그리고 env, config, db snapshot, upgrade 확인용 helper들. `brew install lohi-ai/babysit/bbs`가 이것을 `PATH`에 올립니다. checkout에서는 `bbs setup`가 대신 build해서 `~/.local/bin/bbs`를 symlink하고, legacy 호출자를 위해 `bbs-*` argv0 alias를 `~/.claude/`에 넣습니다. 전체 표와 용도는 [`docs/companion-cli.md`](docs/companion-cli.md)에 있습니다. 각 subcommand의 사용법은 `bbs <sub> --help`를 실행하세요.
 
 ## 운영
 
@@ -409,7 +409,7 @@ brew uninstall bbs
 rm -rf ~/.babysit          # 당신의 ticket과 analytics — 유지하려면 건너뛰세요
 ```
 
-checkout에서 설치했다면, 삭제하기 전에 `./bin/setup-skills --uninstall`도 실행하세요. plugin 이전 설치에서 남은 legacy symlink가 있다면 수동 정리:
+checkout에서 설치했다면, 삭제하기 전에 `go run ./cmd/bbs setup --uninstall`도 실행하세요. plugin 이전 설치에서 남은 legacy symlink가 있다면 수동 정리:
 
 ```bash
 find ~/.claude/skills -maxdepth 1 -type l -name 'bbs:*' -delete

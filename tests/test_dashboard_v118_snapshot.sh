@@ -12,7 +12,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DASH="$SCRIPT_DIR/bin/bbs"
+DASH="$SCRIPT_DIR/bbs"
 [ -x "$DASH" ] || { echo "FAIL: $DASH not executable" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "FAIL: jq required" >&2; exit 1; }
 command -v node >/dev/null 2>&1 || { echo "FAIL: node required to eval data.js" >&2; exit 1; }

@@ -54,7 +54,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -135,7 +135,7 @@ ticket_cli() { # $1 root, $2 ticket scope, rest = ticket args
   local root="$1" scope="$2"; shift 2
   ( cd "$root" && HOME="$root/home" BABYSIT_HOME="$root/home/.babysit" \
       BABYSIT_PROJECT_HOME="$root/home/projects/demo" BABYSIT_TICKET="$scope" \
-      "$SCRIPT_DIR/bin/bbs" ticket "$@" 2>&1 )
+      "$SCRIPT_DIR/bbs" ticket "$@" 2>&1 )
 }
 
 # ─── dag-waves-and-states ────────────────────────────────────────────────────
@@ -492,7 +492,7 @@ fi
       "$T/bbs-ticket" dag --help 2>&1 ) | grep -q "^usage: bbs-ticket dag" \
     || { echo "symlink help did not keep the hyphen form"; exit 1; }
   ( cd "$T" && HOME="$T/home" BABYSIT_PROJECT_HOME="$T/home/projects/demo" \
-      "$SCRIPT_DIR/bin/bbs" ticket dag --help 2>&1 ) | grep -q "^usage: bbs ticket dag" \
+      "$SCRIPT_DIR/bbs" ticket dag --help 2>&1 ) | grep -q "^usage: bbs ticket dag" \
     || { echo "space-form help not retargeted"; exit 1; }
 ) && ok "dag-usage-spelling" || fail "dag-usage-spelling"
 

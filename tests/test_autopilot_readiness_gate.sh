@@ -12,7 +12,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_AUTOPILOT="$SCRIPT_DIR/bin/bbs"
+BBS_AUTOPILOT="$SCRIPT_DIR/bbs"
 BUILDER_MD="$SCRIPT_DIR/.claude/skills/autopilot/workflows/builder.md"
 [ -x "$BBS_AUTOPILOT" ] || { echo "FAIL: $BBS_AUTOPILOT not executable" >&2; exit 1; }
 [ -f "$BUILDER_MD" ]    || { echo "FAIL: $BUILDER_MD missing"          >&2; exit 1; }
@@ -26,7 +26,7 @@ fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m
 # ── probe-emits-readiness-signals ───────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   unset BABYSIT_TICKET BBS_TICKET
   git init -q "$T/repo"; cd "$T/repo"
   git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init
@@ -45,7 +45,7 @@ rm -rf "$T"
 # ── landing-doc-signal-accepts-AGENTS-md ────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   git init -q "$T/repo"; cd "$T/repo"
   git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init
   : > AGENTS.md
@@ -57,7 +57,7 @@ rm -rf "$T"
 # ── v2-snapshot-is-read-only ────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"
+  export PATH="$SCRIPT_DIR:$PATH"
   unset BABYSIT_TICKET BBS_TICKET
   git init -q "$T/repo"; cd "$T/repo"
   git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init

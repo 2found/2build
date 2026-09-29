@@ -12,7 +12,7 @@ import (
 
 const sessionRowFmt = "%-40s %-14s %-6s %s\n"
 
-// runSession ports bin/bbs-ticket.bash:2621-2667 — inspect/rehydrate the
+// runSession ports tests/fixtures/bbs-ticket.reference:2621-2667 — inspect/rehydrate the
 // session files written by the session-writer hook (docs/identity.md).
 func runSession(args []string) {
 	verb := ""

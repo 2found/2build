@@ -17,8 +17,8 @@ report-driven wait and light verification below.
 Follow [the preamble](../references/preamble.md) and
 [Auto-Decision Framework](../references/auto-decision-framework.md). Shared refs
 (`../references/*.md`) are filesystem paths beside this skill's directory, so
-read them by path, not as `skill://`. Decide and log Taste choices; escalate
-missing authority/context and honor explicit holds.
+read them by path, not as `skill://`. Decide Taste choices; escalate missing
+authority/context and honor explicit holds.
 
 ## 0. Initialize
 

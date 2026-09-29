@@ -99,7 +99,7 @@ nguyên hành vi.
 **Những bất biến mọi archetype đều giữ** — chúng chỉ khác nhau ở *nhiệm vụ và
 tiêu chí thành công*, không bao giờ khác về độ chặt: quyết định đi qua
 [Auto-Decision Framework](.claude/skills/references/auto-decision-framework.md)
-(quyết định taste phải ghi log, không bao giờ lẳng lặng đoán bừa); tự kiểm
+(quyết định taste theo khung, không bao giờ lẳng lặng đoán bừa); tự kiểm
 trước khi "xong"; bán kính sát thương có giới hạn (không force-push, không mất
 dữ liệu, không nhắn ra ngoài khi chưa được cấp phép hẳn hoi và có lưu lại);
 fail lớn tiếng và tại chỗ
@@ -138,7 +138,7 @@ Cập nhật CLI và mọi plugin agent đã cài bằng `bbs update`:
 bbs update
 ```
 
-**`brew install bbs` không phải tùy chọn.** `bin/bbs` là sản phẩm build, không
+**`brew install bbs` không phải tùy chọn.** `./bbs` là sản phẩm build, không
 được commit, nên plugin cài từ GitHub không kèm binary nào cả. Thiếu `bbs` trên
 `PATH` thì cổng gác push/PR không đọc được verdict của ticket, và nó fail closed —
 mọi `git push` đều bị chặn. Người dùng Linux lấy bản tarball:
@@ -148,12 +148,12 @@ mọi `git push` đều bị chặn. Người dùng Linux lấy bản tarball:
 <summary><b>Hoặc cài từ một checkout</b> — nếu bạn muốn đọc hoặc sửa chính babysit</summary>
 
 Checkout là hình dạng duy nhất mà bạn sửa skill xong là có hiệu lực ngay, khỏi
-cần publish. `setup-skills` build binary và nối dây mọi thứ:
+cần publish. `bbs setup` build binary và nối dây mọi thứ:
 
 ```bash
 git clone https://github.com/lohi-ai/babysit.git ~/src/babysit
 cd ~/src/babysit
-./bin/setup-skills --full
+go run ./cmd/bbs setup --full
 ```
 
 Rồi đăng ký checkout trong agent bạn dùng:
@@ -169,7 +169,7 @@ codex plugin add bbs@babysit
 ```
 
 Cách này đã đặt `bbs` lên `PATH` tại `~/.local/bin/bbs` → checkout của bạn, nên
-khỏi cần cài thêm bản Homebrew. Nâng cấp bằng `git pull && ./bin/setup-skills`.
+khỏi cần cài thêm bản Homebrew. Nâng cấp bằng `git pull && go run ./cmd/bbs setup`.
 
 Lưu ý: plugin từ marketplace được *copy* vào cache của agent (`~/.claude/plugins/cache/` hoặc `~/.codex/plugins/cache/`), còn một
 thư mục Claude Code nằm dưới `~/.claude/skills/<tên>/` thì được nạp **tại chỗ** — chính cái
@@ -379,7 +379,7 @@ Bảng skill đầy đủ (kèm phân loại autonomous-ready / interactive-only
 
 ## CLI đi kèm
 
-Tất cả là một binary duy nhất, gọi dạng `bbs <sub>` — `bbs autopilot` (bộ chạy), `bbs ticket env` (resolver danh tính: `BABYSIT_TICKET` → manifest → branch), cộng các trợ giúp cho env, config, snapshot db, và kiểm tra upgrade. `brew install lohi-ai/babysit/bbs` đặt nó lên `PATH`; nếu cài từ checkout thì `setup-skills` build nó rồi symlink `~/.local/bin/bbs`, kèm các alias argv0 `bbs-*` vào `~/.claude/` cho các caller cũ. Bảng đầy đủ và mục đích ở [`docs/companion-cli.md`](docs/companion-cli.md). Chạy `bbs <sub> --help` để xem cách dùng bất kỳ cái nào.
+Tất cả là một binary duy nhất, gọi dạng `bbs <sub>` — `bbs autopilot` (bộ chạy), `bbs ticket env` (resolver danh tính: `BABYSIT_TICKET` → manifest → branch), cộng các trợ giúp cho env, config, snapshot db, và kiểm tra upgrade. `brew install lohi-ai/babysit/bbs` đặt nó lên `PATH`; nếu cài từ checkout thì `bbs setup` build nó rồi symlink `~/.local/bin/bbs`, kèm các alias argv0 `bbs-*` vào `~/.claude/` cho các caller cũ. Bảng đầy đủ và mục đích ở [`docs/companion-cli.md`](docs/companion-cli.md). Chạy `bbs <sub> --help` để xem cách dùng bất kỳ cái nào.
 
 ## Vận hành
 
@@ -410,7 +410,7 @@ brew uninstall bbs
 rm -rf ~/.babysit          # ticket và analytics của bạn — bỏ qua nếu muốn giữ
 ```
 
-Nếu cài từ checkout, chạy thêm `./bin/setup-skills --uninstall` trước khi xóa nó. Dọn tay nếu còn sót symlink cũ từ bản cài tiền-plugin:
+Nếu cài từ checkout, chạy thêm `go run ./cmd/bbs setup --uninstall` trước khi xóa nó. Dọn tay nếu còn sót symlink cũ từ bản cài tiền-plugin:
 
 ```bash
 find ~/.claude/skills -maxdepth 1 -type l -name 'bbs:*' -delete

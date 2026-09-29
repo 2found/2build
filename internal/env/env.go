@@ -1,4 +1,4 @@
-// Package env ports bin/bbs-env's environment resolution for babysit skills:
+// Package env ports the retired bbs-env script's environment resolution for babysit skills:
 // the .env.base auto-load plus the resolve / is-set / list-prefix / prompt
 // lookups. Everything is native — no jq/yq/bash is ever invoked.
 //
@@ -117,8 +117,10 @@ func LoadProject(app, envFile string) {
 
 // projectRoot resolves the repo root from the running binary, matching the
 // bash `readlink -f "$0"` + `dirname`/`..` dance. The binary lives at
-// <root>/bin/bbs and is reached through bbs-* compat symlinks, so the link
-// chain has to be followed before walking up.
+// <root>/bbs (or <root>/bin/bbs on older checkouts) and is reached through
+// bbs-* compat symlinks, so the link chain has to be followed before
+// walking up. `.claude/skills` marks the root; when neither level has it,
+// the parent matches the old one-level-down build.
 func projectRoot() string {
 	exe, err := os.Executable()
 	if err != nil {
@@ -127,7 +129,13 @@ func projectRoot() string {
 	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = resolved
 	}
-	return filepath.Dir(filepath.Dir(exe))
+	dir := filepath.Dir(exe)
+	for _, cand := range []string{dir, filepath.Dir(dir)} {
+		if st, err := os.Stat(filepath.Join(cand, ".claude", "skills")); err == nil && st.IsDir() {
+			return cand
+		}
+	}
+	return filepath.Dir(dir)
 }
 
 // detectApp ports _detect_app's CWD detection: the first config/<app>/ whose

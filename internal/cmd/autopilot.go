@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newAutopilotCmd ports bin/bbs-autopilot as `bbs autopilot` — the checkpoint +
+// newAutopilotCmd ports the retired bbs-autopilot script as `bbs autopilot` — the checkpoint +
 // probe/explain state helper behind the autopilot skill. Flag
 // parsing is disabled so each subcommand walks its own args exactly like the
 // bash script (unknown flags/args are ignored, not rejected by cobra).
@@ -34,7 +34,7 @@ func newAutopilotCmd() *cobra.Command {
 const autopilotUsage = "usage: bbs-autopilot {checkpoint|clear|recover|snapshot|context|attempt|base-branch|git-flow|lint-workflow|probe|explain} ..."
 
 // apState is the identity + state-root resolved once per invocation, mirroring
-// the top-of-script derivation in bin/bbs-autopilot.
+// the top-of-script derivation in the retired bbs-autopilot.
 type apState struct {
 	slug      string
 	branch    string
@@ -156,7 +156,6 @@ func resolveAPProject() *apState {
 	env := resolveProject()
 	return &apState{slug: env.Slug, branch: env.Branch, ticket: env.Ticket, stateRoot: env.ProjectHome}
 }
-
 
 func babysitHome() string {
 	if h := os.Getenv("BABYSIT_HOME"); h != "" {
@@ -590,7 +589,6 @@ func (a *apState) clear(args []string) {
 	os.RemoveAll(dir)
 }
 
-
 // ─── recover ─────────────────────────────────────────────────────────────────
 
 func (a *apState) recover(args []string) {
@@ -696,6 +694,13 @@ func (a *apState) lintWorkflow(args []string) {
 		fmt.Fprintf(os.Stderr, "lint-workflow: %s: not a file\n", wf)
 		os.Exit(2)
 	}
+	os.Exit(lintWorkflowFile(wf))
+}
+
+// lintWorkflowFile lints one workflow file and returns its error count, so
+// callers that lint several files (the pre-commit hook) can accumulate
+// without exiting on the first one.
+func lintWorkflowFile(wf string) int {
 	b, _ := os.ReadFile(wf)
 	lines := strings.Split(string(b), "\n")
 	errors := 0
@@ -736,7 +741,7 @@ func (a *apState) lintWorkflow(args []string) {
 			fmt.Fprintf(os.Stderr, "WARN %s: step \"%s\" has no `> produces:` directive — Verify-post will be skipped\n", wf, s)
 		}
 	}
-	os.Exit(errors)
+	return errors
 }
 
 // frontmatterLines returns the lines between the first two `---` delimiters.
@@ -1080,7 +1085,6 @@ func passIf(ok bool) string {
 	}
 	return "FAIL"
 }
-
 
 // ─── session bump ────────────────────────────────────────────────────────────
 

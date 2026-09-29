@@ -19,7 +19,7 @@ import (
 
 const boardRowFmt = "%-14s %-12s %-9s %-9s %-7s %-16s %-12s %s\n"
 
-// runBoard ports bin/bbs-ticket.bash:3275-3399 — a read-only aggregated view of
+// runBoard ports tests/fixtures/bbs-ticket.reference:3275-3399 — a read-only aggregated view of
 // every ticket joined with its verdicts, branch, session, PR and siblings, plus
 // a surface-lease + serving footer. Zero mutation.
 func runBoard(args []string) {

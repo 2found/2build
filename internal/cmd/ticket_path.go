@@ -18,7 +18,7 @@ import (
 	"github.com/reallongnguyen/babysit/internal/ticket"
 )
 
-// This file ports the ticket filesystem broker of bin/bbs-ticket.bash: path (the
+// This file ports the ticket filesystem broker of the retired bbs-ticket.bash: path (the
 // canonical→legacy resolver with dual-presence + sunset telemetry), list, and
 // reconcile (the filesystem→status ladder). All are read/derive over the
 // Layout C home; reconcile is the only mutator and it only advances
@@ -49,7 +49,7 @@ func legacyWarnFrom() string {
 	return legacyHardfail()
 }
 
-// runPath ports the `path` subcommand (bbs-ticket.bash:2784-3087).
+// runPath ports the `path` subcommand (tests/fixtures/bbs-ticket.reference:2784-3087).
 func runPath(args []string) {
 	kind := ""
 	if len(args) > 0 {
@@ -433,7 +433,7 @@ func pathTelemetryAppend(env identity.Env, kind, event, canonical, legacy string
 	_, _ = f.WriteString(line)
 }
 
-// runList ports `list` (bbs-ticket.bash:3089-3142).
+// runList ports `list` (tests/fixtures/bbs-ticket.reference:3089-3142).
 func runList(args []string) {
 	kind := ""
 	if len(args) > 0 {
@@ -528,7 +528,7 @@ var reconcileRank = map[string]int{
 	"in_progress": 4, "in_review": 5, "done": 6,
 }
 
-// runReconcile ports `reconcile` (bbs-ticket.bash:3144-3267): advance
+// runReconcile ports `reconcile` (tests/fixtures/bbs-ticket.reference:3144-3267): advance
 // index.json.status forward along the filesystem-derived ladder, never
 // downgrading and never touching terminal/explicit states.
 func runReconcile(args []string) {

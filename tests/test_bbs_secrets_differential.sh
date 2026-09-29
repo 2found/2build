@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/test_bbs_secrets_differential.sh — differential guard for the bbs-secrets Go port.
 #
-# `bbs secrets` replaced bin/bbs-secrets, the project-local dotenv auto-loader
+# `bbs secrets` replaced bbs-secrets, the project-local dotenv auto-loader
 # (load / seed / ensure-gitignore). The bin only ever touches the filesystem, so
 # the sandbox is a throwaway tree per case: a work dir the impl runs from (load
 # walks up for .babysit/) and a repo-root it seeds into. No real credentials,

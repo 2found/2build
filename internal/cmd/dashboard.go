@@ -22,7 +22,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newDashboardCmd ports bin/bbs-dashboard: snapshot ~/.babysit state into
+// newDashboardCmd ports the retired bbs-dashboard script: snapshot ~/.babysit state into
 // web/dist/data.js (as `window.__BBS_DATA__ = {...};`) and open the dashboard.
 // The snapshot composition is native Go (internal/dashboard); npm build, vite
 // dev, and browser-open still shell out.
@@ -134,7 +134,12 @@ func runDashboard(args []string) error {
 	scriptDir := filepath.Dir(exe)
 	repoRoot := os.Getenv("BABYSIT_DASHBOARD_REPO")
 	if repoRoot == "" {
-		repoRoot = filepath.Dir(scriptDir)
+		// bbs sits at the checkout root (bin/ on older checkouts): web/ is the
+		// marker, so probe the binary's own dir before its parent.
+		repoRoot = scriptDir
+		if _, err := os.Stat(filepath.Join(scriptDir, "web")); err != nil {
+			repoRoot = filepath.Dir(scriptDir)
+		}
 	}
 	stateDir := os.Getenv("BABYSIT_STATE_DIR")
 	if stateDir == "" {
@@ -187,7 +192,7 @@ func runDashboard(args []string) error {
 	// parent, which on a brew install is the Cellar prefix and has no VERSION
 	// file — so reading it first is what printed `vunknown` in the nav on every
 	// install that isn't a git checkout. resolveVersion covers both real cases
-	// (ldflags for brew, the checkout's VERSION file for setup-skills); the
+	// (ldflags for brew, the checkout's VERSION file for `bbs setup`); the
 	// repoRoot read stays as the fallback for a BABYSIT_DASHBOARD_REPO override.
 	version := resolveVersion()
 	if version == "unknown" {

@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newSecretsCmd ports bin/bbs-secrets as `bbs secrets` — the project-local
+// newSecretsCmd ports the retired bbs-secrets script as `bbs secrets` — the project-local
 // dotenv auto-loader (load / seed / ensure-gitignore).
 //
 // DisableFlagParsing: seed / ensure-gitignore parse their own --repo-root / --

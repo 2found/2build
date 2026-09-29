@@ -21,7 +21,7 @@ func TestBabysitDir(t *testing.T) {
 	t.Cleanup(func() { os.Args[0] = orig })
 	t.Setenv("BABYSIT_DIR", "")
 
-	// Stage a checkout plus the two symlinks setup-skills creates into it.
+	// Stage a checkout plus the two symlinks `bbs setup` creates into it.
 	root := t.TempDir()
 	checkout := filepath.Join(root, "skills", "babysit")
 	for _, d := range []string{
@@ -96,6 +96,18 @@ func TestBabysitDir(t *testing.T) {
 		os.Args[0] = bin
 		if got := babysitDir(); got == want {
 			t.Errorf("brew-shaped install resolved to the checkout %s", got)
+		}
+	})
+	t.Run("binary at checkout root resolves to root", func(t *testing.T) {
+		// The bin/-less layout: <checkout>/bbs must resolve to <checkout>,
+		// not the parent.
+		rootBin := filepath.Join(checkout, "bbs")
+		if err := os.WriteFile(rootBin, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		os.Args[0] = rootBin
+		if got := babysitDir(); got != want {
+			t.Errorf("got %s, want %s", got, want)
 		}
 	})
 }

@@ -1,4 +1,4 @@
-// Package design ports the parsing core of bin/bbs-design: the limited-YAML
+// Package design ports the parsing core of the retired bbs-design script: the limited-YAML
 // frontmatter reader, the line-based CSV→record parser, and the deep-merge —
 // all faithful to the awk/jq the bash shelled out to, so `bbs design` produces
 // the same structures. Serialization is left to the caller (encoding/json);

@@ -24,7 +24,7 @@ codex plugin add bbs@babysit
 
 Restart your agent after installing. The plugin provides skills; `bbs` is a separate required CLI used by skills and local hooks. It is not bundled in the plugin. See [installation details](docs/install.md), including Linux packages.
 
-To work on Babysit itself, clone the repository and run `./bin/setup-skills --full`; it builds `bbs` and links the checkout's skills. `bbs update` refreshes the CLI and installed plugins.
+To work on Babysit itself, clone the repository and run `go run ./cmd/bbs setup --full`; it builds `bbs` and links the checkout's skills. `bbs update` refreshes the CLI and installed plugins.
 
 ## Configure Foreman
 
@@ -81,7 +81,7 @@ Run `bbs <subcommand> --help` for usage. More detail: [companion CLI](docs/compa
 
 ## Repository layout
 
-- `bin/` — `bbs`, setup scripts, and hooks.
+- `bbs` — the multicall binary (gitignored build output; `go build -o bbs ./cmd/bbs`). Hooks are compiled subcommands, `bbs hooks <name>`.
 - `.claude/skills/` — agent skills and workflow references.
 - `internal/` — Go CLI and services.
 - `web/` — dashboard SPA, embedded in release builds.
@@ -89,7 +89,7 @@ Run `bbs <subcommand> --help` for usage. More detail: [companion CLI](docs/compa
 
 ## Telemetry
 
-Skill usage and Taste decisions are recorded locally as JSONL under `~/.babysit/analytics/`; telemetry is the primary feedback channel for unattended runs.
+Skill usage is recorded locally as JSONL under `~/.babysit/analytics/`; telemetry is the primary feedback channel for unattended runs.
 
 ## License
 

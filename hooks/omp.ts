@@ -7,9 +7,9 @@ import type { ExtensionAPI, ExtensionContext } from "@oh-my-pi/pi-coding-agent";
 // The hooks are compiled into the bbs binary (`bbs hooks <name>`), so no bash
 // or jq is required on any OS. A sibling build in this checkout wins over PATH
 // so an in-repo extension exercises the same code the tests do; otherwise the
-// installed `bbs` on PATH serves it (setup-skills / brew both put it there).
-const binDir = resolve(dirname(realpathSync(fileURLToPath(import.meta.url))), "../bin");
-const bbs = ["bbs", "bbs.exe"].map((n) => resolve(binDir, n)).find(existsSync) ?? "bbs";
+// installed `bbs` on PATH serves it (`bbs setup` / brew both put it there).
+const repoRoot = resolve(dirname(realpathSync(fileURLToPath(import.meta.url))), "..");
+const bbs = ["bbs", "bbs.exe"].map((n) => resolve(repoRoot, n)).find(existsSync) ?? "bbs";
 
 export default function babysit(pi: ExtensionAPI) {
   async function run(name: string, ctx: ExtensionContext, input = {}) {

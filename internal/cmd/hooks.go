@@ -17,11 +17,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newHooksCmd is the Go port of bin/hooks/{pre-tool-gate,session-writer} as
-// `bbs hooks <name>` — one compiled implementation for every OS, so the
-// plugin hooks no longer require bash or jq on PATH (audit bs-b3m7rnkw #2).
-// The bin/hooks scripts remain as thin `exec bbs hooks <name>` shims for
-// manifests that still invoke them by path.
+// newHooksCmd is the Go port of the plugin hooks (pre-tool-gate,
+// session-writer, worker-report-gate) as `bbs hooks <name>` — one compiled
+// implementation for every OS, so the plugin hooks no longer require bash or
+// jq on PATH (audit bs-b3m7rnkw #2). The hooks are compiled subcommands now:
+// manifests call `bbs hooks <name>` directly.
 //
 // Payload contract (unchanged): hook JSON arrives on stdin, or via
 // `--payload <json>` / `--payload=<json>` for callers that cannot pipe stdin
@@ -36,6 +36,12 @@ func newHooksCmd() *cobra.Command {
 			if len(args) == 0 {
 				hooksUsage()
 				os.Exit(2)
+			}
+			// pre-commit reads the git index, not a JSON payload — dispatch it
+			// before hookPayload would try stdin.
+			if args[0] == "pre-commit" {
+				runPreCommitHook()
+				return nil
 			}
 			payload := hookPayload(args[1:])
 			switch args[0] {
@@ -66,6 +72,8 @@ func hooksUsage() {
                   ~/.babysit/sessions/<agent>-<id>.yaml, always exits 0
   worker-report-gate  Stop check — keeps an Orca worker running until its
                   current Dispatch has settled; never sends a report itself
+  pre-commit      git pre-commit check — lints staged workflow files and
+                  qa.yaml credential literals; installed by bbs setup
 
 Payload comes from stdin, or --payload when the caller cannot pipe stdin.
 `)
@@ -481,7 +489,18 @@ func runSessionWriter(payload []byte) {
 		return
 	}
 
-	ticketID := deriveSessionTicket(cwd)
+	writeSessionRecord(sessDir, sessionPrefix(body)+"-"+sid, cwd, deriveSessionTicket(cwd))
+}
+
+// writeSessionRecord also serves skill bootstrap, which refreshes without throttling.
+func writeSessionRecord(sessDir, sid, cwd, ticketID string) {
+	if sid == "" || sid == "." || sid == ".." || !sessionIDRe.MatchString(sid) {
+		return
+	}
+	if err := os.MkdirAll(sessDir, 0o755); err != nil {
+		return
+	}
+	sf := filepath.Join(sessDir, sid+".yaml")
 
 	// Preserve started_at across refreshes; mint it on first write.
 	now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
@@ -500,7 +519,7 @@ func runSessionWriter(payload []byte) {
 
 	var sb strings.Builder
 	sb.WriteString("version: 1\n")
-	sb.WriteString("session_id: " + sessionPrefix(body) + "-" + sid + "\n")
+	sb.WriteString("session_id: " + sid + "\n")
 	sb.WriteString("ticket: " + ticketID + "\n")
 	sb.WriteString(started + "\n")
 	sb.WriteString("last_seen_at: " + now + "\n")

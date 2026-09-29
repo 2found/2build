@@ -12,7 +12,7 @@ import (
 	"github.com/reallongnguyen/babysit/internal/ticket"
 )
 
-// This file ports the index.json state-accessor family of bin/bbs-ticket.bash:
+// This file ports the index.json state-accessor family of the retired bbs-ticket.bash:
 // env, get, set-status, set-phase, set-parent, add-child, add-relation,
 // remove-relation, set-sibling, set-pointer, get-pointer, ensure-size,
 // append-history.

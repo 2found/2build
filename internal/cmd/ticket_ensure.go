@@ -13,7 +13,7 @@ import (
 	"github.com/reallongnguyen/babysit/internal/ticket"
 )
 
-// This file ports the `ensure` subcommand of bin/bbs-ticket.bash: the
+// This file ports the `ensure` subcommand of the retired bbs-ticket.bash: the
 // idempotent ticket-creation entry point. On a branch that already encodes a
 // ticket it is a no-op that optionally seeds requirement.md; otherwise it
 // derives a new ticket id + slug and cuts the branch per git-flow mode (trunk /

@@ -80,6 +80,10 @@ When adding a skill, place it under the archetype whose mandate it serves.
 The name is the point: *babysit is what you do when you don't need a babysitter*. Skills here should prefer decisions Claude can make and verify alone over decisions that need a human in the loop.
 
 When writing or adapting a babysit skill:
+- **Only Foreman depends on Orca** — keep its transport, lifecycle, and launch
+  instructions under `foreman/`; inject worker adapters at dispatch. Other skills
+  and shared preambles consume generic inputs and return artifacts/status.
+- **Write only babysit-specific context** — assume a capable model knows ordinary engineering, debugging, planning, and writing practices. Keep commands, schemas, state/ownership contracts, thresholds, product policy, and non-obvious failure constraints. State each rule once in its owning file; link to it from consumers. Remove general tutorials, motivational prose, repeated rationale, and redundant examples instead of moving them into another loaded reference.
 - **Prefer decisions over prompts** — default to deciding and logging the decision. Reach for `AskUserQuestion` only when the alternative is a wrong assumption that would land wrong code (see below).
 - **Strong self-verification** — run the type-checker, tests, or browser check before declaring done; don't rely on a human to notice regressions.
 - **Bounded blast radius** — never force-push, never drop DBs, never send messages without explicit durable authorization (see top-level instructions on reversibility).
@@ -145,10 +149,9 @@ it — the Mechanical/Taste classifier and the "replaces judgment, not analysis"
 rule are the core of how babysit decides unattended.
 
 When adding or editing a skill, don't write new ad-hoc prompts. Classify the
-decision point, let the framework route it, and log every Taste decision to
-`~/.babysit/analytics/decisions.jsonl`.
+decision point and let the framework route it.
 
-### One mode, four escalation channels — design skills accordingly
+### Escalation channels — design skills accordingly
 
 Every skill always runs autonomously: decisions go through the Auto-Decision
 Framework, and skills *never* prompt mid-flight for taste, style, or cosmetic
@@ -161,10 +164,9 @@ for `NEEDS_CONTEXT`, picked by `AGENT_ROLE` (or legacy `GT_ROLE`):
   (`bbs ticket approval publish`) and block on `approval await`. The human
   answers in the web dashboard, where the artifacts are readable; nobody is
   watching this terminal.
-- `AGENT_ROLE=orca` — the run was dispatched by a foreman over Orca's
-  message bus. Ask the coordinator with `orca orchestration ask` and block on
-  the answer; the foreman replies from its own mailbox read. Set by foreman
-  only on the mailbox path, so the bus is known present.
+- Caller-supplied channel — the outer invocation provides its escalation
+  adapter. Foreman injects its worker transport contract; member skills do not
+  depend on that runtime.
 - `AGENT_ROLE=mayor|general|scanner|...` — emit the structured `NEEDS_CONTEXT`
   block. An orchestrator (babysit-office, gastown, cron) relays via its own
   channel. `AskUserQuestion` here would hang the run.
@@ -175,7 +177,7 @@ analysis, artifacts, and decision logic are identical either way.
 
 **The operational rules — when to escalate, the `NEEDS_CONTEXT` format the
 orchestrator expects, the `INVOKER` values — live in
-[.claude/skills/references/preamble.md § One mode, four escalation channels](.claude/skills/references/preamble.md#one-mode-four-escalation-channels).**
+[.claude/skills/references/preamble.md § Escalation channels](.claude/skills/references/preamble.md#escalation-channels).**
 That file is loaded at skill-invocation time regardless of which repo the skill
 runs in. *This* `CLAUDE.md` is only in context when someone is working inside
 the babysit repo itself; non-`developer` invocations from babysit-office or
@@ -234,21 +236,21 @@ Rules of thumb when wiring a workflow:
 
 ```
 babysit/
-├── bin/
-│   ├── bbs            # the multicall binary (gitignored; built by setup-skills from cmd/bbs)
-│   │                  #   bbs secrets   .babysit/.env loader + env resolve/is-set/prompt + qa.yaml
-│   │                  #   bbs config    ~/.babysit/config.yaml, + workspace (multi-repo registry)
-│   │                  #                 and repo (<repo>/.babysit/config.yaml)
-│   │                  #   bbs autopilot checkpoint + timeline runner behind the autopilot skill
-│   │                  #   bbs ticket    ticket identity (the big subcommand); `ticket env` derives
-│   │                  #                 slug / branch / ticket from git remote + branch
-│   │                  #   bbs design    query DESIGN.md tokens / suggest products / list components / ux-check
-│   │                  #   bbs upgrade (+ upgrade check), dashboard, foreman, …
-│   ├── hooks/         # release gate, session writer, and repo pre-commit check
-│   ├── lib/           # shared shell library (lock.sh)
-│   └── setup-skills   # Builds bbs and links it into ~/.local/bin/
+├── bbs              # the multicall binary (gitignored; `go build -o bbs ./cmd/bbs`)
+│                    #   bbs secrets   .babysit/.env loader + env resolve/is-set/prompt + qa.yaml
+│                    #   bbs config    ~/.babysit/config.yaml, + workspace (multi-repo registry)
+│                    #                 and repo (<repo>/.babysit/config.yaml)
+│                    #   bbs autopilot checkpoint + timeline runner behind the autopilot skill
+│                    #   bbs ticket    ticket identity (the big subcommand); `ticket env` derives
+│                    #                 slug / branch / ticket from git remote + branch
+│                    #   bbs design    query DESIGN.md tokens / suggest products / list components / ux-check
+│                    #   bbs upgrade (+ upgrade check), dashboard, foreman, …
+│                    #   bbs hooks <name>   release gate, session writer, repo pre-commit
+│                    #                 (compiled subcommands, not files)
+│                    #   bbs setup     installer — builds bbs + links it into ~/.local/bin/
 ├── hooks/             # command-hook manifest + OMP extension adapter (see docs/artifact-gated-approval.md)
 ├── tests/             # shell + python suites for bins, workflows, and autopilot integration
+│                      #   (tests/fixtures/lib/ — shared shell library, lock.sh)
 ├── docs/              # roadmap, identity, workspaces, operations, artifact-gated-approval
 ├── web/               # dashboard SPA (Vite/React) over ~/.babysit state; release
 │                      #   builds stage it into internal/webui/dist for //go:embed
@@ -286,7 +288,7 @@ a `feat/B_…` branch) exit 2 with a 3-line BLOCK. There is exactly one
 identity codepath. Schema lives in [docs/identity.md](docs/identity.md).
 
 Sessions persist at `~/.babysit/sessions/<id>.yaml` via the
-`bin/hooks/session-writer` plugin hook (SessionStart + PostToolUse(Bash),
+`bbs hooks session-writer` plugin hook (SessionStart + PostToolUse(Bash),
 ticket derived from the cwd's worktree dir or branch) — the preamble's
 session-writer block is best-effort only, since skills aren't guaranteed to
 execute it. `bbs ticket session list / attach / end` manage them; `attach`
@@ -296,8 +298,8 @@ a crash.
 ## Install
 
 ```
-./bin/setup-skills --full    # builds bbs → ~/.local/bin/, prints Claude Code and Codex plugin commands
-./bin/setup-skills --uninstall
+go run ./cmd/bbs setup --full       # builds bbs → ~/.local/bin/, prints Claude Code and Codex plugin commands
+go run ./cmd/bbs setup --uninstall
 ```
 
 ## Releasing — version bumps

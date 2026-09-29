@@ -1,4 +1,4 @@
-// Package identity resolves babysit ticket identity the way bin/bbs-ticket.bash
+// Package identity resolves babysit ticket identity the way bbs-ticket.bash
 // did: derive the project slug, then apply the env-first ladder on top of it.
 //
 // The bash shelled out to bbs-slug to keep one resolver; this calls

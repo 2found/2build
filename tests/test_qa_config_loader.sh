@@ -15,9 +15,9 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_QA_CONFIG="$SCRIPT_DIR/bin/bbs"
-# bin/bbs is the gitignored Go binary; build it if absent.
-[ -x "$BBS_QA_CONFIG" ] || (cd "$SCRIPT_DIR" && go build -o bin/bbs ./cmd/bbs) 2>/dev/null || true
+BBS_QA_CONFIG="$SCRIPT_DIR/bbs"
+# bbs is the gitignored Go binary; build it if absent.
+[ -x "$BBS_QA_CONFIG" ] || (cd "$SCRIPT_DIR" && go build -o bbs ./cmd/bbs) 2>/dev/null || true
 [ -x "$BBS_QA_CONFIG" ] || { echo "FAIL: $BBS_QA_CONFIG not executable" >&2; exit 1; }
 
 PASS=0
@@ -39,7 +39,7 @@ mk_repo() {
 # Run bbs qa-config from a given CWD (so git-toplevel resolution works).
 run_in() {
   local dir="$1"; shift
-  ( cd "$dir" && PATH="$SCRIPT_DIR/bin:$PATH" "$BBS_QA_CONFIG" qa-config "$@" )
+  ( cd "$dir" && PATH="$SCRIPT_DIR:$PATH" "$BBS_QA_CONFIG" qa-config "$@" )
 }
 
 # ─── list ─────────────────────────────────────────────────────────────

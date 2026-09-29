@@ -21,10 +21,10 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_SECRETS="$SCRIPT_DIR/bin/bbs"
-BBS_QA_CONFIG="$SCRIPT_DIR/bin/bbs"
-# bin/bbs is the gitignored Go binary; build it if absent.
-[ -x "$BBS_QA_CONFIG" ] || (cd "$SCRIPT_DIR" && go build -o bin/bbs ./cmd/bbs) 2>/dev/null || true
+BBS_SECRETS="$SCRIPT_DIR/bbs"
+BBS_QA_CONFIG="$SCRIPT_DIR/bbs"
+# bbs is the gitignored Go binary; build it if absent.
+[ -x "$BBS_QA_CONFIG" ] || (cd "$SCRIPT_DIR" && go build -o bbs ./cmd/bbs) 2>/dev/null || true
 [ -x "$BBS_SECRETS" ] || { echo "FAIL: $BBS_SECRETS not executable" >&2; exit 1; }
 
 PASS=0
@@ -46,7 +46,7 @@ mk_repo() {
 # Run `bbs secrets` from a given CWD so .babysit/ walk-up works.
 run_in() {
   local dir="$1"; shift
-  ( cd "$dir" && PATH="$SCRIPT_DIR/bin:$PATH" "$BBS_SECRETS" secrets "$@" )
+  ( cd "$dir" && PATH="$SCRIPT_DIR:$PATH" "$BBS_SECRETS" secrets "$@" )
 }
 
 # ─── load: file missing ──────────────────────────────────────────────
@@ -127,7 +127,7 @@ rm -rf "$T"
 # ─── seed: created ───────────────────────────────────────────────────
 case_header "seed — first run creates file"
 T="$(mk_repo)"
-out="$( PATH="$SCRIPT_DIR/bin:$PATH" "$BBS_SECRETS" secrets seed --repo-root "$T" QA_USER QA_PASS )"
+out="$( PATH="$SCRIPT_DIR:$PATH" "$BBS_SECRETS" secrets seed --repo-root "$T" QA_USER QA_PASS )"
 if printf '%s\n' "$out" | grep -q '^created: ' \
    && [ -f "$T/.babysit/.env" ] \
    && grep -qxF '# QA_USER=' "$T/.babysit/.env" \
@@ -147,9 +147,9 @@ rm -rf "$T"
 # ─── seed: idempotent ────────────────────────────────────────────────
 case_header "seed — second run leaves file untouched"
 T="$(mk_repo)"
-PATH="$SCRIPT_DIR/bin:$PATH" "$BBS_SECRETS" secrets seed --repo-root "$T" QA_USER >/dev/null
+PATH="$SCRIPT_DIR:$PATH" "$BBS_SECRETS" secrets seed --repo-root "$T" QA_USER >/dev/null
 sum1="$( shasum "$T/.babysit/.env" | awk '{print $1}' )"
-out="$( PATH="$SCRIPT_DIR/bin:$PATH" "$BBS_SECRETS" secrets seed --repo-root "$T" QA_USER QA_PASS )"
+out="$( PATH="$SCRIPT_DIR:$PATH" "$BBS_SECRETS" secrets seed --repo-root "$T" QA_USER QA_PASS )"
 sum2="$( shasum "$T/.babysit/.env" | awk '{print $1}' )"
 if printf '%s\n' "$out" | grep -q '^exists: ' && [ "$sum1" = "$sum2" ]; then
   ok "seed reported exists and did not rewrite file"
@@ -161,7 +161,7 @@ rm -rf "$T"
 # ─── ensure-gitignore: adds entry ────────────────────────────────────
 case_header "ensure-gitignore — adds entry when missing"
 T="$(mk_repo)"
-out="$( PATH="$SCRIPT_DIR/bin:$PATH" "$BBS_SECRETS" secrets ensure-gitignore --repo-root "$T" )"
+out="$( PATH="$SCRIPT_DIR:$PATH" "$BBS_SECRETS" secrets ensure-gitignore --repo-root "$T" )"
 if printf '%s\n' "$out" | grep -qxF 'added' \
    && grep -qxF '.babysit/.env' "$T/.gitignore"; then
   ok "entry appended"
@@ -173,8 +173,8 @@ rm -rf "$T"
 # ─── ensure-gitignore: idempotent ────────────────────────────────────
 case_header "ensure-gitignore — idempotent"
 T="$(mk_repo)"
-PATH="$SCRIPT_DIR/bin:$PATH" "$BBS_SECRETS" secrets ensure-gitignore --repo-root "$T" >/dev/null
-out="$( PATH="$SCRIPT_DIR/bin:$PATH" "$BBS_SECRETS" secrets ensure-gitignore --repo-root "$T" )"
+PATH="$SCRIPT_DIR:$PATH" "$BBS_SECRETS" secrets ensure-gitignore --repo-root "$T" >/dev/null
+out="$( PATH="$SCRIPT_DIR:$PATH" "$BBS_SECRETS" secrets ensure-gitignore --repo-root "$T" )"
 count="$(grep -cxF '.babysit/.env' "$T/.gitignore" || true)"
 if printf '%s\n' "$out" | grep -qxF 'present' && [ "$count" = "1" ]; then
   ok "second run reported present and gitignore has exactly one entry"
@@ -187,7 +187,7 @@ rm -rf "$T"
 case_header "ensure-gitignore — creates .gitignore when absent"
 T="$(mk_repo)"
 [ ! -f "$T/.gitignore" ] || { echo "pre: .gitignore unexpectedly present" >&2; exit 1; }
-PATH="$SCRIPT_DIR/bin:$PATH" "$BBS_SECRETS" secrets ensure-gitignore --repo-root "$T" >/dev/null
+PATH="$SCRIPT_DIR:$PATH" "$BBS_SECRETS" secrets ensure-gitignore --repo-root "$T" >/dev/null
 if [ -f "$T/.gitignore" ] && grep -qxF '.babysit/.env' "$T/.gitignore"; then
   ok ".gitignore was created with the entry"
 else
@@ -198,7 +198,7 @@ rm -rf "$T"
 # ─── integration: load → bbs qa-config probe → printenv ──────────────
 case_header "integration — load → bbs qa-config probe → printenv resolves"
 if [ ! -x "$BBS_QA_CONFIG" ]; then
-  fail "integration scenario skipped — bin/bbs not executable"
+  fail "integration scenario skipped — bbs not executable"
 else
   T="$(mk_repo)"
   cat > "$T/.babysit/qa.yaml" <<'YAML'
@@ -215,7 +215,7 @@ YAML
   result="$(
     cd "$T" \
       && unset QA_USER QA_PASS QA_AUTH_USERNAME QA_AUTH_PASSWORD \
-      && PATH="$SCRIPT_DIR/bin:$PATH" \
+      && PATH="$SCRIPT_DIR:$PATH" \
       && eval "$("$BBS_SECRETS" secrets load)" \
       && eval "$("$BBS_QA_CONFIG" qa-config probe --env local 2>/dev/null | grep -E '^QA_ENV_(USERNAME|PASSWORD)_ENV=')" \
       && printf 'user=%s pass=%s\n' "$(printenv "$QA_ENV_USERNAME_ENV" || true)" "$(printenv "$QA_ENV_PASSWORD_ENV" || true)"

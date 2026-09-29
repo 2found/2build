@@ -30,7 +30,7 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_TICKET_BIN="$SCRIPT_DIR/bin/bbs"
+BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -76,7 +76,7 @@ serving_of() { tr -d '\n' < "$1/.git/bbs-serving" 2>/dev/null; }
 # ── ensure-race-distinct-tickets ──────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
+  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"; cd "$T/repo"
 
@@ -109,7 +109,7 @@ rm -rf "$T"
 # running a second `git worktree add` alongside whoever holds it.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
+  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"; cd "$T/repo"
 
@@ -138,7 +138,7 @@ rm -rf "$T"
 # ticket, and only that ticket's file is on the surface.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
+  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"; build_tickets "$T" 5 || { echo "fixture failed"; exit 1; }
 
@@ -173,7 +173,7 @@ rm -rf "$T"
 # time.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
+  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"; build_tickets "$T" 2 || { echo "fixture failed"; exit 1; }
   cd "$T/repo"; echo trunk > trunk.txt; git add trunk.txt   # non-FF: hooks run
@@ -209,7 +209,7 @@ rm -rf "$T"
 # not in HEAD, because a QA run reads serving to know what it is testing.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
+  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"; build_tickets "$T" 2 || { echo "fixture failed"; exit 1; }
 
@@ -251,7 +251,7 @@ rm -rf "$T"
 # bare.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
+  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"; build_tickets "$T" 1 || { echo "fixture failed"; exit 1; }
 
@@ -305,7 +305,7 @@ rm -rf "$T"
 # ── lease-blocks-parallel-ops ─────────────────────────────────────────
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
+  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"; build_tickets "$T" 4 || { echo "fixture failed"; exit 1; }
 
@@ -343,7 +343,7 @@ rm -rf "$T"
 # demonstrably in flight. The lease may only be granted once the merge lands.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
+  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"; build_tickets "$T" 2 || { echo "fixture failed"; exit 1; }
   # Put a commit on main the ticket branch lacks, so landing it is a real merge
@@ -387,7 +387,7 @@ rm -rf "$T"
 # at the same moment must not end up co-owner or leave a half-built lease.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
+  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"; build_tickets "$T" 3 || { echo "fixture failed"; exit 1; }
 
@@ -425,7 +425,7 @@ rm -rf "$T"
 # never outlive the op — only a QA session's long lease stays up between ops.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
+  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"; build_tickets "$T" 2 || { echo "fixture failed"; exit 1; }
   R="$T/repo"
@@ -463,7 +463,7 @@ rm -rf "$T"
 # never claims a ticket absent from HEAD, repo still usable at the end.
 T="$(mktemp -d)"
 (
-  export PATH="$SCRIPT_DIR/bin:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
+  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_repo "$T"; build_tickets "$T" 5 || { echo "fixture failed"; exit 1; }
   R="$T/repo"

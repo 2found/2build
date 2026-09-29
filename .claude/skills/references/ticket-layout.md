@@ -128,7 +128,7 @@ esac
 [ -n "$PLAN" ] && cat "$PLAN"
 ```
 (Don't use `X="$(…)" || X=""` — it swallows exit 2/3 into "not found".)
-`bin/bbs-ticket-lint` flags raw `$TH/` constructions in bash fences; a
+`bbs ticket lint` flags raw `$TH/` constructions in bash fences; a
 genuinely needed bypass takes a trailing `# lint:allow-direct-path <why>`.
 ## Typical skill usage
 ```bash

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/test_bbs_qa_config.sh — differential guard for the bbs-qa-config Go port.
 #
-# `bbs qa-config` replaced the bin/bbs-qa-config bash script, and the qa skill
+# `bbs qa-config` replaced the bbs-qa-config bash script, and the qa skill
 # depends on its exact stdout/stderr/exit contract. Every case runs the frozen
 # pre-port bash (tests/fixtures/bbs-qa-config.reference) and the Go binary side
 # by side under an identical environment and diffs all three channels — any

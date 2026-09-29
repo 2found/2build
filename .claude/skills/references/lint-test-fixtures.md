@@ -1,9 +1,10 @@
 # lint-test-fixtures
 
-Self-test fixture for `bin/bbs-ticket-lint`. The linter scans markdown for
+Self-test fixture for `bbs ticket lint`. The linter scans markdown for
 direct ticket-path constructions inside ` ```bash ` code blocks.
 
-`bbs-ticket-test` scans this file with the linter and asserts **exactly 5**
+The Go e2e test (`internal/cmd/ticket_path_e2e_test.go`) scans this file with
+the linter and asserts **exactly 5**
 unapproved hits (the 5 lines below inside the bash block, minus the one with
 the `# lint:allow-direct-path` marker).
 

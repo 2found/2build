@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newDesignCmd ports bin/bbs-design as `bbs design` — the design-intelligence
+// newDesignCmd ports the retired bbs-design script as `bbs design` — the design-intelligence
 // broker (tokens / suggest / components / ux-check). It parses DESIGN.md
 // frontmatter and the design-ui CSV tables natively (no awk/jq/find).
 func newDesignCmd() *cobra.Command {
@@ -79,11 +79,23 @@ func runDesign(args []string) error {
 // designDataDir mirrors _default_data_dir: prefer the data dir next to the
 // binary's repo, then the known plugin/skill install locations.
 func designDataDir() string {
+	repoRoot := ""
 	if exe, err := os.Executable(); err == nil {
 		if real, err := filepath.EvalSymlinks(exe); err == nil {
 			exe = real
 		}
-		repoRoot := filepath.Dir(filepath.Dir(exe))
+		// The binary sits at <root>/bbs (or <root>/bin/bbs on older
+		// checkouts): .claude/skills marks the root.
+		dir := filepath.Dir(exe)
+		for _, cand := range []string{dir, filepath.Dir(dir)} {
+			if fi, err := os.Stat(filepath.Join(cand, ".claude", "skills")); err == nil && fi.IsDir() {
+				repoRoot = cand
+				break
+			}
+		}
+		if repoRoot == "" {
+			repoRoot = filepath.Dir(dir)
+		}
 		data := filepath.Join(repoRoot, ".claude", "skills", "design-ui", "data")
 		if fi, err := os.Stat(data); err == nil && fi.IsDir() {
 			return data
@@ -100,8 +112,8 @@ func designDataDir() string {
 		}
 	}
 	// Last resort — caller sees the missing-file error.
-	if exe, err := os.Executable(); err == nil {
-		return filepath.Join(filepath.Dir(filepath.Dir(exe)), ".claude", "skills", "design-ui", "data")
+	if repoRoot != "" {
+		return filepath.Join(repoRoot, ".claude", "skills", "design-ui", "data")
 	}
 	return ".claude/skills/design-ui/data"
 }

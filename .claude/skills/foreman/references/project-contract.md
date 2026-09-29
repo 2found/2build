@@ -50,8 +50,8 @@ Before child creation, worktrees, or production dispatch:
    work, but gather missing/stale approval before new production dispatch.
 
 This is Foreman's human design checkpoint; do not add routine final Taste
-confirmation. Under `--auto`, log Taste decisions; route unresolved User
-Challenges through the preamble.
+confirmation. Under `--auto`, Foreman resolves Taste decisions; route
+unresolved User Challenges through the preamble.
 
 ## Durable project report
 

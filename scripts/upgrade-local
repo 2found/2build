@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# upgrade-local — sync this workspace to ~/.claude/skills/babysit and relink bins.
+# upgrade-local — sync this workspace to ~/.claude/skills/babysit and rerun setup.
 # Use this instead of `git pull` when working from a local checkout.
 set -euo pipefail
 
@@ -14,5 +14,5 @@ rsync -a --delete \
   --exclude='.babysit' \
   "$SRC/" "$DEST/"
 
-echo "→ Relinking bins..."
-"$SRC/bin/setup-skills"
+echo "→ Rerunning setup..."
+(cd "$SRC" && go run ./cmd/bbs setup)
