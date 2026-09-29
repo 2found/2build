@@ -9,6 +9,7 @@ package cmd
 // at the checkout root. babysitDir() accepts either shape.
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -350,7 +351,12 @@ func (c *setupCtx) doInstall() error {
 			}
 			c.ok("bbs built → bbs")
 		} else {
+			// bash: `run go build` under `set -e` aborted the whole install —
+			// a binary that never got built is a failed install, not a warning.
 			c.warn("go build failed — bbs will not resolve until built")
+			if c.failed == nil {
+				c.failed = errors.New("go build ./cmd/bbs failed")
+			}
 		}
 	}
 
