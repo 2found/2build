@@ -23,8 +23,9 @@ native configuration unless Orca advertises a supported explicit contract.
 `bbs agent list --json` reports installed CLIs. Neither command chooses a new
 Foreman worker.
 
-Legacy BBS YAML agent/provider/model/effort preferences and their worker/foreman
-environment selectors are retired: new launches ignore them, existing YAML
+BBS global agent/provider/model/effort preferences and their worker/foreman
+environment selectors are retired (the legacy BBS YAML keys): new launches
+ignore them, existing YAML
 bytes remain unchanged, and `bbs config set` rejects new writes. `bbs agent resolve`
 has been removed; use Orca settings for new worker routes.
 
@@ -136,7 +137,7 @@ repair a route by spawning a worker. Foreman recovers missing legacy routing
 evidence from the durable handoff before its next launch.
 
 Standalone Autopilot runs all steps in the human-opened session. It does not
-load this routing policy, recommend a tier, or change models between phases.
+load this routing table, recommend a tier, or change models between phases.
 Record the actual session model (unknown if unobserved) as evidence; use the
 existing capability/NEEDS\_CONTEXT handling if the session cannot carry the work.
 

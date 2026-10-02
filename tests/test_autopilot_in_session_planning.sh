@@ -87,29 +87,45 @@ require 'Standalone Autopilot runs all steps in the human-opened session' "$REF"
 require 'load this routing table, recommend a tier, or change models between phases' "$REF"
 
 
-# Parse the policy's data tables: assert every task/phase and harness outcome,
-# rather than merely checking that tier/model names occur somewhere in the file.
-python3 - "$REF" <<'PY'
+# --- routing policy is CLI-owned: assert live defaults, plus the doc's
+# phase-class table which stays in markdown ------------------------------
+BBS_BIN_DIR="$(mktemp -d)"
+POLICY_DIR="$(mktemp -d)"
+trap 'rm -rf "$BBS_BIN_DIR" "$POLICY_DIR"' EXIT
+( cd "$ROOT" && go build -o "$BBS_BIN_DIR/bbs" ./cmd/bbs ) || { echo "FAIL: go build" >&2; exit 1; }
+
+require 'bbs foreman model' "$REF"
+require 'The CLI owns complexity-to-tier routing' "$REF"
+
+"$BBS_BIN_DIR/bbs" foreman model --dir "$POLICY_DIR" --json > "$BBS_BIN_DIR/policy.json"
+python3 - "$REF" "$BBS_BIN_DIR/policy.json" <<'PY'
+import json, sys
 from pathlib import Path
-import sys
+
+policy = json.loads(Path(sys.argv[2]).read_text())
+
+
+assert policy["routing"] == {
+    "simple": {"normal": "flash", "critical": "pro"},
+    "normal": {"normal": "flash", "critical": "pro"},
+    "hard":   {"normal": "pro",   "critical": "max"},
+}, policy["routing"]
+assert policy["tiers"] == {
+    "flash": {"codex": {"model": "gpt-6-luna", "effort": "high"},
+              "claude": {"model": "opus", "effort": "high"},
+              "omp": {"model": "@normal"}},
+    "pro":   {"codex": {"model": "gpt-5.6-sol", "effort": "high"},
+              "claude": {"model": "opus", "effort": "high"},
+              "omp": {"model": "@slow"}},
+    "max":   {"codex": {"model": "gpt-6-astra", "effort": "high"},
+              "claude": {"model": "opus", "effort": "high"},
+              "omp": {"model": "@plan"}},
+}, policy["tiers"]
+print("foreman model policy defaults: ok")
 
 text = Path(sys.argv[1]).read_text()
 rows = [[cell.strip().strip('`') for cell in line.strip('|').split('|')]
         for line in text.splitlines() if line.startswith('|')]
-routes = {r[0]: r[1:] for r in rows if len(r) == 4 and r[0] in ('simple', 'normal', 'hard')}
-expected_routes = {
-    'simple': ['[flash, pro]', 'flash', 'pro'],
-    'normal': ['[flash, pro]', 'flash', 'pro'],
-    'hard': ['[pro, max]', 'pro', 'max'],
-}
-assert routes == expected_routes, routes
-models = {r[0]: r[1:] for r in rows if len(r) == 6 and r[0] in ('flash', 'pro', 'max')}
-expected_models = {
-    'flash': ['gpt-6-luna', 'high', 'opus', 'high', '@normal'],
-    'pro': ['gpt-5.6-sol', 'high', 'opus', 'high', '@slow'],
-    'max': ['gpt-6-astra', 'high', 'opus', 'high', '@plan'],
-}
-assert models == expected_models, models
 phases = {r[0]: r[1] for r in rows if len(r) == 2 and r[1] in ('critical', 'normal')}
 assert phases == {
     'Parent/child planning, decomposition, design, design feedback': 'critical',
@@ -118,10 +134,6 @@ assert phases == {
     'Per-ticket QA, integration QA and product acceptance checks': 'normal',
     'Finish audits, merges, composition, authorized delivery, restoration and cleanup': 'normal',
 }, phases
-for task, (_, normal, critical) in routes.items():
-    for phase, tier in [('normal', normal), ('critical', critical)]:
-        assert models[tier] == expected_models[expected_routes[task][1 if phase == 'normal' else 2]]
-        print(f'{task}/{phase} -> {tier}: {models[tier]}')
 PY
 
 # --- no README still advertises the removed flags ---------------------------

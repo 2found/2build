@@ -6,7 +6,6 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 F="$ROOT/.claude/skills/foreman/SKILL.md"
 A="$ROOT/.claude/skills/autopilot/SKILL.md"
 C="$ROOT/.claude/skills/create-pr/SKILL.md"
-WRAPPER="$ROOT/skills/foreman/SKILL.md"
 
 # References are loaded at their decision boundaries after the entry skill was
 # reduced. These smoke checks cover the assembled contract; Go tests exercise
@@ -69,12 +68,12 @@ has_all "autopilot-worker-execution-envelope" \
   'skips any developer `/goal`' 'worker-start --agent' \
   'exactly one `worker_done`'
 
-if grep -q 'authenticated caller-supplied invocation envelope' "$A" \
-   && grep -q 'outer caller owns transport and lifecycle reporting' "$A" \
-   && ! grep -qi 'orca' "$A"; then
-  ok "autopilot-accepts-generic-invocation-envelope"
+if grep -q 'authenticated, current Orca Dispatch preamble' "$A" \
+   && grep -q 'use the injected lifecycle instead' "$A" \
+   && grep -q 'developer `/goal` handoff' "$A"; then
+  ok "autopilot-accepts-orca-dispatch-envelope"
 else
-  fail "autopilot-accepts-generic-invocation-envelope"
+  fail "autopilot-accepts-orca-dispatch-envelope"
 fi
 
 has_all "agent-independent-design-gate" \
@@ -171,8 +170,8 @@ for required in (
     'Changed inputs mean STALE',
 ):
     assert required in contract, required
-assert 'Caller-prepared read-only surface' in qa
-assert "caller's lease" in qa
+assert 'Foreman final integration mode' in qa
+assert "coordinator's lease" in qa
 assert 'This explicit mode takes precedence' in qa
 PY
 then
@@ -229,11 +228,10 @@ else
   fail "worker-uses-injected-orca-lifecycle"
 fi
 
-if grep -q 'Autonomous Orca orchestrator' "$WRAPPER" \
-   && grep -q '../../.claude/skills/foreman/SKILL.md' "$WRAPPER"; then
-  ok "codex-wrapper-matches"
+if grep -q '"skills": "./.claude/skills"' "$ROOT/.codex-plugin/plugin.json"; then
+  ok "codex-plugin-exposes-claude-skills"
 else
-  fail "codex-wrapper-matches"
+  fail "codex-plugin-exposes-claude-skills"
 fi
 
 has_all "no-coordinator-polling-timer" \
