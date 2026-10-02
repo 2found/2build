@@ -1,5 +1,5 @@
-// Package config owns the single babysit config file
-// (~/.babysit/config.yaml).
+// Package config owns babysit's YAML config (~/.babysit/config.yaml) and
+// layered JSON model settings (global and repo .babysit/settings.json).
 //
 // Scalar get/set operations preserve existing text. Structured writers update
 // only their YAML subtree under a shared lock, so workspace registrations cannot

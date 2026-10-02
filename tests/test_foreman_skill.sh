@@ -268,10 +268,12 @@ REF="$ROOT/.claude/skills/foreman/references/model-routing.md"
 if grep -q 'model-routing.md' "$F" \
    && ! grep -q 'model-routing.md' "$A" \
    && grep -q '## Phase routing' "$REF" \
-   && grep -q 'gpt-5.6-sol' "$REF"; then
-  ok "canonical-model-table-foreman-owned"
+   && grep -q 'bbs foreman model' "$REF" \
+   && grep -q '~/.babysit/settings.json' "$REF" \
+   && ! grep -q 'gpt-5.6-sol' "$REF"; then
+  ok "canonical-model-policy-cli-owned"
 else
-  fail "canonical-model-table-foreman-owned"
+  fail "canonical-model-policy-cli-owned"
 fi
 
 echo

@@ -42,6 +42,8 @@ const foremanUsage = `Usage:
   bbs foreman spawn [<id>] [--dir <path>] [--command <text>] [--agent <name>]
                     [--model <id>] [--effort <level>] [--auto]
   bbs foreman ensure <id>
+  bbs foreman model [--agent <id> --complexity <simple|normal|hard> --phase-class <normal|critical>]
+                    [--dir <repo-or-worktree>] [--json]
   bbs foreman worker-command --prompt <text> [--skill <name>] [--agent <id>] [--pinned-agent <id>]
                             [--pinned-model <id>] [--pinned-effort <level>] [--host <host-id>] [--exact-session] [--dir <path>]
                             [--model <id>] [--effort <level>]
@@ -147,6 +149,8 @@ func dispatchForeman(args []string) error {
 		return foremanResource(rest)
 	case "route":
 		return foremanRoute(rest)
+	case "model":
+		return foremanModel(rest)
 	case "watch":
 		return foremanWatch(rest)
 	case "retire":

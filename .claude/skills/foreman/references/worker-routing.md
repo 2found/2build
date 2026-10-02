@@ -8,8 +8,15 @@ then the destination-host Orca default; BBS preferences do not select an agent.
 
 ## Resolve and launch
 
-Select task complexity and the phase model/effort from the canonical contract.
-Resolve the agent on the destination Orca host before resource admission:
+Classify task complexity and phase class using the canonical contract. Select
+an agent from explicit intent, a compatible phase pin, or destination-host Orca
+discovery, then obtain model/effort and tier with
+`bbs foreman model --dir "$REPO" --agent <selected-agent> --complexity <simple|normal|hard> --phase-class <normal|critical> --json`.
+Use the assignment repo/worktree, not the coordinator repo in a multi-repo run.
+Explicit phase overrides and valid persisted resume routes take precedence;
+skip the policy lookup when resuming an exact recorded session. Pass the
+resulting model, effort and selected tier into route validation before resource
+admission:
 
 ```bash
 bbs foreman route --ticket "$TICKET" --task "$ORCA_TASK_ID" \
