@@ -348,7 +348,7 @@ bbs ticket serve            # 引数なし: 完了した ticket (qa + review DON
 
 ## さらに深く
 
-- **Routing の内部とデバッグ** — init が何を蒔くか、`/goal` loop が checkpoint からどう再開するか、どの gate をどの step skill が所有するか: [`.claude/skills/autopilot/SKILL.md`](.claude/skills/autopilot/SKILL.md)。run が route する state を、走らせずに見るには: `bbs autopilot explain` (workflow の prereq matrix には `--details` を足す)。
+- **Routing の内部とデバッグ** — init が何を蒔くか、`/goal` loop が checkpoint からどう再開するか、どの gate をどの step skill が所有するか: [`.claude/skills/autopilot/SKILL.md`](.claude/skills/autopilot/SKILL.md)。run が route する state を、走らせずに見るには: `bbs autopilot snapshot --json`。
 - **Profiles** — [`docs/profiles.md`](docs/profiles.md): 各 profile があなたの base branch に何を期待するか、そして各 profile で ticket を並列に回す方法。
 - **Config schema** — `.babysit/` を手書きするための [`.claude/skills/references/git-flow.md`](.claude/skills/references/git-flow.md) と [`docs/qa-config.md`](docs/qa-config.md)。
 

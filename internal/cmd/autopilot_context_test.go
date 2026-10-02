@@ -54,67 +54,6 @@ func TestContextProjectionIsBoundedKeepsRequiredReadsAndRedactsLogs(t *testing.T
 	}
 }
 
-func TestContextCursorDeltaAndCacheAreBounded(t *testing.T) {
-	repo := initSnapshotRepo(t)
-	t.Chdir(repo)
-	t.Setenv("BBS_BASE_BRANCH", "main")
-	project := filepath.Join(t.TempDir(), "project")
-	home := filepath.Join(project, "tickets", "ap-05")
-	mustMkdirAll(t, home)
-	mustWrite(t, filepath.Join(home, "index.json"), `{"id":"ap-05","origin":{"type":"standalone"},"control":null}`)
-	mustWrite(t, filepath.Join(home, "checkpoint.json"), `{"schema_version":2,"run_id":"run-05","revision":3,"ticket":"ap-05","workflow":"builder","branch":"main"}`)
-	mustWrite(t, filepath.Join(home, "requirement.md"), "requirement\n")
-	mustWrite(t, filepath.Join(home, "plan.md"), "plan\n")
-	a := &apState{slug: "project", branch: "main", ticket: "ap-05", stateRoot: project}
-
-	snapshot, err := collectAutopilotSnapshot(a, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	projection := buildContextProjection(snapshot)
-	cursor := contextCursor("ap-05", "run-05", projection)
-	rec := contextCacheRecord{SchemaVersion: 2, Ticket: "ap-05", RunID: "run-05", Projection: projection}
-	if err := writeContextCache(a, "ap-05", rec, cursor); err != nil {
-		t.Fatal(err)
-	}
-	prior, reason := readContextCache(a, "ap-05", "run-05", cursor)
-	if prior == nil || reason != "" {
-		t.Fatalf("cursor did not round-trip: reason=%q", reason)
-	}
-	changes := contextChanges(prior.Projection, projection)
-	encoded, _ := json.Marshal(contextPacket{Kind: "delta", Cursor: cursor, SnapshotID: snapshot.SnapshotID, StateRevision: snapshot.StateRevision, Changes: changes})
-	if len(changes) != 0 || len(encoded) > 512 {
-		t.Fatalf("unchanged delta is not bounded: bytes=%d changes=%#v", len(encoded), changes)
-	}
-	if got, reason := readContextCache(a, "ap-05", "other-run", cursor); got != nil || reason != "cursor_scope_changed" {
-		t.Fatalf("cross-run cursor was accepted: record=%+v reason=%q", got, reason)
-	}
-	if got, reason := readContextCache(a, "ap-05", "run-05", "garbage"); got != nil || reason != "unknown_cursor" {
-		t.Fatalf("unknown cursor result: record=%+v reason=%q", got, reason)
-	}
-
-	mustWrite(t, filepath.Join(home, "plan.md"), "changed plan\n")
-	changedSnapshot, err := collectAutopilotSnapshot(a, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	changed := contextChanges(projection, buildContextProjection(changedSnapshot))
-	if changed["snapshot"] == nil || changed["artifacts"] == nil {
-		t.Fatalf("artifact change absent from delta: %#v", changed)
-	}
-
-	for i := 0; i < contextCacheLimit+3; i++ {
-		name := "v2." + strings.Repeat(string(rune('a'+i)), 32)
-		if err := writeContextCache(a, "ap-05", rec, name); err != nil {
-			t.Fatal(err)
-		}
-	}
-	paths, _ := filepath.Glob(filepath.Join(home, "cache", "context", "v2.*.json"))
-	if len(paths) > contextCacheLimit {
-		t.Fatalf("context cache grew to %d entries", len(paths))
-	}
-}
-
 func TestContextNoTicketDoesNotCreateCache(t *testing.T) {
 	repo := initSnapshotRepo(t)
 	t.Chdir(repo)

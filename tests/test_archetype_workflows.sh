@@ -11,8 +11,8 @@
 #      decomposed-parent ownership to foreman.
 #   4. Code-touching workflows run review-pr in the current autopilot session,
 #      then persist the QA verdict the PR gate reads.
-#   5. `bbs autopilot explain` routes a committed non-base branch to builder
-#      (verify mode) — needs a real origin, which the eval-set fixtures lack.
+#   5. `bbs autopilot snapshot --json` reports a committed non-base branch
+#      in verify mode — needs a real origin, which the eval-set fixtures lack.
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -139,7 +139,7 @@ for name in builder grower sweeper maintainer; do
   fi
 done
 
-# ── explain routes commits-ahead to builder (verify mode) ────────────
+# ── snapshot reports commits-ahead as verify mode ────────────
 # Needs origin/<base> to exist: build a repo with a bare origin, push main,
 # then commit on a feat branch without pushing.
 
@@ -158,19 +158,13 @@ T="$(mktemp -d)"
   git checkout -q -b feat/bs-verify-1_scratch
   echo x > f.txt; git add f.txt
   git -c user.email=t@t -c user.name=t commit -q -m "feat: work"
-  out="$("$BBS_AUTOPILOT" autopilot explain 2>/dev/null)"
-  printf '%s\n' "$out" | grep -q 'builder (verify mode)' \
+  out="$("$BBS_AUTOPILOT" autopilot snapshot --json 2>/dev/null)"
+  printf '%s\n' "$out" | jq -e '.ok and .data.run.mode == "verify"' >/dev/null \
     || { echo "no verify-mode route; got:"; printf '%s\n' "$out" | head -20; exit 1; }
-) && ok "explain-routes-verify-mode" || fail "explain-routes-verify-mode"
+) && ok "snapshot-reports-verify-mode" || fail "snapshot-reports-verify-mode"
 rm -rf "$T"
 
-# ── explain routes one-ticket builder modes and parent projects ───────
-# The verify-mode route above was the only builder mode with explain coverage;
-# the other four routed silently, which is how v1.47.0 shipped a sub_ticket
-# (child-mode) routing regression unnoticed. Routing precedence is
-# sub_ticket > manifest.md > plan.md > requirement.md, so seeding exactly one
-# signal makes each mode's route unambiguous. The child case is the explicit
-# regression guard for sub-ticket branch shape.
+# Snapshot is the single mode reader: child > project > plan > requirement.
 route_mode_test() {
   local label="$1" ticket="$2" expect="$3"; shift 3
   local seed="$1"
@@ -182,10 +176,10 @@ route_mode_test() {
     git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init
     git checkout -q -b "feat/${ticket}_scratch"
     "$seed"
-    out="$(bbs autopilot explain 2>/dev/null)"
-    printf '%s\n' "$out" | grep -q "$expect" \
-      || { echo "expected '$expect'; got:"; printf '%s\n' "$out" | grep -A1 'recommended workflow'; exit 1; }
-  ) && ok "explain-routes-$label" || fail "explain-routes-$label"
+    out="$(bbs autopilot snapshot --json 2>/dev/null)"
+    printf '%s\n' "$out" | jq -e --arg mode "$expect" '.ok and .data.run.mode == $mode' >/dev/null \
+      || { echo "expected '$expect'; got:"; printf '%s\n' "$out" | head -c 2000; exit 1; }
+  ) && ok "snapshot-reports-$label" || fail "snapshot-reports-$label"
   rm -rf "$D"
 }
 seed_sub_ticket()  { bbs ticket init --origin-type sub_ticket >/dev/null 2>&1; }
@@ -193,10 +187,10 @@ seed_manifest()    { bbs ticket init >/dev/null 2>&1; local m; m="$(bbs ticket p
 seed_plan()        { bbs ticket init >/dev/null 2>&1; local p; p="$(bbs ticket path plan --write 2>/dev/null)"; [ -n "$p" ] && echo "# plan" > "$p"; }
 seed_requirement() { bbs ticket init >/dev/null 2>&1; local r; r="$(bbs ticket path requirement --write 2>/dev/null)"; [ -n "$r" ] && echo "# req" > "$r"; }
 
-route_mode_test child       bs-child-1  'builder (child mode)'       seed_sub_ticket
-route_mode_test project     bs-orch-1   'foreman (project orchestration)' seed_manifest
-route_mode_test implement   bs-impl-1   'builder (implement mode)'   seed_plan
-route_mode_test build       bs-build-1  'builder (build mode)'       seed_requirement
+route_mode_test child       bs-child-1  'child'       seed_sub_ticket
+route_mode_test project     bs-orch-1   'orchestrate' seed_manifest
+route_mode_test implement   bs-impl-1   'implement'   seed_plan
+route_mode_test build       bs-build-1  'build'       seed_requirement
 
 echo
 if [ "$FAIL" -eq 0 ]; then

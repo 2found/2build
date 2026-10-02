@@ -352,16 +352,6 @@ export interface SkillEventRow {
   [k: string]: unknown;
 }
 
-export interface BuilderRow {
-  ts: string;
-  date: string;
-  signals?: Record<string, unknown>;
-  assignment?: string;
-  topics?: string[];
-  mood?: string;
-  [k: string]: unknown;
-}
-
 // Active session — one per live ~/.babysit/sessions/<id>.yaml file (mtime
 // within the last 120 minutes). `ticket` / `product` / `cwd` come from
 // parsing the yaml body; missing fields are null when the file was
@@ -418,7 +408,6 @@ export interface Snapshot {
   // v2: global data sources
   decisions: DecisionRow[];
   skillEvents: SkillEventRow[];
-  builderProfile: BuilderRow[];
   journalTail: string[];
   sessions: SessionsInfo;
   foremen: ForemanRow[];
@@ -561,7 +550,6 @@ export function normalizeSnapshot(raw: unknown): LoadedSnapshot {
   }
   s.decisions ??= [];
   s.skillEvents ??= [];
-  s.builderProfile ??= [];
   s.journalTail ??= [];
   s.sessions ??= { count: 0, slugs: [], sessions: [] };
   if (typeof s.sessions === 'object' && !('count' in s.sessions)) {

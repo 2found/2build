@@ -28,14 +28,14 @@ mask() { sed -E 's/[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z/<TS>/g
 # forever; normalising just these names keeps the rest of the string honest —
 # a reworded or reordered usage line still fails. Every entry needs a reason.
 #   bs-85spcpj3: `git-flow` prints the profile-derived policy (BBS_MODE, …).
-#   autopilot-v2: snapshot/context/attempt are additive typed contracts.
+#   autopilot-v2: snapshot/attempt/verification are additive typed contracts.
 #   bs-dh32wo08: identity labels — the oracle says "derived from branch" /
 #   "branch does not encode"; the Go side reports the identity ladder
 #   (env → manifest → branch). Normalized in `mask`, not the frozen oracle.
-mask_usage() { sed -E 's/\|snapshot\|context\|attempt\|/|/; s/\|git-flow\|/|/'; }
+mask_usage() { sed -E 's/\|snapshot\|attempt\|verification\|/|/; s/\|git-flow\|/|/'; }
 # bs-0c8r7mv7: read/current/set-current/timeline/check-skill-deps were pruned
 # as zero-caller commands; the frozen oracle still lists them in usage.
-mask_deleted() { sed -E 's/read\|//; s/set-current\|//; s/current\|//; s/timeline\|//; s/\|check-skill-deps//'; }
+mask_deleted() { sed -E 's/read\|//; s/set-current\|//; s/current\|//; s/timeline\|//; s/\|check-skill-deps//; s/\|probe//; s/\|explain//'; }
 cmp_case() { # name  expected(masked)  actual(masked)  ec_e  ec_a
   if [ "$2" = "$3" ] && [ "$4" = "$5" ]; then
     echo "ok   $1"; PASS=$((PASS+1))
@@ -60,7 +60,7 @@ git init -q "$REPO"; ( cd "$REPO"
   git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init )
 cd "$REPO"
 
-for sub in "base-branch" "probe" "explain" "explain --details"; do
+for sub in "base-branch"; do
   # shellcheck disable=SC2086
   e="$(run "bash $ORACLE" "$WORK/ph-b" $sub)"; ec_e=$?
   # shellcheck disable=SC2086

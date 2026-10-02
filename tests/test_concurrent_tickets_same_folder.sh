@@ -96,8 +96,8 @@ T="$(mktemp -d)"
   ( BABYSIT_TICKET="bs-aaa" "$BBS_TICKET" ticket set-pointer ticket_size "L" >/dev/null 2>&1 )
   ( BABYSIT_TICKET="bs-bbb" "$BBS_TICKET" ticket set-pointer ticket_size "S" >/dev/null 2>&1 )
 
-  size_a="$( BABYSIT_TICKET="bs-aaa" "$BBS_TICKET" ticket get-pointer ticket_size 2>/dev/null )"
-  size_b="$( BABYSIT_TICKET="bs-bbb" "$BBS_TICKET" ticket get-pointer ticket_size 2>/dev/null )"
+  size_a="$( BABYSIT_TICKET="bs-aaa" "$BBS_TICKET" ticket get pointers.ticket_size 2>/dev/null )"
+  size_b="$( BABYSIT_TICKET="bs-bbb" "$BBS_TICKET" ticket get pointers.ticket_size 2>/dev/null )"
 
   [ "$size_a" = "L" ] || { echo "A's ticket_size: '$size_a', want L"; exit 1; }
   [ "$size_b" = "S" ] || { echo "B's ticket_size: '$size_b', want S"; exit 1; }

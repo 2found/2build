@@ -26,7 +26,7 @@ Foreman worker.
 BBS global agent/provider/model/effort preferences and their worker/foreman
 environment selectors are retired: new launches ignore them, existing YAML
 bytes remain unchanged, and `bbs config set` rejects new writes. `bbs agent resolve`
-is retired and prints migration guidance.
+has been removed; use Orca settings for new worker routes.
 
 ## Task complexity
 

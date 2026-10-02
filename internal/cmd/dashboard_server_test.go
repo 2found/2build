@@ -72,7 +72,7 @@ func TestSnapshotServesComposeShape(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	for _, k := range []string{"meta", "projects", "decisions", "skillEvents", "builderProfile", "journalTail", "sessions"} {
+	for _, k := range []string{"meta", "projects", "decisions", "skillEvents", "journalTail", "sessions"} {
 		if _, ok := got[k]; !ok {
 			t.Errorf("served snapshot is missing top-level %q", k)
 		}
@@ -580,6 +580,61 @@ func TestTicketDetailEndpointServesTheComposeBody(t *testing.T) {
 	}
 	if !strings.Contains(got["requirement"].(string), "the requirement body") {
 		t.Errorf("detail is missing the artifact body: %v", got["requirement"])
+	}
+}
+
+func TestTicketDetailPreservesAgentContext(t *testing.T) {
+	s, home := sandboxServer(t)
+	artifacts := map[string]string{
+		"requirement.md":                    "# Intent\nOriginal constraints must survive.\n",
+		"plan.md":                           strings.Repeat("Implementation detail\n", 3000),
+		"design.md":                         "# Accepted design\n",
+		"manifest.md":                       "# Child plan\n",
+		"checkpoint.json":                   `{"ticket":"bs-aaaa1111","step":"implement","note":"resume here","custom":{"keep":true}}`,
+		"handoffs/001-implement-blocked.md": "STATUS: BLOCKED\nSUMMARY: Need the missing API contract.\n",
+		"handoffs/LATEST":                   "001-implement-blocked.md\n",
+		"verdicts/qa.md":                    "STATUS: NEEDS_CONTEXT\nMissing runtime credentials.\n",
+		"reviews/review-pr.md":              "Unresolved finding: preserve retry ownership.\n",
+		"evidence/qa/result.json":           `{"exit_code":1,"reason":"runtime unavailable"}`,
+	}
+	for name, body := range artifacts {
+		path := filepath.Join(home, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w := send(t, s, "GET", "/api/tickets/proj/bs-aaaa1111")
+	var detail map[string]interface{}
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &detail) != nil {
+		t.Fatalf("detail: %s", w.Body)
+	}
+	for _, field := range []string{"requirement", "design", "manifest"} {
+		if detail[field] != artifacts[field+".md"] {
+			t.Errorf("lost %s", field)
+		}
+	}
+	if !strings.HasSuffix(detail["plan"].(string), "[...truncated at 50KB]\n") {
+		t.Error("large preview must disclose truncation")
+	}
+	if detail["checkpoint"].(map[string]interface{})["note"] != "resume here" {
+		t.Error("lost recovery checkpoint")
+	}
+	if detail["verdict_statuses"].(map[string]interface{})["qa"] != "NEEDS_CONTEXT" {
+		t.Error("lost blocking verdict")
+	}
+	for _, field := range []string{"handoffs", "reviews", "evidence"} {
+		if len(detail[field].([]interface{})) != 1 {
+			t.Errorf("lost %s", field)
+		}
+	}
+	for name, body := range artifacts {
+		got, err := os.ReadFile(filepath.Join(home, name))
+		if err != nil || string(got) != body {
+			t.Errorf("agent artifact changed: %s (%v)", name, err)
+		}
 	}
 }
 

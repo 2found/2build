@@ -13,12 +13,11 @@ import { Analytics } from './views/Analytics';
 import { Foremen } from './views/Foremen';
 import { DecisionsFeed } from './views/DecisionsFeed';
 import { SkillEvents } from './views/SkillEvents';
-import { Settings } from './views/Settings';
 
 // Routes that moved. Rewritten before matching so a bookmark or a pasted link
 // lands on the view that absorbed it, and the nav highlights that view instead
 // of nothing. `#/live` merged into Home in v1.66.
-const MOVED: Record<string, string> = { '#/live': '#/' };
+const MOVED: Record<string, string> = { '#/live': '#/', '#/settings': '#/foremen' };
 
 function normalize(raw: string): string {
   const hash = raw || '#/';
@@ -68,7 +67,6 @@ function AppInner({ snapshot, hash, error, retry }: { snapshot: LoadedSnapshot; 
   else if (route === '#/foremen') view = <Foremen snapshot={snapshot} />;
   else if (route === '#/decisions') view = <DecisionsFeed snapshot={snapshot} />;
   else if (route === '#/skill-events') view = <SkillEvents snapshot={snapshot} />;
-  else if (route === '#/settings') view = <Settings />;
   else {
     const safeHash = hash.length > 80 ? hash.slice(0, 80) + '…' : hash;
     view = <ErrorBox title="Not found" body={`No route for ${safeHash}`} />;

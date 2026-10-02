@@ -74,7 +74,7 @@ Useful CLI entry points:
 bbs dashboard
 bbs foreman report <parent-ticket>
 bbs ticket dag <parent-ticket>
-bbs autopilot explain
+bbs autopilot snapshot --json
 ```
 
 Run `bbs <subcommand> --help` for usage. More detail: [companion CLI](docs/companion-cli.md), [profiles](docs/profiles.md), and [operations](docs/operations.md).

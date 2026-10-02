@@ -348,7 +348,7 @@ bbs ticket serve            # 인자 없이: 끝난 모든 ticket(qa + review DO
 
 ## 더 깊이 들어가기
 
-- **Routing 내부와 debugging** — init이 무엇을 심는지, `/goal` loop가 checkpoint에서 어떻게 이어지는지, 어느 step skill이 각 gate를 소유하는지: [`.claude/skills/autopilot/SKILL.md`](.claude/skills/autopilot/SKILL.md). 실행하지 않고 run이 라우팅할 state를 보려면: `bbs autopilot explain` (workflow prereq matrix는 `--details` 추가).
+- **Routing 내부와 debugging** — init이 무엇을 심는지, `/goal` loop가 checkpoint에서 어떻게 이어지는지, 어느 step skill이 각 gate를 소유하는지: [`.claude/skills/autopilot/SKILL.md`](.claude/skills/autopilot/SKILL.md). 실행하지 않고 run이 라우팅할 state를 보려면: `bbs autopilot snapshot --json`.
 - **Profile** — [`docs/profiles.md`](docs/profiles.md): 각 profile이 당신의 base branch에 요구하는 것, 그리고 각 profile에서 ticket을 병렬로 돌리는 방법.
 - **Config schema** — `.babysit/`를 직접 작성하기 위한 [`.claude/skills/references/git-flow.md`](.claude/skills/references/git-flow.md)와 [`docs/qa-config.md`](docs/qa-config.md).
 

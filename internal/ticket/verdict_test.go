@@ -35,6 +35,7 @@ func TestTheWriteGuardAgreesWithTheGateItProtects(t *testing.T) {
 		{"verdict prose is not a status", "VERDICT: PASS\n", "none"},
 		{"indented status does not count", "  STATUS: DONE\n", "none"},
 		{"unknown token", "STATUS: PASS\n", "none"},
+		{"first status wins", "STATUS: NEEDS_CONTEXT\nSTATUS: DONE\n", "NEEDS_CONTEXT"},
 	}
 
 	for _, tc := range cases {
@@ -47,6 +48,9 @@ func TestTheWriteGuardAgreesWithTheGateItProtects(t *testing.T) {
 			got := VerdictStatus(st, "qa")
 			if got != tc.want {
 				t.Fatalf("VerdictStatus = %q, want %q", got, tc.want)
+			}
+			if bodyStatus := VerdictStatusBody([]byte(tc.body)); bodyStatus != got {
+				t.Fatalf("loaded body = %q, file = %q", bodyStatus, got)
 			}
 			// The guard admits a body iff the gate can read a status from it.
 			if accepted, readable := BodyHasStatus([]byte(tc.body)), got != "none"; accepted != readable {

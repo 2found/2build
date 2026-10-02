@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,25 +8,6 @@ import (
 
 	"github.com/reallongnguyen/babysit/internal/foreman"
 )
-
-func TestAgentResolveShowsRetirementGuidance(t *testing.T) {
-	root := NewRootCmd()
-	var stdout, stderr bytes.Buffer
-	root.SetOut(&stdout)
-	root.SetErr(&stderr)
-	root.SetArgs([]string{"agent", "resolve", "--role", "worker", "--json"})
-	if err := root.Execute(); err == nil {
-		t.Fatal("retired resolver succeeded")
-	}
-	if stdout.Len() != 0 {
-		t.Fatalf("retirement guidance contaminated stdout: %q", stdout.String())
-	}
-	for _, want := range []string{"retired", "Orca", "bbs agent detect"} {
-		if !strings.Contains(stderr.String(), want) {
-			t.Fatalf("stderr %q is missing %q", stderr.String(), want)
-		}
-	}
-}
 
 func TestWorkerLaunchUsesExplicitAgentModelAndEffort(t *testing.T) {
 	fakeOrcaFor(t)

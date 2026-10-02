@@ -11,8 +11,8 @@ aliases only** — a checkout install ships none, and a Homebrew install ships
 just two (`bbs-config`, `bbs-env`) — which is why skills and docs always use
 the space form.
 
-Every subcommand is now native Go, behaving identically to the bash it
-replaced (guarded by the differential harnesses in `tests/`). `ticket` was the
+Every subcommand is now native Go, with retained behavior guarded by
+the differential harnesses in `tests/`. `ticket` was the
 last strangler: identity/verdict/session/board, the index.json state-accessors
 (`get`/`set-*`/`add-child`/`add-relation`/`remove-relation`/`ensure-size`/
 `append-history`/`env`), the file-only
@@ -24,10 +24,26 @@ production; a frozen byte-identical copy of the old script lives at
 
 | Command | Purpose |
 |---------|---------|
-| `bbs autopilot` | State helpers the `/bbs:autopilot` skill uses, also runnable by hand for debugging: `probe` (dump probed state), `explain` (show recommended workflow; add `--details` for the per-workflow PASS/FAIL table), `base-branch` (resolve with per-project override), `lint-workflow <path>` (authoring-time `needs-state:` lint), plus the checkpoint/recover/snapshot/git-flow helpers |
+| `bbs autopilot` | `snapshot --json` reads canonical state, mode, policy and gate evidence; `recover --json` adds bounded artifact excerpts for recovery. `checkpoint`, `attempt` and `verification` persist execution state; `clear`, `base-branch`, `git-flow` and `lint-workflow` support lifecycle and policy. |
 | `bbs ticket` | Ticket-layout broker and state-probe surface. `env` derives `SLUG`/`BRANCH`/`TICKET`/`BABYSIT_PROJECT_HOME` through the identity ladder — `BABYSIT_TICKET` env → `manifest.yaml` cwd-match → branch regex — which is what every skill preamble evals and what autopilot resume relies on; `path <kind>` resolves Layout C file paths; `verdict-status --skill <n>` reads the latest verdict for a sub-skill (used by autopilot's Probe and Verify-post) |
 | `bbs config` | `get` / `set` / `list` plus `workspace` operations, all in `~/.babysit/config.yaml` |
 | `bbs update` | `git pull` + `bbs setup`, then refreshes installed Claude Code and Codex plugins; writes a `JUST_UPGRADED` marker. `bbs update check` is the cached probe — prints `UPGRADE_AVAILABLE <old> <new>` when a new release exists |
 | `bbs secrets` | Everything a skill reads to reach a running app. `load` (emit `export KEY='…'` for `.babysit/.env` keys not already in shell env) / `seed` / `ensure-gitignore` — project-local credential auto-loader; `resolve` / `is-set` / `list-prefix` / `prompt` — env resolution with `.env.base` auto-load; `qa <probe\|list\|default-env\|check\|leak-check>` — named-environment fields (`url`, `start`, `check`, `flows`, `prepare`/`revert`) from `.babysit/qa.yaml` |
 | `bbs design` | `tokens` (DESIGN.md frontmatter → JSON, `--field` for a leaf) / `suggest --product <type>` / `components` / `ux-check` — design-intelligence broker for the design-ui skill |
 | `bbs dashboard` | Serves the dashboard + JSON API on `127.0.0.1` and opens it. The SPA is embedded in released binaries, so a brew-only install needs no checkout and no npm; a checkout's own `web/dist` wins when it exists. `--snapshot` writes `web/dist/data.js` and opens the `file://` build instead, `build` rebuilds `web/`, `--no-open` for CI, `--dev` for vite + HMR |
+
+CLI simplification removes these redundant entry points:
+
+| Removed | Replacement | Reason |
+|---------|-------------|--------|
+| `bbs autopilot probe`, `bbs autopilot explain` | `bbs autopilot snapshot --json` | The skill already uses the canonical snapshot; the old probe initialized ticket state and maintained a second routing implementation. Mode is in `data.run.mode`, with policy, artifacts and gates alongside it. |
+| `bbs autopilot context` | `bbs autopilot recover --json` | No skill, hook or dashboard consumes the cursor/delta cache. Recovery supplies the bounded artifact view without writing a cache. |
+| `bbs ticket get-pointer <key>` | `bbs ticket get pointers.<key>` | Same field read through the existing dotted-path accessor. |
+| `bbs agent resolve` | Orca settings; `bbs agent detect` for the current harness | The resolver was already a failure-only retirement stub. |
+
+The removed commands fail as unknown commands. Snapshot and recovery do not
+choose a workflow for the model: workflow selection remains in the autopilot
+skill. Existing checkpoint/attempt formats and QA/release gates are unchanged.
+Legacy root aliases (`env`, `slug`, `qa-config`, `workspace`, `update-check`)
+remain for older installed packs and the frozen differential fixtures; `env`
+and `config` argv0 aliases also remain part of the Homebrew install.

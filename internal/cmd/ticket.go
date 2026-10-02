@@ -15,7 +15,7 @@ import (
 // Every subcommand now runs natively: the identity core (resolve/verdicts/
 // session/board), the index.json state-accessors (env/get/set-status/set-phase/
 // set-parent/add-child/add-relation/remove-relation/set-sibling/set-pointer/
-// get-pointer/ensure-size/append-history), the file-only manifest.yaml ops (init/
+// ensure-size/append-history), the file-only manifest.yaml ops (init/
 // get-manifest/set-branch), the git-mutating base-ops family (refresh/surface/
 // serve/land), `ensure`, and path/list/reconcile. A byte-identical frozen copy
 // of the retired script survives at tests/fixtures/bbs-ticket.reference as the
@@ -85,8 +85,6 @@ func newTicketCmd() *cobra.Command {
 				runSetSibling(args[1:])
 			case "set-pointer":
 				runSetPointer(args[1:])
-			case "get-pointer":
-				runGetPointer(args[1:])
 			case "ensure-size":
 				runEnsureSize()
 			case "append-history":
@@ -187,7 +185,6 @@ Subcommands:
                     it reminds once, it never guesses.
   set-sibling --role R --repo REPO --ticket T
   set-pointer <key> <value>
-  get-pointer <key>             print pointers.<key> ("" if unset)
   ensure-size                   resolve ticket_size (XS|S|M|L); estimate from diff if unset
   add-handoff --skill S --status STATUS [--body MD | --body-file FILE]
   set-verdict --skill S [--body MD | --body-file FILE]

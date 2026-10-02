@@ -214,10 +214,6 @@ func collectAutopilotSnapshotIn(a *apState, explicitTicket, dir string) (*autopi
 	return nil, &snapshotError{Code: "STATE_CHANGED", Message: "ticket state changed while it was being read", Retryable: true, Exit: 3}
 }
 
-func collectAutopilotSnapshotOnce(a *apState, ticketID, ticketHome string) (*autopilotSnapshot, error) {
-	return collectAutopilotSnapshotOnceIn(a, ticketID, ticketHome, "")
-}
-
 func collectAutopilotSnapshotOnceIn(a *apState, ticketID, ticketHome, dir string) (*autopilotSnapshot, error) {
 	top := gitOutIn(dir, "rev-parse", "--show-toplevel")
 	if top == "" {

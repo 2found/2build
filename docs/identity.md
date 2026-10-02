@@ -93,7 +93,7 @@ repos:
                           # diverted the cut — that path participates in the
                           # manifest cwd-match rung
     base: main
-    pushed: false         # mirrors state_branch_pushed from autopilot probe
+    pushed: false         # records whether the branch has been pushed
 ```
 
 `canonical` is display-only (the dashboard reads it); identity resolution

@@ -1,24 +1,17 @@
 package cmd
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
-
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/ticket"
 )
 
 const (
 	contextArtifactBudget = 8 * 1024
 	contextLogBudget      = 2 * 1024
-	contextCacheLimit     = 8
 )
 
 type contextArtifact struct {
@@ -43,62 +36,6 @@ type contextProjection struct {
 	Artifacts   []contextArtifact    `json:"artifacts"`
 	Logs        []contextLog         `json:"logs"`
 	Obligations []snapshotObligation `json:"obligations"`
-}
-
-type contextPacket struct {
-	Kind          string                 `json:"kind"`
-	Cursor        string                 `json:"cursor,omitempty"`
-	ResetReason   string                 `json:"reset_reason,omitempty"`
-	SnapshotID    string                 `json:"snapshot_id"`
-	StateRevision int64                  `json:"state_revision"`
-	Projection    *contextProjection     `json:"projection,omitempty"`
-	Changes       map[string]interface{} `json:"changes,omitempty"`
-}
-
-type contextCacheRecord struct {
-	SchemaVersion int               `json:"schema_version"`
-	Ticket        string            `json:"ticket"`
-	RunID         string            `json:"run_id"`
-	Projection    contextProjection `json:"projection"`
-}
-
-func (a *apState) contextV2(args []string) {
-	if !hasArg(args, "--json") {
-		failV2("USAGE", "context requires --json", false, nil, 2)
-	}
-	snapshot, err := collectAutopilotSnapshot(a, argValue(args, "--ticket"))
-	if err != nil {
-		writeSnapshotError(err)
-	}
-	projection := buildContextProjection(snapshot)
-	packet := contextPacket{Kind: "full", SnapshotID: snapshot.SnapshotID, StateRevision: snapshot.StateRevision, Projection: &projection}
-	if snapshot.Ticket == nil {
-		if argValue(args, "--since") != "" {
-			packet.ResetReason = "no_ticket_cache"
-		}
-		printV2Envelope(packet)
-		return
-	}
-	ticketID, runID := snapshot.Ticket.ID, ""
-	if snapshot.Run != nil {
-		runID = snapshot.Run.ID
-	}
-	cursor := contextCursor(ticketID, runID, projection)
-	packet.Cursor = cursor
-	if since := argValue(args, "--since"); since != "" {
-		prior, reason := readContextCache(a, ticketID, runID, since)
-		if prior == nil {
-			packet.ResetReason = reason
-		} else {
-			packet.Kind = "delta"
-			packet.Projection = nil
-			packet.Changes = contextChanges(prior.Projection, projection)
-		}
-	}
-	if err := writeContextCache(a, ticketID, contextCacheRecord{SchemaVersion: 2, Ticket: ticketID, RunID: runID, Projection: projection}, cursor); err != nil {
-		failV2("IO_ERROR", err.Error(), false, nil, 1)
-	}
-	printV2Envelope(packet)
 }
 
 func (a *apState) recoverV2(args []string) {
@@ -216,78 +153,4 @@ func contextAttemptLog(snapshot *autopilotSnapshot) *contextLog {
 		}
 	}
 	return &contextLog{Path: resolved, Excerpt: strings.Join(lines, "\n"), Truncated: truncated}
-}
-
-func contextCursor(ticketID, runID string, projection contextProjection) string {
-	identity := map[string]interface{}{
-		"snapshot_id": projection.Snapshot.SnapshotID,
-		"artifacts":   projection.Artifacts,
-		"logs":        projection.Logs,
-		"obligations": projection.Obligations,
-	}
-	sum := sha256.Sum256([]byte(ticketID + "\x00" + runID + "\x00" + digestJSON(identity)))
-	return "v2." + hex.EncodeToString(sum[:16])
-}
-
-func contextCachePath(a *apState, ticketID, cursor string) string {
-	return filepath.Join(a.stateRoot, "tickets", ticketID, "cache", "context", cursor+".json")
-}
-
-func readContextCache(a *apState, ticketID, runID, cursor string) (*contextCacheRecord, string) {
-	if !regexp.MustCompile(`^v2\.[0-9a-f]{32}$`).MatchString(cursor) {
-		return nil, "unknown_cursor"
-	}
-	b, err := os.ReadFile(contextCachePath(a, ticketID, cursor))
-	if err != nil {
-		return nil, "expired_cursor"
-	}
-	var rec contextCacheRecord
-	if json.Unmarshal(b, &rec) != nil || rec.SchemaVersion != 2 {
-		return nil, "invalid_cursor_cache"
-	}
-	if rec.Ticket != ticketID || rec.RunID != runID {
-		return nil, "cursor_scope_changed"
-	}
-	return &rec, ""
-}
-
-func writeContextCache(a *apState, ticketID string, rec contextCacheRecord, cursor string) error {
-	env := identity.Env{Slug: a.slug, Branch: a.branch, Ticket: ticketID, ProjectHome: a.stateRoot}
-	st := ticket.New(env)
-	return withLock(st, func() error {
-		path := contextCachePath(a, ticketID, cursor)
-		if err := writeJSONAtomic(path, rec); err != nil {
-			return err
-		}
-		paths, _ := filepath.Glob(filepath.Join(filepath.Dir(path), "v2.*.json"))
-		if len(paths) <= contextCacheLimit {
-			return nil
-		}
-		sort.Slice(paths, func(i, j int) bool {
-			a, _ := os.Stat(paths[i])
-			b, _ := os.Stat(paths[j])
-			return a.ModTime().Before(b.ModTime())
-		})
-		for _, old := range paths[:len(paths)-contextCacheLimit] {
-			_ = os.Remove(old)
-		}
-		return nil
-	})
-}
-
-func contextChanges(old, next contextProjection) map[string]interface{} {
-	changes := map[string]interface{}{}
-	if old.Snapshot.SnapshotID != next.Snapshot.SnapshotID {
-		changes["snapshot"] = next.Snapshot
-	}
-	if digestJSON(old.Artifacts) != digestJSON(next.Artifacts) {
-		changes["artifacts"] = next.Artifacts
-	}
-	if digestJSON(old.Logs) != digestJSON(next.Logs) {
-		changes["logs"] = next.Logs
-	}
-	if digestJSON(old.Obligations) != digestJSON(next.Obligations) {
-		changes["obligations"] = next.Obligations
-	}
-	return changes
 }

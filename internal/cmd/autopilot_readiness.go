@@ -132,10 +132,6 @@ func evaluateReadinessIn(env identity.Env, action, dir string) (readinessResult,
 	return result, nil
 }
 
-func validateAcceptedV2Evidence(ev map[string]interface{}, env identity.Env, cp map[string]interface{}, gate, attemptID string) error {
-	return validateAcceptedV2EvidenceIn(ev, env, cp, gate, attemptID, gitOut("rev-parse", "--show-toplevel"))
-}
-
 func validateAcceptedV2EvidenceIn(ev map[string]interface{}, env identity.Env, cp map[string]interface{}, gate, attemptID, top string) error {
 	if err := validateV2VerificationEvidenceIn(ev, env, top); err != nil {
 		return err
@@ -181,10 +177,6 @@ func currentEvidenceSubjectIn(s *autopilotSnapshot, dir string) map[string]inter
 		"plan_digest": artifacts["plan"], "policy_digest": s.Policy.Digest,
 		"surface_fingerprint": surfaceFingerprintIn(dir),
 	}
-}
-
-func currentSurfaceFingerprint() string {
-	return surfaceFingerprintIn("")
 }
 
 func surfaceFingerprintIn(dir string) string {

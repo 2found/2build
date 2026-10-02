@@ -344,7 +344,7 @@ bbs ticket serve            # 不带参数：把所有已完成的 ticket（qa +
 
 ## 深入一点
 
-- **路由内部与调试** —— init 播下什么、`/goal` 循环如何从 checkpoint 恢复、每个 gate 归哪个 step skill 管：[`.claude/skills/autopilot/SKILL.md`](.claude/skills/autopilot/SKILL.md)。想看不运行的情况下一次运行会按什么 state 路由：`bbs autopilot explain`（加 `--details` 看 workflow 前置条件矩阵）。
+- **路由内部与调试** —— init 播下什么、`/goal` 循环如何从 checkpoint 恢复、每个 gate 归哪个 step skill 管：[`.claude/skills/autopilot/SKILL.md`](.claude/skills/autopilot/SKILL.md)。想看不运行的情况下一次运行会按什么 state 路由：`bbs autopilot snapshot --json`。
 - **Profile** —— [`docs/profiles.md`](docs/profiles.md)：每个 profile 对你的 base branch 有什么要求，以及在各 profile 下如何并行跑 ticket。
 - **配置 schema** —— [`.claude/skills/references/git-flow.md`](.claude/skills/references/git-flow.md) 和 [`docs/qa-config.md`](docs/qa-config.md)，用于手写 `.babysit/`。
 

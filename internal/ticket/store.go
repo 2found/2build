@@ -72,32 +72,9 @@ func (s *Store) VerdictPath(skill string) string {
 // isoNow matches bash iso_now(): UTC, second precision, Z suffix.
 func isoNow() string { return time.Now().UTC().Format("2006-01-02T15:04:05Z") }
 
-// historyRow is a struct (not a map) so encoding/json preserves the bash field
-// order: ts, ticket, branch, event, actor.
-type historyRow struct {
-	TS     string `json:"ts"`
-	Ticket string `json:"ticket"`
-	Branch string `json:"branch"`
-	Event  string `json:"event"`
-	Actor  string `json:"actor,omitempty"`
-}
-
-// HistoryAppend appends one event to history.jsonl. Best-effort, like bash.
+// HistoryAppend appends an event through the same writer as enriched history.
 func (s *Store) HistoryAppend(event, actor string) {
-	h := s.Home()
-	_ = os.MkdirAll(h, 0o755)
-	line, err := json.Marshal(historyRow{
-		TS: isoNow(), Ticket: s.Env.Ticket, Branch: s.Env.Branch, Event: event, Actor: actor,
-	})
-	if err != nil {
-		return
-	}
-	f, err := os.OpenFile(filepath.Join(h, "history.jsonl"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	_, _ = f.Write(append(line, '\n'))
+	s.HistoryAppendExtra(event, actor, "")
 }
 
 // Index is the slice of index.json the native subcommands read.

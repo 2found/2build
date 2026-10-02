@@ -2,6 +2,12 @@
 
 All commands and version-2 schemas in this document are proposals. Existing commands retain their current output and exit behavior until migrated explicitly. New flags must be discoverable via help/capability output; do not paste these examples into the current binary expecting support.
 
+The implemented CLI has since been simplified: `probe`, `explain`, and the
+unused `context` cursor/cache command were removed. Use `snapshot --json`
+for state and `recover --json` for bounded artifact excerpts; see
+[the current CLI reference](../companion-cli.md). The cursor design below
+is retained as historical proposal context, not a supported command.
+
 ## CLI surface
 
 Prefer additive forms on existing commands. Introduce a new command only for a distinct operation.

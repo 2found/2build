@@ -141,13 +141,12 @@ func Compose(o Options) obj {
 			"truncations":     truncations,
 			"warnings":        warnings,
 		},
-		"projects":       projects,
-		"decisions":      decisions,
-		"skillEvents":    skillEvents,
-		"builderProfile": jsonlArray(filepath.Join(o.StateDir, "builder-profile.jsonl")),
-		"journalTail":    journalTail(filepath.Join(o.StateDir, "journal.log")),
-		"sessions":       activeSessions(o.StateDir),
-		"foremen":        foremen(o.StateDir, projects),
+		"projects":    projects,
+		"decisions":   decisions,
+		"skillEvents": skillEvents,
+		"journalTail": journalTail(filepath.Join(o.StateDir, "journal.log")),
+		"sessions":    activeSessions(o.StateDir),
+		"foremen":     foremen(o.StateDir, projects),
 	}
 }
 
@@ -206,7 +205,7 @@ func projectBlock(o Options, projectDir string) obj {
 			continue
 		}
 		tdir := filepath.Join(ticketsDir, id)
-		head, ok := ticketHead(o, projectDir, tdir)
+		head, idx, ok := ticketHead(o, projectDir, tdir)
 		if !ok {
 			continue
 		}
@@ -216,7 +215,7 @@ func projectBlock(o Options, projectDir string) obj {
 		// ticketDetail empty and the SPA loads the body on navigation.
 		head["detail_available"] = true
 		if o.EmbedDetails {
-			details[id] = ticketDetail(o, projectDir, tdir, head)
+			details[id] = ticketDetail(projectDir, tdir, head, idx)
 		}
 		summaries = append(summaries, obj{
 			"id": head["id"], "title": head["title"], "status": head["status"],
@@ -261,7 +260,7 @@ func projectBlock(o Options, projectDir string) obj {
 // requirement heading, and checkpoint.json — everything a summary projects
 // from and nothing heavier. The served poll stops here; artifact bodies are
 // the payload this split exists to keep out of it.
-func ticketHead(o Options, projectDir, tdir string) (obj, bool) {
+func ticketHead(o Options, projectDir, tdir string) (obj, ticket.Doc, bool) {
 	id := filepath.Base(tdir)
 	idx, err := ticket.ReadDocStrict(filepath.Join(tdir, "index.json"))
 	if err != nil {
@@ -277,7 +276,7 @@ func ticketHead(o Options, projectDir, tdir string) (obj, bool) {
 			}
 		}
 		o.warnSkip(filepath.Base(projectDir), id, reason, stderr)
-		return nil, false
+		return nil, nil, false
 	}
 
 	title := firstHeading(filepath.Join(tdir, "requirement.md"))
@@ -318,7 +317,7 @@ func ticketHead(o Options, projectDir, tdir string) (obj, bool) {
 		// it, and a screen that had one without the other could not decide.
 		"approval":   digRaw(idx, "approval"),
 		"checkpoint": checkpoint,
-	}, true
+	}, idx, true
 }
 
 // TicketDetail composes one ticket's full detail body — the head fields plus
@@ -328,24 +327,16 @@ func ticketHead(o Options, projectDir, tdir string) (obj, bool) {
 // never disagree about what a detail is. ok=false means the index is missing
 // or corrupt — the endpoint maps that to 404.
 func TicketDetail(o Options, projectDir, tdir string) (map[string]interface{}, bool) {
-	head, ok := ticketHead(o, projectDir, tdir)
+	head, idx, ok := ticketHead(o, projectDir, tdir)
 	if !ok {
 		return nil, false
 	}
-	return ticketDetail(o, projectDir, tdir, head), true
+	return ticketDetail(projectDir, tdir, head, idx), true
 }
 
-// ticketDetail fills a head with the heavy fields: artifact bodies, the DAG,
-// history, and the named-file collections. It re-reads index.json for dagFor
-// rather than threading the Doc through ticketHead's return — the head's
-// callers (the served poll) are exactly the ones that must not pay for it.
-func ticketDetail(o Options, projectDir, tdir string, head obj) obj {
+// ticketDetail adds artifact bodies to the already-read ticket record.
+func ticketDetail(projectDir, tdir string, head obj, idx ticket.Doc) obj {
 	id := filepath.Base(tdir)
-	// The head already parsed this index successfully; a second read failing
-	// would mean the file changed mid-compose, which the nil-dag fallback
-	// absorbs the same way BuildGraph's own error does.
-	idx, _ := ticket.ReadDocStrict(filepath.Join(tdir, "index.json"))
-
 	history := arr{}
 	if rows, ok := parseJSONL(filepath.Join(tdir, "history.jsonl")); ok {
 		history = rows
@@ -367,8 +358,14 @@ func ticketDetail(o Options, projectDir, tdir string, head obj) obj {
 	head["repos"] = manifestRepos(filepath.Join(tdir, "manifest.yaml"))
 	head["history"] = history
 	head["handoffs"] = namedFiles(filepath.Join(tdir, "handoffs"), ".md")
-	head["verdicts"] = namedFiles(filepath.Join(tdir, "verdicts"), ".md")
-	head["verdict_statuses"] = verdictStatuses(filepath.Join(tdir, "verdicts"))
+	verdicts := namedFiles(filepath.Join(tdir, "verdicts"), ".md")
+	head["verdicts"] = verdicts
+	statuses := obj{}
+	for _, row := range verdicts {
+		file := row.(obj)
+		statuses[strings.TrimSuffix(file["name"].(string), ".md")] = ticket.VerdictStatusBody([]byte(file["body"].(string)))
+	}
+	head["verdict_statuses"] = statuses
 	head["reviews"] = namedFiles(filepath.Join(tdir, "reviews"), ".md")
 	head["evidence"] = evidenceFiles(filepath.Join(tdir, "evidence"))
 	return head
@@ -627,26 +624,6 @@ func namedFiles(dir, ext string) arr {
 			continue
 		}
 		out = append(out, obj{"name": n, "body": string(body)})
-	}
-	return out
-}
-
-func verdictStatuses(dir string) obj {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return obj{}
-	}
-	var names []string
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".md") {
-			names = append(names, e.Name())
-		}
-	}
-	sort.Strings(names)
-	out := obj{}
-	for _, n := range names {
-		skill := strings.TrimSuffix(n, ".md")
-		out[skill] = ticket.VerdictStatusAt(filepath.Join(dir, n))
 	}
 	return out
 }

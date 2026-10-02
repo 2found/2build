@@ -116,8 +116,9 @@ and verification. The full protocol is in
 ### Which coding agent runs the work
 
 Configure enabled coding agents and the default agent in Orca. The dashboard's
-Settings route retains an ownership notice; no BBS form or config file controls
-agent preferences. Foreman uses Orca discovery on the destination host when
+Foremen page shows agent ownership guidance (`#/settings` redirects there);
+no BBS form or config file controls agent preferences. Foreman uses Orca
+discovery on the destination host when
 starting new workers. Existing workers and foremen resume with their recorded
 agent/model rather than today's default.
 
@@ -126,7 +127,7 @@ agent/model rather than today's default.
 uses `BABYSIT_CURRENT_AGENT`, the nearest recognized parent process, then native
 session markers. It does not query Orca, installed binaries, credentials or
 config; standalone skills remain usable without Orca. `bbs agent resolve` is
-retired and prints migration guidance.
+removed; configure new worker routes in Orca.
 
 Direct skill invocation is the normal entrypoint:
 

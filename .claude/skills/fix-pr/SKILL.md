@@ -5,7 +5,7 @@ description: Address unresolved review comments on an open pull request — fix 
 # fix-pr
 Work a PR's unresolved review threads to zero. One repo's PR per invocation — a cross-repo ticket's sibling PR needs its own run in that repo.
 ## Flow
-1. Resolve the PR: `bbs ticket get-pointer pr`, else a PR URL/number from conversation, else the current branch's PR (`gh pr view --json url,number`). None → `NEEDS_CONTEXT` naming what's missing. Resolve `GH_ACCOUNT` the same way create-pr does (`eval "$(bbs secrets load)"` → `gh auth switch -u "$GH_ACCOUNT"` when set).
+1. Resolve the PR: `bbs ticket get pointers.pr`, else a PR URL/number from conversation, else the current branch's PR (`gh pr view --json url,number`). None → `NEEDS_CONTEXT` naming what's missing. Resolve `GH_ACCOUNT` the same way create-pr does (`eval "$(bbs secrets load)"` → `gh auth switch -u "$GH_ACCOUNT"` when set).
 2. Fetch unresolved threads — GraphQL only; REST cannot list resolution state:
    ```bash
    gh api graphql -f query='

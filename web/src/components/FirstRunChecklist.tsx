@@ -47,7 +47,7 @@ export function FirstRunChecklist({
             </p>
           </div>
           <a
-            href="#/settings"
+            href="#/foremen"
             className={hasProjects
               ? `${actionClass} inline-flex min-h-11 items-center text-sm font-medium underline-offset-2 hover:underline`
               : `${actionClass} inline-flex min-h-11 items-center justify-center border px-3 font-medium no-underline`}
@@ -60,7 +60,7 @@ export function FirstRunChecklist({
                   borderRadius: 'var(--radius-sm)',
                 }}
           >
-            Agent setup
+            Foremen
           </a>
         </li>
         <li

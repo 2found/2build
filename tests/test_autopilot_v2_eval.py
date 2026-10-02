@@ -12,7 +12,7 @@ SPEC.loader.exec_module(EVAL)
 def test_classify_cases_separates_local_and_live_coverage():
     report = EVAL.classify_cases(
         [
-            {"name": "P1", "binary_test": ["explain"]},
+            {"name": "P1", "binary_test": ["snapshot", "--json"]},
             {"name": "P2"},
             {"name": EVAL.LIVE_ONLY_CASE},
         ]

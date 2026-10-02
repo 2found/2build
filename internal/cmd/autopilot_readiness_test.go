@@ -239,7 +239,7 @@ func evidenceForCurrentSnapshot(t *testing.T, env identity.Env, gate, attemptID 
 			"argv": []interface{}{"go", "test", "./internal/cmd"}, "cwd": gitOut("rev-parse", "--show-toplevel"),
 			"exit_code": exitCode, "log_path": logPath, "log_digest": logDigest, "acceptance_ids": []interface{}{"AP-03"},
 		}},
-		"surface":             map[string]interface{}{"kind": "local-test", "fingerprint": currentSurfaceFingerprint()},
+		"surface":             map[string]interface{}{"kind": "local-test", "fingerprint": surfaceFingerprintIn("")},
 		"unresolved_findings": []interface{}{}, "limitations": []interface{}{},
 		"started_at": "2026-09-10T00:00:00Z", "completed_at": "2026-09-10T00:01:00Z",
 	}

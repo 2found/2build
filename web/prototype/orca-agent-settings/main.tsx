@@ -1,12 +1,11 @@
 // Disposable design prototype; not part of production navigation.
 import { createRoot } from 'react-dom/client';
 import { TopBar } from '../../src/components/TopBar';
-import { Settings } from '../../src/views/Settings';
 import '../../src/styles.css';
 
 const params = new URLSearchParams(location.search);
 document.documentElement.dataset.theme = params.get('theme') === 'dark' ? 'dark' : 'light';
-createRoot(document.getElementById('root')!).render(params.has('before') ? <Settings /> : <main>
+createRoot(document.getElementById('root')!).render(<main>
   <TopBar title="Settings" />
   <div className="agent-settings space-y-6" style={{ padding: 'var(--pad-page)', maxWidth: 'var(--content-max)', fontSize: 13 }}>
     <section className="space-y-2" aria-labelledby="agent-heading">

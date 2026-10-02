@@ -3,11 +3,41 @@ package cmd
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 )
+
+func TestRemovedCommandsRejectWithoutCreatingState(t *testing.T) {
+	bin := buildTestBBS(t)
+	dir := t.TempDir()
+	t.Setenv("BABYSIT_HOME", filepath.Join(dir, "state"))
+	t.Setenv("BABYSIT_PROJECT_HOME", filepath.Join(dir, "project"))
+	for _, args := range [][]string{
+		{"autopilot", "probe"}, {"autopilot", "explain"},
+		{"autopilot", "context"}, {"ticket", "get-pointer", "pr"},
+		{"agent", "resolve"},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			cmd := exec.Command(bin, args...)
+			cmd.Dir = dir
+			out, err := cmd.CombinedOutput()
+			if err == nil {
+				t.Fatalf("removed command succeeded: %s", out)
+			}
+			if args[0] != "agent" && !strings.Contains(string(out), "unknown subcommand: "+args[1]) {
+				t.Fatalf("command failed for a reason other than removal: %s", out)
+			}
+		})
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("rejected commands created state: %v, %v", entries, err)
+	}
+}
 
 func TestResolveVersion(t *testing.T) {
 	// Injected value wins outright: a release binary must report its tag even

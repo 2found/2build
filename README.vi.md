@@ -349,7 +349,7 @@ bbs ticket serve            # để trống: gộp mọi ticket đã xong (qa + 
 
 ## Đào sâu hơn
 
-- **Ruột routing & debug** — init gieo những gì, vòng lặp `/goal` khôi phục từ checkpoint ra sao, và skill nào giữ cửa nào: [`.claude/skills/autopilot/SKILL.md`](.claude/skills/autopilot/SKILL.md). Muốn xem trạng thái mà một lần chạy sẽ route theo mà không chạy thật: `bbs autopilot explain` (thêm `--details` để ra ma trận prereq của workflow).
+- **Ruột routing & debug** — init gieo những gì, vòng lặp `/goal` khôi phục từ checkpoint ra sao, và skill nào giữ cửa nào: [`.claude/skills/autopilot/SKILL.md`](.claude/skills/autopilot/SKILL.md). Muốn xem trạng thái mà một lần chạy sẽ route theo mà không chạy thật: `bbs autopilot snapshot --json`.
 - **Profile** — [`docs/profiles.vi.md`](docs/profiles.vi.md): mỗi profile đòi hỏi gì ở base branch của bạn, và cách chạy ticket song song trong từng profile.
 - **Schema config** — [`.claude/skills/references/git-flow.md`](.claude/skills/references/git-flow.md) và [`docs/qa-config.md`](docs/qa-config.md) để tự viết tay `.babysit/`.
 

@@ -110,9 +110,10 @@ run_impl() {
     "$bin" --no-open >/dev/null 2>"$repo/err.txt"
   # strip the JS wrapper back to JSON, null the timestamp, canonicalize
   sed -e 's/^window\.__BBS_DATA__ = //' -e 's/;$//' "$repo/web/dist/data.js" \
-    | jq -S 'del(.meta.generated_at)'
+    | jq -S 'del(.meta.generated_at, .builderProfile)'
 }
 
+# builderProfile was removed: no dashboard view consumes it. Its source file stays untouched.
 # The oracle is frozen at the 2026-07-18 port. Every field the schema gained
 # afterwards (dashboard control plane, approvals, design/prototype pointers) is
 # absent from it, so a raw diff reports each later feature as a regression and
@@ -146,7 +147,7 @@ run_impl "bash $ORACLE" "$BASH_REPO" >/dev/null 2>&1 || true   # warm mkdir
 BABYSIT_STATE_DIR="$STATE" BABYSIT_DASHBOARD_REPO="$BASH_REPO" \
   bash "$ORACLE" --no-open >/dev/null 2>"$BASH_REPO/err.txt"
 sed -e 's/^window\.__BBS_DATA__ = //' -e 's/;$//' "$BASH_REPO/web/dist/data.js" \
-  | jq -S 'del(.meta.generated_at)' > "$WORK/bash.json"
+  | jq -S 'del(.meta.generated_at, .builderProfile)' > "$WORK/bash.json"
 run_impl "$GO" "$GO_REPO" > "$WORK/go.raw.json"
 
 NEW_KEYS="$(added_since_oracle "$WORK/bash.json" "$WORK/go.raw.json")"

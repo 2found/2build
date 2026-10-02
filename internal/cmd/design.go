@@ -181,9 +181,9 @@ func resolveDesignPaths(designArg string) (master, override string) {
 	} else if fi, err := os.Stat("DESIGN.md"); err == nil && !fi.IsDir() {
 		master = "DESIGN.md"
 	}
-	if p := strings.TrimSpace(ticketOut("get", "pointers.design")); p != "" && isFile(p) {
+	if p := strings.TrimSpace(ticketOut("get", "pointers.design")); p != "" && fileExists(p) {
 		override = p
-	} else if p := strings.TrimSpace(ticketOut("path", "design", "--read")); p != "" && isFile(p) {
+	} else if p := strings.TrimSpace(ticketOut("path", "design", "--read")); p != "" && fileExists(p) {
 		override = p
 	}
 	return master, override
@@ -198,11 +198,6 @@ func ticketOut(args ...string) string {
 		return ""
 	}
 	return string(out)
-}
-
-func isFile(p string) bool {
-	fi, err := os.Stat(p)
-	return err == nil && !fi.IsDir()
 }
 
 // navigate walks a dotted path through nested objects, returning nil when the
@@ -269,7 +264,7 @@ func designSuggest(args []string) error {
 	rf := filepath.Join(dataDir, "ui-reasoning.csv")
 	cf := filepath.Join(dataDir, "colors.csv")
 	for _, f := range []string{pf, rf, cf} {
-		if !isFile(f) {
+		if !fileExists(f) {
 			return designDie("suggest: missing %s", f)
 		}
 	}
@@ -417,7 +412,7 @@ func designUXCheck(args []string) error {
 		return designDie("ux-check: --category <name> required")
 	}
 	f := filepath.Join(dataDir, "ux-guidelines.csv")
-	if !isFile(f) {
+	if !fileExists(f) {
 		return designDie("ux-check: missing %s", f)
 	}
 	rows, err := design.ReadCSV(f)

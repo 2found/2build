@@ -126,6 +126,9 @@ export function Foremen({ snapshot }: { snapshot: Snapshot }) {
     <>
       <TopBar title="Foremen" count={foremen.length} actions={spawn} warnings={snapshot.meta.warnings} />
       <div className="px-6 py-4 w-full" ref={containerRef}>
+        <p className="mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Configure agents in Orca before starting a foreman. Resumed workers keep their recorded agent and model.
+        </p>
         {rows.length === 0 ? (
           <div style={FRAME_STYLE}>
             <EmptyState

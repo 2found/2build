@@ -14,7 +14,7 @@ import (
 
 // This file ports the index.json state-accessor family of the retired bbs-ticket.bash:
 // env, get, set-status, set-phase, set-parent, add-child, add-relation,
-// remove-relation, set-sibling, set-pointer, get-pointer, ensure-size,
+// remove-relation, set-sibling, set-pointer, ensure-size,
 // append-history.
 // Write operations use the shared .index.lock; relationship commands append
 // history events after successful writes. Manifest.yaml operations
@@ -70,7 +70,7 @@ func mutateLocked(st *ticket.Store, fn func() error) {
 	}
 }
 
-// printJSONRead mirrors the `json_read … ; echo` pair used by get / get-pointer,
+// printJSONRead mirrors the `json_read … ; echo` pair used by get,
 // including the double-newline bash emits when index.json itself is absent.
 func printJSONRead(st *ticket.Store, path string) {
 	p := st.IndexPath()
@@ -434,21 +434,6 @@ func runSetPointer(args []string) {
 		doc.Set("pointers."+key, value)
 		return ticket.WriteDoc(st.IndexPath(), doc)
 	})
-	os.Exit(0)
-}
-
-func runGetPointer(args []string) {
-	env := resolveEnv()
-	needTicket(env)
-	key := ""
-	if len(args) > 0 {
-		key = args[0]
-	}
-	if key == "" {
-		fmt.Fprintln(os.Stderr, "get-pointer: key required")
-		os.Exit(2)
-	}
-	printJSONRead(ticket.New(env), "pointers."+key)
 	os.Exit(0)
 }
 

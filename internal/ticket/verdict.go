@@ -3,6 +3,7 @@ package ticket
 import (
 	"bufio"
 	"bytes"
+	"io"
 	"os"
 	"regexp"
 )
@@ -27,7 +28,11 @@ func VerdictStatusAt(path string) string {
 	}
 	defer f.Close()
 
-	sc := bufio.NewScanner(f)
+	return verdictStatus(f)
+}
+
+func verdictStatus(r io.Reader) string {
+	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for sc.Scan() {
 		// First STATUS: line wins. Verdict files are append-once-overwrite, so a
@@ -43,12 +48,10 @@ func VerdictStatusAt(path string) string {
 // with the same matcher VerdictStatus reads by — so the set-verdict write
 // guard can never disagree with the gate it exists to protect.
 func BodyHasStatus(body []byte) bool {
-	sc := bufio.NewScanner(bytes.NewReader(body))
-	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for sc.Scan() {
-		if statusRe.MatchString(sc.Text()) {
-			return true
-		}
-	}
-	return false
+	return VerdictStatusBody(body) != "none"
+}
+
+// VerdictStatusBody reads an already-loaded artifact without opening it again.
+func VerdictStatusBody(body []byte) string {
+	return verdictStatus(bytes.NewReader(body))
 }

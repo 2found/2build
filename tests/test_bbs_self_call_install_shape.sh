@@ -99,9 +99,8 @@ same "ticket resolve agrees across shapes" ticket resolve
 #    the global-config rung.
 same "autopilot base-branch agrees across shapes" autopilot base-branch
 
-# 4. autopilot probe — its artifact counts came from forked bbs-ticket calls
-#    behind an isExecutable() guard, so on brew every artifact read as absent.
-same "autopilot probe agrees across shapes" autopilot probe
+# 4. Recovery must be usable without legacy aliases on PATH.
+same "autopilot recover agrees across shapes" autopilot recover
 
 # 5. board — reads the project home the slug bootstrap picked.
 same "ticket board agrees across shapes" ticket board

@@ -195,17 +195,17 @@
     "assert_stderr": {"missing": "missing .needs-state."}
   },
   {
-    "name": "P17-explain-planned-unapproved",
+    "name": "P17-snapshot-planned-unapproved",
     "ticket": "bs-pipe-17",
     "fixture": {"cache_key": "babysit-autopilot-minimal", "cmd": ["mkdir", "-p", "$DEST"]},
     "skip_claude": true,
-    "binary_test": ["explain", "$TICKET"],
+    "binary_test": ["snapshot", "--json", "--ticket", "$TICKET"],
     "pre_setup": [
       ["init"],
       ["set-pointer", "plan", "plan.md"]
     ],
     "seed_files": {"plan.md": "# Plan\nUnapproved"},
-    "assert_stdout": {"plan_approved": "plan_approved"}
+    "assert_stdout": {"mode": "\"mode\":\"implement\""}
   },
   {
     "name": "P18-dry-run-match",
@@ -232,12 +232,12 @@
     "assert_output": {"SUMMARY": "plan_md"}
   },
   {
-    "name": "P20-explain-branch-derived",
+    "name": "P20-snapshot-branch-derived",
     "ticket": "bs-pipe-20",
     "fixture": {"cache_key": "babysit-autopilot-minimal", "cmd": ["mkdir", "-p", "$DEST"]},
     "fixture_branch": "feat/bs-pipe-20-explain",
     "skip_claude": true,
-    "binary_test": ["explain"],
+    "binary_test": ["snapshot", "--json"],
     "assert_stdout": {"BRANCH": "feat/bs-pipe-20-explain"}
   },
   {
@@ -245,18 +245,18 @@
     "ticket": "bs-pipe-21",
     "fixture": {"cache_key": "babysit-autopilot-minimal", "cmd": ["mkdir", "-p", "$DEST"]},
     "skip_claude": true,
-    "binary_test": ["explain", "$TICKET"],
+    "binary_test": ["snapshot", "--json", "--ticket", "$TICKET"],
     "pre_setup": [
       ["init", "--origin-type", "sub_ticket", "--parent", "bs-pipe-21-parent", "--seed", "sub-tickets/001-foo.md", "--plan", "plan.md"]
     ],
-    "assert_stdout": {"origin_type": "origin_type:     sub_ticket"}
+    "assert_stdout": {"mode": "\"mode\":\"child\""}
   },
   {
     "name": "P22-manifest-present",
     "ticket": "bs-pipe-22",
     "fixture": {"cache_key": "babysit-autopilot-minimal", "cmd": ["mkdir", "-p", "$DEST"]},
     "skip_claude": true,
-    "binary_test": ["explain", "$TICKET"],
+    "binary_test": ["snapshot", "--json", "--ticket", "$TICKET"],
     "pre_setup": [
       ["init"],
       ["set-pointer", "plan", "plan.md"],
@@ -266,7 +266,7 @@
       "plan.md": "# Plan\nL-scope, decomposed",
       "manifest.md": "# Manifest\n- 001-foo.md\n- 002-bar.md"
     },
-    "assert_stdout": {"manifest_md": "manifest_md:     1"}
+    "assert_stdout": {"mode": "\"mode\":\"orchestrate\""}
   },
   {
     "name": "P24-prototyper-named-workflow",
@@ -333,32 +333,32 @@
     "ticket": "bs-pipe-28",
     "fixture": {"cache_key": "babysit-autopilot-minimal", "cmd": ["mkdir", "-p", "$DEST"]},
     "skip_claude": true,
-    "binary_test": ["explain", "$TICKET"],
+    "binary_test": ["snapshot", "--json", "--ticket", "$TICKET"],
     "pre_setup": [
       ["init", "--origin-type", "sub_ticket", "--parent", "bs-pipe-28-parent", "--seed", "sub-tickets/001-foo.md", "--plan", "plan.md"]
     ],
-    "assert_stdout": {"route": "sub_ticket → builder .child mode."}
+    "assert_stdout": {"mode": "\"mode\":\"child\""}
   },
   {
     "name": "P29-foreman-project-route",
     "ticket": "bs-pipe-29",
     "fixture": {"cache_key": "babysit-autopilot-minimal", "cmd": ["mkdir", "-p", "$DEST"]},
     "skip_claude": true,
-    "binary_test": ["explain", "$TICKET"],
+    "binary_test": ["snapshot", "--json", "--ticket", "$TICKET"],
     "pre_setup": [
       ["init"],
       ["set-pointer", "manifest", "manifest.md"]
     ],
     "seed_files": {"manifest.md": "# Manifest\n- 001-foo.md\n- 002-bar.md"},
-    "assert_stdout": {"route": "manifest.md exists → foreman .project orchestration."}
+    "assert_stdout": {"mode": "\"mode\":\"orchestrate\""}
   },
   {
-    "name": "P31-explain-archetype-hint",
+    "name": "P31-snapshot-ticket-without-plan",
     "ticket": "bs-pipe-31",
     "fixture": {"cache_key": "babysit-autopilot-minimal", "cmd": ["mkdir", "-p", "$DEST"]},
     "skip_claude": true,
-    "binary_test": ["explain", "$TICKET"],
+    "binary_test": ["snapshot", "--json", "--ticket", "$TICKET"],
     "pre_setup": [["init"]],
-    "assert_stdout": {"hint": "prototyper | sweeper | grower | maintainer"}
+    "assert_stdout": {"plan": "\"role\":\"plan\"[^}]*\"exists\":false"}
   }
 ]

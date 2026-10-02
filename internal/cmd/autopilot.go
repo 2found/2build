@@ -15,14 +15,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newAutopilotCmd ports the retired bbs-autopilot script as `bbs autopilot` — the checkpoint +
-// probe/explain state helper behind the autopilot skill. Flag
-// parsing is disabled so each subcommand walks its own args exactly like the
-// bash script (unknown flags/args are ignored, not rejected by cobra).
+// newAutopilotCmd exposes the checkpoint and recovery helpers used by the skill.
 func newAutopilotCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:                "autopilot {checkpoint|clear|recover|snapshot|context|attempt|base-branch|git-flow|lint-workflow|probe|explain} ...",
-		Short:              "autopilot state helper (checkpoints, probe/explain)",
+		Use:                "autopilot {checkpoint|clear|recover|snapshot|attempt|verification|base-branch|git-flow|lint-workflow} ...",
+		Short:              "autopilot checkpoints, snapshots, recovery and verification",
 		DisableFlagParsing: true,
 		RunE: func(_ *cobra.Command, args []string) error {
 			runAutopilot(args)
@@ -31,7 +28,7 @@ func newAutopilotCmd() *cobra.Command {
 	}
 }
 
-const autopilotUsage = "usage: bbs-autopilot {checkpoint|clear|recover|snapshot|context|attempt|base-branch|git-flow|lint-workflow|probe|explain} ..."
+const autopilotUsage = "usage: bbs-autopilot {checkpoint|clear|recover|snapshot|attempt|verification|base-branch|git-flow|lint-workflow} ..."
 
 // apState is the identity + state-root resolved once per invocation, mirroring
 // the top-of-script derivation in the retired bbs-autopilot.
@@ -50,87 +47,34 @@ func runAutopilot(args []string) {
 	sub := args[0]
 	rest := args[1:]
 
-	// Resolve lazily. Verbs that never infer a ticket — or take one
-	// explicitly — get project scope only: an unrelated manifest ambiguity
-	// in the cwd must not block `clear <t>`, `lint-workflow`,
-	// or `probe --ticket t`. Verbs that infer the ticket from the checkout
-	// run the full ladder.
-	var a *apState
-	project := func() *apState {
-		if a == nil {
-			a = resolveAPProject()
+	// Explicit tickets need project scope only; inferred tickets use the full
+	// identity ladder. Resolve only for the selected command.
+	resolve := func(infer bool) *apState {
+		if infer && !hasArg(rest, "--ticket") {
+			return resolveAP()
 		}
-		return a
+		return resolveAPProject()
 	}
-	ladder := func() *apState {
-		if a == nil {
-			a = resolveAP()
-		}
-		return a
-	}
-	explicit := hasArg(rest, "--ticket")
 
 	switch sub {
 	case "checkpoint":
-		// Normal checkpoint requires explicit --ticket — project scope only.
-		// Only bare --refresh infers the ticket from the checkout.
-		if hasArg(rest, "--refresh") && !explicit {
-			ladder().checkpoint(rest)
-		} else {
-			project().checkpoint(rest)
-		}
+		resolve(hasArg(rest, "--refresh")).checkpoint(rest)
 	case "clear":
-		project().clear(rest) // requires an explicit ticket
+		resolve(false).clear(rest)
 	case "recover":
-		if explicit {
-			project().recover(rest)
-		} else {
-			ladder().recover(rest)
-		}
+		resolve(true).recover(rest)
 	case "snapshot":
-		if explicit {
-			project().snapshotV2(rest)
-		} else {
-			ladder().snapshotV2(rest)
-		}
-	case "context":
-		if explicit {
-			project().contextV2(rest)
-		} else {
-			ladder().contextV2(rest)
-		}
+		resolve(true).snapshotV2(rest)
 	case "attempt":
-		if explicit {
-			project().attemptV2(rest)
-		} else {
-			ladder().attemptV2(rest)
-		}
+		resolve(true).attemptV2(rest)
 	case "verification":
-		ladder().verification(rest)
+		resolveAP().verification(rest)
 	case "base-branch":
-		fmt.Println(project().baseBranch())
+		fmt.Println(resolve(false).baseBranch())
 	case "git-flow":
 		printGitFlow(rest)
 	case "lint-workflow":
-		project().lintWorkflow(rest)
-	case "probe":
-		if explicit {
-			project().probe(rest)
-		} else {
-			ladder().probe(rest)
-		}
-	case "explain":
-		explicitPos := false
-		for _, x := range rest {
-			if x != "--details" {
-				explicitPos = true
-			}
-		}
-		if explicitPos {
-			project().explain(rest)
-		} else {
-			ladder().explain(rest)
-		}
+		resolve(false).lintWorkflow(rest)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand: %s\n", sub)
 		os.Exit(2)
@@ -544,7 +488,7 @@ func (a *apState) checkpointRefresh(ticket string) {
 	}
 	headSha := jsonSafe(gitOut("rev-parse", "HEAD"))
 	body := fmt.Sprintf(`{"ticket":"%s","workflow":"%s","step":"%s","status":"%s","note":"%s","branch":"%s","head_sha":"%s","slug":"%s","depth":"%s","updated_at":"%s","iteration_count":%s,"consecutive_same_step":%s,"first_iteration_at":"%s"}`+"\n",
-		jsonSafe(ticket), jsonSafe(prev.Workflow), jsonSafe(prev.Step), prev.statusOrEmpty(), jsonSafe(prev.Note), jsonSafe(a.branch), headSha, jsonSafe(prev.Slug), jsonSafe(prev.Depth), ts,
+		jsonSafe(ticket), jsonSafe(prev.Workflow), jsonSafe(prev.Step), prev.Status, jsonSafe(prev.Note), jsonSafe(a.branch), headSha, jsonSafe(prev.Slug), jsonSafe(prev.Depth), ts,
 		prev.iterStr(), prev.consecStr(), jsonSafe(firstAt))
 	if !atomicWrite(cp, body) {
 		fmt.Fprintln(os.Stderr, "checkpoint --refresh: post-write validation failed")
@@ -764,328 +708,6 @@ func frontmatterLines(lines []string) []string {
 	return out
 }
 
-// ─── probe ───────────────────────────────────────────────────────────────────
-
-type probeResult struct {
-	ticket         string
-	requirementMD  int
-	planMD         int
-	planApproved   int
-	manifestMD     int
-	originType     string
-	commitsAhead   string
-	branchPushed   int
-	repoConfigured int
-	landingDoc     int
-	branch         string
-	slug           string
-	base           string
-}
-
-func (a *apState) probeState(ticket string) probeResult {
-	if ticket == "" {
-		ticket = a.ticket
-	}
-	r := probeResult{ticket: ticket, commitsAhead: "0", branch: a.branch, slug: a.slug}
-	if ticket != "" {
-		a.ticketRun(ticket, "init")
-		if req := a.ticketOut(ticket, "path", "requirement", "--read"); req != "" && fileNonEmpty(req) {
-			r.requirementMD = 1
-		}
-		if plan := a.ticketOut(ticket, "path", "plan", "--read"); plan != "" && fileNonEmpty(plan) {
-			r.planMD = 1
-		}
-		if man := a.ticketOut(ticket, "path", "manifest", "--read"); man != "" && fileNonEmpty(man) {
-			r.manifestMD = 1
-		}
-		r.originType = a.ticketOut(ticket, "get", "origin.type")
-		verdict := a.ticketOut(ticket, "verdict-status", "--skill", "plan-draft")
-		if verdict == "" {
-			verdict = "none"
-		}
-		switch {
-		case verdict == "DONE" || verdict == "DONE_WITH_CONCERNS" || strings.HasPrefix(verdict, "PLANNED"):
-			r.planApproved = 1
-		}
-	}
-
-	r.base = a.baseBranch()
-	if c := gitOut("rev-list", "--count", "origin/"+r.base+"..HEAD"); c != "" {
-		r.commitsAhead = c
-	}
-	if gitOK("rev-parse", "--verify", "origin/"+a.branch) {
-		r.branchPushed = 1
-	}
-
-	top := gitOut("rev-parse", "--show-toplevel")
-	if top != "" {
-		if fileExists(filepath.Join(top, ".babysit", "git-flow.yaml")) {
-			r.repoConfigured = 1
-		}
-		if fileExists(filepath.Join(top, "CLAUDE.md")) || fileExists(filepath.Join(top, "AGENTS.md")) {
-			r.landingDoc = 1
-		}
-	}
-	return r
-}
-
-func (a *apState) probe(args []string) {
-	ticket := ""
-	for i := 0; i < len(args); i++ {
-		if args[i] == "--ticket" {
-			ticket, i = next(args, i)
-		}
-	}
-	r := a.probeState(ticket)
-	fmt.Printf("state_ticket=%s\n", r.ticket)
-	fmt.Printf("state_requirement_md=%d\n", r.requirementMD)
-	fmt.Printf("state_plan_md=%d\n", r.planMD)
-	fmt.Printf("state_plan_approved=%d\n", r.planApproved)
-	fmt.Printf("state_manifest_md=%d\n", r.manifestMD)
-	fmt.Printf("state_origin_type=%s\n", r.originType)
-	fmt.Printf("state_commits_ahead=%s\n", r.commitsAhead)
-	fmt.Printf("state_branch_pushed=%d\n", r.branchPushed)
-	fmt.Printf("state_repo_configured=%d\n", r.repoConfigured)
-	fmt.Printf("state_landing_doc=%d\n", r.landingDoc)
-	fmt.Printf("BRANCH=%s\n", r.branch)
-	fmt.Printf("SLUG=%s\n", r.slug)
-	fmt.Printf("BASE=%s\n", r.base)
-}
-
-// ─── explain ─────────────────────────────────────────────────────────────────
-
-func (a *apState) explain(args []string) {
-	ticket := ""
-	details := false
-	for i := 0; i < len(args); i++ {
-		if args[i] == "--details" {
-			details = true
-		} else {
-			ticket = args[i]
-		}
-	}
-	r := a.probeState(ticket)
-
-	fmt.Println("=== autopilot state ===")
-	ticketDisp := r.ticket
-	if ticketDisp == "" {
-		ticketDisp = "<none — no ticket identity resolved>"
-	}
-	fmt.Printf("ticket:          %s\n", ticketDisp)
-	fmt.Printf("branch:          %s\n", r.branch)
-	fmt.Printf("slug:            %s\n", r.slug)
-	fmt.Printf("base_branch:     %s\n", r.base)
-	fmt.Println()
-	fmt.Printf("requirement_md:  %d\n", r.requirementMD)
-	fmt.Printf("plan_md:         %d\n", r.planMD)
-	fmt.Printf(retarget("plan_approved:   %d  (from bbs-ticket verdict-status --skill plan-draft)\n"), r.planApproved)
-	fmt.Printf("manifest_md:     %d  (plan-draft DECOMPOSED writes manifest.md)\n", r.manifestMD)
-	originDisp := r.originType
-	if originDisp == "" {
-		originDisp = "<unset>"
-	}
-	fmt.Printf("origin_type:     %s  (from index.json origin.type)\n", originDisp)
-	fmt.Printf("commits_ahead:   %s  (vs origin/%s)\n", r.commitsAhead, r.base)
-	fmt.Printf("branch_pushed:   %d\n", r.branchPushed)
-	fmt.Printf("repo_configured: %d  (.babysit/git-flow.yaml present — Phase-1 readiness)\n", r.repoConfigured)
-	fmt.Printf("landing_doc:     %d  (CLAUDE.md or AGENTS.md present — Phase-1 readiness)\n", r.landingDoc)
-	fmt.Println()
-
-	best, reason := routeWorkflow(r)
-	fmt.Println("=== recommended workflow ===")
-	if best != "" {
-		fmt.Printf("%s — %s\n", best, reason)
-	} else {
-		fmt.Println("NEEDS_CONTEXT — no ticket, requirement, plan, manifest, or branch work to route.")
-		fmt.Println("  For intent-driven work, name the archetype: prototyper | sweeper | grower | maintainer.")
-	}
-	fmt.Println()
-
-	if !details {
-		fmt.Println(retarget("details: run 'bbs-autopilot explain --details' for the workflow prereq matrix"))
-		return
-	}
-	a.explainMatrix(r)
-}
-
-// routeWorkflow reproduces the best_workflow decision cascade.
-func routeWorkflow(r probeResult) (string, string) {
-	switch {
-	case r.originType == "sub_ticket":
-		return "builder", "ticket origin is sub_ticket → builder (child mode)"
-	case r.manifestMD == 1:
-		return "foreman", "manifest.md exists → foreman (project orchestration)"
-	case r.ticket != "" && r.planMD == 1:
-		return "builder", "ticket has plan.md → builder (implement mode)"
-	case r.requirementMD == 1 && r.planMD == 0:
-		return "builder", "requirement.md exists, plan.md absent → builder (build mode)"
-	case atoiSafe(r.commitsAhead) >= 1:
-		return "builder", "branch has commits ahead of origin/" + r.base + " → builder (verify mode)"
-	case r.branchPushed == 1 && r.branch != r.base:
-		return "builder", "current non-base branch exists on origin → builder (verify mode)"
-	}
-	return "", ""
-}
-
-func (a *apState) explainMatrix(r probeResult) {
-	repoRoot := gitOut("rev-parse", "--show-toplevel")
-	home, _ := os.UserHomeDir()
-	var dirs []string
-	if repoRoot != "" && isDir(filepath.Join(repoRoot, ".claude/workflows")) {
-		dirs = append(dirs, filepath.Join(repoRoot, ".claude/workflows"))
-	}
-	if pr := os.Getenv("CLAUDE_PLUGIN_ROOT"); pr != "" && isDir(filepath.Join(pr, ".claude/skills/autopilot/workflows")) {
-		dirs = append(dirs, filepath.Join(pr, ".claude/skills/autopilot/workflows"))
-	}
-	if isDir(filepath.Join(home, ".claude/skills/bbs:autopilot/workflows")) {
-		dirs = append(dirs, filepath.Join(home, ".claude/skills/bbs:autopilot/workflows"))
-	}
-	if repoRoot != "" && isDir(filepath.Join(repoRoot, ".claude/skills/autopilot/workflows")) {
-		dirs = append(dirs, filepath.Join(repoRoot, ".claude/skills/autopilot/workflows"))
-	}
-
-	fmt.Println("=== workflow prereq evaluation ===")
-	hdr := "%-14s %-8s %-8s %-8s %-11s %-10s %-12s %-14s  %s\n"
-	fmt.Printf(hdr, "workflow", "ticket", "req_md", "plan_md", "plan_approv", "manifest", "origin_type", "commits/pushed", "verdict")
-	fmt.Printf(hdr, "--------", "------", "------", "-------", "-----------", "--------", "-----------", "--------------", "-------")
-
-	seen := map[string]bool{}
-	for _, d := range dirs {
-		entries, _ := filepath.Glob(filepath.Join(d, "*.md"))
-		sortStrings(entries)
-		for _, wf := range entries {
-			name := strings.TrimSuffix(filepath.Base(wf), ".md")
-			if seen[name] {
-				continue
-			}
-			seen[name] = true
-
-			block := needsStateBlock(wf)
-			if len(block) == 0 {
-				fmt.Printf("%-12s %s\n", name, "(no needs-state: declared — will not match)")
-				continue
-			}
-			cells := map[string]string{
-				"ticket": "—", "req": "—", "plan": "—", "approv": "—",
-				"manifest": "—", "origin": "—", "commits": "—", "pushed": "",
-			}
-			overall := "MATCH"
-			for _, kv := range block {
-				key := strings.TrimSpace(kv[:strings.Index(kv, ":")])
-				val := strings.TrimSpace(kv[strings.Index(kv, ":")+1:])
-				mark := ""
-				switch key {
-				case "ticket":
-					probed := boolTo01(r.ticket != "")
-					mark = evalMark(probed, val)
-					cells["ticket"] = mark
-				case "requirement_md":
-					mark = evalMark(strconv.Itoa(r.requirementMD), val)
-					cells["req"] = mark
-				case "plan_md":
-					mark = evalMark(strconv.Itoa(r.planMD), val)
-					cells["plan"] = mark
-				case "plan_approved":
-					mark = evalMark(strconv.Itoa(r.planApproved), val)
-					cells["approv"] = mark
-				case "manifest_md":
-					mark = evalMark(strconv.Itoa(r.manifestMD), val)
-					cells["manifest"] = mark
-				case "origin_type":
-					mark = evalLiteral(r.originType, val)
-					cells["origin"] = mark
-				case "commits_ahead":
-					mark = evalMark(r.commitsAhead, val)
-					cells["commits"] = mark
-				case "branch_pushed":
-					mark = evalMark(strconv.Itoa(r.branchPushed), val)
-					cells["pushed"] = mark
-				}
-				if mark == "FAIL" {
-					overall = "NO MATCH"
-				}
-			}
-			cp := cells["commits"]
-			if cells["pushed"] != "" {
-				cp = cells["commits"] + "/" + cells["pushed"]
-			}
-			fmt.Printf(hdr, name, cells["ticket"], cells["req"], cells["plan"],
-				cells["approv"], cells["manifest"], cells["origin"], cp, overall)
-		}
-	}
-}
-
-// needsStateBlock extracts the indented `key: value` lines under `needs-state:`
-// in a workflow's frontmatter.
-func needsStateBlock(path string) []string {
-	b, _ := os.ReadFile(path)
-	lines := strings.Split(string(b), "\n")
-	delim := regexp.MustCompile(`^---\s*$`)
-	indentedKey := regexp.MustCompile(`^\s+[A-Za-z_]`)
-	topKey := regexp.MustCompile(`^[A-Za-z]`)
-	fm := 0
-	inNS := false
-	var out []string
-	for _, ln := range lines {
-		if delim.MatchString(ln) {
-			fm++
-			if fm == 2 {
-				break
-			}
-			continue
-		}
-		if fm != 1 {
-			continue
-		}
-		if strings.HasPrefix(ln, "needs-state:") {
-			inNS = true
-			continue
-		}
-		if inNS {
-			if indentedKey.MatchString(ln) {
-				line := ln
-				if i := strings.Index(line, "#"); i >= 0 {
-					line = line[:i]
-				}
-				line = strings.TrimSpace(line)
-				if line != "" {
-					out = append(out, line)
-				}
-			} else if topKey.MatchString(ln) {
-				inNS = false
-			}
-		}
-	}
-	return out
-}
-
-func evalMark(probed, rule string) string {
-	switch rule {
-	case "required":
-		return passIf(probed == "1")
-	case "absent":
-		return passIf(probed == "0")
-	case "optional":
-		return "PASS(opt)"
-	case "present":
-		return "PASS(any)"
-	case "1+":
-		return passIf(atoiSafe(probed) >= 1)
-	default:
-		fmt.Fprintf(os.Stderr, "warn: unknown needs-state rule '%s'\n", rule)
-		return "FAIL"
-	}
-}
-
-func evalLiteral(probed, rule string) string { return passIf(probed == rule) }
-
-func passIf(ok bool) string {
-	if ok {
-		return "PASS"
-	}
-	return "FAIL"
-}
-
 // ─── session bump ────────────────────────────────────────────────────────────
 
 func (a *apState) bumpSession(ts string) {
@@ -1139,21 +761,6 @@ func arg0(args []string, def string) string {
 // `case "$x" in *[!0-9]*)` it mirrors finds no non-digit in "".
 func isAllDigits(s string) bool { return s != "" && allDigits(s) }
 
-func atoiSafe(s string) int {
-	n, err := strconv.Atoi(strings.TrimSpace(s))
-	if err != nil {
-		return 0
-	}
-	return n
-}
-
-func boolTo01(b bool) string {
-	if b {
-		return "1"
-	}
-	return "0"
-}
-
 func indexOf(list []string, v string) int {
 	for i, s := range list {
 		if s == v {
@@ -1187,14 +794,6 @@ func tailLines(s string, n int) string {
 	return strings.Join(lines, "\n")
 }
 
-func sortStrings(s []string) {
-	for i := 1; i < len(s); i++ {
-		for j := i; j > 0 && s[j-1] > s[j]; j-- {
-			s[j-1], s[j] = s[j], s[j-1]
-		}
-	}
-}
-
 // ─── bbs-ticket exec + checkpoint JSON ───────────────────────────────────────
 
 func (a *apState) ticketOut(ticket string, args ...string) string {
@@ -1205,12 +804,6 @@ func (a *apState) ticketOut(ticket string, args ...string) string {
 		return ""
 	}
 	return strings.TrimRight(string(out), "\n")
-}
-
-func (a *apState) ticketRun(ticket string, args ...string) {
-	c := exec.Command(selfBin(), append([]string{"ticket"}, args...)...)
-	c.Env = append(os.Environ(), "BBS_TICKET="+ticket)
-	_ = c.Run()
 }
 
 // checkpointFile mirrors the fields refresh/iteration tracking read back.
@@ -1245,8 +838,6 @@ func (c checkpointFile) consecInt() int { return rawInt(c.ConsecutiveSameStep, 0
 // (bash re-emits `.iteration_count // 1` unquoted). Default to 1 when absent.
 func (c checkpointFile) iterStr() string   { return rawNum(c.IterationCount, "1") }
 func (c checkpointFile) consecStr() string { return rawNum(c.ConsecutiveSameStep, "1") }
-
-func (c checkpointFile) statusOrEmpty() string { return c.Status }
 
 func rawInt(raw json.RawMessage, def int) int {
 	if len(raw) == 0 {

@@ -9,7 +9,10 @@ import (
 )
 
 func newAgentCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "agent", Short: "detect agents and list installed coding-agent CLIs"}
+	cmd := &cobra.Command{
+		Use: "agent", Short: "detect agents and list installed coding-agent CLIs", Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+	}
 	detect := &cobra.Command{
 		Use: "detect", Short: "identify the current agent (not the launch default)", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -34,16 +37,8 @@ func newAgentCmd() *cobra.Command {
 			return nil
 		},
 	}
-	resolve := &cobra.Command{
-		Use: "resolve", Short: "retired launch resolver; print migration guidance",
-		DisableFlagParsing: true, Args: cobra.ArbitraryArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			fmt.Fprintln(cmd.ErrOrStderr(), "bbs agent resolve is retired: configure enabled agents and the default in Orca; Foreman reads Orca for new worker routes. Use bbs agent detect to identify the current harness.")
-			return errSilent
-		},
-	}
 	detect.Flags().Bool("json", false, "print JSON")
 	list.Flags().Bool("json", false, "print JSON")
-	cmd.AddCommand(detect, list, resolve)
+	cmd.AddCommand(detect, list)
 	return cmd
 }

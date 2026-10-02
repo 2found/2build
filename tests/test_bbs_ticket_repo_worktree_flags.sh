@@ -39,9 +39,9 @@ T="$(mktemp -d)"
   setup_env "$T"
   F="$("$BBS_TICKET" ticket init --repo fe --worktree /tmp/wt/fe)"
   [ -f "$F" ] || { echo "no index"; exit 1; }
-  # Confirm both pointers landed. Use bbs ticket get-pointer for both.
-  r="$("$BBS_TICKET" ticket get-pointer repo 2>/dev/null)"
-  w="$("$BBS_TICKET" ticket get-pointer worktree 2>/dev/null)"
+  # Confirm both pointers landed. Use bbs ticket get for both.
+  r="$("$BBS_TICKET" ticket get pointers.repo 2>/dev/null)"
+  w="$("$BBS_TICKET" ticket get pointers.worktree 2>/dev/null)"
   [ "$r" = "fe" ] || { echo "repo=$r"; exit 1; }
   [ "$w" = "/tmp/wt/fe" ] || { echo "worktree=$w"; exit 1; }
 ) && ok "init-with-both-flags" || fail "init-with-both-flags"
@@ -53,7 +53,7 @@ T="$(mktemp -d)"
   setup_env "$T"
   "$BBS_TICKET" ticket init >/dev/null
   "$BBS_TICKET" ticket set-pointer repo be
-  r="$("$BBS_TICKET" ticket get-pointer repo 2>/dev/null)"
+  r="$("$BBS_TICKET" ticket get pointers.repo 2>/dev/null)"
   [ "$r" = "be" ]
 ) && ok "set-pointer-repo" || fail "set-pointer-repo"
 rm -rf "$T"
@@ -64,7 +64,7 @@ T="$(mktemp -d)"
   setup_env "$T"
   "$BBS_TICKET" ticket init >/dev/null
   "$BBS_TICKET" ticket set-pointer worktree /tmp/wt/be
-  w="$("$BBS_TICKET" ticket get-pointer worktree 2>/dev/null)"
+  w="$("$BBS_TICKET" ticket get pointers.worktree 2>/dev/null)"
   [ "$w" = "/tmp/wt/be" ]
 ) && ok "set-pointer-worktree" || fail "set-pointer-worktree"
 rm -rf "$T"

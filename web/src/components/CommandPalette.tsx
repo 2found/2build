@@ -12,7 +12,6 @@ const STATIC_VIEWS: PaletteItem[] = [
   { id: 'skill-events', label: 'Skill events',  kind: 'view', route: '#/skill-events' },
   { id: 'timeline',     label: 'Timeline',      kind: 'view', route: '#/timeline' },
   { id: 'analytics',    label: 'Analytics',     kind: 'view', route: '#/analytics' },
-  { id: 'settings',     label: 'Settings',      kind: 'view', route: '#/settings' },
 ];
 
 const PALETTE_INDEX_CAP = 2000;
