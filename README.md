@@ -28,9 +28,32 @@ To work on Babysit itself, clone the repository and run `go run ./cmd/bbs setup 
 
 ## Configure Foreman
 
-Foreman requires [Orca](https://www.onorca.dev) with orchestration enabled. Agents and defaults are configured in Orca. Former Babysit worker/foreman configuration keys are retired and ignored; new launches use explicit per-dispatch agent/model/effort choices or Orca's configured defaults.
+Foreman requires [Orca](https://www.onorca.dev) with orchestration enabled. It selects a worker's agent from an explicit choice, a compatible phase pin, or Orca's configured default on the destination host. Legacy Babysit YAML agent/provider/model/effort preferences are retired and ignored.
 
-Foreman routes workers automatically from task complexity and phase: planning, design, and review use the critical route; implementation, QA, and delivery use the normal route. Explicit per-dispatch agent/model/effort choices take precedence; otherwise Foreman uses the configured Orca defaults.
+Babysit selects the worker's model and effort from task complexity (`simple`, `normal`, or `hard`) and phase class. Planning, design, and review are `critical` phases; implementation, QA, and delivery are `normal` phases. The policy maps these combinations to `flash`, `pro`, or `max` tiers, each with model bindings for the selected agent. Explicit phase overrides and valid persisted resume routes take precedence.
+
+Inspect the effective policy or look up one selection from your project directory:
+
+```bash
+bbs foreman model --json
+bbs foreman model --agent codex --complexity normal --phase-class critical --json
+```
+
+These lookups need no ticket or Orca connection. Add `--dir <repo-or-worktree>` to inspect another project's policy. Override individual fields under `foreman.models` in `~/.babysit/settings.json` or `<repo>/.babysit/settings.json`; repository settings take precedence over global settings, then built-in defaults. For example, route normal phases of hard tasks to the `max` tier:
+
+```json
+{
+  "foreman": {
+    "models": {
+      "routing": {
+        "hard": { "normal": "max" }
+      }
+    }
+  }
+}
+```
+
+See [model routing](.claude/skills/foreman/references/model-routing.md#model-tiers) for per-agent model/effort bindings and resume behavior.
 
 ## Foreman: multi-ticket projects
 
@@ -66,7 +89,7 @@ Standalone Autopilot plans, implements, reviews, and QAs in the session you star
 
 ## Skills and CLI
 
-Skills are the agent-facing workflows; `bbs` is the companion CLI they use. `/bbs:foreman` runs the project coordinator; `bbs foreman` manages durable Foreman records, contracts, and reports. `/bbs:autopilot` runs the one-ticket workflow; `bbs autopilot` exposes its checkpoint and state helpers. `bbs ticket` owns ticket identity, DAG relations, evidence, test surfaces, delivery, and cleanup.
+Skills are the agent-facing workflows; `bbs` is the companion CLI they use. `/bbs:foreman` runs the project coordinator; `bbs foreman` manages model policy lookups, durable Foreman records, contracts, and reports. `/bbs:autopilot` runs the one-ticket workflow; `bbs autopilot` exposes its checkpoint and state helpers. `bbs ticket` owns ticket identity, DAG relations, evidence, test surfaces, delivery, and cleanup.
 
 Useful CLI entry points:
 
@@ -75,7 +98,10 @@ bbs dashboard
 bbs foreman report <parent-ticket>
 bbs ticket dag <parent-ticket>
 bbs autopilot snapshot --json
+bbs autopilot recover --json
 ```
+
+`snapshot` reads canonical ticket state and gate evidence; `recover` adds bounded artifact excerpts for resuming work.
 
 Run `bbs <subcommand> --help` for usage. More detail: [companion CLI](docs/companion-cli.md), [profiles](docs/profiles.md), and [operations](docs/operations.md).
 
