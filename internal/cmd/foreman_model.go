@@ -54,9 +54,12 @@ func foremanModel(args []string) error {
 	if kv["agent"] == "" && kv["complexity"] == "" && kv["phase-class"] == "" {
 		return encoder.Encode(policy)
 	}
-	for _, key := range []string{"agent", "complexity", "phase-class"} {
+	if strings.TrimSpace(kv["agent"]) == "" {
+		return fmt.Errorf("foreman model: --agent is required for a model lookup")
+	}
+	for _, key := range []string{"complexity", "phase-class"} {
 		if strings.TrimSpace(kv[key]) == "" {
-			return fmt.Errorf("foreman model: --%s is required for a model lookup", key)
+			kv[key] = "normal"
 		}
 	}
 	agent := strings.ToLower(strings.TrimSpace(kv["agent"]))

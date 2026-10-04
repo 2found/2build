@@ -42,8 +42,9 @@ const foremanUsage = `Usage:
   bbs foreman spawn [<id>] [--dir <path>] [--command <text>] [--agent <name>]
                     [--model <id>] [--effort <level>] [--auto]
   bbs foreman ensure <id>
-  bbs foreman model [--agent <id> --complexity <simple|normal|hard> --phase-class <normal|critical>]
+  bbs foreman model [--agent <id>] [--complexity <simple|normal|hard>] [--phase-class <normal|critical>]
                     [--dir <repo-or-worktree>] [--json]
+                    (with --agent, omitted complexity/phase-class default to normal)
   bbs foreman worker-command --prompt <text> [--skill <name>] [--agent <id>] [--pinned-agent <id>]
                             [--pinned-model <id>] [--pinned-effort <level>] [--host <host-id>] [--exact-session] [--dir <path>]
                             [--model <id>] [--effort <level>]
@@ -52,7 +53,7 @@ const foremanUsage = `Usage:
                     [--pinned-model <id>] [--pinned-effort <level>]
                     [--host <host-id>] [--exact-session]
                     [--complexity <value>] [--phase-class <value>]
-                    [--selected-tier <value>] [--override-provenance <source>]
+                    [--selected-tier <flash|pro|max>] [--override-provenance <source>]
                     [--pinned-model-provenance <source>] [--pinned-effort-provenance <source>]
   bbs foreman route verify --ticket <ticket> --task <task> --agent <id>
                            [--host <host-id>] [--model <id>] [--effort <level>]

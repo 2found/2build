@@ -31,8 +31,10 @@ has been removed; use Orca settings for new worker routes.
 
 ## Task complexity
 
-Classify each task from its requirement, plan, and acceptance commands; weak
-evidence stays `normal`. Classify parent planning and composed integration or
+Classify each task assignment from its requirement, plan, and acceptance commands;
+weak evidence stays `normal`. A child or recheck does not inherit the parent's
+`hard` label: record the concrete risk in that assignment before selecting `hard`.
+Classify parent planning and composed integration or
 delivery tasks from their own scope, not whichever child finished last. Ticket
 size and repository profile do not select model tiers. Normalize legacy task
 complexity `critical` to `hard`; reserve `critical` for the phase class below.
@@ -52,14 +54,23 @@ task complexity and selected agent. The CLI owns complexity-to-tier routing;
 settings can override it. `normal` names both a task complexity and a phase
 class; neither is a model tier.
 
+Routine work should stay in `flash`/`pro`; reserve `pro`/`max` for assignments
+with evidenced difficulty or importance. A `critical` phase alone does not imply
+`max`. Use `normal` for an unclassified phase; with no difficulty or importance
+signal, the built-in policy falls back to `flash`.
+
 | Phase                                                                            | Phase class |
 | -------------------------------------------------------------------------------- | ----------- |
 | Parent/child planning, decomposition, design, design feedback                    | `critical`  |
 | Code review and review diagnosis                                                 | `critical`  |
+| Mechanical re-verification of recorded checks on unchanged code                  | `normal`    |
 | Implementation and code repairs                                                  | `normal`    |
 | Per-ticket QA, integration QA and product acceptance checks                      | `normal`    |
 | Finish audits, merges, composition, authorized delivery, restoration and cleanup | `normal`    |
 
+The mechanical re-verification exception applies only to executing recorded
+checks. Reviewing changed code, assessing new findings or issuing a fresh
+judgment remains code review, even when the dispatch is called a recheck.
 
 ## Model tiers
 
@@ -77,6 +88,13 @@ model from a tier name. Without selection flags the command prints the whole
 effective policy. It needs no ticket or Orca connection. `--dir` defaults to
 cwd and resolves the Git root, including from a worktree subdirectory; outside
 Git it reads that directory's `.babysit/settings.json`.
+
+With `--agent`, omitted complexity and phase class each default to `normal`;
+`bbs foreman model --agent codex --json` therefore selects the configured
+`normal`/`normal` binding (`flash` in the built-in policy). Invalid explicit
+values still fail. `bbs foreman route --selected-tier` records the lookup's tier;
+it does not select or override a model. Only `flash`, `pro`, and `max` are valid;
+`ultra` is not a tier and is rejected. Pass the lookup's model/effort as well.
 
 Users override policy in `~/.babysit/settings.json` or
 `<repo>/.babysit/settings.json` (`BABYSIT_STATE_DIR` relocates the global file).

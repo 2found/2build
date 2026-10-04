@@ -69,6 +69,10 @@ both routes select the same model. Preserve the ticket's `pointers.workflow`.
 | QA | Autopilot scoped to `qa` without code fixes; return checks and evidence | Normal |
 | Finish | Delivery worker runs only the authorized merge/PR handler | Normal |
 
+For mechanical re-verification on unchanged code, use the exception in
+[model routing](references/model-routing.md#phase-routing). Classify the
+assignment's own scope before selecting its tier.
+
 Each assignment includes the accepted parent artifacts, ticket requirement/plan,
 exact prerequisite revisions, owned files, phase and stop boundary, selected
 route, resource lease and required evidence. Use the injected Orca lifecycle:

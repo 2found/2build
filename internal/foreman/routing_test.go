@@ -62,6 +62,23 @@ func TestResolveRouteCarriesDecisionProvenance(t *testing.T) {
 	}
 }
 
+func TestResolveRouteValidatesSelectedTierWithoutChangingModel(t *testing.T) {
+	for _, tier := range []string{"", "flash", "pro", "max", "ultra"} {
+		got, err := ResolveRoute(RouteRequest{
+			ExplicitAgent: "codex", Model: "explicit-model", SelectedTier: tier,
+		}, nil, orca.ErrNoAgentDiscovery)
+		if tier == "ultra" {
+			if err == nil || !strings.Contains(err.Error(), "selected-tier") {
+				t.Fatalf("invalid tier accepted: %+v, %v", got, err)
+			}
+			continue
+		}
+		if err != nil || got.SelectedTier != tier || got.Model != "explicit-model" {
+			t.Fatalf("tier %q changed explicit route: %+v, %v", tier, got, err)
+		}
+	}
+}
+
 func TestResolveRouteFallsBackFromIncompatiblePinButNeverChangesExactSession(t *testing.T) {
 	d := routeDiscovery("claude")
 	got, err := ResolveRoute(RouteRequest{PinnedAgent: "codex", PinnedModel: "older-model", Model: "tier-model"}, d, nil)

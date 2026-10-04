@@ -106,7 +106,7 @@ policy = json.loads(Path(sys.argv[2]).read_text())
 
 
 assert policy["routing"] == {
-    "simple": {"normal": "flash", "critical": "pro"},
+    "simple": {"normal": "flash", "critical": "flash"},
     "normal": {"normal": "flash", "critical": "pro"},
     "hard":   {"normal": "pro",   "critical": "max"},
 }, policy["routing"]
@@ -130,6 +130,7 @@ phases = {r[0]: r[1] for r in rows if len(r) == 2 and r[1] in ('critical', 'norm
 assert phases == {
     'Parent/child planning, decomposition, design, design feedback': 'critical',
     'Code review and review diagnosis': 'critical',
+    'Mechanical re-verification of recorded checks on unchanged code': 'normal',
     'Implementation and code repairs': 'normal',
     'Per-ticket QA, integration QA and product acceptance checks': 'normal',
     'Finish audits, merges, composition, authorized delivery, restoration and cleanup': 'normal',

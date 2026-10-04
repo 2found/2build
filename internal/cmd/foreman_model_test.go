@@ -57,7 +57,9 @@ func TestForemanModelPolicyAndErrors(t *testing.T) {
 		t.Fatalf("policy output %s: %v", out, err)
 	}
 	for _, args := range [][]string{
-		{"--agent", "codex"}, {"--complexity", "normal"}, {"--typo", "value"}, {"unexpected"},
+		{"--complexity", "normal"}, {"--typo", "value"}, {"unexpected"},
+		{"--agent", "codex", "--complexity", "ultra"},
+		{"--agent", "codex", "--phase-class", "review"},
 		{"--dir", filepath.Join(t.TempDir(), "missing")},
 	} {
 		if err := foremanModel(args); err == nil {
@@ -71,5 +73,60 @@ func TestForemanModelPolicyAndErrors(t *testing.T) {
 	})
 	if strings.Contains(out, `"effort"`) || !strings.Contains(out, `"@normal"`) {
 		t.Fatalf("OMP binding = %s", out)
+	}
+}
+
+func TestForemanModelDefaultsMissingClassification(t *testing.T) {
+	t.Setenv("BABYSIT_STATE_DIR", t.TempDir())
+	t.Chdir(t.TempDir())
+	for _, tc := range []struct {
+		args                    []string
+		complexity, phase, tier string
+	}{
+		{nil, "normal", "normal", "flash"},
+		{[]string{"--complexity", "normal"}, "normal", "normal", "flash"},
+		{[]string{"--phase-class", "normal"}, "normal", "normal", "flash"},
+		{[]string{"--phase-class", "critical"}, "normal", "critical", "pro"},
+		{[]string{"--complexity", "hard"}, "hard", "normal", "pro"},
+		{[]string{"--complexity", "hard", "--phase-class", "critical"}, "hard", "critical", "max"},
+	} {
+		out := captureStdout(t, func() {
+			if err := foremanModel(append([]string{"--agent", "codex", "--json"}, tc.args...)); err != nil {
+				t.Fatal(err)
+			}
+		})
+		var got map[string]string
+		if err := json.Unmarshal([]byte(out), &got); err != nil {
+			t.Fatal(err)
+		}
+		if got["complexity"] != tc.complexity || got["phaseClass"] != tc.phase || got["selectedTier"] != tc.tier {
+			t.Fatalf("args %v: %s", tc.args, out)
+		}
+	}
+}
+
+func TestForemanModelMissingClassificationHonorsRepoOverride(t *testing.T) {
+	t.Setenv("BABYSIT_STATE_DIR", t.TempDir())
+	repo := t.TempDir()
+	t.Chdir(repo)
+	settingsDir := filepath.Join(repo, ".babysit")
+	if err := os.MkdirAll(settingsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"foreman":{"models":{"routing":{"normal":{"normal":"pro"}},"tiers":{"pro":{"codex":{"model":"repo-model","effort":"low"}}}}}}`
+	if err := os.WriteFile(filepath.Join(settingsDir, "settings.json"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out := captureStdout(t, func() {
+		if err := foremanModel([]string{"--agent", "codex", "--json"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	var got map[string]string
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["selectedTier"] != "pro" || got["model"] != "repo-model" || got["effort"] != "low" {
+		t.Fatalf("missing classification ignored repo override: %s", out)
 	}
 }

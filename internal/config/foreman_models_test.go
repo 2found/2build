@@ -24,7 +24,7 @@ func TestForemanModelDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct{ complexity, phase, tier string }{
-		{"simple", "normal", "flash"}, {"simple", "critical", "pro"},
+		{"simple", "normal", "flash"}, {"simple", "critical", "flash"},
 		{"normal", "normal", "flash"}, {"normal", "critical", "pro"},
 		{"hard", "normal", "pro"}, {"hard", "critical", "max"},
 		{"critical", "critical", "max"},
@@ -51,8 +51,8 @@ func TestForemanModelSettingsPrecedence(t *testing.T) {
 	t.Setenv("BABYSIT_STATE_DIR", global)
 	globalPath := filepath.Join(global, "settings.json")
 	repoPath := filepath.Join(repo, ".babysit", "settings.json")
-	globalJSON := `{"other":{"anything":true},"foreman":{"models":{"routing":{"normal":{"critical":"max"}},"tiers":{"flash":{"codex":{"model":"global-flash","effort":"low"}},"max":{"codex":{"model":"global-max"}}}}}}`
-	repoJSON := `{"foreman":{"models":{"routing":{"normal":{"normal":"pro"}},"tiers":{"flash":{"codex":{"effort":""}},"max":{"codex":{"model":"repo-max"}},"pro":{"custom":{"model":"provider/custom"}}}}}}`
+	globalJSON := `{"other":{"anything":true},"foreman":{"models":{"routing":{"simple":{"critical":"pro"},"normal":{"critical":"max"}},"tiers":{"flash":{"codex":{"model":"global-flash","effort":"low"}},"max":{"codex":{"model":"global-max"}}}}}}`
+	repoJSON := `{"foreman":{"models":{"routing":{"simple":{"critical":"max"},"normal":{"normal":"pro"}},"tiers":{"flash":{"codex":{"effort":""}},"max":{"codex":{"model":"repo-max"}},"pro":{"custom":{"model":"provider/custom"}}}}}}`
 	writeModelSettings(t, globalPath, globalJSON)
 	writeModelSettings(t, repoPath, repoJSON)
 	p, err := LoadForemanModels(repo)
@@ -61,6 +61,7 @@ func TestForemanModelSettingsPrecedence(t *testing.T) {
 	}
 	for _, tc := range []struct{ agent, complexity, phase, tier, model, effort string }{
 		{"codex", "simple", "normal", "flash", "global-flash", ""},
+		{"codex", "simple", "critical", "max", "repo-max", "high"},
 		{"codex", "normal", "normal", "pro", "gpt-5.6-sol", "high"},
 		{"codex", "normal", "critical", "max", "repo-max", "high"},
 		{"custom", "hard", "normal", "pro", "provider/custom", ""},
@@ -78,7 +79,7 @@ func TestForemanModelSettingsPrecedence(t *testing.T) {
 	}
 	// A later load must not inherit mutations to built-in maps from this load.
 	p, err = LoadForemanModels("")
-	if err != nil || p.Tiers["max"]["codex"].Model != "global-max" || p.Tiers["flash"]["codex"].Effort != "low" {
+	if err != nil || p.Routing["simple"]["critical"] != "pro" || p.Tiers["max"]["codex"].Model != "global-max" || p.Tiers["flash"]["codex"].Effort != "low" {
 		t.Fatalf("policy leaked across loads: %+v, %v", p, err)
 	}
 }

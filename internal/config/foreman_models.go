@@ -23,7 +23,7 @@ type ModelBinding struct {
 func defaultForemanModels() ForemanModels {
 	return ForemanModels{
 		Routing: map[string]map[string]string{
-			"simple": {"normal": "flash", "critical": "pro"},
+			"simple": {"normal": "flash", "critical": "flash"},
 			"normal": {"normal": "flash", "critical": "pro"},
 			"hard":   {"normal": "pro", "critical": "max"},
 		},
