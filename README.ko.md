@@ -8,23 +8,16 @@ Babysit은 agent skill 팩과 이를 지원하는 Go CLI입니다. 순차적으�
 
 ## 설치
 
-CLI와 agent 플러그인을 각각 설치하세요.
+CLI를 설치한 뒤 Babysit이 설치된 harness를 자동으로 감지하고 설정하게 하세요.
 
 ```bash
 brew install lohi-ai/babysit/bbs
-
-# Claude Code
-claude plugin marketplace add lohi-ai/babysit
-claude plugin install bbs@babysit
-
-# Codex CLI
-codex plugin marketplace add lohi-ai/babysit
-codex plugin add bbs@babysit
+bbs install
 ```
 
-설치 후 agent를 다시 시작하세요. 플러그인은 skill을 제공합니다. `bbs`는 skill과 로컬 hook이 사용하는 별도의 필수 CLI이며 플러그인에 포함되지 않습니다. Linux 패키지를 포함한 [설치 안내](docs/install.md)를 참고하세요.
+설치 후 agent를 다시 시작하세요. `bbs install`은 Claude Code, Codex, Antigravity를 지원합니다. Claude Code와 Codex CLI는 PATH에 있어야 합니다. 개별 설치는 `bbs install claude`, `bbs install codex`, `bbs install antigravity`를 사용하세요. Linux 패키지를 포함한 [설치 안내](docs/install.md)를 참고하세요.
 
-Babysit 자체를 개발하려면 저장소를 clone하고 `go run ./cmd/bbs setup --full`을 실행하세요. `bbs`를 build하고 checkout의 skill을 연결합니다. `bbs update`는 CLI와 설치된 플러그인을 갱신합니다.
+Babysit 자체를 개발하려면 저장소를 clone하고 `go run ./cmd/bbs setup --full`을 실행하세요. `bbs`를 build하고 checkout을 로컬 플러그인으로 등록하는 명령을 출력합니다. `bbs update`는 CLI와 설치된 플러그인을 갱신합니다.
 
 ## Foreman 설정
 

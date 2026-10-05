@@ -8,23 +8,16 @@ Babysit is an agent skill pack plus a companion Go CLI. Use Autopilot for one se
 
 ## Install
 
-Install the CLI and the agent plugin separately:
+Install the CLI, then let Babysit detect and configure your harnesses:
 
 ```bash
 brew install lohi-ai/babysit/bbs
-
-# Claude Code
-claude plugin marketplace add lohi-ai/babysit
-claude plugin install bbs@babysit
-
-# Codex CLI
-codex plugin marketplace add lohi-ai/babysit
-codex plugin add bbs@babysit
+bbs install
 ```
 
-Restart your agent after installing. The plugin provides skills; `bbs` is a separate required CLI used by skills and local hooks. It is not bundled in the plugin. See [installation details](docs/install.md), including Linux packages.
+Restart your agent after installing. `bbs install` supports Claude Code, Codex and Antigravity; Claude Code and Codex need their CLI on PATH. To install for one harness only, use `bbs install claude`, `bbs install codex`, or `bbs install antigravity`. See [installation details](docs/install.md), including Linux packages.
 
-To work on Babysit itself, clone the repository and run `go run ./cmd/bbs setup --full`; it builds `bbs` and links the checkout's skills. `bbs update` refreshes the CLI and installed plugins.
+To work on Babysit itself, clone the repository and run `go run ./cmd/bbs setup --full`; it builds `bbs` and prints local plugin registration commands. `bbs update` refreshes the CLI and installed plugins.
 
 ## Configure Foreman
 

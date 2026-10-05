@@ -16,13 +16,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newUpgradeCmd ports the retired bbs-upgrade script as `bbs update`, matching its output
-// bytes and exit codes exactly.
-//
-// Flag parsing is disabled: the bash never parses flags. `--snooze` is special
-// only as `$1`, and anything else — `--help`, `-x`, junk — falls through to a
-// real upgrade. Letting cobra near the arguments would turn `--help` into a
-// usage dump and unknown flags into errors, neither of which the bash does.
+// newUpgradeCmd keeps the legacy snooze/check spellings, but rejects typos
+// before any update side effects.
 func newUpgradeCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "update [check|--snooze]",
@@ -34,7 +29,13 @@ func newUpgradeCmd() *cobra.Command {
 			// its own top-level `update-check`. Checking whether to upgrade and
 			// upgrading are one concern; they now share one command.
 			if len(args) > 0 && args[0] == "check" {
+				if len(args) > 2 || (len(args) == 2 && args[1] != "--force") {
+					return fmt.Errorf("usage: bbs update check [--force] — run 'bbs update --help'")
+				}
 				return runUpdateCheckCmd(args[1:])
+			}
+			if len(args) > 0 && (args[0] != "--snooze" || len(args) > 2) {
+				return fmt.Errorf("unknown update arguments %q — run 'bbs update --help'", strings.Join(args, " "))
 			}
 			return runUpgrade(args)
 		},
@@ -108,6 +109,14 @@ func runUpgrade(args []string) error {
 		fmt.Fprintln(os.Stderr, "relink failed: "+err.Error())
 		return errSilent
 	}
+	// A checkout and a Homebrew keg can coexist on PATH. Refresh both so a
+	// different shell's PATH order cannot resurrect an old CLI. Failure here
+	// must not skip plugin refresh or marker/cache cleanup.
+	partial := false
+	if _, err := upgradeHomebrewCopy(); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		partial = true
+	}
 
 	// The pull + relink above refreshed the checkout and the skills-dir symlinks
 	// that point at it. It did NOT touch ~/.claude/plugins/cache/babysit — a
@@ -141,6 +150,12 @@ func runUpgrade(args []string) error {
 			fmt.Fprintln(os.Stderr, hintCodexSkills())
 		}
 	}
+	if updated, err := upgradeAntigravityPlugin(); err != nil {
+		fmt.Fprintln(os.Stderr, "Antigravity update failed: "+err.Error())
+		partial = true
+	} else if updated {
+		pluginDone = true
+	}
 
 	newVersion := readVersion(versionFile)
 	if oldVersion != "" && oldVersion != newVersion {
@@ -160,6 +175,9 @@ func runUpgrade(args []string) error {
 		return errSilent
 	}
 
+	if partial {
+		return errSilent
+	}
 	suffix := ""
 	if oldVersion != "" {
 		suffix = fmt.Sprintf(": %s → %s", oldVersion, newVersion)
@@ -169,6 +187,21 @@ func runUpgrade(args []string) error {
 		fmt.Println("  Restart the affected coding agent — plugin changes only apply on restart.")
 	}
 	return nil
+}
+
+func upgradeHomebrewCopy() (bool, error) {
+	if !hasCmd("brew") {
+		return false, nil
+	}
+	out, err := exec.Command("brew", "list", "--versions", "bbs").Output()
+	if err != nil || strings.TrimSpace(string(out)) == "" {
+		return false, nil // Homebrew is present, but bbs is not installed through it.
+	}
+	fmt.Println("→ Upgrading the additional bbs CLI (brew)...")
+	if err := runVisible("brew", "upgrade", "bbs"); err != nil {
+		return false, fmt.Errorf("Homebrew bbs update failed: %w — run 'brew upgrade bbs'", err)
+	}
+	return true, nil
 }
 
 // isBabysitCheckout reports whether babysit is the ROOT of a git checkout, not
@@ -236,6 +269,12 @@ func upgradeExternal(babysit string) error {
 		}
 	} else {
 		manual = append(manual, hintCLI(babysit))
+		if updated, err := upgradeHomebrewCopy(); err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			failed = true
+		} else if updated {
+			done = append(done, "CLI")
+		}
 	}
 
 	switch driveable, ok := upgradePlugin(); {
@@ -258,6 +297,12 @@ func upgradeExternal(babysit string) error {
 		if codexPluginCached() {
 			manual = append(manual, hintCodexSkills())
 		}
+	}
+	if updated, err := upgradeAntigravityPlugin(); err != nil {
+		fmt.Fprintf(os.Stderr, "Antigravity update failed: %v\n", err)
+		failed = true
+	} else if updated {
+		done = append(done, "Antigravity skills")
 	}
 
 	if len(done) == 0 && !failed {

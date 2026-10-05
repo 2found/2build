@@ -11,6 +11,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func TestInvalidCommandsReportErrorsBeforeSideEffects(t *testing.T) {
+	bin := buildTestBBS(t)
+	for _, args := range [][]string{
+		{"does-not-exist"}, {"--not-a-flag"}, {"instal"},
+		{"update", "typo"}, {"update", "check", "typo"}, {"update", "--snooze", "1", "extra"},
+		{"setup", "--typo"}, {"install", "unsupported"}, {"install", "claude", "codex"},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			dir := t.TempDir()
+			command := exec.Command(bin, args...)
+			command.Dir = dir
+			command.Env = []string{"HOME=" + dir, "BABYSIT_HOME=" + filepath.Join(dir, "state"), "PATH=" + dir}
+			out, err := command.CombinedOutput()
+			if err == nil || !strings.Contains(string(out), "Error:") || !strings.Contains(string(out), "--help") {
+				t.Fatalf("expected actionable failure, got %v: %s", err, out)
+			}
+			entries, err := os.ReadDir(dir)
+			if err != nil || len(entries) != 0 {
+				t.Fatalf("invalid command created state: %v, %v", entries, err)
+			}
+		})
+	}
+}
+
 func TestRemovedCommandsRejectWithoutCreatingState(t *testing.T) {
 	bin := buildTestBBS(t)
 	dir := t.TempDir()

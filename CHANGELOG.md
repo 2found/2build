@@ -17,6 +17,26 @@
   `bin/setup-skills`; the relink step is the compiled `setup` with stdout
   discarded, so upgrading on Windows no longer needs bash.
 
+
+## 1.94.0 — 2026-10-06
+
+### Added
+
+- **`bbs install [claude|codex|antigravity]`** installs the skill pack into
+  detected harnesses (Claude Code, Codex, Antigravity). `bbs setup` now points
+  at this command for published skills, and still prints the local-checkout
+  marketplace registration path for development.
+
+### Fixed
+
+- Auto-detect no longer treats leftover `~/.claude` or `~/.gemini/config` as an
+  installed harness, so `bbs setup` followed by `bbs install` on a Codex-only
+  machine does not fail looking for the Claude CLI.
+- `bbs update` still refreshes plugins and clears upgrade markers when a
+  coexisting Homebrew copy or Antigravity plugin fails, and upgrades a Homebrew
+  keg even when the running binary is a tarball/manual install.
+- Runtime command failures no longer append `Run 'bbs --help'`.
+
 ## 1.93.12 — 2026-10-05
 
 ### Fixed

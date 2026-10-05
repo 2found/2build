@@ -6,10 +6,11 @@
 # hand-written goldens, every case runs the frozen pre-port bash
 # (tests/fixtures/bbs-upgrade.reference) and the Go binary side by side under an
 # identical environment and diffs all three channels — so any drift from the
-# original is a failure, not a judgement call. Same shape as test_bbs_env.sh.
+# original is a failure unless deliberately documented below. Same shape as test_bbs_env.sh.
 #
 # A few exemptions are deliberate divergences, asserted against the Go side
 # alone (each marked below): `--help`/`-h` (the bash upgraded anyway), the
+# unknown/trailing arguments (now rejected before side effects), the
 # no-checkout install (the bash said "reinstall manually"; the port drives brew
 # and `claude plugin` itself), and a branch with no upstream (the bash's bare
 # `git pull` failed and blamed conflicts that don't exist).
@@ -75,6 +76,15 @@ for c in brew claude codex; do
   printf '#!/bin/sh\necho "%s $*" >> "$STUB_LOG"\nexit ${STUB_RC:-0}\n' "$c" > "$STUBS/$c"
   chmod +x "$STUBS/$c"
 done
+cat > "$STUBS/brew" <<'SH'
+#!/bin/sh
+echo "brew $*" >> "$STUB_LOG"
+if [ "$1" = list ]; then
+  [ "${STUB_BREW_INSTALLED:-0}" = 1 ] && echo 'bbs 1.80.8'
+  exit 0
+fi
+exit ${STUB_RC:-0}
+SH
 
 # `go` must resolve but never compile: the Go side's in-process setup runs
 # `go build -o <root>/bbs` inside the staged root, which has no go.mod. The
@@ -86,7 +96,7 @@ for d in "$SANDPATH" "$T/gostub"; do
   printf '#!/bin/sh\nout=""; prev=""\nfor a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done\n[ -n "$out" ] && printf "#!/bin/sh\\n" > "$out"\nexit 0\n' > "$d/go"
   chmod +x "$d/go"
 done
-RUNPATH="$T/gostub:$RUNPATH"
+RUNPATH="$T/gostub:$SANDPATH"
 
 N=0
 # stage_root <dir> — a project root serving one implementation.
@@ -196,8 +206,14 @@ for bad in 0 4 9 abc -1 " " 1.0; do
   report "snooze-rejects-level-[$bad]"
 done
 
-new_case; seed_cache 'UPGRADE_AVAILABLE 1.0.0 2.0.0\n'; cmp_run --snooze 2 extra args; same_state update-snoozed
-report "snooze-ignores-trailing-args"
+new_case; seed_cache 'UPGRADE_AVAILABLE 1.0.0 2.0.0\n'
+CMP_MSG=""
+( cd "$BD" && env -i PATH="$SANDPATH" HOME="$HOME_DIR" BABYSIT_DIR="$BD" BABYSIT_STATE_DIR="$S2" \
+    "$BD/bin/bbs-upgrade" --snooze 2 extra args >"$T/g.out" 2>"$T/g.err" ); grc=$?
+[ "$grc" = 1 ] || CMP_MSG="exit=$grc want 1;"
+grep -q 'unknown update arguments' "$T/g.err" || CMP_MSG="$CMP_MSG no-diagnostic;"
+[ -f "$S2/update-snoozed" ] && CMP_MSG="$CMP_MSG changed-snooze;"
+report "snooze-rejects-trailing-args-before-writing"
 
 # awk field/record edges — the parse the port had to reimplement natively.
 new_case; seed_cache 'UPGRADE_AVAILABLE 1.0.0\n'; cmp_run --snooze 1; same_state update-snoozed
@@ -304,6 +320,20 @@ grep -q 'babysit upgraded (CLI + skills)' "$T/g.out" || CMP_MSG="$CMP_MSG no-suc
 grep -q 'Restart the affected coding agent' "$T/g.out" || CMP_MSG="$CMP_MSG no-restart-line;"
 report "upgrade-without-a-checkout-drives-brew-and-the-plugin"
 
+# A tarball/manual CLI next to a Homebrew keg must still refresh the keg.
+new_case
+TARBALL="$T/c$N/opt/bbs"; mkdir -p "$TARBALL/bin"
+cp "$BIN" "$TARBALL/bin/bbs"
+ln -sf bbs "$TARBALL/bin/bbs-upgrade"
+CMP_MSG=""; : > "$T/stub.log"
+( cd "$TARBALL" && env -i PATH="$STUBS:$SANDPATH" HOME="$HOME_DIR" STUB_LOG="$T/stub.log" STUB_BREW_INSTALLED=1 \
+    BABYSIT_DIR="$TARBALL" BABYSIT_STATE_DIR="$S2" \
+    "$TARBALL/bin/bbs-upgrade" >"$T/g.out" 2>"$T/g.err" ); grc=$?
+[ "$grc" = 0 ] || CMP_MSG="exit=$grc want 0 [$(cat "$T/g.err")];"
+grep -qx 'brew upgrade bbs' "$T/stub.log" || CMP_MSG="$CMP_MSG skipped-coexisting-keg;"
+grep -q 'babysit upgraded (CLI)' "$T/g.out" || CMP_MSG="$CMP_MSG no-success-line[$(cat "$T/g.out")];"
+report "upgrade-tarball-also-updates-additional-homebrew-copy"
+
 # A half that fails must not read as success — the operator would restart
 # Claude Code and wonder why nothing changed.
 new_case
@@ -383,8 +413,13 @@ same_state just-upgraded-from
 report "upgrade-cache-is-a-directory-fails-the-rm"
 
 new_case 0; prep_clones "1.0.0\n" "2.0.0\n"
-cmp_run --snooze-typo junk
-report "upgrade-unknown-args-fall-through-to-upgrade"
+CMP_MSG=""
+( cd "$BD" && env -i PATH="$SANDPATH" HOME="$HOME_DIR" BABYSIT_DIR="$BD" BABYSIT_STATE_DIR="$S2" \
+    "$BD/bin/bbs-upgrade" --snooze-typo junk >"$T/g.out" 2>"$T/g.err" ); grc=$?
+[ "$grc" = 1 ] || CMP_MSG="exit=$grc want 1;"
+grep -q 'unknown update arguments' "$T/g.err" || CMP_MSG="$CMP_MSG no-diagnostic;"
+[ "$(cat "$BD/VERSION")" = "1.0.0" ] || CMP_MSG="$CMP_MSG pulled;"
+report "upgrade-unknown-args-fail-before-pulling"
 
 # Deliberate divergence (see the header). A branch with no upstream fails the
 # bash's bare `git pull --ff-only`, and the error it prints blames conflicts
@@ -424,6 +459,29 @@ grep -qx 'claude plugin update bbs@babysit' "$T/stub.log" || CMP_MSG="$CMP_MSG n
 grep -q 'Restart the affected coding agent' "$T/g.out" || CMP_MSG="$CMP_MSG no-restart-line;"
 report "upgrade-from-a-checkout-also-updates-an-installed-marketplace-plugin"
 
+# Mixed install: the checkout branch must also update a Homebrew copy.
+new_case; prep_clones "1.0.0\n" "2.0.0\n"
+CMP_MSG=""; : > "$T/stub.log"
+( cd "$BD" && env -i PATH="$STUBS:$SANDPATH" HOME="$HOME_DIR" STUB_LOG="$T/stub.log" STUB_BREW_INSTALLED=1 \
+    BABYSIT_DIR="$BD" BABYSIT_STATE_DIR="$S2" \
+    "$BD/bin/bbs-upgrade" >"$T/g.out" 2>"$T/g.err" ); grc=$?
+[ "$grc" = 0 ] || CMP_MSG="exit=$grc want 0 [$(cat "$T/g.err")];"
+grep -qx 'brew upgrade bbs' "$T/stub.log" || CMP_MSG="$CMP_MSG skipped-homebrew;"
+report "upgrade-from-checkout-updates-additional-homebrew-copy"
+
+new_case; prep_clones "1.0.0\n" "2.0.0\n"
+HOME_BREW="$T/c$N/home"; mkdir -p "$HOME_BREW/.claude/plugins/cache/babysit"
+CMP_MSG=""; : > "$T/stub.log"
+( cd "$BD" && env -i PATH="$STUBS:$SANDPATH" HOME="$HOME_BREW" STUB_LOG="$T/stub.log" STUB_BREW_INSTALLED=1 STUB_RC=1 \
+    BABYSIT_DIR="$BD" BABYSIT_STATE_DIR="$S2" \
+    "$BD/bin/bbs-upgrade" >"$T/g.out" 2>"$T/g.err" ); grc=$?
+[ "$grc" = 1 ] || CMP_MSG="exit=$grc want 1;"
+grep -q 'Homebrew bbs update failed' "$T/g.err" || CMP_MSG="$CMP_MSG missing-partial-failure;"
+grep -q '✓ babysit upgraded' "$T/g.out" && CMP_MSG="$CMP_MSG claimed-success;"
+grep -qx 'claude plugin marketplace update babysit' "$T/stub.log" || CMP_MSG="$CMP_MSG PLUGIN-HALF-SKIPPED;"
+[ -f "$S2/just-upgraded-from" ] || CMP_MSG="$CMP_MSG no-marker;"
+report "upgrade-from-checkout-reports-homebrew-failure"
+
 # Codex's marketplace snapshot and plugin cache are separate from Claude
 # Code's. A Codex-only install must therefore receive the two Codex commands,
 # even when no Claude cache exists.
@@ -461,7 +519,7 @@ CMP_MSG=""; : > "$T/stub.log"
     BABYSIT_DIR="$BD" BABYSIT_STATE_DIR="$S2" \
     "$BD/bin/bbs-upgrade" >"$T/g.out" 2>"$T/g.err" ); grc=$?
 [ "$grc" = 0 ] || CMP_MSG="exit=$grc want 0 [$(cat "$T/g.err")];"
-[ -s "$T/stub.log" ] && CMP_MSG="$CMP_MSG ran-claude-with-no-plugin[$(cat "$T/stub.log")];"
+grep -q '^claude\|^codex' "$T/stub.log" && CMP_MSG="$CMP_MSG ran-agent-with-no-plugin[$(cat "$T/stub.log")];"
 grep -q 'skills half is still stale' "$T/g.err" && CMP_MSG="$CMP_MSG false-stale-warning;"
 grep -q 'Restart Claude Code' "$T/g.out" && CMP_MSG="$CMP_MSG restart-line-with-nothing-updated;"
 report "upgrade-from-a-checkout-stays-quiet-with-no-marketplace-plugin"

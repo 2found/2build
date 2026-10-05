@@ -11,8 +11,8 @@ import (
 )
 
 // errSilent signals an exit-code-1 failure whose message the RunE already
-// printed. main maps any non-nil Execute error to exit 1; SilenceErrors keeps
-// cobra from printing on top of it.
+// printed. main prints other Execute errors and maps failures to exit 1;
+// SilenceErrors keeps cobra from printing on top of it.
 var errSilent = errors.New("")
 
 // version is the CLI version, injected by release builds via
@@ -77,7 +77,7 @@ func NewRootCmd() *cobra.Command {
 		newSecretsCmd(), newDesignCmd(), newDashboardCmd(), newHooksCmd(),
 		newForemanCmd(), newWorkspaceCmd(),
 		guardHelp(newSkillRuntimeCmd()), newAgentCmd(),
-		newSetupCmd(),
+		newSetupCmd(), newInstallCmd(),
 		guardHelp(newUpdateCheckCmd()), guardHelp(newUpgradeCmd()),
 		guardHelp(newAutopilotCmd()),
 	)

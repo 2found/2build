@@ -1,15 +1,38 @@
 # Installing the `bbs` CLI
 
-This page covers the **standalone `bbs` command-line binary** — the Go CLI
-distributed as release artifacts. Mac users install it with Homebrew; Linux
-users use the tarball.
+Install the `bbs` CLI with Homebrew or a release tarball, then run `bbs install`
+to configure your coding harnesses. No Babysit checkout is required.
 
-> **This is not how you install babysit.** Babysit is a coding-agent skill pack
-> for Claude Code and Codex;
-> it installs via `git clone` + `go run ./cmd/bbs setup` (see the
-> [README Quick start](../README.md#quick-start)) — which builds `bbs` and
-> symlinks it into `~/.local/bin/`. This page is only for getting the compiled
-> `bbs` binary onto your `PATH` on its own, with no checkout behind it.
+## Install into your harness
+
+```bash
+bbs install                 # detect and install for all supported harnesses
+bbs install claude          # Claude Code only
+bbs install codex           # Codex only
+bbs install antigravity     # Antigravity only
+```
+
+Detection checks CLI executables, Antigravity's `.gemini/antigravity*`
+directories, and Codex / Antigravity macOS apps. Leftover `~/.claude` or
+`~/.gemini/config` directories are not treated as an installed harness.
+Claude Code and Codex require their CLI on PATH:
+`bbs install` registers the Babysit marketplace and installs `bbs@babysit`.
+An existing marketplace is refreshed, so rerunning the command is supported.
+Failures name the harness and return a nonzero exit code; installation still
+continues for other detected harnesses. No detected harness is an error with
+instructions, not a silent success. Restart affected harnesses afterwards.
+
+Antigravity receives a native skill plugin at `~/.gemini/config/plugins/bbs`;
+when its CLI is detected, also at `~/.gemini/antigravity-cli/plugins/bbs`.
+These are the [documented Antigravity plugin locations](https://antigravity.google/docs/plugins/).
+The installer uses the CLI checkout's skills when available; otherwise it
+downloads the matching release tag using Git. It preserves sibling references,
+workflows, scripts and data, and only replaces bundles marked as managed by
+`bbs install`. This installs skills; it does not port Claude's hooks or add
+Antigravity worker dispatch to Foreman.
+
+For Babysit development, `go run ./cmd/bbs setup --full` builds the CLI and
+prints the commands for registering the checkout as a local marketplace.
 
 ## What `bbs` gives you today
 
@@ -19,9 +42,10 @@ core bins are now Go and ship inside this one binary, reachable as `bbs <sub>`:
 
 | You run | Runs | What it does |
 |---------|------|--------------|
+| `bbs install [claude\|codex\|antigravity]` | `install` | install the skill pack for one harness or all detected harnesses |
 | `bbs config …` (alias `bbs-config`) | `config` | read/write `~/.babysit/config.yaml` |
 | `bbs ticket …` | `ticket` | ticket identity core (`env`, `resolve`, `set-verdict`, `verdict-status`, `session`, `board`) — see the strangler note below |
-| `bbs update` | `update` | `git pull` + `bbs setup`, refreshes installed Claude Code and Codex plugins, and writes a `JUST_UPGRADED` marker; `update check` prints `UPGRADE_AVAILABLE` when a newer release exists |
+| `bbs update` | `update` | update the active CLI installation, an additional Homebrew copy when one is installed, and installed harness plugins; `update check` probes for a newer release |
 | `bbs secrets …` (alias `bbs-env`) | `secrets` | project-local `.babysit/.env` credential loader (`load` / `seed` / `ensure-gitignore`), env resolution with `.env.base` auto-load (`resolve` / `is-set` / `list-prefix` / `prompt`), and `.babysit/qa.yaml` fields (`qa probe` / `qa list` / …) |
 | `bbs design …` | `design` | design-intelligence broker (`tokens` / `suggest` / `components` / `ux-check`) — the CSV/DESIGN.md data files ship with the skill pack |
 
@@ -47,10 +71,8 @@ embedded copy into `~/.babysit/cache/dashboard` and writes `data.js` there.
 but its CSV/DESIGN.md data files live in the skill pack, so a brew-only
 `bbs design suggest` needs `--data <dir>` pointed at a skill-pack checkout.
 
-Every subcommand is now Go, `ticket` included — no production bash
-remains. `brew install bbs` still does not, and is not meant to, give you the
-whole toolkit: the skill pack (skills, workflows, DESIGN.md/CSV data) comes
-only from the clone + `go run ./cmd/bbs setup`.
+The release binary contains the CLI. `bbs install` supplies the skill pack
+(skills, workflows, DESIGN.md/CSV data) through each harness's plugin system.
 
 `bbs --version` (or `-v`) prints the version. A release binary reports the tag
 it was built from, injected at build time; a clone install has no injected value
@@ -62,6 +84,7 @@ and reads `VERSION` from the checkout instead, so it stays accurate after a
 ```bash
 brew tap lohi-ai/babysit https://github.com/lohi-ai/babysit
 brew install bbs
+bbs install
 ```
 
 The explicit tap URL is required because the repository is `lohi-ai/babysit`
@@ -77,9 +100,16 @@ bbs config list     # prints ~/.babysit/config.yaml
 Upgrade / uninstall:
 
 ```bash
-brew upgrade bbs
+bbs update
 brew uninstall bbs
 ```
+
+`bbs update` follows the running binary: a checkout is pulled and rebuilt;
+a Homebrew installation is upgraded with `brew upgrade bbs`. When running
+from a checkout, it also checks `brew list --versions bbs` and upgrades that
+copy if present. A failed Homebrew upgrade returns a failure instead of
+claiming the entire update succeeded. Other standalone binary copies must
+be replaced manually. Use `type -a bbs` to inspect PATH precedence.
 
 ## Linux — tarball (secondary)
 
@@ -96,6 +126,7 @@ curl -fsSL -o bbs.tar.gz \
 # Verify the checksum against checksums.txt from the same release, then:
 tar -xzf bbs.tar.gz bbs
 install -m 0755 bbs ~/.local/bin/bbs          # or /usr/local/bin
+bbs install
 
 # Recreate the aliases the formula would make for you:
 ln -sf bbs ~/.local/bin/bbs-config

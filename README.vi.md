@@ -8,23 +8,16 @@ Babysit là bộ skill cho agent kèm CLI viết bằng Go. Dùng Autopilot cho 
 
 ## Cài đặt
 
-Cài CLI và plugin cho agent riêng:
+Cài CLI, rồi để Babysit tự phát hiện và cài cho các harness trên máy:
 
 ```bash
 brew install lohi-ai/babysit/bbs
-
-# Claude Code
-claude plugin marketplace add lohi-ai/babysit
-claude plugin install bbs@babysit
-
-# Codex CLI
-codex plugin marketplace add lohi-ai/babysit
-codex plugin add bbs@babysit
+bbs install
 ```
 
-Khởi động lại agent sau khi cài. Plugin cung cấp skill; `bbs` là CLI bắt buộc riêng, được skill và hook cục bộ sử dụng, không đi kèm plugin. Xem [hướng dẫn cài đặt](docs/install.md), bao gồm các gói cho Linux.
+Khởi động lại agent sau khi cài. `bbs install` hỗ trợ Claude Code, Codex và Antigravity; Claude Code và Codex cần CLI trên PATH. Muốn chọn riêng, chạy `bbs install claude`, `bbs install codex` hoặc `bbs install antigravity`. Xem [hướng dẫn cài đặt](docs/install.md), bao gồm các gói cho Linux.
 
-Để phát triển chính Babysit, clone repo rồi chạy `go run ./cmd/bbs setup --full`; lệnh này build `bbs` và liên kết các skill trong checkout. `bbs update` cập nhật CLI và các plugin đã cài.
+Để phát triển chính Babysit, clone repo rồi chạy `go run ./cmd/bbs setup --full`; lệnh này build `bbs` và in lệnh đăng ký plugin từ checkout. `bbs update` cập nhật CLI và các plugin đã cài.
 
 ## Cấu hình Foreman
 

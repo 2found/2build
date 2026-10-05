@@ -29,7 +29,11 @@ func newSetupCmd() *cobra.Command {
 		DisableFlagParsing: true,
 		Args:               cobra.ArbitraryArgs,
 		RunE: func(_ *cobra.Command, args []string) error {
-			return runSetup(setupCtx{args: args, out: os.Stdout, err: os.Stderr})
+			err := runSetup(setupCtx{args: args, out: os.Stdout, err: os.Stderr})
+			if err != nil && !strings.Contains(err.Error(), "unknown setup option") {
+				return errSilent
+			}
+			return err
 		},
 	}
 }
@@ -37,8 +41,14 @@ func newSetupCmd() *cobra.Command {
 const setupUsage = `Usage: bbs setup [--dry-run] [--full] [--uninstall]
 
 Install the babysit CLI: build ./bbs, symlink it into ~/.claude/ and
-~/.local/bin/, and install the repo's pre-commit hook. Skills install
-separately via a coding-agent plugin system:
+~/.local/bin/, and install the repo's pre-commit hook. Then install skills:
+
+  bbs install                     Auto-detect supported harnesses
+  bbs install claude              Claude Code only
+  bbs install codex               Codex only
+  bbs install antigravity         Antigravity only
+
+For development against this checkout, register its local plugin:
 
   /plugin marketplace add <path-to-this-repo>
   /plugin install bbs@babysit
@@ -174,7 +184,7 @@ func runSetup(c setupCtx) error {
 			fmt.Fprint(c.out, setupUsage)
 			return nil
 		default:
-			c.warn("Unknown option: %s", a)
+			return fmt.Errorf("unknown setup option %q — run 'bbs setup --help'", a)
 		}
 	}
 	if c.projectDir == "" {
@@ -408,12 +418,8 @@ Hook prerequisite: bbs on PATH (or bbs in ~/.local/bin).
 	}
 
 	fmt.Fprint(c.out, "\nBabysit bins installed.\n\n")
-	fmt.Fprintf(c.out, "Skills:      %d in .claude/skills/ — register in Claude Code:\n", len(skillNames))
-	fmt.Fprintf(c.out, "               /plugin marketplace add %s\n", c.projectDir)
-	fmt.Fprintln(c.out, "               /plugin install bbs@babysit")
-	fmt.Fprintln(c.out, "             or Codex CLI:")
-	fmt.Fprintf(c.out, "               codex plugin marketplace add %s\n", c.projectDir)
-	fmt.Fprintln(c.out, "               codex plugin add bbs@babysit")
+	fmt.Fprintf(c.out, "Skills:      %d available — run bbs install (or bbs install claude|codex|antigravity)\n", len(skillNames))
+	fmt.Fprintf(c.out, "             local checkout: /plugin marketplace add %s && /plugin install bbs@babysit\n", c.projectDir)
 	if len(c.installed) > 0 {
 		sort.Strings(c.installed)
 		fmt.Fprintf(c.out, "Bins:        ~/.claude/{%s}\n", strings.Join(c.installed, ","))
