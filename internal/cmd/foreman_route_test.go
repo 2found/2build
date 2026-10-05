@@ -125,7 +125,7 @@ func TestForemanRouteBlocksUnpinnedSelectionWithoutContractA(t *testing.T) {
 func TestForemanRouteVerifyPersistsMatchingReceiptAndRateLimit(t *testing.T) {
 	home := routeCommandFixture(t, `"orchestration.contract.v1"`)
 	receipt := filepath.Join(home, "receipt.json")
-	if err := os.WriteFile(receipt, []byte(`{"ok":true,"result":{"dispatch":{"id":"ctx-1"},"launch":{"effective":{"agentId":"codex","hostId":"host-a","model":"tier-model","effort":"high"}}}}`), 0o600); err != nil {
+	if err := os.WriteFile(receipt, []byte(`{"ok":true,"result":{"dispatchId":"ctx-1","state":"ready","stage":"input_accepted","launch":{"effective":{"agent":"codex","hostId":"host-a","model":"tier-model","effort":"high"}}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	out := captureStdout(t, func() {
@@ -151,5 +151,60 @@ func TestForemanRouteVerifyPersistsMatchingReceiptAndRateLimit(t *testing.T) {
 	})
 	if !strings.Contains(out, `"verification":"rate-limited"`) || !strings.Contains(out, "re-read quota snapshots before retry") {
 		t.Fatalf("rate-limit evidence = %q", out)
+	}
+}
+
+func TestForemanRouteVerifyNativeOMPReceipt(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		state     string
+		stage     string
+		model     string
+		wantError string
+	}{
+		{name: "native defaults", state: "ready", stage: "input_accepted"},
+		{name: "selected model lacks evidence", state: "ready", stage: "input_accepted", model: "selected-model", wantError: "effective model is unknown"},
+		{name: "failed readiness", state: "failed", stage: "input_accepted", wantError: "not ready"},
+		{name: "input not accepted", state: "ready", stage: "input_pending", wantError: "not ready"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := routeCommandFixture(t, `"orchestration.contract.v1"`)
+			receipt := filepath.Join(home, "receipt.json")
+			raw := `{"ok":true,"result":{"dispatchId":"ctx-native","state":"` + tc.state + `","stage":"` + tc.stage + `","launch":{"effective":{"agent":"omp","model":null,"effort":null}},"prompt":{"requestId":"private-request"},"effects":[{"id":"private-terminal"}]}}`
+			if err := os.WriteFile(receipt, []byte(raw), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			args := []string{"--ticket", "bs-child", "--task", "task-native", "--agent", "omp", "--receipt-file", receipt}
+			if tc.model != "" {
+				args = append(args, "--model", tc.model)
+			}
+			var verifyErr error
+			out := captureStdout(t, func() {
+				verifyErr = foremanRouteVerify(args)
+			})
+			var got launchHandoff
+			if err := json.Unmarshal([]byte(out), &got); err != nil {
+				t.Fatalf("receipt output %q: %v", out, err)
+			}
+			if tc.wantError == "" {
+				if verifyErr != nil || got.Verification != "matched" || got.Receipt == nil {
+					t.Fatalf("native receipt rejected: %+v, %v", got, verifyErr)
+				}
+				if got.Receipt.DispatchID != "ctx-native" || got.Receipt.Effective.AgentID == nil || *got.Receipt.Effective.AgentID != "omp" ||
+					got.Receipt.Effective.Model != nil || got.Receipt.Effective.Effort != nil {
+					t.Fatalf("native evidence = %+v", got.Receipt)
+				}
+			} else if verifyErr == nil || !strings.Contains(verifyErr.Error(), tc.wantError) ||
+				got.Verification != "mismatch" || got.Receipt != nil || !strings.Contains(got.Reason, tc.wantError) {
+				t.Fatalf("invalid receipt not rejected: %+v, %v", got, verifyErr)
+			}
+			persisted, err := os.ReadFile(got.Handoff)
+			if err != nil || !strings.Contains(string(persisted), `"verification": "`+got.Verification+`"`) {
+				t.Fatalf("durable launch handoff = %q, %v", persisted, err)
+			}
+			if strings.Contains(string(persisted), "private-request") || strings.Contains(string(persisted), "private-terminal") {
+				t.Fatalf("launch handoff leaked arbitrary response fields: %q", persisted)
+			}
+		})
 	}
 }

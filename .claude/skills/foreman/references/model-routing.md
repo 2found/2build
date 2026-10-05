@@ -120,17 +120,20 @@ Precedence is repo > global > built-in defaults, merged per field. Example:
 `routing` maps `simple|normal|hard` × `normal|critical` to `flash|pro|max`.
 `tiers` maps each tier and agent ID to `model` and optional `effort`. Omitted
 fields inherit; `"effort": ""` clears an inherited effort. Model IDs and effort
-values are opaque native identifiers, validated against discovery at launch.
+values are opaque native identifiers, validated by the selected launch transport.
 Missing files use defaults; malformed settings, unknown policy keys or empty
 models fail with the settings path. Other settings namespaces are ignored.
 These are routing policy, not vendor capability or price claims.
 
 Resolve configured aliases against the live native binding. For OMP, read the
 selected role's binding; its provider/model/effort belong to that role.
-Do not invent an OMP effort or assume provider-selection support. New routes
-send selected model/effort only through advertised launch transport and verify
-`launch.effective`. If a launcher cannot honor a selection, stop with `BLOCKED`;
-do not substitute.
+Do not invent an OMP effort or assume provider-selection support. Use the
+route's `launchMode`: managed launches forward only advertised overrides and
+verify `launch.effective`; OMP launches use the native startup command followed
+by supervised exact-terminal reuse. Verify the reused-terminal transport receipt
+and separately compare observed session settings with the resolved native
+binding before phase work. Unknown receipt fields remain unknown. If neither
+transport can honor a selection, stop with `BLOCKED`; do not substitute.
 
 Resolve an explicit phase-specific user selection first, then a valid persisted
 route on resume, otherwise the CLI policy lookup. Explicit phase

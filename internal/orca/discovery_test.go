@@ -117,18 +117,18 @@ esac`)
 }
 
 func TestValidateLaunchReceiptRequiresMatchingEffectiveSettings(t *testing.T) {
-	raw := []byte(`{"ok":true,"result":{"dispatch":{"id":"ctx-1"},"launch":{"effective":{"agentId":"codex","hostId":"host-a","model":"tier-model","effort":"high"}}}}`)
+	raw := []byte(`{"ok":true,"result":{"dispatchId":"ctx-1","state":"ready","stage":"input_accepted","launch":{"effective":{"agent":"codex","hostId":"host-a","model":"tier-model","effort":"high"}}}}`)
 	got, err := ValidateLaunchReceipt(raw, LaunchRequest{AgentID: "codex", HostID: "host-a", Model: "tier-model", Effort: "high"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.DispatchID != "ctx-1" || got.Effective.Model != "tier-model" {
+	if got.DispatchID != "ctx-1" || got.Effective.Model == nil || *got.Effective.Model != "tier-model" {
 		t.Fatalf("receipt = %+v", got)
 	}
 	if _, err := ValidateLaunchReceipt(raw, LaunchRequest{AgentID: "codex", HostID: "host-a", Model: "other"}); err == nil {
 		t.Fatal("effective model mismatch was accepted")
 	}
-	if _, err := ValidateLaunchReceipt([]byte(`{"dispatch":{"id":"ctx-1"}}`), LaunchRequest{AgentID: "codex"}); err == nil {
+	if _, err := ValidateLaunchReceipt([]byte(`{"dispatchId":"ctx-1","state":"ready","stage":"input_accepted"}`), LaunchRequest{AgentID: "codex"}); err == nil {
 		t.Fatal("missing effective receipt was accepted")
 	}
 }

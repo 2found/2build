@@ -45,9 +45,10 @@ const foremanUsage = `Usage:
   bbs foreman model [--agent <id>] [--complexity <simple|normal|hard>] [--phase-class <normal|critical>]
                     [--dir <repo-or-worktree>] [--json]
                     (with --agent, omitted complexity/phase-class default to normal)
-  bbs foreman worker-command --prompt <text> [--skill <name>] [--agent <id>] [--pinned-agent <id>]
+  bbs foreman worker-command (--prompt <text> [--skill <name>] | --startup-only) [--agent <id>] [--pinned-agent <id>]
                             [--pinned-model <id>] [--pinned-effort <level>] [--host <host-id>] [--exact-session] [--dir <path>]
                             [--model <id>] [--effort <level>]
+                            (--startup-only starts idle; it cannot be combined with --prompt or --skill)
   bbs foreman route --ticket <ticket> --task <task> [--agent <id>]
                     [--pinned-agent <id>] [--model <id>] [--effort <level>]
                     [--pinned-model <id>] [--pinned-effort <level>]
@@ -56,7 +57,7 @@ const foremanUsage = `Usage:
                     [--selected-tier <flash|pro|max>] [--override-provenance <source>]
                     [--pinned-model-provenance <source>] [--pinned-effort-provenance <source>]
   bbs foreman route verify --ticket <ticket> --task <task> --agent <id>
-                           [--host <host-id>] [--model <id>] [--effort <level>]
+                           [--host <host-id>] [--model <id>] [--effort <level>] [--terminal <handle>]
                            [--receipt-file <json>] [--rate-limited]
   bbs foreman resource <status|reserve|release> ...
   bbs foreman watch [<id>] [--interval <sec>] [--idle <sec>] [--lines <n>]
@@ -184,7 +185,7 @@ func foremanFlags(args []string) (id string, kv map[string]string, err error) {
 			return "", nil, fmt.Errorf("foreman: unexpected argument '%s'", a)
 		}
 		key := strings.TrimPrefix(a, "--")
-		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "exact-session" || key == "rate-limited" { // the boolean flags
+		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "exact-session" || key == "startup-only" || key == "rate-limited" { // the boolean flags
 			kv[key] = "1"
 			continue
 		}
@@ -570,9 +571,17 @@ func foremanWorkerCommand(args []string) error {
 	if kv["provider"] != "" {
 		return fmt.Errorf("foreman worker-command no longer accepts --provider; configure providers in the agent's native settings")
 	}
+	startupOnly := kv["startup-only"] != ""
+	if startupOnly {
+		for _, key := range []string{"prompt", "skill"} {
+			if _, supplied := kv[key]; supplied {
+				return fmt.Errorf("foreman worker-command: --startup-only cannot be combined with --%s", key)
+			}
+		}
+	}
 	prompt := kv["prompt"]
-	if prompt == "" {
-		return fmt.Errorf("foreman worker-command: needs --prompt <text>\n%s", foremanUsage)
+	if prompt == "" && !startupOnly {
+		return fmt.Errorf("foreman worker-command: needs --prompt <text> or --startup-only\n%s", foremanUsage)
 	}
 	if kv["exact-session"] == "" {
 		config.WarnRetiredAgentSettings(os.Stderr)
@@ -605,7 +614,11 @@ func foremanWorkerCommand(args []string) error {
 	if err := prof.PreflightDir(dir); err != nil {
 		return err
 	}
-	fmt.Println(prof.WorkerCommand(prompt))
+	if startupOnly {
+		fmt.Println(prof.StartupCommand())
+	} else {
+		fmt.Println(prof.WorkerCommand(prompt))
+	}
 	return nil
 }
 
