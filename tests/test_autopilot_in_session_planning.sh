@@ -114,7 +114,7 @@ assert policy["tiers"] == {
     "flash": {"codex": {"model": "gpt-6-luna", "effort": "high"},
               "claude": {"model": "opus", "effort": "high"},
               "omp": {"model": "@normal"}},
-    "pro":   {"codex": {"model": "gpt-5.6-sol", "effort": "high"},
+    "pro":   {"codex": {"model": "gpt-6.1-sol", "effort": "high"},
               "claude": {"model": "opus", "effort": "high"},
               "omp": {"model": "@slow"}},
     "max":   {"codex": {"model": "gpt-6-astra", "effort": "high"},

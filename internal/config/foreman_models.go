@@ -29,7 +29,7 @@ func defaultForemanModels() ForemanModels {
 		},
 		Tiers: map[string]map[string]ModelBinding{
 			"flash": {"codex": {"gpt-6-luna", "high"}, "claude": {"opus", "high"}, "omp": {"@normal", ""}},
-			"pro":   {"codex": {"gpt-5.6-sol", "high"}, "claude": {"opus", "high"}, "omp": {"@slow", ""}},
+			"pro":   {"codex": {"gpt-6.1-sol", "high"}, "claude": {"opus", "high"}, "omp": {"@slow", ""}},
 			"max":   {"codex": {"gpt-6-astra", "high"}, "claude": {"opus", "high"}, "omp": {"@plan", ""}},
 		},
 	}

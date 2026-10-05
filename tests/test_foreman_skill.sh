@@ -268,7 +268,7 @@ if grep -q 'model-routing.md' "$F" \
    && grep -q '## Phase routing' "$REF" \
    && grep -q 'bbs foreman model' "$REF" \
    && grep -q '~/.babysit/settings.json' "$REF" \
-   && ! grep -q 'gpt-5.6-sol' "$REF"; then
+   && ! grep -q 'gpt-6.1-sol' "$REF"; then
   ok "canonical-model-policy-cli-owned"
 else
   fail "canonical-model-policy-cli-owned"

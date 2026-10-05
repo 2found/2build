@@ -30,7 +30,7 @@ func TestForemanModelDefaults(t *testing.T) {
 		{"critical", "critical", "max"},
 	} {
 		for agent, models := range map[string]map[string]string{
-			"codex":  {"flash": "gpt-6-luna", "pro": "gpt-5.6-sol", "max": "gpt-6-astra"},
+			"codex":  {"flash": "gpt-6-luna", "pro": "gpt-6.1-sol", "max": "gpt-6-astra"},
 			"claude": {"flash": "opus", "pro": "opus", "max": "opus"},
 			"omp":    {"flash": "@normal", "pro": "@slow", "max": "@plan"},
 		} {
@@ -62,7 +62,7 @@ func TestForemanModelSettingsPrecedence(t *testing.T) {
 	for _, tc := range []struct{ agent, complexity, phase, tier, model, effort string }{
 		{"codex", "simple", "normal", "flash", "global-flash", ""},
 		{"codex", "simple", "critical", "max", "repo-max", "high"},
-		{"codex", "normal", "normal", "pro", "gpt-5.6-sol", "high"},
+		{"codex", "normal", "normal", "pro", "gpt-6.1-sol", "high"},
 		{"codex", "normal", "critical", "max", "repo-max", "high"},
 		{"custom", "hard", "normal", "pro", "provider/custom", ""},
 	} {
