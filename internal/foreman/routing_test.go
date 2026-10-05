@@ -138,6 +138,35 @@ func TestResolveRouteRequiresRunnableHostAndModelCapabilities(t *testing.T) {
 	}
 }
 
+func TestResolveRouteUsesNativeOmpSettingsWithoutOrcaOverrides(t *testing.T) {
+	d := routeDiscovery("omp")
+	d.Agents = append(d.Agents, orca.DiscoveredAgent{
+		ID: "omp", Enabled: new(true), Runnable: new(true),
+	})
+	for _, req := range []RouteRequest{
+		{ExplicitAgent: "omp", Model: "@slow", Effort: "medium"},
+		{PinnedAgent: "omp", PinnedModel: "@slow", PinnedEffort: "medium", ExactSession: true},
+		{Model: "@slow", Effort: "medium"},
+	} {
+		got, err := ResolveRoute(req, d, nil)
+		if err != nil || got.Agent != "omp" || got.LaunchMode != "native-terminal" ||
+			got.Model != "@slow" || got.Effort != "medium" || got.HostID != d.HostID {
+			t.Fatalf("OMP native route discarded settings: %+v, %v", got, err)
+		}
+	}
+	got, err := ResolveRoute(RouteRequest{ExplicitAgent: "omp", Model: "@slow"}, nil, orca.ErrNoAgentDiscovery)
+	if err != nil || got.LaunchMode != "native-terminal" || got.Model != "@slow" {
+		t.Fatalf("OMP route without discovery: %+v, %v", got, err)
+	}
+	if _, err := ResolveRoute(RouteRequest{ExplicitAgent: "omp", DestinationHost: "host-b"}, d, nil); err == nil {
+		t.Fatal("native OMP route bypassed destination-host validation")
+	}
+	d.Agents[len(d.Agents)-1].Enabled = new(false)
+	if _, err := ResolveRoute(RouteRequest{ExplicitAgent: "omp", Model: "@slow"}, d, nil); err == nil {
+		t.Fatal("native OMP route accepted a disabled agent")
+	}
+}
+
 func quotaSnapshot(pool, provider string, agents []string, windows ...orca.QuotaWindow) orca.QuotaSnapshot {
 	return orca.QuotaSnapshot{
 		HostID: "host-a", PoolID: pool, Provider: provider, AgentIDs: agents,

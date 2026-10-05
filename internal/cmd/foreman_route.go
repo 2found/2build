@@ -126,12 +126,16 @@ func foremanRouteVerify(args []string) error {
 	}
 	receipt, verifyErr := orca.ValidateLaunchReceipt(raw, orca.LaunchRequest{
 		AgentID: kv["agent"], HostID: kv["host"], Model: kv["model"], Effort: kv["effort"],
+		TerminalHandle: kv["terminal"],
 	})
 	if verifyErr != nil {
 		evidence.Verification = "mismatch"
 		evidence.Reason = verifyErr.Error()
 	} else {
 		evidence.Verification = "matched"
+		if receipt.TerminalHandle != "" {
+			evidence.Verification = "transport-matched"
+		}
 		evidence.Receipt = &receipt
 	}
 	path, err := appendForemanHandoff(kv["ticket"], kv["task"], "launch", evidence)

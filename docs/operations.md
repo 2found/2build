@@ -243,16 +243,28 @@ bbs foreman worker-command --agent omp --model '<your-model-id>' --effort high \
 bbs foreman spawn fm-demo --agent codex --model '<your-model-id>'
 ```
 
+OMP worker routes return `launchMode: native-terminal`: render an idle command
+with `bbs foreman worker-command --startup-only --agent omp --model <selection>`,
+create an Orca terminal with that exact command, then call
+`orca orchestration worker-start --terminal <handle>` without launch overrides.
+`--startup-only` rejects prompts and skill selectors, so supervision delivers
+the assignment once. This preserves native aliases such as `@slow` without
+changing global OMP configuration or falling back to the native default.
+
 Managed Foreman records pin the selected agent, model and effort. Provider
 values recorded by earlier versions remain readable and are applied only when
 recovering that pinned session; new launches use native provider configuration.
 Changed explicit settings are refused for a pinned session.
 
 Foreman routes new supervised workers through `bbs foreman route` using the
-destination host's Orca facts and persists the selected route. Verify the
-effective launch receipt; do not invent provider support or silently substitute
-an agent/model. Direct `worker-command` uses the same route policy. See
-[model routing](../.claude/skills/references/model-routing.md) and the
+destination host's Orca facts and persists the selected route. Receipt
+verification reads `dispatchId` and `launch.effective.agent`, and requires
+ready/accepted input. For a native OMP terminal, `route verify --terminal <handle>`
+returns `transport-matched`; null effective settings stay null. Verify the
+worker's actual session settings separately before accepting phase work.
+After settlement, release the worker and close a retained native terminal only
+if this Foreman created it. Direct `worker-command` uses the same route policy.
+See [model routing](../.claude/skills/references/model-routing.md) and the
 [worker launch reference](../.claude/skills/foreman/references/worker-routing.md).
 
 ## Telemetry

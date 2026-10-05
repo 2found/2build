@@ -17,6 +17,15 @@
   `bin/setup-skills`; the relink step is the compiled `setup` with stdout
   discarded, so upgrading on Windows no longer needs bash.
 
+### Fixed
+
+- Foreman preserves selected OMP models and role aliases through native idle
+  terminal startup followed by Orca-supervised terminal reuse, instead of sending
+  unsupported OMP model/effort overrides to `worker-start`.
+- Launch verification consumes Orca's current `dispatchId` and
+  `launch.effective.agent` receipt fields, rejects unready/unaccepted launches,
+  and distinguishes exact-terminal transport proof from unknown native settings.
+
 ## 1.93.1 — 2026-09-24
 
 ### Added

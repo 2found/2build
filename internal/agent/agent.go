@@ -296,6 +296,12 @@ func trustedInClaudeJSON(body, dir string) bool {
 	return doc.Projects[dir].HasTrustDialogAccepted
 }
 
+// StartupCommand renders the native CLI launch without task input, so Orca can
+// inject its authoritative Dispatch after attaching supervision to the terminal.
+func (p Profile) StartupCommand() string {
+	return p.launchCommand()
+}
+
 // WorkerCommand renders the shell command line that runs one worker on the
 // given prompt, e.g. `/bbs:autopilot ship the settings page`.
 func (p Profile) WorkerCommand(prompt string) string {

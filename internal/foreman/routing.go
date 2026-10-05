@@ -34,6 +34,7 @@ type RouteEvidence struct {
 	RequestedAgent         string `json:"requestedAgent,omitempty"`
 	PinnedAgent            string `json:"pinnedAgent,omitempty"`
 	Agent                  string `json:"agent"`
+	LaunchMode             string `json:"launchMode"`
 	RequestedHost          string `json:"destinationHost,omitempty"`
 	HostID                 string `json:"hostId,omitempty"`
 	Model                  string `json:"model,omitempty"`
@@ -117,6 +118,12 @@ func ResolveRoute(req RouteRequest, discovery *orca.AgentDiscovery, discoveryErr
 	if route.Agent == "" {
 		return RouteEvidence{}, fmt.Errorf("selected worker agent is empty")
 	}
+	route.LaunchMode = "worker-start"
+	if sameIdentity(route.Agent, "omp") {
+		// Orca cannot forward OMP model/effort overrides. Start its native
+		// command in an Orca terminal, then supervise that exact terminal.
+		route.LaunchMode = "native-terminal"
+	}
 
 	if discoveryErr != nil || discovery == nil {
 		route.Discovery = "unavailable"
@@ -135,14 +142,16 @@ func ResolveRoute(req RouteRequest, discovery *orca.AgentDiscovery, discoveryErr
 	if !*agent.Enabled || !*agent.Runnable {
 		return RouteEvidence{}, fmt.Errorf("agent %q is not enabled and runnable on destination host %q", route.Agent, discovery.HostID)
 	}
-	if route.Model != "" && !contains(agent.Models, route.Model) {
-		return RouteEvidence{}, fmt.Errorf("agent %q does not advertise required model %q on host %q", route.Agent, route.Model, discovery.HostID)
-	}
-	if route.Effort != "" && (!contains(agent.Efforts, route.Effort) || !contains(agent.LaunchOverrides, "effort")) {
-		return RouteEvidence{}, fmt.Errorf("agent %q does not advertise required effort %q on host %q", route.Agent, route.Effort, discovery.HostID)
-	}
-	if route.Model != "" && !contains(agent.LaunchOverrides, "model") {
-		return RouteEvidence{}, fmt.Errorf("agent %q cannot accept the required model override on host %q", route.Agent, discovery.HostID)
+	if route.LaunchMode == "worker-start" {
+		if route.Model != "" && !contains(agent.Models, route.Model) {
+			return RouteEvidence{}, fmt.Errorf("agent %q does not advertise required model %q on host %q", route.Agent, route.Model, discovery.HostID)
+		}
+		if route.Effort != "" && (!contains(agent.Efforts, route.Effort) || !contains(agent.LaunchOverrides, "effort")) {
+			return RouteEvidence{}, fmt.Errorf("agent %q does not advertise required effort %q on host %q", route.Agent, route.Effort, discovery.HostID)
+		}
+		if route.Model != "" && !contains(agent.LaunchOverrides, "model") {
+			return RouteEvidence{}, fmt.Errorf("agent %q cannot accept the required model override on host %q", route.Agent, discovery.HostID)
+		}
 	}
 	route.HostID = discovery.HostID
 	route.Discovery = "available"
