@@ -18,6 +18,15 @@
   discarded, so upgrading on Windows no longer needs bash.
 
 
+## 1.94.1 — 2026-10-06
+
+### Fixed
+
+- `bbs update` refreshes the Homebrew tap (`brew update`) before upgrading a
+  coexisting or primary keg. `brew upgrade` never fetches the formula itself,
+  so a same-day release previously installed the previous version.
+
+
 ## 1.94.0 — 2026-10-06
 
 ### Added

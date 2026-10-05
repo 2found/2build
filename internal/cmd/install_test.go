@@ -314,6 +314,7 @@ if [ "$1" = list ]; then
   [ "$BREW_SCENARIO" = absent ] && exit 1
   echo 'bbs 1.80.8'
 elif [ "$BREW_SCENARIO" = failed ]; then
+  [ "$1" = update ] && exit 0
   exit 1
 fi
 `, 0o755)
@@ -328,6 +329,9 @@ fi
 			upgraded := strings.Contains(string(calls), "upgrade bbs")
 			if upgraded != (scenario != "absent") {
 				t.Fatalf("wrong Homebrew action: %s", calls)
+			}
+			if scenario == "installed" && !strings.Contains(string(calls), "update\n") {
+				t.Fatalf("tap not refreshed before upgrade: %s", calls)
 			}
 		})
 	}

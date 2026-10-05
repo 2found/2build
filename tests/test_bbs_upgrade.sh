@@ -83,6 +83,9 @@ if [ "$1" = list ]; then
   [ "${STUB_BREW_INSTALLED:-0}" = 1 ] && echo 'bbs 1.80.8'
   exit 0
 fi
+# `brew update` refreshes the tap; `brew update`'s failure must not abort the
+# upgrade attempt, so it ignores STUB_RC.
+[ "$1" = update ] && exit 0
 exit ${STUB_RC:-0}
 SH
 

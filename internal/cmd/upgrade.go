@@ -197,11 +197,24 @@ func upgradeHomebrewCopy() (bool, error) {
 	if err != nil || strings.TrimSpace(string(out)) == "" {
 		return false, nil // Homebrew is present, but bbs is not installed through it.
 	}
+	refreshBrewTap()
 	fmt.Println("→ Upgrading the additional bbs CLI (brew)...")
 	if err := runVisible("brew", "upgrade", "bbs"); err != nil {
 		return false, fmt.Errorf("Homebrew bbs update failed: %w — run 'brew upgrade bbs'", err)
 	}
 	return true, nil
+}
+
+// refreshBrewTap makes `brew upgrade` see today's formula. `brew upgrade`
+// never refreshes the tap — it installs whatever the last `brew update`
+// fetched, and auto-update is throttled off for a day. Right after a release
+// the tap is stale by definition (the release pipeline just rewrote it), so
+// refresh first. The exit code is ignored on purpose: one broken tap fails
+// `brew update` wholesale even when this one refreshed fine.
+func refreshBrewTap() {
+	if err := exec.Command("brew", "update").Run(); err != nil {
+		fmt.Fprintln(os.Stderr, "  (brew update failed — trying to upgrade from the cached formula anyway)")
+	}
 }
 
 // isBabysitCheckout reports whether babysit is the ROOT of a git checkout, not
@@ -260,6 +273,7 @@ func upgradeExternal(babysit string) error {
 	}
 
 	if strings.Contains(babysit, "/Cellar/") && hasCmd("brew") {
+		refreshBrewTap()
 		fmt.Println("→ Upgrading the bbs CLI (brew)...")
 		if err := runVisible("brew", "upgrade", "bbs"); err != nil {
 			fmt.Fprintln(os.Stderr, "brew upgrade bbs failed — see the output above")
