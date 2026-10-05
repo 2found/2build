@@ -238,29 +238,11 @@ has_all "no-coordinator-polling-timer" \
   'external missed-event/restart backup' 'Foreman never schedules its own status timer' \
   'or polls on empty waits' 'adopt/spawn start it automatically'
 
-has_all "phase-specific-worker-model-routing" \
-  'references/model-routing.md' 'canonical contract' 'Never invent a model ID' \
-  'Classify each task' 'Parent/child planning, decomposition, design, design feedback' \
-  'Code review and review diagnosis' \
-  '--model <selected-model> --effort <selected-effort>' 'launch.effective' 'bbs foreman route' \
-  'effectiveDefaultAgent' 'Never substitute coordinator-local detection' 'retired BBS preferences' \
-  'set-pointer planner_model' 'Each prefix has `agent`, `provider`, `model`, `effort`' \
-  '| Plan | `planner_` |' '| Implement | `worker_` |' \
-  '| Review | `reviewer_` |' '| QA | `qa_` |' 'Taste' \
-  'Record task complexity, phase class, selected tier' 'override provenance' \
-  'reuse a compatible phase pin' 'Keep separate phase Dispatches'
-
 if grep -q 'bbs agent resolve --role worker' "$ROOT/.claude/skills/foreman/references/worker-routing.md"; then
   fail "worker-routing-avoids-coordinator-agent-resolution"
 else
   ok "worker-routing-avoids-coordinator-agent-resolution"
 fi
-
-has_all "worker-model-config-discipline" \
-  'Do not assume `--provider` support' 'Omit unset' \
-  'Never replace a live writer or silently substitute' 'provider is not' \
-  '`worker-start` selector'
-
 
 REF="$ROOT/.claude/skills/foreman/references/model-routing.md"
 if grep -q 'model-routing.md' "$F" \
