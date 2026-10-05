@@ -131,6 +131,28 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # The 2build soot pack ships versioned alongside bbs: same tag, same
+      # bare-version tarball naming (2build-pack_<ver>.tar.gz). The script is
+      # deterministic (sorted entries, uid/gid 0, mtime 0), so the sha256 is
+      # stable for anyone who re-runs it on the tag. Uploads to the draft —
+      # the publish step below flips draft=false for both bbs and the pack.
+      - name: Build and upload 2build pack
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          python3 scripts/build-2build-pack.py \
+            --version "$VERSION" \
+            --commit "${GITHUB_SHA:-}" \
+            --out "dist/2build" \
+            --tarball "dist/2build-pack_${VERSION}.tar.gz"
+          (cd dist && sha256sum "2build-pack_${VERSION}.tar.gz") \
+            > "dist/2build-pack_${VERSION}.sha256"
+          gh release upload "v$VERSION" \
+            "dist/2build-pack_${VERSION}.tar.gz" \
+            "dist/2build-pack_${VERSION}.sha256"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Rewrite the in-repo tap formula with the real per-platform checksums
       # goreleaser just computed, and commit it to the default branch.
       - name: Sync Formula/bbs.rb with release checksums

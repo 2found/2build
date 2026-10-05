@@ -65,7 +65,7 @@ both routes select the same model. Preserve the ticket's `pointers.workflow`.
 |---|---|---|
 | Plan | Autopilot `<workflow> <ticket> --stop-after=plan`; plan/design artifacts only | Critical |
 | Implement | Autopilot scoped to implementation, focused checks and local commits | Normal |
-| Review | Autopilot scoped to `review-pr` without fixes; report repairs to Foreman | Critical |
+| Review | Autopilot scoped to `review-pr --fix`; dispatch passes `medium` effort (`low` only for `simple` tickets) regardless of profile-derived effort; applies and commits verified fixes, reports skips/unfixable findings to Foreman | Critical |
 | QA | Autopilot scoped to `qa` without code fixes; return checks and evidence | Normal |
 | Finish | Delivery worker runs only the authorized merge/PR handler | Normal |
 

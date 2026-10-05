@@ -54,6 +54,12 @@ jobs:
       - name: go test
         run: go test ./...
 
+      # The soot pack in packs/2build is generated from .claude/skills — a
+      # skill edit that forgets to regenerate ships a stale pack, so the
+      # script re-runs and the tree must diff clean. Pure stdlib Python.
+      - name: 2build pack freshness
+        run: python3 scripts/build-2build-pack.py --check-tree
+
       - name: Shell suites
         run: |
           pass=0; fail=0; failed=()

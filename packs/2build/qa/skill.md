@@ -1,0 +1,221 @@
+---
+name: qa
+description: Systematically test a web application, fix issues caused by the current change, and re-verify. Use for full QA loops, critical user flows, release checks, or test-and-fix requests.
+---
+# qa
+Exercise the application like a user and leave reproducible evidence.
+## Flow
+1. Load what to test — disk first, conversation as fallback. Resolve the
+   ticket (`bbs ticket resolve`); when it resolves, read whichever exist:
+   - `bbs ticket path requirement --read` — acceptance criteria
+   - `bbs ticket path plan --read` — especially its `**Verify:**` line
+   - `bbs ticket path handoff --skill implement --latest --read` — and its
+     `## Deviations`: each deviation is where the plan diverged from reality,
+     the likeliest home of a wrong guess
+   - `bbs ticket path verdict --skill review-pr --read` — unresolved
+     `FINDINGS` go into the case matrix; `RISK_AREAS`/`FIXED` seed security
+     and regression cases
+   Missing docs are not a gate — fall back to conversation. Change surface:
+   `BASE=$(bbs autopilot base-branch)`;
+   `git diff $(git merge-base origin/"$BASE" HEAD)`. Target URL and login
+   from `.babysit/qa.yaml`:
+   ```bash
+   eval "$(bbs secrets load)"                         # exports .babysit/.env values
+   ENV=$(bbs secrets qa default-env); ENV=${ENV:-local}
+   eval "$(bbs secrets qa probe --env "$ENV" 2>/dev/null)"  # QA_ENV_URL, QA_ENV_{USERNAME,PASSWORD}_ENV, …
+   QA_USER=$(printenv "${QA_ENV_USERNAME_ENV:-QA_USER}" 2>/dev/null || true)  # standard: QA_USER / QA_PASS
+   QA_PASS=$(printenv "${QA_ENV_PASSWORD_ENV:-QA_PASS}" 2>/dev/null || true)
+   ```
+   Target is `$QA_ENV_URL`; sign in with `$QA_USER`/`$QA_PASS`. A needed
+   credential resolving empty means the value is missing from
+   `.babysit/.env` — record that as the local-run blocker rather than testing
+   signed-out. No `.babysit/qa.yaml` is not a gate: derive the target from
+   conversation or the repo and note how credentials were obtained.
+   `NEEDS_CONTEXT` only when neither docs nor conversation can name a single
+   intended behavior to verify.
+2. Boot or probe the local target first; hosted URLs only when local run is
+   impossible and the reason is recorded. **QA the current checkout as-is** —
+   normally the branch the user is already on, whose dev server is the one
+   running: nothing to land, lease or compose. If the local target is down
+   and can't be started here, that's the recorded blocker. Server prep: when
+   `QA_ENV_PREPARE` is set (qa.yaml `prepare:`, idempotent install +
+   migrate), run it before probing. Before trusting any surface, confirm it
+   actually serves the change (probe a marker from the diff); if not, name
+   the stale surface rather than testing blind. Fixes edit the files in the
+   checkout under test — committing them stays the invoking workflow's job —
+   re-verify on the updated surface.
+   Before launching anything, record the pre-existing target server and
+   automation resources, then keep an ownership ledger for every process this
+   attempt starts (server handle/PID, browser session/namespace, simulator
+   UDID, Appium or other driver). Prefer supervised process handles over
+   detached shell jobs. Ownership, not process name, decides what cleanup may
+   stop.
+   **Foreman final integration mode:** a Task explicitly assigned a prepared
+   primary branch/HEAD plus parent acceptance and child/base revision manifest
+   tests that exact surface read-only. Verify its identity before and after
+   testing. Do not compose, revert/reset, switch branches, edit code, or release
+   the coordinator's lease. Report findings to Foreman for child repairs;
+   persist evidence/verdict on the parent. Foreman owns environment cleanup
+   and restoration under its lease. This explicit mode takes precedence over
+   the worktree protocol and surface-ownership rules below.
+   Running inside a ticket worktree (a foreman batch) is the other exception: the
+   dev server lives in the repo's **primary checkout only** (one heavy tree
+   per repo — never npm-install or boot a server in a worktree), so this
+   skill runs the surface protocol itself — `surface acquire`, `surface
+   compose`, and `QA_ENV_REVERT` before `surface release` — see
+   `../references/worktrees.md § QA loop`. Shared refs (`../references/*.md`)
+   are filesystem paths beside this skill's directory, so read them by path,
+   not as `skill://`.
+3. Code-level checks (tests, typecheck, lint) first — they gate, they don't
+   prove.
+4. Size the matrix to the repo's rigor: `eval "$(bbs autopilot git-flow)"` →
+   `$BBS_RIGOR` (see § Rigor tiers; unset or unreadable = `standard`).
+   Build a flow matrix from the acceptance criteria — not just the diff —
+   covering happy path, validation, empty/error states, failure/retry, and
+   responsive behavior. Derive the change's reach independently: for each
+   changed file/function, find callers and flows sharing its state or
+   routes, and give each an adjacent-regression case (BLAST_RADIUS is the
+   producer's own claim). Write the matrix before touching the app, each
+   case anchored to its source ("criterion 2", "review-pr finding 1",
+   "derived: shares session state"). Self-review: every criterion,
+   BLAST_RADIUS entry, unresolved review finding, and implement deviation
+   has a case; each touched flow has ≥1 non-happy-path case; behavior the
+   code walk surfaced that the requirement never mentions gets a *derived
+   criterion* case with the gap named in `SUMMARY`; an uncoverable criterion
+   is named as a gap now, never silently dropped. Save the matrix:
+   `bbs ticket path evidence --skill qa --name test-matrix.md --write`.
+   Mirror the matrix into the native task list (TaskCreate) — one task per
+   case, closed only when its evidence lands.
+5. Execute the flows end-to-end with a real client. Web UI: the `browse`
+   engine — Read `../browse/SKILL.md` § Engine before the first browser
+   command; its session-name export and setup are mandatory. Non-UI: a real
+   call sequence (curl, CLI, the repo's e2e suite). Never "test" a flow by
+   reading code or unit tests alone. Off-script time around the changed
+   surface — findings feed back as derived cases — per the tier: `smoke`
+   skips it, `standard` spends a few minutes, `strict` always spends it.
+6. Fix regressions owned by the current branch, then rerun the affected flow
+   and checks.
+7. Finish with one full end-to-end pass of the primary user journey on the
+   final code state — any code change after it invalidates the verdict.
+   Screenshot this verdict-bearing pass — and each failure or fixed
+   reproducer — to
+   `bbs ticket path evidence --skill qa --name <f>.png --write`; list the
+   paths in `EVIDENCE:`. (Ad-hoc `browse` checks stay screenshot-light; the
+   QA verdict's screenshots are the durable proof a human audits later.)
+8. Run the cleanup finalizer before persisting the verdict or returning any
+   status, including `BLOCKED` and tool-error paths. The `browse` skill closes
+   and verifies its exact browser session plus any simulator it booted. Stop
+   every server, driver, recorder, proxy, or watcher this QA attempt started,
+   and wait for exit; leave pre-existing targets and coordinator-owned shared
+   surfaces untouched. In ticket-worktree mode, also run the required
+   `QA_ENV_REVERT` and release the surface lease. In Foreman final integration
+   mode, close this attempt's clients but leave environment restoration to
+   Foreman under its lease.
+
+   Compare the final process state with the ownership ledger. Never use broad
+   `pkill`/`killall`, `agent-browser close --all`, or simulator-wide shutdown
+   as routine cleanup. If an owned process survives a scoped stop, retry once,
+   record the exact process/resource and cleanup command, and return
+   `STATUS: BLOCKED`; a passing product flow does not excuse a leaked
+   automation fleet.
+
+## Case design
+One case = user journey + expected observable + evidence — *as a user, do
+`<steps>` → observe `<result>`*, not a component check. The **primary
+journey** delivers the feature's core value end-to-end; it carries the
+verdict and runs last. Tie every failure to the criterion it violates, with
+reproduction steps.
+## Rigor tiers
+`$BBS_RIGOR` scales **breadth** — how many cases, how much off-script time,
+which dimensions may be `N/A`. It never scales the honesty floor below: a
+`PASS` means the same thing in all three tiers, and a pet project runs fewer
+cases, not zero.
+
+- **smoke** — 3–5 cases: the primary journey e2e plus ≥1 non-happy case. No
+  extra viewport/browser sweep unless the change is UI-visible. No off-script
+  budget. `compat`/`security`/`a11y`/`perf` may be `N/A` on a change that
+  doesn't obviously touch them (still with a reason).
+- **standard** (default) — 5–10 cases: the full matrix from the acceptance
+  criteria plus adjacent-regression cases.
+- **strict** — 8–12 cases; `security`, `a11y` and `compat` must carry a real
+  grade — an `N/A` there needs a reason that would survive review, not "the
+  change looks unrelated". Off-script exploration is mandatory. When the diff
+  touches auth, money, or data paths, also run `security-review`.
+
+Do not leave a process running solely for human review. Under every rigor tier,
+the screenshots and evidence are the handoff: stop a target this QA attempt
+started, but preserve and name a target that was already running. In a ticket
+worktree always revert and release the shared surface lease. Foreman final
+integration mode still leaves coordinator-owned environment restoration to
+Foreman, while this QA attempt closes every browser/client it created.
+## Coverage rubric
+Grade every dimension A–D against the change's risk surface; a dimension the
+change can't touch is `N/A` **with a one-line reason** — never a silent skip.
+
+- **flow**: A = happy + every alternate/branch flow e2e · B = happy + ≥2 alternates · C = happy only · D = none e2e
+- **boundary**: A = limits, invalid input, empty/error, failure/retry all exercised · B = ≥1 boundary + ≥1 error · C = mentioned, not executed · D = none
+- **regression**: A = existing behavior around the change re-verified · B = adjacent flow spot-checked · C = assumed intact · D = not considered
+- **data**: A = state correct across reload/nav/concurrent edits · B = persists across reload · C = not checked · D = loss/corruption seen
+- **compat**: A = target browsers + responsive breakpoints · B = one extra viewport · C = default viewport only · D = broken layout seen
+- **security**: A = permission gates + input safety (authz, injection) probed · B = auth-required paths checked · C = noted, not tested · D = access-control gap seen
+- **a11y**: A = keyboard path, labels/roles, contrast, clear error copy · B = keyboard + visible focus · C = not checked · D = blocking defect
+- **perf**: A = responsive under realistic data volume · B = no obvious lag on happy path · C = not observed · D = timeout/jank seen
+- **freshness** (always applies): A = final full e2e pass on the *final* code state · B = e2e passed but code changed after · C = partial/stale e2e · D = unit/curl/code-read only
+`PASS`/`FIXED` require **every applicable** dimension at B or better and
+freshness at A — **identical in all three rigor tiers**. Rigor decides which
+dimensions are legitimately `N/A` and how many cases feed a grade; it never
+lowers the bar a graded dimension has to clear. Any applicable dimension at C or D forces `VERDICT: FAIL`
+(→ `STATUS: BLOCKED`), or `DONE_WITH_CONCERNS` naming the blocker if a real
+blocker stopped coverage. Report the grade line for every dimension,
+including `N/A: <reason>`.
+## Rules
+- Keep test data reversible; no destructive production actions.
+- Distinguish current-change bugs from pre-existing failures — and only call
+  one pre-existing after watching it fail at the base commit (a scratch
+  `git worktree add` keeps this tree untouched). Arguing from how old the
+  code looks is not evidence; "pre-existing" is the most common sentence a
+  real regression ships behind.
+- Do not report a fix until the original reproducer passes.
+- `PASS`/`FIXED` require an executed end-to-end run as the *most recent*
+  evidence — tool, journey steps, observed result — and the app proven
+  running locally (or the local-run blocker named). Happy-path-only is not a
+  PASS.
+- Prefer deep checks over many vague clicks; `$BBS_RIGOR` sets how many.
+- Every QA summary names the local target or blocker, the case matrix, and
+  at least one non-happy-path result.
+- `VERDICT: FAIL` always pairs with `STATUS: BLOCKED` — never `DONE*`. The
+  PR gate treats any `DONE*` status as ready; a failing QA that reports
+  `DONE_WITH_CONCERNS` silently opens the gate.
+- A terminal status requires completed cleanup evidence. An owned browser,
+  daemon, simulator, server, driver, recorder, proxy, or watcher still alive
+  forces `STATUS: BLOCKED`, even when the exercised product behavior passed.
+## Output
+```text
+STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
+VERDICT: PASS | FIXED(<N>) | FAIL
+SUMMARY: <rigor tier + local target/blocker + flow matrix + findings>
+SOURCES: <context read in step 1: requirement, plan, implement-handoff, review-pr — or conversation-only>
+RUBRIC: flow=<> boundary=<> regression=<> data=<> compat=<> security=<> a11y=<> perf=<> freshness=<>  (grade or N/A each)
+EVIDENCE: <last e2e run: tool + journey + result; screenshot + errors/report paths under evidence/qa/>
+CLEANUP: <owned resources stopped and verified; pre-existing/shared resources retained>
+```
+When a ticket resolves, persist the **full block** (`RUBRIC`, `EVIDENCE`, and
+`CLEANUP` included) — `verdicts/qa.md` is the only artifact a human or
+orchestrator sees after the fact. A `qa-evidence` audit re-checks the body on
+write and
+the PR/merge gate **denies** a PASS that contradicts its own rubric
+(freshness < A, any C/D dimension) or carries no e2e evidence. Record it even
+when full QA was impossible (`DONE_WITH_CONCERNS` with the named blocker; a
+concerns verdict with no named blocker is flagged `unexplained`):
+```bash
+bbs ticket set-verdict --skill qa --body "$(cat <<'EOF'
+STATUS: ...
+VERDICT: ...
+SUMMARY: ...
+SOURCES: ...
+RUBRIC: flow=<> boundary=<> regression=<> data=<> compat=<> security=<> a11y=<> perf=<> freshness=<>
+EVIDENCE: <last e2e run: tool + journey + result; screenshot/log paths under evidence/qa/>
+CLEANUP: <owned resources stopped and verified; pre-existing/shared resources retained>
+EOF
+)"
+```
