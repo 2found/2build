@@ -17,6 +17,8 @@
   `bin/setup-skills`; the relink step is the compiled `setup` with stdout
   discarded, so upgrading on Windows no longer needs bash.
 
+## 1.93.12 — 2026-10-05
+
 ### Fixed
 
 - Foreman preserves selected OMP models and role aliases through native idle
