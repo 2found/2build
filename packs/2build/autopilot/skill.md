@@ -2,6 +2,13 @@
 name: autopilot
 description: "Deliver one ticket end-to-end from a requirement or accepted plan to a releasable, locally committed change. Own implementation, review fixes, QA, and evidence across resumes; use foreman for multi-ticket projects."
 ---
+
+> **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.
+> Install it first: `brew install lohi-ai/babysit/bbs` (macOS/Linux), the release
+> tarball on Linux, or WSL/Git-Bash on Windows (no Windows binary is published);
+> `go run ./cmd/bbs setup` from a checkout works on any OS. Without `bbs` the
+> skill reports `BBS_DEGRADED` and stops.
+
 # autopilot
 A **goal proxy**: the skill owns init — durable ticket state, requirement,
 plan — and the harness's work loop owns execution (`/goal` where supported),

@@ -2,6 +2,13 @@
 name: sweep
 description: Simplify and shrink working code without changing behavior. Use to remove dead code, unship unused features, cut complexity, tidy UI, or optimize a measured hot path.
 ---
+
+> **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.
+> Install it first: `brew install lohi-ai/babysit/bbs` (macOS/Linux), the release
+> tarball on Linux, or WSL/Git-Bash on Windows (no Windows binary is published);
+> `go run ./cmd/bbs setup` from a checkout works on any OS. Without `bbs` the
+> skill reports `BBS_DEGRADED` and stops.
+
 # sweep
 The Sweeper archetype (see `../references/archetypes.md`). Shared refs
 (`../references/*.md`) are filesystem paths beside this skill's directory, so

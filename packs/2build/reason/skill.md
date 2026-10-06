@@ -2,6 +2,13 @@
 name: reason
 description: Deliberate-reasoning scaffold that lifts a smaller model's planning, solution design, debugging, and QA thinking toward frontier quality. Use before drafting a plan, choosing between designs, diagnosing a hard bug, writing a QA plan, or whenever the first plausible answer might be wrong. Composable — run another skill "with reason" to harden its decision points.
 ---
+
+> **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.
+> Install it first: `brew install lohi-ai/babysit/bbs` (macOS/Linux), the release
+> tarball on Linux, or WSL/Git-Bash on Windows (no Windows binary is published);
+> `go run ./cmd/bbs setup` from a checkout works on any OS. Without `bbs` the
+> skill reports `BBS_DEGRADED` and stops.
+
 # reason
 What separates frontier reasoning is not knowledge — it's discipline at
 decision points. A strong model implicitly branches, attacks its own answer,

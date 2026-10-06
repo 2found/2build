@@ -2,6 +2,13 @@
 name: create-pr
 description: Prepare and create a pull request from the current branch. Use when code is ready to push, the user asks for a PR, or a babysit handoff is ready for human review.
 ---
+
+> **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.
+> Install it first: `brew install lohi-ai/babysit/bbs` (macOS/Linux), the release
+> tarball on Linux, or WSL/Git-Bash on Windows (no Windows binary is published);
+> `go run ./cmd/bbs setup` from a checkout works on any OS. Without `bbs` the
+> skill reports `BBS_DEGRADED` and stops.
+
 # create-pr
 Create a reviewable PR without merging it.
 ## Flow

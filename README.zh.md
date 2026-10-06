@@ -15,7 +15,9 @@ brew install lohi-ai/babysit/bbs
 bbs install
 ```
 
-安装后重启 agent。`bbs install` 支持 Claude Code、Codex 和 Antigravity；Claude Code 和 Codex 的 CLI 必须在 PATH 中。也可单独运行 `bbs install claude`、`bbs install codex` 或 `bbs install antigravity`。参见[安装详情](docs/install.md)，其中也介绍了 Linux 软件包。
+安装后重启 agent。`bbs install` 支持 Claude Code、Codex 和 Antigravity；Claude Code 和 Codex 的 CLI 必须在 PATH 中。也可单独运行 `bbs install claude`、`bbs install codex` 或 `bbs install antigravity`。
+
+三个操作系统均已覆盖：macOS 和 Linux 可用 Homebrew，Linux 也可下载对应架构的 tarball。Windows 不发布二进制文件 —— 请在 WSL 或 Git-Bash 中运行，或在 checkout 中执行 `go run ./cmd/bbs setup` 构建。完整平台矩阵见[安装详情](docs/install.md)。
 
 要开发 Babysit 本身，请克隆仓库并运行 `go run ./cmd/bbs setup --full`；它会构建 `bbs` 并输出将当前 checkout 注册为本地插件的命令。`bbs update` 更新 CLI 和已安装的插件。
 

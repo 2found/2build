@@ -2,6 +2,13 @@
 name: maintain
 description: Keep a mature system secure, reliable, and efficient at scale. Use for security and dependency audits, reliability hardening, db/query performance (schema, indexes, partitioning, caching, batching, async processing), and architecture reviews under change or scale pressure.
 ---
+
+> **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.
+> Install it first: `brew install lohi-ai/babysit/bbs` (macOS/Linux), the release
+> tarball on Linux, or WSL/Git-Bash on Windows (no Windows binary is published);
+> `go run ./cmd/bbs setup` from a checkout works on any OS. Without `bbs` the
+> skill reports `BBS_DEGRADED` and stops.
+
 # maintain
 The Maintainer archetype (see `../references/archetypes.md`). Shared refs
 (`../references/*.md`) are filesystem paths beside this skill's directory, so

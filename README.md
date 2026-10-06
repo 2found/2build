@@ -15,7 +15,9 @@ brew install lohi-ai/babysit/bbs
 bbs install
 ```
 
-Restart your agent after installing. `bbs install` supports Claude Code, Codex and Antigravity; Claude Code and Codex need their CLI on PATH. To install for one harness only, use `bbs install claude`, `bbs install codex`, or `bbs install antigravity`. See [installation details](docs/install.md), including Linux packages.
+Restart your agent after installing. `bbs install` supports Claude Code, Codex and Antigravity; Claude Code and Codex need their CLI on PATH. To install for one harness only, use `bbs install claude`, `bbs install codex`, or `bbs install antigravity`.
+
+All three OSes are covered: Homebrew on macOS and Linux, or the per-arch tarball from the latest release on Linux. Windows publishes no binary — run inside WSL or Git-Bash, or build `go run ./cmd/bbs setup` from a checkout. See [installation details](docs/install.md) for the full platform matrix.
 
 To work on Babysit itself, clone the repository and run `go run ./cmd/bbs setup --full`; it builds `bbs` and prints local plugin registration commands. `bbs update` refreshes the CLI and installed plugins.
 

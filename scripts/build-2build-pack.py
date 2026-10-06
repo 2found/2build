@@ -47,6 +47,19 @@ DEFAULT_OUT = ROOT / "packs" / "2build"
 EXCLUDE = {"foreman", "references"}
 SOOT_SKILL_LIMIT = 64 << 10  # matches internal/config/config.go maxPromptBytes
 
+# Soot inlines a skill body verbatim into the agent prompt and never resolves
+# the `../references/` links the source skills carry, so the bbs-CLI
+# prerequisite has to sit in the body itself to be read. Injected into every
+# packed skill.md (after the frontmatter) and repeated in the README.
+PREREQUISITE = (
+    "> **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.\n"
+    "> Install it first: `brew install lohi-ai/babysit/bbs` (macOS/Linux), the release\n"
+    "> tarball on Linux, or WSL/Git-Bash on Windows (no Windows binary is published);\n"
+    "> `go run ./cmd/bbs setup` from a checkout works on any OS. Without `bbs` the\n"
+    "> skill reports `BBS_DEGRADED` and stops.\n"
+    "\n"
+)
+
 FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 
 
@@ -61,6 +74,13 @@ def frontmatter_field(text, key):
     return ""
 
 
+def with_prerequisite(text):
+    """Insert the bbs-CLI prerequisite after the frontmatter block."""
+    m = FRONTMATTER.match(text)
+    at = m.end() if m else 0
+    return text[:at] + "\n" + PREREQUISITE + text[at:]
+
+
 def copy_skill(dst_dir, src_dir):
     dst_dir.mkdir(parents=True, exist_ok=True)
     for path in sorted(src_dir.rglob("*")):
@@ -71,6 +91,8 @@ def copy_skill(dst_dir, src_dir):
         target = dst_dir / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, target)
+        if rel == Path("skill.md"):
+            target.write_text(with_prerequisite(target.read_text()))
 
 
 def write_tarball(pack_dir, out_path):
@@ -168,9 +190,10 @@ def build(out, version, commit):
             failures.append(f"{name}: missing SKILL.md")
             continue
         body = skill_file.read_bytes()
-        if len(body) > SOOT_SKILL_LIMIT:
+        packed = len(body) + 1 + len(PREREQUISITE.encode())
+        if packed > SOOT_SKILL_LIMIT:
             failures.append(
-                f"{name}: SKILL.md is {len(body)} bytes, over the {SOOT_SKILL_LIMIT}-byte soot skill limit")
+                f"{name}: skill.md is {packed} bytes, over the {SOOT_SKILL_LIMIT}-byte soot skill limit")
             continue
         text = body.decode()
         description = frontmatter_field(text, "description")
@@ -185,7 +208,7 @@ def build(out, version, commit):
                 "description": description,
             }]
         }
-        rows.append((name, len(body), description))
+        rows.append((name, packed, description))
 
     shared = SKILLS / "references"
     if shared.is_dir():
@@ -227,6 +250,22 @@ def build(out, version, commit):
         "Babysit skill pack for Soot — part of the 2found ecosystem. Each",
         "capability is one babysit skill; select them in the Soot definition.",
         "`foreman` is excluded on purpose: it needs the Orca worker runtime.",
+        "",
+        "## Prerequisites",
+        "",
+        "The `bbs` CLI must be on `PATH` — every skill shells out to it. Install:",
+        "",
+        "```sh",
+        "brew install lohi-ai/babysit/bbs",
+        "```",
+        "",
+        "Homebrew covers macOS and Linux; on Linux you can also download the",
+        "per-arch tarball from the latest GitHub release. Windows publishes no",
+        "binary — run inside WSL or Git-Bash (the Linux tarball works there), or",
+        "build `go run ./cmd/bbs setup` from a checkout. A plugin-only install ships",
+        "no compiled binary; without `bbs` the skills report `BBS_DEGRADED` and stop.",
+        "The same prerequisite is inlined at the top of every `skill.md`, so the",
+        "agent reads it on any skill load.",
         "",
         "| Capability | Bytes | When to use |",
         "| --- | --- | --- |",

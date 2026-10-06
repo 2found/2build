@@ -15,7 +15,9 @@ brew install lohi-ai/babysit/bbs
 bbs install
 ```
 
-Khởi động lại agent sau khi cài. `bbs install` hỗ trợ Claude Code, Codex và Antigravity; Claude Code và Codex cần CLI trên PATH. Muốn chọn riêng, chạy `bbs install claude`, `bbs install codex` hoặc `bbs install antigravity`. Xem [hướng dẫn cài đặt](docs/install.md), bao gồm các gói cho Linux.
+Khởi động lại agent sau khi cài. `bbs install` hỗ trợ Claude Code, Codex và Antigravity; Claude Code và Codex cần CLI trên PATH. Muốn chọn riêng, chạy `bbs install claude`, `bbs install codex` hoặc `bbs install antigravity`.
+
+Cả 3 hệ điều hành đều được hỗ trợ: Homebrew trên macOS và Linux, hoặc tarball theo kiến trúc từ bản release mới nhất trên Linux. Windows không có binary chính thức — chạy trong WSL hoặc Git-Bash, hoặc build bằng `go run ./cmd/bbs setup` từ checkout. Xem [hướng dẫn cài đặt](docs/install.md) cho ma trận nền tảng đầy đủ.
 
 Để phát triển chính Babysit, clone repo rồi chạy `go run ./cmd/bbs setup --full`; lệnh này build `bbs` và in lệnh đăng ký plugin từ checkout. `bbs update` cập nhật CLI và các plugin đã cài.
 
