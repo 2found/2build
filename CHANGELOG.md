@@ -17,6 +17,21 @@
   `bin/setup-skills`; the relink step is the compiled `setup` with stdout
   discarded, so upgrading on Windows no longer needs bash.
 
+## 1.94.2 — 2026-10-06
+
+### Changed
+
+- **Docs/READMEs name all three OSes** — install instructions now state
+  Homebrew covers macOS and Linux, the per-arch tarball covers Linux, and
+  Windows publishes no binary (WSL/Git-Bash or `go run ./cmd/bbs setup`).
+- **2build pack ships a `bbs` prerequisite** — `packs/2build` README gains a
+  `## Prerequisites` section and the same note is injected into every packed
+  `skill.md`, since soot inlines the skill body but never resolves the
+  `../references/` links.
+- **Unshipped stale one-shot docs** — removed `docs/autopilot-design/`, the
+  `orca-agent-ownership` planning docs, and investigation/spike write-ups with
+  no inbound references.
+
 
 ## 1.94.1 — 2026-10-06
 
