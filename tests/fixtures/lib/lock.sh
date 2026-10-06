@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# lib/lock.sh — atomic mkdir-based lock primitive used by bbs-ticket. First
-# module of the bin decomposition (docs/bin-decomposition-spike.md,
-# extraction step 1).
+# lib/lock.sh — atomic mkdir-based lock primitive used by bbs-ticket.
 #
 # Sourced module: function definitions only, no side effects at source time,
 # no `set` changes, everything namespaced `bbs_lock_*`. The lock IS the

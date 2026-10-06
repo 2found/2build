@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # tests/test_lib_lock.sh — the shared mkdir-lock primitive (tests/fixtures/lib/lock.sh).
 #
-# First module of the bin decomposition (docs/bin-decomposition-spike.md). Pins
-# the primitive bbs-ticket builds its lock policies
-# on: acquire creates the dir, a second acquire on the held dir times out, and
-# release removes it (dir + any PID file under it).
+# Pins the primitive bbs-ticket builds its lock policies on: acquire creates
+# the dir, a second acquire on the held dir times out, and release removes it
+# (dir + any PID file under it).
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"

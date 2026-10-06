@@ -44,8 +44,7 @@ esac
 #      - filesystem paths (bin/bbs-ticket, tests/fixtures/bbs-*.reference)
 #      - bbs-ticket-test / bbs-ticket-lint, which are separate scripts, not symlinks
 #    Excluded outright: CHANGELOG.md and blogs/ (dated records — rewriting them
-#    would falsify history) and docs/bin-decomposition-spike.md (a bash-era
-#    spike whose subject *is* the standalone scripts).
+#    would falsify history).
 #    The tail char after the alias must be invocation-shaped (letter, digit, -,
 #    / or end-of-line): that still matches `bbs-ticket init` and bare-name calls,
 #    while backticked prose mentions like (`bbs-config`, `bbs-env`) in
@@ -54,7 +53,6 @@ ALIAS_RE='(^|[^/[:alnum:]_-])bbs-(ticket|design|secrets|qa-config|autopilot|conf
 STRAY="$(grep -rnoE "$ALIAS_RE" \
     "$REPO/.claude/skills" "$REPO/docs" "$REPO"/README*.md "$REPO/CLAUDE.md" \
     --include='*.md' 2>/dev/null \
-  | grep -v 'bin-decomposition-spike' \
   | grep -vE 'bbs-ticket-(test|lint)' || true)"
 # Re-check each hit against its full source line — the -o match alone can't see
 # whether the line is discussing the alias or invoking it.
