@@ -1,0 +1,8 @@
+Generated with the built-in image_gen tool; optimized as a JPEG for the README.
+
+Use case: ads-marketing
+Asset type: hero banner for the GitHub README of 2build, an open-source product engineering workflow and skill pack.
+Primary request: a polished editorial product-engineering cover with a very wide landscape 3:1 composition, roughly 1800 by 600. Warm off-white paper background with subtle drafting-grid lines, near-black type, restrained orange accents. Professional, tactile, precise; like a modern industrial design studio.
+Subject: on the left, the exact large lowercase word "2build", with the small exact caption "Product engineering." beneath it. On the right, a sculptural isometric assembly of five connected architectural modules transforming a simple orange starting block into a finished modular product: a folded plan sheet, a structured frame, a magnifying lens, a checkmark tile, and a completed solid object. One thin orange path connects the modules to suggest plan, build, review, verify and handoff. Plenty of whitespace, crisp silhouettes, subtle shadows, restrained detail. The brand title should be visually dominant and readable at mobile thumbnail sizes.
+Text (verbatim): "2build" and "Product engineering." only.
+Constraints: no extra words, no humans, no robots, no rockets, no terminal UI, no fake screenshot, no dashboard, no badges, no gradients, no watermark. Keep all essential elements within generous margins. This is a conceptual illustration, not a screenshot or new logo.

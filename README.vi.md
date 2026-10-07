@@ -2,9 +2,25 @@
 
 [English](README.md) | Tiếng Việt | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-**Giao mục tiêu cho coding agent. Nhận lại thay đổi đã được review và kiểm thử.**
+![2build — từ kế hoạch đến bàn giao đã kiểm chứng. Hình minh họa ý tưởng.](docs/assets/2build-banner.jpg)
 
-2build là bộ skill mã nguồn mở cho Claude Code, Codex và Antigravity, kèm CLI lưu tiến độ và bằng chứng kiểm chứng. Bắt đầu với **Autopilot**: một ticket, từ yêu cầu đến commit cục bộ, ngay trong session agent bạn đang dùng.
+<img src="assets/2build-mascot-transparent.png" alt="Mascot 2build: nhân vật khối cam đội mũ bảo hộ, cầm khối đã kiểm chứng." width="128" height="128" align="right">
+
+**Xem prototype. Để Autopilot làm phần còn lại.**
+
+**[Bắt đầu với Autopilot](#cài-đặt) · [Đọc tài liệu (tiếng Anh)](docs/install.md)**
+
+2build giúp coding agent làm trọn một tính năng. Bạn đưa yêu cầu, xem prototype giao diện, rồi để **Autopilot** tự viết code, kiểm tra và sửa lỗi.
+
+Với giao diện nhỏ, mục tiêu là xem prototype sau **khoảng 5 phút**; thời gian thực tế tùy tác vụ, model và dự án.
+
+- **Chất lượng:** code được review, kiểm thử và sửa lỗi trước khi bàn giao.
+- **Năng suất:** agent tự làm các bước, bạn không cần nhắc từng việc.
+- **Hiệu quả:** chỉnh prototype sớm, giảm công sức làm lại khi chưa đúng ý.
+
+Dùng với **Claude Code, Codex, Antigravity, OMP và Grok**, cùng bất kỳ coding agent nào hỗ trợ Claude Code skills.
+
+Một sản phẩm của 2found. Tên cũ là babysit; CLI `bbs`, skill `bbs:` và trạng thái `.babysit` giữ tương thích. Xem [quy chuẩn tên gọi](BRANDING.md) (tiếng Anh).
 
 <a id="cài-đặt"></a>
 
@@ -16,7 +32,7 @@ Dán prompt này vào coding agent có quyền chạy terminal:
 Cài 2build cho coding agent tôi đang dùng theo
 https://raw.githubusercontent.com/2found/2build/main/docs/install.md. Xác định hệ điều
 hành và agent hiện tại, dùng lại bbs nếu đã hoạt động hoặc cài CLI, rồi cài skill pack
-chỉ cho agent này. Kiểm tra bbs --version và plugin đã cài; nếu thiếu điều kiện cần thì
+chỉ cho agent này. Kiểm tra bbs --version và các skill đã cài; nếu thiếu điều kiện cần thì
 báo rõ, không kết luận thành công. Cho tôi biết có cần khởi động lại không và đưa đúng
 lời gọi Autopilot cho agent của tôi để chạy tác vụ nhỏ đầu tiên.
 ```
@@ -32,22 +48,9 @@ brew install 2found/2build/bbs
 bbs install
 ```
 
-`bbs install` cài cho tất cả agent được hỗ trợ mà nó phát hiện. Chọn riêng bằng `bbs install claude`, `bbs install codex` hoặc `bbs install antigravity`. Khởi động lại agent sau khi cài. Không có Homebrew thì dùng [archive từ release](docs/install.md#release-archives-macos-or-linux); trên Windows, dùng WSL.
+`bbs install` tự phát hiện Claude Code, Codex và Antigravity. Với OMP, Grok và agent tương thích khác, xem [hướng dẫn cài skill](docs/install.md#omp-grok-and-other-compatible-agents). Chọn riêng bằng `bbs install claude`, `bbs install codex` hoặc `bbs install antigravity`. Khởi động lại agent sau khi cài. Không có Homebrew thì dùng [archive từ release](docs/install.md#release-archives-macos-or-linux); trên Windows, dùng WSL.
 
 </details>
-
-## 2build khác gì?
-
-Một prompt có thể mô tả cách làm. 2build bổ sung workflow và trạng thái trên đĩa để đi từ mục tiêu đến review và kiểm chứng, kể cả khi session phải khởi động lại.
-
-| Bạn cần | 2build cung cấp |
-|---------|-----------------|
-| Hoàn thành tác vụ mà không chỉ dẫn từng bước | Autopilot đi qua lên kế hoạch, triển khai, sửa lỗi review và QA cho một ticket. |
-| Tiếp tục sau crash hoặc mất context | Yêu cầu, kế hoạch, checkpoint và handoff được lưu trên đĩa để khôi phục. |
-| Biết kết quả đã được kiểm tra | Verdict review và QA được lưu; chỉ hoàn tất khi kiểm tra hiện tại đạt và không còn phát hiện nghiêm trọng chưa xử lý. |
-| Chủ động bàn giao | Autopilot độc lập commit cục bộ. Bạn xem bằng chứng trước khi push hoặc mở PR. |
-
-Dùng khi tác vụ cần bàn giao có kiểm chứng hoặc bạn muốn để agent làm việc lúc đi vắng. Sửa nhanh một chỗ có thể chỉ cần coding agent. 2build vẫn cần môi trường kiểm thử của dự án; thiếu quyền truy cập hoặc kiểm tra bắt buộc sẽ được báo `NEEDS_CONTEXT` hoặc `BLOCKED`.
 
 <a id="autopilot-một-ticket"></a>
 
@@ -58,14 +61,28 @@ Dùng khi tác vụ cần bàn giao có kiểm chứng hoặc bạn muốn để
 
    | Agent | Ví dụ |
    |-------|-------|
-   | Claude Code | `/bbs:autopilot "Sửa trạng thái tìm kiếm không có kết quả và thêm regression test"` |
-   | Codex | `$bbs:autopilot "Sửa trạng thái tìm kiếm không có kết quả và thêm regression test"` |
-   | Antigravity | Yêu cầu dùng skill `autopilot` đã cài cho tác vụ của bạn. |
+   | Claude Code | `/bbs:autopilot "Thêm màn hình tìm kiếm đã lưu. Cho xem prototype trước, rồi triển khai, review và QA."` |
+   | Codex | `$bbs:autopilot "Thêm màn hình tìm kiếm đã lưu. Cho xem prototype trước, rồi triển khai, review và QA."` |
+   | OMP | `/autopilot "Thêm màn hình tìm kiếm đã lưu. Cho xem prototype trước, rồi triển khai, review và QA."` |
+   | Grok | `/bbs:autopilot "Thêm màn hình tìm kiếm đã lưu. Cho xem prototype trước, rồi triển khai, review và QA."` |
+   | Antigravity / agent tương thích khác | Yêu cầu dùng skill `autopilot` đã cài cho tác vụ của bạn. |
 
-3. Khi Autopilot trả kế hoạch và block `/goal`, đọc kế hoạch rồi dán block vào cùng agent để bắt đầu build. Với agent không có goal mode, nó tiếp tục trong session hiện tại.
-4. Kết quả mong đợi: commit cục bộ, bằng chứng review/QA và handoff ghi rõ thay đổi cùng kiểm tra đã chạy. Nếu bị chặn, báo cáo sẽ nêu phần còn thiếu. Sau khi khởi động lại, đưa ticket ID từ handoff cho Autopilot để tiếp tục.
+3. Đọc kế hoạch và, với tác vụ UI, mở prototype. Chỉnh bố cục, luồng tương tác hoặc phạm vi ngay tại đây. Khi Autopilot trả block `/goal`, dán vào cùng agent để bắt đầu thực hiện. Với agent không có goal mode, thêm `--stop-after=plan` vào yêu cầu đầu tiên để dừng ở bước duyệt này, rồi làm theo lời gọi tiếp tục trong handoff.
+4. Để Autopilot triển khai, review, sửa lỗi, kiểm thử và QA. Khi đạt các gate hoàn tất, nó trả commit cục bộ và bằng chứng; nếu bị chặn, báo cáo nêu phần còn thiếu. Sau khi khởi động lại, đưa ticket ID từ handoff để tiếp tục.
 
 Ticket đầu không cần Orca, session worker mới hay cấu hình dự án. Chọn model của session trước khi chạy. [Xem tiến độ và khôi phục session](docs/companion-cli.md).
+
+## Tiếp tục xây sản phẩm cùng 2found
+
+Khi sản phẩm cần thêm, chọn công cụ theo bước tiếp theo:
+
+| Bạn muốn | Khám phá |
+|----------|----------|
+| Thêm AI agent vào sản phẩm | [**Soot**](https://trysoot.com), powered by **2agent** — **agent as config** — thêm config vào source code. Có thêm đồng đội AI. |
+| Deploy sản phẩm đã build | [**2server**](https://github.com/2found/2server) — triển khai và vận hành ứng dụng trên hạ tầng bạn sở hữu. |
+| Giúp khách hàng tìm thấy sản phẩm | [**2market**](https://2found.dev/#2market) — không gian marketing đang phát triển, kết nối bối cảnh sản phẩm, nội dung và các kênh trong một quy trình. |
+
+Bắt đầu với 2build cho công việc engineering; tìm hiểu các sản phẩm này khi nhu cầu xuất hiện.
 
 ## Chọn theo công việc
 
@@ -88,6 +105,9 @@ Xem [danh mục skill](docs/skills.md) để chọn skill riêng và ví dụ wo
 
 Với nhiều ticket phụ thuộc nhau, [Foreman](docs/foreman.md) dùng [Orca](https://www.onorca.dev) để lên kế hoạch tổng thể, tách ticket con vào worktree, giao việc đã sẵn sàng và QA toàn dự án. Mặc định bạn duyệt kế hoạch/thiết kế trước khi giao việc triển khai; `--auto` giao bước duyệt đó cho worker. Chính sách finish đã cấu hình quyết định cách bàn giao.
 
+<details>
+<summary>Chi tiết CLI và cấu hình</summary>
+
 ## Skill và CLI
 
 Skill là các quy trình dành cho agent; `bbs` là CLI hỗ trợ chúng. `/bbs:foreman` chạy bộ điều phối dự án; `bbs foreman` quản lý tra cứu chính sách model, bản ghi Foreman bền vững, các quy ước và báo cáo. `/bbs:autopilot` chạy quy trình một ticket; `bbs autopilot` cung cấp các công cụ checkpoint và trạng thái. `bbs ticket` quản lý danh tính ticket, quan hệ DAG, bằng chứng, môi trường kiểm thử, bàn giao và dọn dẹp.
@@ -105,6 +125,14 @@ bbs autopilot recover --json
 `snapshot` đọc trạng thái chuẩn của ticket và bằng chứng của các gate; `recover` bổ sung các trích đoạn tài liệu có giới hạn để tiếp tục công việc.
 
 Chạy `bbs <subcommand> --help` để xem cách dùng. Chi tiết: [CLI hỗ trợ](docs/companion-cli.md), [profile](docs/profiles.md) và [vận hành](docs/operations.md).
+
+</details>
+
+## Tài liệu (tiếng Anh)
+
+[Cài đặt và xử lý lỗi](docs/install.md) · [Chọn skill](docs/skills.md) · [Xem tiến độ](docs/companion-cli.md) · [Điều phối dự án](docs/foreman.md)
+
+Với coding agent, [llms.txt](llms.txt) dẫn thẳng đến hướng dẫn Markdown và các quy ước runtime.
 
 ## Cấu trúc repo
 

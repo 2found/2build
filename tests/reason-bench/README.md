@@ -1,22 +1,32 @@
 # reason-bench
 
-Differential benchmark for the `reason` skill (`.claude/skills/reason/SKILL.md`):
-does the five-move scaffold lift model output on hard problems, and does the
-lift persist across model tiers?
+**Check whether a reasoning scaffold improves the answer.**
+
+This differential benchmark evaluates 2build's [reason skill](../../.claude/skills/reason/SKILL.md)
+across planning, coding, UI, architecture and QA problems. It compares a task
+alone with the same task plus the skill's five-move scaffold across model tiers.
+
+**[Read the results](results/results.md) · [Reproduce a run](#run-protocol) · [See the harder v2 benchmark](v2/README.md)**
+
+The recorded 2026-07-29 results show mixed effects: haiku and opus each gained
+one point out of 35; sonnet lost one. Several problems were near the scoring
+ceiling. These are findings from this small test set, not a general performance
+claim for 2build. See [grading notes](results/grading-notes.md) for the evidence.
 
 ## Matrix
 
 - **Models:** haiku, sonnet, opus
 - **Conditions:** `base` (task only) vs `scaffold` (task + `scaffold.md`, the
   domain-neutral extraction of the skill's five moves)
-
-Note: `scaffold.md` is the pre-overhaul snapshot actually tested on
-2026-07-29. The skill was revised afterward from these results (deliverable
-shape rule, quantify + spec-sweep in Attack) — re-extract before a re-run.
 - **Problems:** 5 domains, one hard problem each — see `problems/`
 
 30 runs total. Each problem is self-contained (answerable from model knowledge,
 no repo/web/shell access) so runs are comparable across models and conditions.
+
+`scaffold.md` is the pre-overhaul snapshot tested on 2026-07-29. The skill was
+revised afterward (deliverable shape rule, quantify + spec-sweep in Attack).
+Use the saved snapshot to reproduce this experiment; re-extract from the current
+skill when evaluating a new version, and record which version you tested.
 
 ## Layout
 

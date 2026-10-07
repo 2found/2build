@@ -1,8 +1,20 @@
 # reason-bench v2
 
-Second iteration, built from v1's lessons (`../results/results.md` §lessons):
-harder composed traps, execution grading where possible, and **fable added as
-a benched subject** to establish the target line the skill claims to close.
+**Test the reasoning scaffold against harder, interacting constraints.**
+
+The second iteration of 2build's [reason benchmark](../README.md) uses
+composed traps, execution grading where possible, and fable as a comparison
+subject. It tests whether the scaffold's gains survive a more demanding task.
+
+**[Read the results](results/results.md) · [Reproduce a run](#run-protocol) · [Review the known bias](#known-bias--disclose-with-any-result)**
+
+In the recorded 2026-07-29 results, haiku gained one point out of 16 with the
+scaffold; opus and fable were already at the ceiling. Haiku with the scaffold
+remained two points below fable's baseline. Read these findings with the bias
+disclosure below; they do not establish a general model-equivalence claim.
+
+The design follows [v1's benchmark lessons](../results/results.md#bench-design-lessons-for-a-next-iteration):
+fewer problems, harder constraint interactions and more executable checks.
 
 ## Matrix
 

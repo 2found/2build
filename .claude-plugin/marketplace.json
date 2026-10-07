@@ -5,13 +5,13 @@
     "url": "https://github.com/2found/2build"
   },
   "metadata": {
-    "version": "1.94.2",
+    "version": "1.94.3",
     "description": "2build — checkpointed coding-agent workflows from a goal to a reviewed, tested change."
   },
   "plugins": [
     {
       "name": "bbs",
-      "version": "1.94.2",
+      "version": "1.94.3",
       "description": "Plan, build, review and QA in your coding agent, with progress and evidence saved on disk.",
       "source": "./",
       "category": "productivity"

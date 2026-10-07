@@ -2,7 +2,8 @@
 
 For agent-assisted installation, copy the [one installation prompt in the README](../README.md#install-with-one-prompt).
 2build needs **both** the `bbs` CLI and the skill pack in your coding agent.
-No 2build checkout or Orca installation is needed for Autopilot.
+The skill pack works with Claude Code, Codex, Antigravity, OMP, Grok and any coding
+agent that supports Claude Code skills. Orca is not needed for Autopilot.
 
 ## Installation contract for agents
 
@@ -21,7 +22,9 @@ No 2build checkout or Orca installation is needed for Autopilot.
    the exact prerequisite and let the user enable/install that harness's CLI;
    do not silently install the pack for a different agent.
 4. Run `bbs install claude`, `bbs install codex`, or `bbs install antigravity`
-   for the current harness. Installation must exit successfully. If a command
+   for those harnesses. For OMP, Grok or another compatible agent, use the
+   [compatible-agent installation path](#omp-grok-and-other-compatible-agents).
+   Installation must exit successfully. If a command
    fails, fix a recoverable local issue and retry for that target, or report the
    failed command and the missing prerequisite.
 5. Verify **both layers** before reporting installed:
@@ -32,12 +35,14 @@ No 2build checkout or Orca installation is needed for Autopilot.
    | Claude Code | `claude plugin list --json` shows `bbs@babysit` installed and enabled. |
    | Codex | `codex plugin list --json` shows 2build installed and enabled; do not confuse an available marketplace listing with an installed plugin. |
    | Antigravity | Its managed plugin has `plugin.json`, `skills/autopilot/SKILL.md` and `skills/references/preamble.md` in the locations below. |
+   | OMP / Grok / other compatible agents | The agent discovers `autopilot/SKILL.md` and can read the sibling `references/preamble.md` by filesystem path. |
 
 6. Tell the user to restart the affected agent and supply its first invocation:
-   Claude Code `/bbs:autopilot`, Codex `$bbs:autopilot`; in Antigravity ask it to
-   use the installed `autopilot` skill. After restart, confirm that the agent
+   Claude Code/Grok `/bbs:autopilot`, Codex `$bbs:autopilot`, OMP `/autopilot`;
+   in Antigravity or another compatible agent, use its native skill invocation
+   or ask it to use the installed `autopilot` skill. After restart, confirm that the agent
    can discover the skill before claiming it is loaded. Explain the
-   [first-ticket plan → `/goal` → build handoff](../README.md#try-your-first-ticket).
+   [first-ticket plan/prototype review → build handoff](../README.md#try-your-first-ticket).
 
 Completion means the CLI is runnable and the pack is installed for the intended
 agent. A restart still pending means **installed, restart required**, not a
@@ -47,7 +52,7 @@ verified first run. The user's existing agent/model account supplies inference;
 ## Install into your harness
 
 ```bash
-bbs install                 # detect and install for all supported harnesses
+bbs install                 # auto-detect Claude Code, Codex and Antigravity
 bbs install claude          # Claude Code only
 bbs install codex           # Codex only
 bbs install antigravity     # Antigravity only
@@ -75,6 +80,31 @@ Antigravity worker dispatch to Foreman.
 
 For 2build development, `go run ./cmd/bbs setup --full` builds the CLI and
 prints the commands for registering the checkout as a local marketplace.
+
+### OMP, Grok and other compatible agents
+
+Install the `bbs` CLI using [Homebrew](#macos--homebrew-primary) or a
+[release archive](#release-archives-macos-or-linux), then load the skills through
+your agent's own mechanism. `bbs install` currently automates the three harnesses
+listed above; it does not install OMP or Grok.
+
+- **OMP:** add the absolute path to this repository's `.claude/skills` directory
+  to `skills.customDirectories`, preserving any existing entries. A downloaded
+  source archive or existing plugin checkout also supplies that directory.
+  Invoke `/autopilot`. See [agent skill discovery](operations.md#which-coding-agent-runs-the-work)
+  for configuration details.
+- **Grok:** run `grok plugin install https://github.com/2found/2build`, restart,
+  then invoke `/bbs:autopilot`.
+- **Other agents supporting Claude Code skills:** make the complete
+  `.claude/skills` tree available using the agent's skill-directory configuration
+  or native installer. Keep sibling `references/`, workflows, scripts and data
+  together; copying only individual `SKILL.md` files loses required resources.
+  Use the agent's native invocation or ask it to run the installed `autopilot` skill.
+
+Confirm the agent discovers Autopilot and can read its shared references before
+starting a task. Skill compatibility does not install runtime hooks or add Foreman
+worker support; see [hook adapters](artifact-gated-approval.md#installation-and-agent-contracts)
+and [Foreman](foreman.md) for those capabilities.
 
 ## What `bbs` gives you today
 

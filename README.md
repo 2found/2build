@@ -2,9 +2,23 @@
 
 English | [Tiếng Việt](README.vi.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-**Give your coding agent a goal. Come back to a reviewed, tested change.**
+![2build — product engineering, from a plan to a verified handoff. Concept illustration.](docs/assets/2build-banner.jpg)
 
-2build supports product engineering, from planning and implementation through review, testing, QA and release. Its open-source skill pack works with Claude Code, Codex and Antigravity, with a companion CLI that saves progress and verification evidence. Start with **Autopilot**: one ticket, from requirement to a local commit, in the agent session you already use.
+<img src="assets/2build-mascot-transparent.png" alt="2build mascot: an orange builder with a hardhat and a checked building block." width="128" height="128" align="right">
+
+**Review the prototype. Let Autopilot do the rest.**
+
+**[Start with Autopilot](#install) · [Read the docs](docs/install.md)**
+
+2build helps your coding agent finish a feature. Give it a requirement, review the UI prototype, then let **Autopilot** write code, check it and fix issues.
+
+For a small UI task, aim to see a prototype in **~5 minutes**; timing depends on the task, model and project.
+
+- **Quality:** code is reviewed, tested and fixed before handoff.
+- **Productivity:** the agent handles each step without constant reminders.
+- **Efficiency:** adjust the prototype early to reduce rework.
+
+Works with **Claude Code, Codex, Antigravity, OMP and Grok**, and any coding agent that supports Claude Code skills.
 
 A 2found product. Previously named babysit; the `bbs` CLI, `bbs:` skills and existing `.babysit` state remain compatible. See [branding and naming](BRANDING.md).
 
@@ -18,7 +32,7 @@ Paste this into your coding agent with terminal access:
 Install 2build for the coding agent I am using. Follow
 https://raw.githubusercontent.com/2found/2build/main/docs/install.md. Detect my OS and
 current agent, reuse a working bbs installation or install the CLI, then install the
-skill pack for this agent only. Verify bbs --version and the installed plugin; report
+skill pack for this agent only. Verify bbs --version and the installed skills; report
 any missing prerequisite instead of claiming success. Tell me whether I need to restart
 and give me the exact Autopilot invocation for my agent to run my first small task.
 ```
@@ -34,22 +48,9 @@ brew install 2found/2build/bbs
 bbs install
 ```
 
-`bbs install` configures all detected supported agents. Use `bbs install claude`, `bbs install codex`, or `bbs install antigravity` to select one. Restart that agent after installation. Without Homebrew, use a [release archive](docs/install.md#release-archives-macos-or-linux); on Windows, use WSL.
+`bbs install` auto-detects Claude Code, Codex and Antigravity. For OMP, Grok and other compatible agents, follow the [skill installation guide](docs/install.md#omp-grok-and-other-compatible-agents). Use `bbs install claude`, `bbs install codex`, or `bbs install antigravity` to select one. Restart that agent after installation. Without Homebrew, use a [release archive](docs/install.md#release-archives-macos-or-linux); on Windows, use WSL.
 
 </details>
-
-## Why 2build?
-
-A prompt can describe how to build something. 2build adds the workflow and durable state needed to carry a goal through review and verification, even after a session restarts.
-
-| What you need | What 2build adds |
-|---------------|-------------------|
-| Finish a task without directing every step | Autopilot carries one ticket through planning, implementation, review fixes and QA. |
-| Pick up after a crash or context reset | Requirements, plans, checkpoints and handoffs live on disk. Resume from that evidence. |
-| Know whether the result works | Review and QA verdicts are persisted; completion requires current checks and no unresolved material findings. |
-| Keep control of delivery | Standalone Autopilot commits locally. You review the evidence before pushing or opening a PR. |
-
-Use it when a task needs a verified handoff or you want to leave a run working while you are away. A quick edit may need only your coding agent. 2build still needs a usable project test environment; missing access or required checks are reported as `NEEDS_CONTEXT` or `BLOCKED`.
 
 <a id="autopilot-one-ticket"></a>
 
@@ -60,14 +61,28 @@ Use it when a task needs a verified handoff or you want to leave a run working w
 
    | Agent | Example |
    |-------|---------|
-   | Claude Code | `/bbs:autopilot "Fix the empty search result state and add a regression test"` |
-   | Codex | `$bbs:autopilot "Fix the empty search result state and add a regression test"` |
-   | Antigravity | Ask it to use the installed `autopilot` skill for your task. |
+   | Claude Code | `/bbs:autopilot "Add a saved-search screen. Show a prototype first, then implement, review and QA."` |
+   | Codex | `$bbs:autopilot "Add a saved-search screen. Show a prototype first, then implement, review and QA."` |
+   | OMP | `/autopilot "Add a saved-search screen. Show a prototype first, then implement, review and QA."` |
+   | Grok | `/bbs:autopilot "Add a saved-search screen. Show a prototype first, then implement, review and QA."` |
+   | Antigravity / other compatible agents | Ask it to use the installed `autopilot` skill for your task. |
 
-3. When Autopilot returns a plan and a `/goal` block, review the plan, then paste that block into the same agent to start the build. On an agent without goal mode, it continues in the same session.
-4. Expect a local commit, review and QA evidence, and a handoff naming what changed and what was checked. A blocked run names the gap. After a restart, give Autopilot the ticket ID from the handoff to resume.
+3. Review the plan and, for UI work, open the prototype. Adjust the layout, flow or scope here. When Autopilot returns a `/goal` block, paste it into the same agent to start execution. For an agent without goal mode, include `--stop-after=plan` in your first request to hold this review checkpoint, then follow the native resume instruction in its handoff.
+4. Let Autopilot implement, review, fix, test and run QA. It returns a local commit and evidence when the ticket passes its completion gates; a blocked run names the missing input. After a restart, give it the ticket ID from the handoff to resume.
 
 No Orca, new worker session or project configuration is needed for this first ticket. You choose the session's model before starting. [Inspect progress and recover a session](docs/companion-cli.md).
+
+## Keep building with 2found
+
+When your product needs more, choose the tool for the next job:
+
+| Your next step | Explore |
+|----------------|---------|
+| Add an AI agent to your product | [**Soot**](https://trysoot.com), powered by **2agent** — **agent as config** — add config to your source code. Add an AI teammate. |
+| Deploy what you built | [**2server**](https://github.com/2found/2server) — deploy and operate apps on infrastructure you own. |
+| Help customers discover your product | [**2market**](https://2found.dev/#2market) — a marketing workspace in development, bringing product context, content and channels into one flow. |
+
+Start with 2build for the engineering work; explore these products when the need comes up.
 
 ## Pick the work, not the job title
 
@@ -89,6 +104,9 @@ Browse the [skill index](docs/skills.md) for individual skills and workflow exam
 ## Larger projects: Foreman
 
 For dependent tickets and supervised workers, [Foreman](docs/foreman.md) uses [Orca](https://www.onorca.dev) to plan a project, isolate child tickets in worktrees, dispatch ready work and run project-wide QA. It presents the parent plan/design for review before production dispatch; explicit `--auto` delegates that review. The configured finish policy controls delivery.
+
+<details>
+<summary>CLI and configuration details</summary>
 
 ## Skills and CLI
 
@@ -127,7 +145,13 @@ and [contract](.claude/skills/references/semantic-decision.md). See
 [settings without a dashboard control](docs/operations.md#settings-without-a-dashboard-control)
 for config paths, defaults, project limits and human-review behavior.
 
-For agents, the [Markdown documentation index](llms.txt) links directly to installation, skill and runtime contracts.
+</details>
+
+## Documentation
+
+[Install and troubleshoot](docs/install.md) · [Choose a skill](docs/skills.md) · [Inspect progress](docs/companion-cli.md) · [Coordinate a project](docs/foreman.md)
+
+For coding agents, [llms.txt](llms.txt) links directly to the Markdown guides and runtime contracts.
 
 ## Repository layout
 

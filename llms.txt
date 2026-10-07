@@ -1,6 +1,6 @@
 # 2build
 
-> Open-source coding-agent skills and a companion CLI for checkpointed work from a goal through implementation, review and QA. Supports Claude Code, Codex and Antigravity; only Foreman needs Orca.
+> Give Autopilot a task. Preview the interface, then let it write, review, test and fix the code. 2build provides open-source skills and a companion CLI for Claude Code, Codex, Antigravity, OMP, Grok and any coding agent that supports Claude Code skills. Only Foreman needs Orca.
 
 ## Start here
 
