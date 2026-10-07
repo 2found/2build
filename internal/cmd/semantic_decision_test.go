@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/config"
-	"github.com/reallongnguyen/babysit/internal/decision"
-	"github.com/reallongnguyen/babysit/internal/foreman"
+	"github.com/2found/2build/internal/config"
+	"github.com/2found/2build/internal/decision"
+	"github.com/2found/2build/internal/foreman"
 )
 
 const semanticInput = `{"state":"private source evidence","questions":{"size":{"type":"choice","instructions":"Size?","criteria":{"S":"small","L":"large"}}}}`

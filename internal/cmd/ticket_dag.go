@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // dagUsage mirrors the `ticket` family's hand-parsed contract: subcommands

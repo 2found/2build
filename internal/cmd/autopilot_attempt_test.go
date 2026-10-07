@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/identity"
+	"github.com/2found/2build/internal/identity"
 )
 
 func TestCheckpointV2MigratesWithBackupAndPreservesUnknownFields(t *testing.T) {

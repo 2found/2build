@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/ticket"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,7 +26,7 @@ import (
 // that script is gone, so the header is owned here and documents new keys as
 // they land.
 const configHeader = `# babysit configuration — edit freely, changes take effect on next skill run.
-# Docs: https://github.com/reallongnguyen/babysit
+# Docs: https://github.com/2found/2build
 #
 # ─── Behavior ────────────────────────────────────────────────────────
 # proactive: true           # Auto-invoke skills when the request matches one.

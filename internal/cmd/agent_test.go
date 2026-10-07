@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/foreman"
+	"github.com/2found/2build/internal/foreman"
 )
 
 func TestWorkerLaunchUsesExplicitAgentModelAndEffort(t *testing.T) {

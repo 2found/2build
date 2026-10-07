@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/slug"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/slug"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // manifestOnlyFixture builds a repo on a non-ticket branch whose only claim

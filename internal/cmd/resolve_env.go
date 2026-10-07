@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // resolveEnv is the single identity entry point for ticket-scoped commands.

@@ -1,10 +1,10 @@
-# babysit
+# 2build
 
 [English](README.md) | Tiếng Việt | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
 **Giao mục tiêu cho coding agent. Nhận lại thay đổi đã được review và kiểm thử.**
 
-Babysit là bộ skill mã nguồn mở cho Claude Code, Codex và Antigravity, kèm CLI lưu tiến độ và bằng chứng kiểm chứng. Bắt đầu với **Autopilot**: một ticket, từ yêu cầu đến commit cục bộ, ngay trong session agent bạn đang dùng.
+2build là bộ skill mã nguồn mở cho Claude Code, Codex và Antigravity, kèm CLI lưu tiến độ và bằng chứng kiểm chứng. Bắt đầu với **Autopilot**: một ticket, từ yêu cầu đến commit cục bộ, ngay trong session agent bạn đang dùng.
 
 <a id="cài-đặt"></a>
 
@@ -13,22 +13,22 @@ Babysit là bộ skill mã nguồn mở cho Claude Code, Codex và Antigravity, 
 Dán prompt này vào coding agent có quyền chạy terminal:
 
 ```text
-Cài Babysit cho coding agent tôi đang dùng theo
-https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/install.md. Xác định hệ điều
+Cài 2build cho coding agent tôi đang dùng theo
+https://raw.githubusercontent.com/2found/2build/main/docs/install.md. Xác định hệ điều
 hành và agent hiện tại, dùng lại bbs nếu đã hoạt động hoặc cài CLI, rồi cài skill pack
 chỉ cho agent này. Kiểm tra bbs --version và plugin đã cài; nếu thiếu điều kiện cần thì
 báo rõ, không kết luận thành công. Cho tôi biết có cần khởi động lại không và đưa đúng
 lời gọi Autopilot cho agent của tôi để chạy tác vụ nhỏ đầu tiên.
 ```
 
-Bạn cần coding agent được hỗ trợ và quyền dùng model sẵn có của nó. Claude Code và Codex cần CLI trên PATH. Babysit không yêu cầu tài khoản model riêng; chi phí sử dụng agent vẫn áp dụng. **Chỉ Foreman cần Orca.** Xem [cài đặt và xử lý lỗi](docs/install.md) (tiếng Anh).
+Bạn cần coding agent được hỗ trợ và quyền dùng model sẵn có của nó. Claude Code và Codex cần CLI trên PATH. 2build không yêu cầu tài khoản model riêng; chi phí sử dụng agent vẫn áp dụng. **Chỉ Foreman cần Orca.** Xem [cài đặt và xử lý lỗi](docs/install.md) (tiếng Anh).
 
 <details>
 <summary>Muốn tự chạy lệnh? Homebrew trên macOS hoặc Linux</summary>
 
 ```bash
-brew tap lohi-ai/babysit https://github.com/lohi-ai/babysit
-brew install lohi-ai/babysit/bbs
+brew tap 2found/2build https://github.com/2found/2build
+brew install 2found/2build/bbs
 bbs install
 ```
 
@@ -36,18 +36,18 @@ bbs install
 
 </details>
 
-## Babysit khác gì?
+## 2build khác gì?
 
-Một prompt có thể mô tả cách làm. Babysit bổ sung workflow và trạng thái trên đĩa để đi từ mục tiêu đến review và kiểm chứng, kể cả khi session phải khởi động lại.
+Một prompt có thể mô tả cách làm. 2build bổ sung workflow và trạng thái trên đĩa để đi từ mục tiêu đến review và kiểm chứng, kể cả khi session phải khởi động lại.
 
-| Bạn cần | Babysit cung cấp |
+| Bạn cần | 2build cung cấp |
 |---------|-----------------|
 | Hoàn thành tác vụ mà không chỉ dẫn từng bước | Autopilot đi qua lên kế hoạch, triển khai, sửa lỗi review và QA cho một ticket. |
 | Tiếp tục sau crash hoặc mất context | Yêu cầu, kế hoạch, checkpoint và handoff được lưu trên đĩa để khôi phục. |
 | Biết kết quả đã được kiểm tra | Verdict review và QA được lưu; chỉ hoàn tất khi kiểm tra hiện tại đạt và không còn phát hiện nghiêm trọng chưa xử lý. |
 | Chủ động bàn giao | Autopilot độc lập commit cục bộ. Bạn xem bằng chứng trước khi push hoặc mở PR. |
 
-Dùng khi tác vụ cần bàn giao có kiểm chứng hoặc bạn muốn để agent làm việc lúc đi vắng. Sửa nhanh một chỗ có thể chỉ cần coding agent. Babysit vẫn cần môi trường kiểm thử của dự án; thiếu quyền truy cập hoặc kiểm tra bắt buộc sẽ được báo `NEEDS_CONTEXT` hoặc `BLOCKED`.
+Dùng khi tác vụ cần bàn giao có kiểm chứng hoặc bạn muốn để agent làm việc lúc đi vắng. Sửa nhanh một chỗ có thể chỉ cần coding agent. 2build vẫn cần môi trường kiểm thử của dự án; thiếu quyền truy cập hoặc kiểm tra bắt buộc sẽ được báo `NEEDS_CONTEXT` hoặc `BLOCKED`.
 
 <a id="autopilot-một-ticket"></a>
 

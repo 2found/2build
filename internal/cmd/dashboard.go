@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/dashboard"
-	"github.com/reallongnguyen/babysit/internal/git"
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/ticket"
-	"github.com/reallongnguyen/babysit/internal/webui"
+	"github.com/2found/2build/internal/dashboard"
+	"github.com/2found/2build/internal/git"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/ticket"
+	"github.com/2found/2build/internal/webui"
 	"github.com/spf13/cobra"
 )
 

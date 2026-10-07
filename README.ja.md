@@ -1,10 +1,10 @@
-# babysit
+# 2build
 
 [English](README.md) | [Tiếng Việt](README.vi.md) | [中文](README.zh.md) | 日本語 | [한국어](README.ko.md)
 
 **Coding agent に目標を渡す。レビューとテストを経た変更を受け取る。**
 
-Babysit は Claude Code、Codex、Antigravity 向けのオープンソース skill pack です。付属 CLI が進捗と検証の証拠を保存します。まずは **Autopilot**：いつもの agent session で、1 つの ticket を要件からローカル commit まで進めます。
+2build は Claude Code、Codex、Antigravity 向けのオープンソース skill pack です。付属 CLI が進捗と検証の証拠を保存します。まずは **Autopilot**：いつもの agent session で、1 つの ticket を要件からローカル commit まで進めます。
 
 <a id="インストール"></a>
 
@@ -13,20 +13,20 @@ Babysit は Claude Code、Codex、Antigravity 向けのオープンソース ski
 ターミナルを実行できる coding agent に、次を貼り付けてください：
 
 ```text
-今使っている coding agent に Babysit をインストールしてください。
-https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/install.md に従い、OS と現在の agent を確認し、動作する bbs があれば再利用、なければ CLI をインストールして、この agent だけに skill pack を導入してください。
+今使っている coding agent に 2build をインストールしてください。
+https://raw.githubusercontent.com/2found/2build/main/docs/install.md に従い、OS と現在の agent を確認し、動作する bbs があれば再利用、なければ CLI をインストールして、この agent だけに skill pack を導入してください。
 bbs --version とインストール済み plugin を検証し、前提条件が不足していれば成功とせず報告してください。
 再起動が必要かを説明し、最初の小さなタスクを実行するための、この agent 用の正確な Autopilot 呼び出しを教えてください。
 ```
 
-対応 coding agent と、その既存の model 利用環境が必要です。Claude Code と Codex は CLI が PATH 上に必要です。Babysit 用の model アカウントは不要ですが、agent の通常の利用料金は発生します。**Orca が必要なのは Foreman だけです。** [インストールとトラブル対処](docs/install.md)（英語）を参照してください。
+対応 coding agent と、その既存の model 利用環境が必要です。Claude Code と Codex は CLI が PATH 上に必要です。2build 用の model アカウントは不要ですが、agent の通常の利用料金は発生します。**Orca が必要なのは Foreman だけです。** [インストールとトラブル対処](docs/install.md)（英語）を参照してください。
 
 <details>
 <summary>コマンドで導入する場合：macOS / Linux の Homebrew</summary>
 
 ```bash
-brew tap lohi-ai/babysit https://github.com/lohi-ai/babysit
-brew install lohi-ai/babysit/bbs
+brew tap 2found/2build https://github.com/2found/2build
+brew install 2found/2build/bbs
 bbs install
 ```
 
@@ -34,11 +34,11 @@ bbs install
 
 </details>
 
-## Babysit の違い
+## 2build の違い
 
-Prompt は作り方を説明できます。Babysit は workflow とディスク上の状態を加え、目標からレビュー・検証まで進めます。Session を再起動しても再開できます。
+Prompt は作り方を説明できます。2build は workflow とディスク上の状態を加え、目標からレビュー・検証まで進めます。Session を再起動しても再開できます。
 
-| 必要なこと | Babysit が提供すること |
+| 必要なこと | 2build が提供すること |
 |------------|-----------------------|
 | 毎ステップ指示せずにタスクを終える | Autopilot が 1 ticket の計画、実装、レビュー修正、QA を進めます。 |
 | Crash や context reset から再開する | 要件、計画、checkpoint、handoff をディスクに保存し、そこから復元します。 |

@@ -252,9 +252,9 @@ Two things it does not own:
   | agent | how it finds babysit's skills | prompt shape |
   |-------|-------------------------------|--------------|
   | `claude` | the plugin marketplace | `/bbs:autopilot` |
-  | `grok` | `grok plugin install https://github.com/lohi-ai/babysit` | `/bbs:autopilot` |
+  | `grok` | `grok plugin install https://github.com/2found/2build` | `/bbs:autopilot` |
   | `omp` | `omp config set skills.customDirectories '["$HOME/.claude/plugins/marketplaces/babysit/.claude/skills"]'` | `/autopilot` |
-  | `codex` | `codex plugin marketplace add lohi-ai/babysit && codex plugin add bbs@babysit` | `$bbs:autopilot` |
+  | `codex` | `codex plugin marketplace add 2found/2build && codex plugin add bbs@babysit` | `$bbs:autopilot` |
   | `cursor` | make the skills available under `.cursor/skills` or `.agents/skills` | `/autopilot` |
 
   `bbs foreman worker-command` preflights the binary and names the per-agent

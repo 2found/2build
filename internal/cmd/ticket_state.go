@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // This file ports the index.json state-accessor family of the retired bbs-ticket.bash:

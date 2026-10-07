@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // This file ports the manifest.yaml family of the retired bbs-ticket.bash: get-manifest,

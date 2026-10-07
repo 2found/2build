@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // runClear intentionally has one explicit destructive shape. The dashboard's

@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/agent"
-	"github.com/reallongnguyen/babysit/internal/config"
-	"github.com/reallongnguyen/babysit/internal/foreman"
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/orca"
+	"github.com/2found/2build/internal/agent"
+	"github.com/2found/2build/internal/config"
+	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/orca"
 )
 
 // Watchdog for a foreman that stopped moving — and a metronome for one that

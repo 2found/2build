@@ -1,10 +1,10 @@
-# babysit
+# 2build
 
 [English](README.md) | [Tiếng Việt](README.vi.md) | [中文](README.zh.md) | [日本語](README.ja.md) | 한국어
 
 **Coding agent에게 목표를 맡기고, 리뷰와 테스트를 거친 변경을 받으세요.**
 
-Babysit은 Claude Code, Codex, Antigravity를 위한 오픈소스 skill pack입니다. 함께 제공되는 CLI가 진행 상황과 검증 근거를 저장합니다. **Autopilot**부터 시작하세요. 기존 agent session에서 하나의 ticket을 요구사항부터 로컬 commit까지 진행합니다.
+2build은 Claude Code, Codex, Antigravity를 위한 오픈소스 skill pack입니다. 함께 제공되는 CLI가 진행 상황과 검증 근거를 저장합니다. **Autopilot**부터 시작하세요. 기존 agent session에서 하나의 ticket을 요구사항부터 로컬 commit까지 진행합니다.
 
 <a id="설치"></a>
 
@@ -13,21 +13,21 @@ Babysit은 Claude Code, Codex, Antigravity를 위한 오픈소스 skill pack입�
 터미널을 실행할 수 있는 coding agent에 다음을 붙여 넣으세요:
 
 ```text
-지금 사용 중인 coding agent에 Babysit을 설치해 주세요.
-https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/install.md 를 따르세요.
+지금 사용 중인 coding agent에 2build을 설치해 주세요.
+https://raw.githubusercontent.com/2found/2build/main/docs/install.md 를 따르세요.
 OS와 현재 agent를 확인하고, 작동하는 bbs가 있으면 재사용하거나 CLI를 설치한 뒤 이 agent에만 skill pack을 설치하세요.
 bbs --version과 설치된 plugin을 검증하고, 필요한 조건이 빠졌다면 성공이라고 하지 말고 알려 주세요.
 재시작이 필요한지 설명하고, 첫 작은 작업을 실행할 수 있도록 이 agent에 맞는 정확한 Autopilot 호출을 알려 주세요.
 ```
 
-지원되는 coding agent와 기존 model 이용 권한이 필요합니다. Claude Code와 Codex는 CLI가 PATH에 있어야 합니다. Babysit용 별도 model 계정은 필요 없으며 agent의 일반 이용 요금은 적용됩니다. **Orca는 Foreman에만 필요합니다.** [설치 및 문제 해결](docs/install.md)(영어)을 참고하세요.
+지원되는 coding agent와 기존 model 이용 권한이 필요합니다. Claude Code와 Codex는 CLI가 PATH에 있어야 합니다. 2build용 별도 model 계정은 필요 없으며 agent의 일반 이용 요금은 적용됩니다. **Orca는 Foreman에만 필요합니다.** [설치 및 문제 해결](docs/install.md)(영어)을 참고하세요.
 
 <details>
 <summary>직접 명령을 실행하려면: macOS / Linux의 Homebrew</summary>
 
 ```bash
-brew tap lohi-ai/babysit https://github.com/lohi-ai/babysit
-brew install lohi-ai/babysit/bbs
+brew tap 2found/2build https://github.com/2found/2build
+brew install 2found/2build/bbs
 bbs install
 ```
 
@@ -35,11 +35,11 @@ bbs install
 
 </details>
 
-## Babysit의 차이점
+## 2build의 차이점
 
-Prompt는 만드는 방법을 설명할 수 있습니다. Babysit은 workflow와 디스크 상태를 더해 목표를 리뷰와 검증까지 진행합니다. Session이 재시작되어도 이어서 작업할 수 있습니다.
+Prompt는 만드는 방법을 설명할 수 있습니다. 2build은 workflow와 디스크 상태를 더해 목표를 리뷰와 검증까지 진행합니다. Session이 재시작되어도 이어서 작업할 수 있습니다.
 
-| 필요한 것 | Babysit이 제공하는 것 |
+| 필요한 것 | 2build이 제공하는 것 |
 |-----------|----------------------|
 | 단계마다 지시하지 않고 작업 완료 | Autopilot이 하나의 ticket을 계획, 구현, 리뷰 수정, QA까지 진행합니다. |
 | Crash나 context reset 후 재개 | 요구사항, 계획, checkpoint, handoff를 디스크에 저장하고 근거를 읽어 복구합니다. |

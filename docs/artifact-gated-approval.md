@@ -1,6 +1,6 @@
-# Babysit hooks
+# 2build hooks
 
-Babysit keeps three runtime hooks: a release check, session tracking, and an
+2build keeps three runtime hooks: a release check, session tracking, and an
 Orca worker report check before stopping.
 The repository's Git pre-commit hook remains separate.
 
@@ -50,7 +50,7 @@ Only recognized push / PR-create / PR-merge shell commands pay the cost of
 ticket resolution. Other commands return silently. This is a workflow check,
 not a shell security sandbox: aliases, scripts, dynamically constructed
 commands, and tools outside the host's hook coverage can bypass classification.
-Run releases through Babysit's workflows; `bbs ticket land` independently
+Run releases through 2build's workflows; `bbs ticket land` independently
 checks its persisted verdicts.
 
 - No ticket: no objection.

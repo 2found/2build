@@ -14,7 +14,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/reallongnguyen/babysit/internal/slug"
+	"github.com/2found/2build/internal/slug"
 )
 
 // Env is the identity context every ticket subcommand runs against.

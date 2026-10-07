@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/reallongnguyen/babysit/internal/env"
+	"github.com/2found/2build/internal/env"
 	"github.com/spf13/cobra"
 )
 

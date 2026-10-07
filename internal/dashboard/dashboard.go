@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/foreman"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/ticket"
 )
 
 func timeNow() int64 { return time.Now().Unix() }

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/git"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/git"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // This file ports the `ensure` subcommand of the retired bbs-ticket.bash: the

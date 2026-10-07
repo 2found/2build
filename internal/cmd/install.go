@@ -11,13 +11,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const babysitMarketplace = "lohi-ai/babysit"
+const babysitMarketplace = "2found/2build"
 
 func newInstallCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:       "install [claude|codex|antigravity]",
-		Short:     "install Babysit into one harness, or all detected harnesses",
-		Long:      "Install Babysit for the current user. With no argument, detect Claude Code, Codex and Antigravity from PATH, Antigravity config directories, and Codex/Antigravity apps. Claude Code and Codex require their CLI on PATH. Restart the affected harness after installation.",
+		Short:     "install 2build into one harness, or all detected harnesses",
+		Long:      "Install 2build for the current user. With no argument, detect Claude Code, Codex and Antigravity from PATH, Antigravity config directories, and Codex/Antigravity apps. Claude Code and Codex require their CLI on PATH. Restart the affected harness after installation.",
 		ValidArgs: []string{"claude", "codex", "antigravity"},
 		Args:      cobra.MatchAll(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
 		RunE: func(_ *cobra.Command, args []string) error {
@@ -34,7 +34,7 @@ func newInstallCmd() *cobra.Command {
 			}
 			var failures []string
 			for _, target := range targets {
-				fmt.Printf("→ Installing Babysit for %s...\n", target)
+				fmt.Printf("→ Installing 2build for %s...\n", target)
 				if target == "antigravity" {
 					err = installAntigravity(home)
 				} else {
@@ -45,7 +45,7 @@ func newInstallCmd() *cobra.Command {
 					failures = append(failures, target)
 					continue
 				}
-				fmt.Printf("✓ Babysit installed for %s. Restart %s to load the skills.\n", target, target)
+				fmt.Printf("✓ 2build installed for %s. Restart %s to load the skills.\n", target, target)
 			}
 			if len(failures) > 0 {
 				return fmt.Errorf("installation failed for %s — fix the errors above, then retry 'bbs install <harness>'", strings.Join(failures, ", "))
@@ -161,7 +161,7 @@ func upgradeAntigravityPlugin() (bool, error) {
 	if len(destinations) == 0 {
 		return false, nil
 	}
-	fmt.Println("→ Updating the Babysit skills (antigravity)...")
+	fmt.Println("→ Updating the 2build skills (antigravity)...")
 	return true, installAntigravityAt(destinations)
 }
 
@@ -181,7 +181,7 @@ func installAntigravityAt(destinations []string) error {
 			}
 		}
 		if v == "unknown" {
-			return fmt.Errorf("cannot determine the CLI version — install a released bbs or set BABYSIT_DIR to a Babysit checkout")
+			return fmt.Errorf("cannot determine the CLI version — install a released bbs or set BABYSIT_DIR to a 2build checkout")
 		}
 		tmp, err := os.MkdirTemp("", "bbs-antigravity-source-")
 		if err != nil {
@@ -190,12 +190,12 @@ func installAntigravityAt(destinations []string) error {
 		defer os.RemoveAll(tmp)
 		checkout := filepath.Join(tmp, "source")
 		if err := runVisible("git", "clone", "--depth", "1", "--branch", "v"+v, "https://github.com/"+babysitMarketplace+".git", checkout); err != nil {
-			return fmt.Errorf("download Babysit v%s skills: %w", v, err)
+			return fmt.Errorf("download 2build v%s skills: %w", v, err)
 		}
 		source = filepath.Join(checkout, ".claude", "skills")
 	}
 	if !fileExists(filepath.Join(source, "autopilot", "SKILL.md")) || !isDir(filepath.Join(source, "references")) {
-		return fmt.Errorf("incomplete Babysit skill pack at %s", source)
+		return fmt.Errorf("incomplete 2build skill pack at %s", source)
 	}
 	for _, dst := range destinations {
 		if err := installAntigravityBundle(source, dst); err != nil {
@@ -227,7 +227,7 @@ func installAntigravityBundle(source, dst string) error {
 	if err := os.CopyFS(filepath.Join(bundle, "skills"), os.DirFS(source)); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(bundle, "plugin.json"), []byte("{\"name\":\"bbs\",\"description\":\"Babysit autonomous product-building skills\"}\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(bundle, "plugin.json"), []byte("{\"name\":\"bbs\",\"description\":\"2build autonomous product-building skills\"}\n"), 0o644); err != nil {
 		return err
 	}
 	if err := os.WriteFile(filepath.Join(bundle, antigravityInstallMarker), []byte("bbs install\n"), 0o644); err != nil {

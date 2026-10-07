@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/identity"
+	"github.com/2found/2build/internal/identity"
 )
 
 // Store is a ticket's on-disk home, derived from the resolved identity.

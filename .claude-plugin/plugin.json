@@ -1,8 +1,8 @@
 {
   "name": "bbs",
-  "description": "Give your coding agent a goal. Babysit plans, builds, reviews and verifies, with progress saved on disk.",
-  "homepage": "https://github.com/lohi-ai/babysit",
-  "repository": "https://github.com/lohi-ai/babysit",
+  "description": "Give your coding agent a goal. 2build plans, builds, reviews and verifies, with progress saved on disk.",
+  "homepage": "https://github.com/2found/2build",
+  "repository": "https://github.com/2found/2build",
   "license": "MIT",
   "skills": "./.claude/skills"
 }

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/foreman"
+	"github.com/2found/2build/internal/foreman"
 )
 
 // fakeOrcaFor stands up a stub `orca` and returns its call log plus the file

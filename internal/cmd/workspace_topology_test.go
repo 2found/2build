@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/workspace"
+	"github.com/2found/2build/internal/workspace"
 )
 
 // repoWith writes a checkout with an optional machine-local .babysit/.env.

@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/foreman"
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/learnings"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/learnings"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // This is the second resolver for the approval record bs-bfq34gq0 added: the

@@ -5,7 +5,7 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/reallongnguyen/babysit/internal/config"
+	"github.com/2found/2build/internal/config"
 	"github.com/spf13/cobra"
 )
 

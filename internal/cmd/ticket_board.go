@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/git"
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/slug"
-	"github.com/reallongnguyen/babysit/internal/ticket"
-	"github.com/reallongnguyen/babysit/internal/workspace"
+	"github.com/2found/2build/internal/git"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/slug"
+	"github.com/2found/2build/internal/ticket"
+	"github.com/2found/2build/internal/workspace"
 )
 
 const boardRowFmt = "%-14s %-12s %-9s %-9s %-7s %-16s %-12s %s\n"

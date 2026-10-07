@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/slug"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/slug"
 )
 
 // AmbiguousTicketError is returned when more than one manifest.yaml worktree

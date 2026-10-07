@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/config"
+	"github.com/2found/2build/internal/config"
 )
 
 // AnalyticsDir mirrors the bins' env ladder:

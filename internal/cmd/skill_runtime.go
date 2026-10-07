@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/agent"
-	"github.com/reallongnguyen/babysit/internal/config"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/agent"
+	"github.com/2found/2build/internal/config"
+	"github.com/2found/2build/internal/ticket"
 	"github.com/spf13/cobra"
 )
 

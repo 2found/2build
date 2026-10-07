@@ -1,8 +1,8 @@
-# Install Babysit
+# Install 2build
 
 For agent-assisted installation, copy the [one installation prompt in the README](../README.md#install-with-one-prompt).
-Babysit needs **both** the `bbs` CLI and the skill pack in your coding agent.
-No Babysit checkout or Orca installation is needed for Autopilot.
+2build needs **both** the `bbs` CLI and the skill pack in your coding agent.
+No 2build checkout or Orca installation is needed for Autopilot.
 
 ## Installation contract for agents
 
@@ -30,7 +30,7 @@ No Babysit checkout or Orca installation is needed for Autopilot.
    |-------|-------|
    | CLI | `bbs --version` reports a release version and `bbs install --help` works from the user's shell. |
    | Claude Code | `claude plugin list --json` shows `bbs@babysit` installed and enabled. |
-   | Codex | `codex plugin list --json` shows Babysit installed and enabled; do not confuse an available marketplace listing with an installed plugin. |
+   | Codex | `codex plugin list --json` shows 2build installed and enabled; do not confuse an available marketplace listing with an installed plugin. |
    | Antigravity | Its managed plugin has `plugin.json`, `skills/autopilot/SKILL.md` and `skills/references/preamble.md` in the locations below. |
 
 6. Tell the user to restart the affected agent and supply its first invocation:
@@ -42,7 +42,7 @@ No Babysit checkout or Orca installation is needed for Autopilot.
 Completion means the CLI is runnable and the pack is installed for the intended
 agent. A restart still pending means **installed, restart required**, not a
 verified first run. The user's existing agent/model account supplies inference;
-Babysit adds no separate model service requirement. Normal agent usage costs apply.
+2build adds no separate model service requirement. Normal agent usage costs apply.
 
 ## Install into your harness
 
@@ -57,8 +57,9 @@ Detection checks CLI executables, Antigravity's `.gemini/antigravity*`
 directories, and Codex / Antigravity macOS apps. Leftover `~/.claude` or
 `~/.gemini/config` directories are not treated as an installed harness.
 Claude Code and Codex require their CLI on PATH:
-`bbs install` registers the Babysit marketplace and installs `bbs@babysit`.
-An existing marketplace is refreshed, so rerunning the command is supported.
+`bbs install` registers the 2build marketplace and installs `bbs@babysit`.
+The marketplace keeps its legacy ID `babysit` for compatibility; the source is
+`2found/2build`. An existing marketplace is refreshed, so rerunning the command is supported.
 Failures name the harness and return a nonzero exit code; installation still
 continues for other detected harnesses. No detected harness is an error with
 instructions, not a silent success. Restart affected harnesses afterwards.
@@ -72,7 +73,7 @@ workflows, scripts and data, and only replaces bundles marked as managed by
 `bbs install`. This installs skills; it does not port Claude's hooks or add
 Antigravity worker dispatch to Foreman.
 
-For Babysit development, `go run ./cmd/bbs setup --full` builds the CLI and
+For 2build development, `go run ./cmd/bbs setup --full` builds the CLI and
 prints the commands for registering the checkout as a local marketplace.
 
 ## What `bbs` gives you today
@@ -123,13 +124,13 @@ and reads `VERSION` from the checkout instead, so it stays accurate after a
 ## macOS — Homebrew (primary)
 
 ```bash
-brew tap lohi-ai/babysit https://github.com/lohi-ai/babysit
-brew install lohi-ai/babysit/bbs
+brew tap 2found/2build https://github.com/2found/2build
+brew install 2found/2build/bbs
 bbs install
 ```
 
-The explicit tap URL is required because the repository is `lohi-ai/babysit`
-rather than the conventional `homebrew-babysit` name. The fully qualified formula
+The explicit tap URL is required because the repository is `2found/2build`
+rather than the conventional `homebrew-2build` name. The fully qualified formula
 selects this tap's package. See [Homebrew's tap documentation](https://docs.brew.sh/Taps).
 
 Verify:
@@ -157,7 +158,7 @@ be replaced manually. Use `type -a bbs` to inspect PATH precedence.
 
 Homebrew works on macOS and Linux. Without it, download the archive for your OS
 and architecture plus `checksums.txt` from the **same**
-[release](https://github.com/lohi-ai/babysit/releases/latest).
+[release](https://github.com/2found/2build/releases/latest).
 Use the platform matrix below to choose the archive. Verify its SHA-256 with
 `sha256sum` on Linux or `shasum -a 256` on macOS against the matching row in
 `checksums.txt` before extracting. Keep the published filename so it matches

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the `2build` soot pack from .claude/skills/.
 
-Every babysit skill becomes one capability (capability name == skill dir name,
+Every 2build skill becomes one capability (capability name == skill dir name,
 skill name == 2build_<skill>). `foreman` is excluded — its runtime depends on
 Orca transport and does not port to a soot pack. Output layout:
 
@@ -14,7 +14,7 @@ Orca transport and does not port to a soot pack. Output layout:
         shared/              .claude/skills/references/ (Markdown paths translated)
 
 Install into a soot deployment:
-    soot add <babysit-repo> --path packs/2build
+    soot add <2build-repo> --path packs/2build
     # then pick capabilities in the Soot definition:
     #   "packs": ["2build"]            → default recipe (pack.use)
     #   "use": ["2build/implement", …] → direct selectors
@@ -53,7 +53,7 @@ SOOT_SKILL_LIMIT = 64 << 10  # matches internal/config/config.go maxPromptBytes
 # packed skill.md (after the frontmatter) and repeated in the README.
 PREREQUISITE = (
     "> **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.\n"
-    "> Install it first: `brew install lohi-ai/babysit/bbs` (macOS/Linux), the release\n"
+    "> Install it first: `brew install 2found/2build/bbs` (macOS/Linux), the release\n"
     "> tarball on Linux, or WSL/Git-Bash on Windows (no Windows binary is published);\n"
     "> `go run ./cmd/bbs setup` from a checkout works on any OS. Without `bbs` the\n"
     "> skill reports `BBS_DEGRADED` and stops.\n"
@@ -262,8 +262,8 @@ def build(out, version, commit):
     lines = [
         "# 2build",
         "",
-        "Babysit skill pack for Soot — part of the 2found ecosystem. Each",
-        "capability is one babysit skill; select them in the Soot definition.",
+        "2build skill pack for Soot — part of the 2found ecosystem. Each",
+        "capability is one 2build skill; select them in the Soot definition.",
         "`foreman` is excluded on purpose: it needs the Orca worker runtime.",
         "",
         "## Prerequisites",
@@ -271,7 +271,7 @@ def build(out, version, commit):
         "The `bbs` CLI must be on `PATH` — every skill shells out to it. Install:",
         "",
         "```sh",
-        "brew install lohi-ai/babysit/bbs",
+        "brew install 2found/2build/bbs",
         "```",
         "",
         "Homebrew covers macOS and Linux; on Linux you can also download the",
@@ -289,7 +289,7 @@ def build(out, version, commit):
     lines += [f"| `{n}` | {b} | {d} |" for n, b, d in rows]
     lines += [
         "",
-        "Shared babysit references live under `shared/`; skill files reference",
+        "Shared 2build references live under `shared/`; skill files reference",
         "them by relative path where the original skill did. Auxiliary skill",
         "assets (references/, workflows/, data/) ship under each capability dir.",
         "",

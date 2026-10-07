@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/reallongnguyen/babysit/internal/cmd"
+	"github.com/2found/2build/internal/cmd"
 )
 
 func main() {

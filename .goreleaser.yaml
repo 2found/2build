@@ -31,7 +31,7 @@ builds:
     # injection is the only source; a plain `go build` leaves it empty on
     # purpose and reads VERSION from the clone instead.
     ldflags:
-      - -s -w -X github.com/reallongnguyen/babysit/internal/cmd.version={{.Version}}
+      - -s -w -X github.com/2found/2build/internal/cmd.version={{.Version}}
     goos:
       - darwin
       - linux
@@ -66,8 +66,8 @@ snapshot:
 
 release:
   github:
-    owner: lohi-ai
-    name: babysit
+    owner: 2found
+    name: 2build
   # The pipeline builds artifacts; a human reviews the draft before it goes live.
   draft: true
   prerelease: auto

@@ -79,7 +79,7 @@ telemetry-only API for callers that own bootstrap.
 If `bbs` is missing from PATH, try its installed absolute path (usually
 `~/.local/bin/bbs`, or the plugin's `bbs` at the plugin root). If absent or
 too old, report `BBS_DEGRADED` with `bbs setup` (`go run ./cmd/bbs setup`
-from a checkout) / `brew upgrade lohi-ai/babysit/bbs` guidance and continue
+from a checkout) / `brew upgrade 2found/2build/bbs` guidance and continue
 the skill where possible.
 
 ### Interpreting the state echo

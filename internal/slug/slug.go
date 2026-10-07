@@ -14,7 +14,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/reallongnguyen/babysit/internal/git"
+	"github.com/2found/2build/internal/git"
 )
 
 // ErrNoRepo signals that git could not resolve a worktree — i.e. we are not in

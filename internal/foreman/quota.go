@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/orca"
+	"github.com/2found/2build/internal/orca"
 )
 
 // QuotaWindowEvidence is sanitized per-window evidence suitable for a durable

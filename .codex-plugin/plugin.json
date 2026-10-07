@@ -1,24 +1,24 @@
 {
   "name": "bbs",
   "version": "1.94.2",
-  "description": "Give your coding agent a goal. Babysit plans, builds, reviews and verifies, with progress saved on disk.",
+  "description": "Give your coding agent a goal. 2build plans, builds, reviews and verifies, with progress saved on disk.",
   "author": {
-    "name": "lohi-ai",
-    "url": "https://github.com/lohi-ai"
+    "name": "2found",
+    "url": "https://github.com/2found"
   },
-  "homepage": "https://github.com/lohi-ai/babysit",
-  "repository": "https://github.com/lohi-ai/babysit",
+  "homepage": "https://github.com/2found/2build",
+  "repository": "https://github.com/2found/2build",
   "license": "MIT",
   "keywords": ["autonomy", "coding", "qa", "workflows"],
   "skills": "./.claude/skills",
   "interface": {
-    "displayName": "Babysit",
+    "displayName": "2build",
     "shortDescription": "From a goal to a reviewed, tested change.",
     "longDescription": "Autopilot carries one ticket from requirement to a verified local commit in your Codex session. Plans, checkpoints and review/QA evidence stay on disk so work can resume after a restart. Foreman adds optional Orca-based coordination for multi-ticket projects.",
-    "developerName": "lohi-ai",
+    "developerName": "2found",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
-    "websiteURL": "https://github.com/lohi-ai/babysit",
-    "defaultPrompt": "Use Babysit autopilot to build this requirement end to end."
+    "websiteURL": "https://github.com/2found/2build",
+    "defaultPrompt": "Use 2build autopilot to build this requirement end to end."
   }
 }

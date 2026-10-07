@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/foreman"
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // The floor is only as good as the text it reads. A design.md can be bland

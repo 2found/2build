@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/foreman"
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/ticket"
 )
 
 func projectApprovalFixture(t *testing.T) (*ticket.Store, identity.Env) {

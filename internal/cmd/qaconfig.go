@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/reallongnguyen/babysit/internal/qaconfig"
+	"github.com/2found/2build/internal/qaconfig"
 	"github.com/spf13/cobra"
 )
 

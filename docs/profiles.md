@@ -37,7 +37,7 @@ the shape it spelled out.
 
 ## What no profile changes: where you work
 
-**Babysit works on the branch you are standing on.** No profile cuts a branch,
+**2build works on the branch you are standing on.** No profile cuts a branch,
 and no profile moves you into a worktree — `bbs autopilot git-flow` prints
 `BBS_MODE='trunk'` under all three. A tool that silently relocates your work is
 a tool you cannot manage, so isolation is something a *run* asks for, never

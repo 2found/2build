@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/identity"
+	"github.com/2found/2build/internal/identity"
 )
 
 // A malformed index.json is not an empty record. reconcileOne used to read it

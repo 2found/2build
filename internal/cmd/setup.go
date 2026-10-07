@@ -408,7 +408,7 @@ Codex CLI:
   codex plugin add bbs@babysit
 
 Grok Build:
-  grok plugin install https://github.com/lohi-ai/babysit
+  grok plugin install https://github.com/2found/2build
 
 OMP hooks (skills are configured separately; see docs/operations.md):
   omp --extension "%[1]s/hooks/omp.ts"
@@ -558,7 +558,7 @@ for _c in bbs "$HOME/.local/bin/bbs" "$HOME/.claude/bbs"; do
   fi
 done
 if [ -z "$BBS" ]; then
-  echo "pre-commit: no working bbs — run 'bbs setup' from a checkout, or brew install lohi-ai/babysit/bbs." >&2
+  echo "pre-commit: no working bbs — run 'bbs setup' from a checkout, or brew install 2found/2build/bbs." >&2
   exit 1
 fi
 "$BBS" hooks pre-commit "$@"

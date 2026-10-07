@@ -4,9 +4,9 @@ Start with [Autopilot](../README.md#try-your-first-ticket) for one ticket. Forem
 
 ## Configure Foreman
 
-Foreman requires [Orca](https://www.onorca.dev) with orchestration enabled. It selects a worker's agent from an explicit choice, a compatible phase pin, or Orca's configured default on the destination host. Legacy Babysit YAML agent/provider/model/effort preferences are retired and ignored.
+Foreman requires [Orca](https://www.onorca.dev) with orchestration enabled. It selects a worker's agent from an explicit choice, a compatible phase pin, or Orca's configured default on the destination host. Legacy 2build YAML agent/provider/model/effort preferences are retired and ignored.
 
-Babysit selects the worker's model and effort from task complexity (`simple`, `normal`, or `hard`) and phase class. Planning, design, and review are `critical` phases; implementation, QA, and delivery are `normal` phases. The policy maps these combinations to `flash`, `pro`, or `max` tiers, each with model bindings for the selected agent. Explicit phase overrides and valid persisted resume routes take precedence.
+2build selects the worker's model and effort from task complexity (`simple`, `normal`, or `hard`) and phase class. Planning, design, and review are `critical` phases; implementation, QA, and delivery are `normal` phases. The policy maps these combinations to `flash`, `pro`, or `max` tiers, each with model bindings for the selected agent. Explicit phase overrides and valid persisted resume routes take precedence.
 
 Inspect the effective policy or look up one selection from your project directory:
 

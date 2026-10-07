@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/reallongnguyen/babysit/internal/config"
+	"github.com/2found/2build/internal/config"
 )
 
 // Git-flow policy resolution — the one codepath that reads

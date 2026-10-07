@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/ticket"
 )
 
 const sessionRowFmt = "%-40s %-14s %-6s %s\n"

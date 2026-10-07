@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/config"
+	"github.com/2found/2build/internal/config"
 )
 
 func TestForemanModelLookupFromNestedRepoAndWorktree(t *testing.T) {

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/foreman"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/ticket"
 )
 
 func executionFixture(t *testing.T) (*ticket.Store, *ticket.Store, string) {

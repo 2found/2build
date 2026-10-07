@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/ticket"
 )
 
 func projectArtifactInputs(st *ticket.Store, artifacts map[string]string) (string, error) {

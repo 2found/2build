@@ -112,7 +112,7 @@ export function FirstRunChecklist({
               Follow the next action
             </h3>
             <p className="m-0 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-              Babysit shows plan/prototype review, blocked work, QA evidence, and finish status in Tickets and Home.
+              2build shows plan/prototype review, blocked work, QA evidence, and finish status in Tickets and Home.
             </p>
           </div>
         </li>

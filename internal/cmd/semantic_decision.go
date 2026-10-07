@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/config"
-	"github.com/reallongnguyen/babysit/internal/decision"
-	"github.com/reallongnguyen/babysit/internal/env"
+	"github.com/2found/2build/internal/config"
+	"github.com/2found/2build/internal/decision"
+	"github.com/2found/2build/internal/env"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

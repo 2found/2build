@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // A project approval covers the reviewed artifacts, not whatever the same

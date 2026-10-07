@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/reallongnguyen/babysit/internal/config"
+	"github.com/2found/2build/internal/config"
 	"gopkg.in/yaml.v3"
 )
 

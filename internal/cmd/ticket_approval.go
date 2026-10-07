@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/foreman"
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/orca"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/orca"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // The approval record is the design checkpoint made durable. A worker that

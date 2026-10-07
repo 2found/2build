@@ -63,9 +63,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
-## babysit
+## 2build
 
-Babysit is a Claude Code and Codex skill pack for **autonomous** workflows — scheduled runs, background jobs, CI loops, anything where no human is at the keyboard to approve or course-correct.
+2build is a 2found product for product engineering, with a Claude Code and Codex skill pack for **autonomous** workflows — scheduled runs, background jobs, CI loops, anything where no human is at the keyboard to approve or course-correct. Repository: `2found/2build`. Follow [BRANDING.md](BRANDING.md) for names; `bbs`, `bbs:` and `.babysit` remain compatibility identifiers.
 
 It is the product-building *team*: skills and workflows are organized around the
 **five archetypes** of how that team works — Prototyper, Builder, Sweeper,
@@ -77,7 +77,7 @@ When adding a skill, place it under the archetype whose mandate it serves.
 
 ## Working principles
 
-The name is the point: *babysit is what you do when you don't need a babysitter*. Skills here should prefer decisions Claude can make and verify alone over decisions that need a human in the loop.
+Skills here should prefer decisions Claude can make and verify alone over decisions that need a human in the loop.
 
 When writing or adapting a babysit skill:
 - **Only Foreman depends on Orca** — keep its transport, lifecycle, and launch

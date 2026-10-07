@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // runSetVerdict ports tests/fixtures/bbs-ticket.reference:1411-1440.

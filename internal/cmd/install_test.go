@@ -47,7 +47,7 @@ func TestInstallMarketplace(t *testing.T) {
 				if harness == "codex" {
 					refresh, verb = "upgrade", "add"
 				}
-				market := "plugin marketplace add lohi-ai/babysit"
+				market := "plugin marketplace add 2found/2build"
 				if registered {
 					market = "plugin marketplace " + refresh + " babysit"
 				}
@@ -261,7 +261,7 @@ echo 'reference' > "$destination/.claude/skills/references/preamble.md"
 		}
 	}
 	calls, _ := os.ReadFile(filepath.Join(dir, "calls"))
-	if !strings.Contains(string(calls), "clone --depth 1 --branch v1.2.3 https://github.com/lohi-ai/babysit.git") {
+	if !strings.Contains(string(calls), "clone --depth 1 --branch v1.2.3 https://github.com/2found/2build.git") {
 		t.Fatalf("download was not pinned to CLI version: %s", calls)
 	}
 }

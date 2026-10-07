@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/config"
+	"github.com/2found/2build/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -340,7 +340,7 @@ func upgradeExternal(babysit string) error {
 func hintCLI(babysit string) string {
 	out := "  CLI:    brew upgrade bbs"
 	if !strings.Contains(babysit, "/Cellar/") {
-		out += "   (or re-download from https://github.com/lohi-ai/babysit/releases)"
+		out += "   (or re-download from https://github.com/2found/2build/releases)"
 	}
 	return out
 }

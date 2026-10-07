@@ -16,7 +16,7 @@ import (
 var errSilent = errors.New("")
 
 // version is the CLI version, injected by release builds via
-// -ldflags "-X github.com/reallongnguyen/babysit/internal/cmd.version=X.Y.Z".
+// -ldflags "-X github.com/2found/2build/internal/cmd.version=X.Y.Z".
 // It is deliberately empty in a plain `go build`: a git-clone install (the
 // `bbs setup` path) resolves the VERSION file in the checkout instead, which
 // stays correct after a `git pull` without needing a rebuild.
@@ -63,7 +63,7 @@ func guardHelp(c *cobra.Command) *cobra.Command {
 func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "bbs",
-		Short:         "babysit CLI",
+		Short:         "2build CLI",
 		Version:       resolveVersion(),
 		SilenceUsage:  true,
 		SilenceErrors: true,

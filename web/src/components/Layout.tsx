@@ -145,7 +145,7 @@ export function Layout({
                 className="text-base font-semibold tracking-tight"
                 style={{ color: 'var(--text-nav-active)', fontFamily: 'var(--font-display)' }}
               >
-                babysit
+                2build
               </div>
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>dashboard</div>
             </div>

@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/reallongnguyen/babysit/internal/design"
+	"github.com/2found/2build/internal/design"
 	"github.com/spf13/cobra"
 )
 

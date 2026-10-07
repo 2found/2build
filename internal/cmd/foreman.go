@@ -13,13 +13,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/agent"
-	"github.com/reallongnguyen/babysit/internal/config"
-	"github.com/reallongnguyen/babysit/internal/foreman"
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/orca"
-	"github.com/reallongnguyen/babysit/internal/qaconfig"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/agent"
+	"github.com/2found/2build/internal/config"
+	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/orca"
+	"github.com/2found/2build/internal/qaconfig"
+	"github.com/2found/2build/internal/ticket"
 	"github.com/spf13/cobra"
 )
 

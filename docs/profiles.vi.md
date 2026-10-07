@@ -39,7 +39,7 @@ hình dạng nó đã ghi ra.
 
 ## Thứ không profile nào đụng tới: bạn làm việc ở đâu
 
-**Babysit làm việc ngay trên cái branch bạn đang đứng.** Không profile nào cắt
+**2build làm việc ngay trên cái branch bạn đang đứng.** Không profile nào cắt
 branch, không profile nào lôi bạn vào worktree — `bbs autopilot git-flow` in ra
 `BBS_MODE='trunk'` ở cả ba. Đây là chủ ý: một công cụ lặng lẽ dời việc của bạn
 đi chỗ khác là công cụ bạn không quản được. Nên sự cô lập là thứ *từng lần chạy*

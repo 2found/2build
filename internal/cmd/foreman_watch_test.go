@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/foreman"
-	"github.com/reallongnguyen/babysit/internal/orca"
+	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/orca"
 )
 
 // watchFixture stands up a stub orca whose pane content is a file the test

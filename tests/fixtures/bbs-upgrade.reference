@@ -43,7 +43,7 @@ fi
 cd "$BABYSIT_DIR"
 if ! git rev-parse --git-dir >/dev/null 2>&1; then
   echo "babysit was not installed via git clone — cannot auto-upgrade" >&2
-  echo "Reinstall manually: https://github.com/reallongnguyen/babysit" >&2
+  echo "Reinstall manually: https://github.com/2found/2build" >&2
   exit 1
 fi
 

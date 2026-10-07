@@ -125,7 +125,7 @@ var profiles = map[string]Profile{
 		// there) and nowhere else, so a worker dispatched in a product repo
 		// comes up fine and then cannot resolve its own prompt.
 		Install: "install grok, then give it babysit's skills: " +
-			"grok plugin install https://github.com/lohi-ai/babysit " +
+			"grok plugin install https://github.com/2found/2build " +
 			"(grok has its own plugin store — without that install, /bbs:autopilot is not a skill grok can see)",
 		// grok's directory trust is separate from its permission mode: with
 		// `permission_mode = "always-approve"` already set, a first run in an
@@ -169,7 +169,7 @@ var profiles = map[string]Profile{
 		Session: "", Resume: "resume", Continue: "",
 		SkillSigil: "$", SkillPrefix: "bbs:",
 		Install: "install codex: https://developers.openai.com/codex/cli, then install babysit: " +
-			"codex plugin marketplace add lohi-ai/babysit && codex plugin add bbs@babysit",
+			"codex plugin marketplace add 2found/2build && codex plugin add bbs@babysit",
 	},
 	"cursor": {
 		Name: "cursor", Bin: "cursor-agent", Yolo: "--yolo",

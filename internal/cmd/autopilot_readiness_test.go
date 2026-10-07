@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/identity"
+	"github.com/2found/2build/internal/identity"
 )
 
 func TestV2EvidenceAndReadinessAreBoundToCurrentSubject(t *testing.T) {

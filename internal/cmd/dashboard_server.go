@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/agent"
-	"github.com/reallongnguyen/babysit/internal/dashboard"
-	"github.com/reallongnguyen/babysit/internal/foreman"
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/orca"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/agent"
+	"github.com/2found/2build/internal/dashboard"
+	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/orca"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // The served dashboard is the control plane: the same reads the file:// snapshot

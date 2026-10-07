@@ -79,7 +79,7 @@ foreach ($d in @((Join-Path $Home_ '.local/bin'), (Join-Path $Home_ '.claude'),
 # actually serves the subcommand (a stale binary exits 1 silently). Invoke-Bbs
 # returns $null on any failure; --help always prints on success.
 if ($null -eq (Invoke-Bbs ticket --help)) {
-    [Console]::Error.WriteLine('BBS_DEGRADED: no working `bbs` on PATH — run `go run ./cmd/bbs setup` from a checkout, or `brew install lohi-ai/babysit/bbs` (a plugin install ships no compiled binary)')
+    [Console]::Error.WriteLine('BBS_DEGRADED: no working `bbs` on PATH — run `go run ./cmd/bbs setup` from a checkout, or `brew install 2found/2build/bbs` (a plugin install ships no compiled binary)')
 }
 
 # Auto-update check — prints UPGRADE_AVAILABLE/JUST_UPGRADED to stderr.

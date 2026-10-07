@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/config"
+	"github.com/2found/2build/internal/config"
 	"github.com/spf13/cobra"
 )
 
-const defaultRemoteURL = "https://raw.githubusercontent.com/reallongnguyen/babysit/main/VERSION"
+const defaultRemoteURL = "https://raw.githubusercontent.com/2found/2build/main/VERSION"
 
 // versionRe rejects non-version remote responses (HTML error pages, empty
 // bodies) — tests/fixtures/bbs-update-check.reference:118. The body is space-stripped first, so it

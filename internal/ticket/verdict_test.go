@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/identity"
+	"github.com/2found/2build/internal/identity"
 )
 
 // liveHollowVerdict is verbatim what a spawned verifier persisted for

@@ -1,12 +1,12 @@
 {
   "name": "babysit",
   "owner": {
-    "name": "lohi-ai",
-    "url": "https://github.com/lohi-ai/babysit"
+    "name": "2found",
+    "url": "https://github.com/2found/2build"
   },
   "metadata": {
     "version": "1.94.2",
-    "description": "Babysit — checkpointed coding-agent workflows from a goal to a reviewed, tested change."
+    "description": "2build — checkpointed coding-agent workflows from a goal to a reviewed, tested change."
   },
   "plugins": [
     {

@@ -1,10 +1,10 @@
-# babysit
+# 2build
 
 [English](README.md) | [Tiếng Việt](README.vi.md) | 中文 | [日本語](README.ja.md) | [한국어](README.ko.md)
 
 **给 coding agent 一个目标，拿回经过审查和测试的变更。**
 
-Babysit 是面向 Claude Code、Codex 和 Antigravity 的开源 skill pack，配套 CLI 保存进度和验证证据。从 **Autopilot** 开始：在你现有的 agent session 中，将一个 ticket 从需求推进到本地 commit。
+2build 是面向 Claude Code、Codex 和 Antigravity 的开源 skill pack，配套 CLI 保存进度和验证证据。从 **Autopilot** 开始：在你现有的 agent session 中，将一个 ticket 从需求推进到本地 commit。
 
 <a id="安装"></a>
 
@@ -13,21 +13,21 @@ Babysit 是面向 Claude Code、Codex 和 Antigravity 的开源 skill pack，配
 把下面的 prompt 粘贴到能运行终端命令的 coding agent：
 
 ```text
-为我当前使用的 coding agent 安装 Babysit。
-按照 https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/install.md 操作。
+为我当前使用的 coding agent 安装 2build。
+按照 https://raw.githubusercontent.com/2found/2build/main/docs/install.md 操作。
 识别操作系统和当前 agent，复用可用的 bbs 或安装 CLI，然后只为此 agent 安装 skill pack。
 验证 bbs --version 和已安装的 plugin；缺少前提条件时明确报告，不要宣称成功。
 说明是否需要重启，并给出适合当前 agent 的准确 Autopilot 调用方式，让我运行第一个小任务。
 ```
 
-需要受支持的 coding agent 及其现有 model 访问权限。Claude Code 和 Codex 还需要 CLI 在 PATH 中。Babysit 无需单独的 model 账户；agent 的正常使用费用仍适用。**只有 Foreman 需要 Orca。** 参见[安装与排错](docs/install.md)（英文）。
+需要受支持的 coding agent 及其现有 model 访问权限。Claude Code 和 Codex 还需要 CLI 在 PATH 中。2build 无需单独的 model 账户；agent 的正常使用费用仍适用。**只有 Foreman 需要 Orca。** 参见[安装与排错](docs/install.md)（英文）。
 
 <details>
 <summary>想手动运行命令？macOS 或 Linux 上的 Homebrew</summary>
 
 ```bash
-brew tap lohi-ai/babysit https://github.com/lohi-ai/babysit
-brew install lohi-ai/babysit/bbs
+brew tap 2found/2build https://github.com/2found/2build
+brew install 2found/2build/bbs
 bbs install
 ```
 
@@ -35,18 +35,18 @@ bbs install
 
 </details>
 
-## Babysit 有何不同？
+## 2build 有何不同？
 
-Prompt 能描述如何构建。Babysit 加上 workflow 和磁盘状态，将目标推进到审查和验证，即使 session 重启也能继续。
+Prompt 能描述如何构建。2build 加上 workflow 和磁盘状态，将目标推进到审查和验证，即使 session 重启也能继续。
 
-| 你需要 | Babysit 提供 |
+| 你需要 | 2build 提供 |
 |--------|-------------|
 | 无需逐步指挥也能完成任务 | Autopilot 将一个 ticket 推进过规划、实现、审查修复和 QA。 |
 | crash 或 context reset 后继续 | 需求、计划、checkpoint 和 handoff 保存在磁盘，可据此恢复。 |
 | 知道结果是否经过检查 | 持久保存 review/QA verdict；完成要求当前检查通过且无未解决的重大问题。 |
 | 控制交付 | 独立 Autopilot 只做本地 commit；你查看证据后再 push 或创建 PR。 |
 
-适用于需要经过验证的交接，或希望离开时 agent 继续工作的任务。简单修改可能只需 coding agent。Babysit 仍需要可用的项目测试环境；缺少访问权限或必需检查时会报告 `NEEDS_CONTEXT` 或 `BLOCKED`。
+适用于需要经过验证的交接，或希望离开时 agent 继续工作的任务。简单修改可能只需 coding agent。2build 仍需要可用的项目测试环境；缺少访问权限或必需检查时会报告 `NEEDS_CONTEXT` 或 `BLOCKED`。
 
 <a id="autopilot单个-ticket"></a>
 

@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/git"
-	"github.com/reallongnguyen/babysit/internal/identity"
-	"github.com/reallongnguyen/babysit/internal/ticket"
-	"github.com/reallongnguyen/babysit/internal/workspace"
+	"github.com/2found/2build/internal/git"
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/ticket"
+	"github.com/2found/2build/internal/workspace"
 )
 
 type v2Envelope struct {

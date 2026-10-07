@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // Project scope is approved before runtime ticket IDs exist. Seed bindings

@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/reallongnguyen/babysit/internal/slug"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/slug"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // runResolve ports tests/fixtures/bbs-ticket.reference:922-1051 — the single identity entry

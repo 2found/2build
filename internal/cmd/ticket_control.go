@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/foreman"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // Control state is the human override axis — pause and cancel. It is stored in

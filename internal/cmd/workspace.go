@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/reallongnguyen/babysit/internal/qaconfig"
-	"github.com/reallongnguyen/babysit/internal/workspace"
+	"github.com/2found/2build/internal/qaconfig"
+	"github.com/2found/2build/internal/workspace"
 	"github.com/spf13/cobra"
 )
 

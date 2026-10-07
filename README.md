@@ -1,10 +1,12 @@
-# babysit
+# 2build
 
 English | [Tiếng Việt](README.vi.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
 **Give your coding agent a goal. Come back to a reviewed, tested change.**
 
-Babysit is an open-source skill pack for Claude Code, Codex and Antigravity, with a companion CLI that saves progress and verification evidence. Start with **Autopilot**: one ticket, from requirement to a local commit, in the agent session you already use.
+2build supports product engineering, from planning and implementation through review, testing, QA and release. Its open-source skill pack works with Claude Code, Codex and Antigravity, with a companion CLI that saves progress and verification evidence. Start with **Autopilot**: one ticket, from requirement to a local commit, in the agent session you already use.
+
+A 2found product. Previously named babysit; the `bbs` CLI, `bbs:` skills and existing `.babysit` state remain compatible. See [branding and naming](BRANDING.md).
 
 <a id="install"></a>
 
@@ -13,22 +15,22 @@ Babysit is an open-source skill pack for Claude Code, Codex and Antigravity, wit
 Paste this into your coding agent with terminal access:
 
 ```text
-Install Babysit for the coding agent I am using. Follow
-https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/install.md. Detect my OS and
+Install 2build for the coding agent I am using. Follow
+https://raw.githubusercontent.com/2found/2build/main/docs/install.md. Detect my OS and
 current agent, reuse a working bbs installation or install the CLI, then install the
 skill pack for this agent only. Verify bbs --version and the installed plugin; report
 any missing prerequisite instead of claiming success. Tell me whether I need to restart
 and give me the exact Autopilot invocation for my agent to run my first small task.
 ```
 
-You need a supported coding agent and its existing model access. Claude Code and Codex also need their CLI on PATH. Babysit has no separate model account to configure; your agent's normal usage charges apply. **Orca is only required for Foreman.** See [installation and troubleshooting](docs/install.md).
+You need a supported coding agent and its existing model access. Claude Code and Codex also need their CLI on PATH. 2build has no separate model account to configure; your agent's normal usage charges apply. **Orca is only required for Foreman.** See [installation and troubleshooting](docs/install.md).
 
 <details>
 <summary>Prefer terminal commands? Homebrew on macOS or Linux</summary>
 
 ```bash
-brew tap lohi-ai/babysit https://github.com/lohi-ai/babysit
-brew install lohi-ai/babysit/bbs
+brew tap 2found/2build https://github.com/2found/2build
+brew install 2found/2build/bbs
 bbs install
 ```
 
@@ -36,18 +38,18 @@ bbs install
 
 </details>
 
-## Why Babysit?
+## Why 2build?
 
-A prompt can describe how to build something. Babysit adds the workflow and durable state needed to carry a goal through review and verification, even after a session restarts.
+A prompt can describe how to build something. 2build adds the workflow and durable state needed to carry a goal through review and verification, even after a session restarts.
 
-| What you need | What Babysit adds |
+| What you need | What 2build adds |
 |---------------|-------------------|
 | Finish a task without directing every step | Autopilot carries one ticket through planning, implementation, review fixes and QA. |
 | Pick up after a crash or context reset | Requirements, plans, checkpoints and handoffs live on disk. Resume from that evidence. |
 | Know whether the result works | Review and QA verdicts are persisted; completion requires current checks and no unresolved material findings. |
 | Keep control of delivery | Standalone Autopilot commits locally. You review the evidence before pushing or opening a PR. |
 
-Use it when a task needs a verified handoff or you want to leave a run working while you are away. A quick edit may need only your coding agent. Babysit still needs a usable project test environment; missing access or required checks are reported as `NEEDS_CONTEXT` or `BLOCKED`.
+Use it when a task needs a verified handoff or you want to leave a run working while you are away. A quick edit may need only your coding agent. 2build still needs a usable project test environment; missing access or required checks are reported as `NEEDS_CONTEXT` or `BLOCKED`.
 
 <a id="autopilot-one-ticket"></a>
 

@@ -4,7 +4,7 @@ description: Keep a mature system secure, reliable, and efficient at scale. Use 
 ---
 
 > **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.
-> Install it first: `brew install lohi-ai/babysit/bbs` (macOS/Linux), the release
+> Install it first: `brew install 2found/2build/bbs` (macOS/Linux), the release
 > tarball on Linux, or WSL/Git-Bash on Windows (no Windows binary is published);
 > `go run ./cmd/bbs setup` from a checkout works on any OS. Without `bbs` the
 > skill reports `BBS_DEGRADED` and stops.

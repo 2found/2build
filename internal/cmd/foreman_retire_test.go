@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/reallongnguyen/babysit/internal/foreman"
+	"github.com/2found/2build/internal/foreman"
 )
 
 // Retiring has to do both halves: drop the record AND close the pane. A record

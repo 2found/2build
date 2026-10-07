@@ -1,24 +1,24 @@
-# Babysit
+# 2build
 
 > Open-source coding-agent skills and a companion CLI for checkpointed work from a goal through implementation, review and QA. Supports Claude Code, Codex and Antigravity; only Foreman needs Orca.
 
 ## Start here
 
-- [README and installation prompt](https://raw.githubusercontent.com/lohi-ai/babysit/main/README.md): Value, one copyable install prompt, prerequisites and first-ticket handoff.
-- [Installation contract](https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/install.md): Detect the current harness, install CLI plus skills, verify both layers and troubleshoot missing prerequisites.
-- [Skill index](https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/skills.md): Choose a workflow or a directly invocable skill by task.
+- [README and installation prompt](https://raw.githubusercontent.com/2found/2build/main/README.md): Value, one copyable install prompt, prerequisites and first-ticket handoff.
+- [Installation contract](https://raw.githubusercontent.com/2found/2build/main/docs/install.md): Detect the current harness, install CLI plus skills, verify both layers and troubleshoot missing prerequisites.
+- [Skill index](https://raw.githubusercontent.com/2found/2build/main/docs/skills.md): Choose a workflow or a directly invocable skill by task.
 
 ## Execute and verify
 
-- [Autopilot](https://raw.githubusercontent.com/lohi-ai/babysit/main/.claude/skills/autopilot/SKILL.md): One ticket on the current checkout; init, plan review, goal handoff and verified local commit.
-- [Skill preamble](https://raw.githubusercontent.com/lohi-ai/babysit/main/.claude/skills/references/preamble.md): Harness-specific invocation, bootstrap, telemetry and escalation contract. Resolve sibling references relative to the installed skill directory.
-- [Companion CLI](https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/companion-cli.md): CLI commands, durable snapshots and recovery helpers. Skill invocations are agent chat instructions, not CLI subcommands.
-- [Foreman](https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/foreman.md): Optional Orca-dependent coordination for multi-ticket projects.
-- [Operations](https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/operations.md): Configuration, progress, evidence, telemetry and health checks.
+- [Autopilot](https://raw.githubusercontent.com/2found/2build/main/.claude/skills/autopilot/SKILL.md): One ticket on the current checkout; init, plan review, goal handoff and verified local commit.
+- [Skill preamble](https://raw.githubusercontent.com/2found/2build/main/.claude/skills/references/preamble.md): Harness-specific invocation, bootstrap, telemetry and escalation contract. Resolve sibling references relative to the installed skill directory.
+- [Companion CLI](https://raw.githubusercontent.com/2found/2build/main/docs/companion-cli.md): CLI commands, durable snapshots and recovery helpers. Skill invocations are agent chat instructions, not CLI subcommands.
+- [Foreman](https://raw.githubusercontent.com/2found/2build/main/docs/foreman.md): Optional Orca-dependent coordination for multi-ticket projects.
+- [Operations](https://raw.githubusercontent.com/2found/2build/main/docs/operations.md): Configuration, progress, evidence, telemetry and health checks.
 
 ## Optional
 
-- [Vietnamese README](https://raw.githubusercontent.com/lohi-ai/babysit/main/README.vi.md): Localized installation prompt and first-run guide.
-- [Chinese README](https://raw.githubusercontent.com/lohi-ai/babysit/main/README.zh.md): Localized installation prompt and first-run guide.
-- [Japanese README](https://raw.githubusercontent.com/lohi-ai/babysit/main/README.ja.md): Localized installation prompt and first-run guide.
-- [Korean README](https://raw.githubusercontent.com/lohi-ai/babysit/main/README.ko.md): Localized installation prompt and first-run guide.
+- [Vietnamese README](https://raw.githubusercontent.com/2found/2build/main/README.vi.md): Localized installation prompt and first-run guide.
+- [Chinese README](https://raw.githubusercontent.com/2found/2build/main/README.zh.md): Localized installation prompt and first-run guide.
+- [Japanese README](https://raw.githubusercontent.com/2found/2build/main/README.ja.md): Localized installation prompt and first-run guide.
+- [Korean README](https://raw.githubusercontent.com/2found/2build/main/README.ko.md): Localized installation prompt and first-run guide.

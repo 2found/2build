@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/config"
-	"github.com/reallongnguyen/babysit/internal/foreman"
-	"github.com/reallongnguyen/babysit/internal/orca"
+	"github.com/2found/2build/internal/config"
+	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/orca"
 )
 
 const foremanResourceUsage = `Usage:

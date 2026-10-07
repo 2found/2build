@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/config"
-	"github.com/reallongnguyen/babysit/internal/ticket"
+	"github.com/2found/2build/internal/config"
+	"github.com/2found/2build/internal/ticket"
 )
 
 // skillPreamble is the human-readable enter mode. JSON enter remains the

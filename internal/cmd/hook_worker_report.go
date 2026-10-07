@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/reallongnguyen/babysit/internal/orca"
+	"github.com/2found/2build/internal/orca"
 )
 
 // runWorkerReportGate applies only to the calling Orca terminal. The hook

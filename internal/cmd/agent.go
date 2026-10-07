@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/reallongnguyen/babysit/internal/agent"
+	"github.com/2found/2build/internal/agent"
 	"github.com/spf13/cobra"
 )
 

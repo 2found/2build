@@ -1,6 +1,6 @@
 # Ticket identity & sessions
 
-Babysit's ticket identity used to live entirely on the git branch:
+2build's ticket identity used to live entirely on the git branch:
 `bbs ticket env` regex-matched `feat/<ticket>_<slug>` at whatever cwd the
 shell sat in, and "my ticket" was a function of `git rev-parse
 --abbrev-ref HEAD`. That broke anywhere the cwd wasn't a checkout of the
