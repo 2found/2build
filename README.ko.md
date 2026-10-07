@@ -58,8 +58,8 @@ bbs install
 첫 템플릿은 `hono-bun`으로, TypeScript와 Zod를 사용하는 Bun/Hono API입니다.
 
 `bbs bootstrap`과 `bbs starter check`는 CLI 1.95.0 이상에서 사용할 수 있습니다. Starter
-소스는 preview로 공개되어 있으므로 첫 안정 릴리스까지 `--source`를 사용하세요.
-설정 방법과 요구 사항은 starter README를 참고하세요.
+안정 릴리스를 GitHub에서 직접 다운로드할 수 있습니다. 명령어와 요구 사항은
+[빠른 시작 안내](docs/starters.md)를 참고하세요.
 
 <a id="autopilot-하나의-ticket"></a>
 

@@ -58,9 +58,9 @@ bbs install
 project templates with an agent harness, architecture guidance, tests and local QA.
 The first template is `hono-bun`: a Bun/Hono API with TypeScript and Zod.
 
-`bbs bootstrap` and `bbs starter check` are available in CLI 1.95.0+. The starter
-source is public as a preview; use `--source` until its first stable release.
-Follow the starter README for setup instructions and prerequisites.
+`bbs bootstrap` and `bbs starter check` are available in CLI 1.95.0+. The stable
+starter is ready to download directly from GitHub. Follow the
+[starter quick start](docs/starters.md) for commands and prerequisites.
 
 <a id="autopilot-one-ticket"></a>
 

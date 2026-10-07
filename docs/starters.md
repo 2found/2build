@@ -2,8 +2,8 @@
 
 `bbs bootstrap` creates a runnable project from the separately versioned
 `2found/2build-starters` catalog. The initial template is `hono-bun`. These commands
-are available in CLI 1.95.0+. Remote use requires the first stable starter release;
-until then, use `--source` with a local checkout of the public starter repository.
+are available in CLI 1.95.0+; the first stable starter release is `0.1.0`.
+Bootstrap uses published releases by default; `--source` supports local development.
 
 ```bash
 bbs bootstrap my-api --template hono-bun --profile startup

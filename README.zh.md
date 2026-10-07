@@ -58,8 +58,8 @@ bbs install
 使用 TypeScript 和 Zod 的 Bun/Hono API。
 
 `bbs bootstrap` 和 `bbs starter check` 已在 CLI 1.95.0 及以上版本提供。Starter
-源码已作为预览公开；首次稳定版发布前请使用 `--source`。设置步骤和前提条件
-请参阅 starter README。
+稳定版可直接从 GitHub 下载。命令和前提条件请参阅
+[快速开始指南](docs/starters.md)。
 
 <a id="autopilot单个-ticket"></a>
 

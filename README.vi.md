@@ -58,9 +58,9 @@ bbs install
 project có version, kèm harness cho agent, hướng dẫn kiến trúc, tests và QA cục bộ.
 Template đầu tiên là `hono-bun`: API Bun/Hono với TypeScript và Zod.
 
-`bbs bootstrap` và `bbs starter check` có trong CLI 1.95.0+. Source starter đã
-public dưới dạng preview; dùng `--source` đến khi có stable release đầu tiên.
-Xem README của starter để biết cách bắt đầu và các điều kiện cần thiết.
+`bbs bootstrap` và `bbs starter check` có trong CLI 1.95.0+. Starter đã có stable
+release, tải trực tiếp từ GitHub. Xem [hướng dẫn bắt đầu](docs/starters.md) để biết
+các lệnh và điều kiện cần thiết.
 
 <a id="autopilot-một-ticket"></a>
 
