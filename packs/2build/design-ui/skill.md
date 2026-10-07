@@ -9,6 +9,14 @@ description: Design a feature, page, or component and deliver a reviewable proto
 > `go run ./cmd/bbs setup` from a checkout works on any OS. Without `bbs` the
 > skill reports `BBS_DEGRADED` and stops.
 
+> **Soot data path.** Resolve this installed pack from the deployment's
+> `packs_dir` (relative to the deployment file), then use the absolute
+> `<packs_dir>/2build/design-ui/data` directory as `--data` on every
+> `bbs design suggest` and `bbs design ux-check` command below. Check
+> that the named CSV files exist first; a missing asset is a blocker.
+> Do not rely on the CLI's plugin/check-out data discovery: the Soot
+> pack is the source of these tables, even with a standalone CLI.
+
 # design-ui
 
 Design the smallest complete UI spec a builder can implement — and prove it

@@ -84,6 +84,16 @@ def with_prerequisite(text):
             "skill reports `BBS_DEGRADED` and stops.",
             "skill reports `BBS_DEGRADED` and uses the calling LLM fallback;\n"
             "> retain the request, choice and cited reason in the handoff.")
+    if frontmatter_field(text, "name") == "design-ui":
+        prerequisite += (
+            "> **Soot data path.** Resolve this installed pack from the deployment's\n"
+            "> `packs_dir` (relative to the deployment file), then use the absolute\n"
+            "> `<packs_dir>/2build/design-ui/data` directory as `--data` on every\n"
+            "> `bbs design suggest` and `bbs design ux-check` command below. Check\n"
+            "> that the named CSV files exist first; a missing asset is a blocker.\n"
+            "> Do not rely on the CLI's plugin/check-out data discovery: the Soot\n"
+            "> pack is the source of these tables, even with a standalone CLI.\n\n"
+        )
     return text[:at] + "\n" + prerequisite + text[at:]
 
 
