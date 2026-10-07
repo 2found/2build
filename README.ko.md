@@ -51,6 +51,16 @@ bbs install
 
 </details>
 
+## 새 프로젝트 시작
+
+[**2build starters**](https://github.com/2found/2build-starters)는 agent 작업 환경,
+아키텍처 가이드, 테스트와 로컬 QA를 포함하는 버전 관리 프로젝트 템플릿입니다.
+첫 템플릿은 `hono-bun`으로, TypeScript와 Zod를 사용하는 Bun/Hono API입니다.
+
+`bbs bootstrap`과 `bbs starter check`는 CLI 1.95.0 이상에서 사용할 수 있습니다. Starter
+소스는 preview로 공개되어 있으므로 첫 안정 릴리스까지 `--source`를 사용하세요.
+설정 방법과 요구 사항은 starter README를 참고하세요.
+
 <a id="autopilot-하나의-ticket"></a>
 
 ## 첫 ticket 실행

@@ -24,6 +24,7 @@ production; a frozen byte-identical copy of the old script lives at
 
 | Command | Purpose |
 |---------|---------|
+| `bbs bootstrap` / `bbs starter check` | Create a verified project from a versioned starter; report applicable releases from committed provenance without changing application files. [Starter commands and update contract](starters.md). |
 | `bbs autopilot` | `snapshot --json` reads canonical state, mode, policy and gate evidence; `recover --json` adds bounded artifact excerpts for recovery. `checkpoint`, `attempt` and `verification` persist execution state; `clear`, `base-branch`, `git-flow` and `lint-workflow` support lifecycle and policy. |
 | `bbs ticket` | Ticket-layout broker and state-probe surface. `env` derives `SLUG`/`BRANCH`/`TICKET`/`BABYSIT_PROJECT_HOME` through the identity ladder — `BABYSIT_TICKET` env → `manifest.yaml` cwd-match → branch regex — which is what every skill preamble evals and what autopilot resume relies on; `path <kind>` resolves Layout C file paths; `verdict-status --skill <n>` reads the latest verdict for a sub-skill (used by autopilot's Probe and Verify-post) |
 | `bbs config` | `get` / `set` / `list` plus `workspace` operations, all in `~/.babysit/config.yaml` |

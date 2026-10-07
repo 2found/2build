@@ -13,6 +13,7 @@
 - [Autopilot](https://raw.githubusercontent.com/2found/2build/main/.claude/skills/autopilot/SKILL.md): One ticket on the current checkout; init, plan review, goal handoff and verified local commit.
 - [Skill preamble](https://raw.githubusercontent.com/2found/2build/main/.claude/skills/references/preamble.md): Harness-specific invocation, bootstrap, telemetry and escalation contract. Resolve sibling references relative to the installed skill directory.
 - [Companion CLI](https://raw.githubusercontent.com/2found/2build/main/docs/companion-cli.md): CLI commands, durable snapshots and recovery helpers. Skill invocations are agent chat instructions, not CLI subcommands.
+- [Project starters](https://raw.githubusercontent.com/2found/2build/main/docs/starters.md): Generate a verified project with `bbs bootstrap`; inspect committed starter provenance and applicable updates with `bbs starter check`.
 - [Foreman](https://raw.githubusercontent.com/2found/2build/main/docs/foreman.md): Optional Orca-dependent coordination for multi-ticket projects.
 - [Operations](https://raw.githubusercontent.com/2found/2build/main/docs/operations.md): Configuration, progress, evidence, telemetry and health checks.
 

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/2found/2build/internal/config"
+	"github.com/2found/2build/internal/starter"
 	"github.com/2found/2build/internal/ticket"
 )
 
@@ -29,6 +31,11 @@ func skillPreamble(rec skillRuntimeRecord) {
 		fmt.Fprint(os.Stderr, string(out))
 	}
 	cwd, _ := os.Getwd()
+	if enabled, _ := config.Get("update_check"); enabled != "false" {
+		starterNotice(cwd, os.Stderr, func(lock starter.Lock) starter.CheckResult {
+			return checkStarterRelease(context.Background(), lock, false)
+		})
+	}
 	sessions := refreshSkillSession(rec.InvocationID, cwd, env.Ticket)
 	proactive, _ := config.Get("proactive")
 	ref := "/bbs:"

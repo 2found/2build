@@ -52,6 +52,16 @@ bbs install
 
 </details>
 
+## Bắt đầu project mới
+
+[**2build starters**](https://github.com/2found/2build-starters) cung cấp template
+project có version, kèm harness cho agent, hướng dẫn kiến trúc, tests và QA cục bộ.
+Template đầu tiên là `hono-bun`: API Bun/Hono với TypeScript và Zod.
+
+`bbs bootstrap` và `bbs starter check` có trong CLI 1.95.0+. Source starter đã
+public dưới dạng preview; dùng `--source` đến khi có stable release đầu tiên.
+Xem README của starter để biết cách bắt đầu và các điều kiện cần thiết.
+
 <a id="autopilot-một-ticket"></a>
 
 ## Chạy ticket đầu tiên

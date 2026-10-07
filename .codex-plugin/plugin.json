@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "1.94.3",
+  "version": "1.95.0",
   "description": "Give your coding agent a goal. 2build plans, builds, reviews and verifies, with progress saved on disk.",
   "author": {
     "name": "2found",
