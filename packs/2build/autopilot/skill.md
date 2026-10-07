@@ -30,7 +30,11 @@ to hand back to the human. Keep the existing plan checkpoint and explicit
 `--stop-after` boundaries; after execution starts, do not stop for routine
 review findings, cosmetic choices, or locally repairable test failures.
 Composed skills' Taste decisions are summarized in the handoff, not separate
-approval requests. Genuine User Challenges still escalate.
+approval requests. For a judgment about needing human input, use
+`../semantic-decision/skill.md` kind `human-review` with the current checkpoint,
+accepted direction, evidence and missing input. Follow the shared human-review
+contract: repair local gaps, escalate genuine User Challenges, and honor all
+explicit stop/approval boundaries before considering a model recommendation.
 
 `DONE` means every acceptance criterion has current evidence, no material
 finding remains, and the committed change can proceed to the authorized
@@ -76,9 +80,9 @@ data, or scope the ticket did not authorize. Under a foreman, those two lines
 are durable routing evidence: create or unblock the next child only when the
 trigger is satisfied.
 ## Harness and terminal portability
-- Follow [the preamble](../references/preamble.md) and
-  [Auto-Decision Framework](../references/auto-decision-framework.md) —
-  shared refs (`../references/*.md`) are filesystem paths beside this skill's
+- Follow [the preamble](../shared/preamble.md) and
+  [Auto-Decision Framework](../shared/auto-decision-framework.md) —
+  shared refs (`../shared/*.md`) are filesystem paths beside this skill's
   directory, so read them by path, not as `skill://`.
   Resolve the active harness from session metadata and exposed tools; use
   the preamble's `AGENT` / `SKILL_REF`, not the terminal brand or an installed
@@ -128,16 +132,17 @@ trigger is satisfied.
    worktree (a foreman put you here), that is fine: work in place; the `qa`
    skill owns the shared-surface protocol. When seeding `requirement.md`
    from free text, list open decisions explicitly instead of papering over
-   them ([references/finding-unknowns.md](../references/finding-unknowns.md)).
+   them ([references/finding-unknowns.md](../shared/finding-unknowns.md)).
    Before edits, record the starting HEAD, integration base, and pre-existing
    working changes in the checkpoint/handoff. Preserve that baseline on resume
    so the full ticket remains reviewable after its milestone commits.
    Stop here on `--stop-after=requirement`.
 3. A parent carrying `manifest.md` is a multi-ticket project: stop init and
    hand it to `foreman`; never dispatch or merge its children here. Otherwise
-   pick the archetype workflow ([references/archetypes.md](../references/archetypes.md)):
-   named one wins; else route by the shape of the work; ambiguous or ordinary
-   production work → `builder`. Several *independent* requirements in one
+   pick the archetype workflow ([references/archetypes.md](../shared/archetypes.md)):
+   named one wins; else use `../semantic-decision/skill.md` kind
+   `skill-route` with the requirement and archetype mandates to route by shape;
+   ambiguous or ordinary production work → `builder`. Several *independent* requirements in one
    invocation → don't batch here: autopilot runs one ticket end-to-end;
    parallel dispatch belongs to the `foreman` skill (one visible worker per
    ticket, each running autopilot). `NEEDS_CONTEXT` only when there is no ticket,
@@ -365,7 +370,10 @@ step is ever dispatched to a child, a second session, or an external process.
 ### Repair until the final change passes
 Apply this loop to every production workflow before its final handoff:
 
-1. Triage every review/QA finding. Fix in-scope defects autonomously; use
+1. Triage every review/QA finding using semantic-decision kind `review-finding`
+   with reproduction, cited guards/callers and the review verdict ladder;
+   reuse a recorded decision only while its evidence is current. Fix in-scope
+   defects autonomously; use
    `investigate` when the cause is unclear. Record evidence for refuted or
    nonblocking findings. Required behavior is never deferred just to get a
    green verdict; unrelated improvements stay outside the ticket.

@@ -10,8 +10,8 @@ description: Build a fast, throwaway spike to validate one risky technical or pr
 > skill reports `BBS_DEGRADED` and stops.
 
 # prototype
-The Prototyper archetype (see `../references/archetypes.md`). Shared refs
-(`../references/*.md`) are filesystem paths beside this skill's directory, so
+The Prototyper archetype (see `../shared/archetypes.md`). Shared refs
+(`../shared/*.md`) are filesystem paths beside this skill's directory, so
 read them by path, not as `skill://`. Churn a rough
 throwaway proof that answers **one** question: name the single riskiest
 assumption and the observable signal that proves or kills it, build the

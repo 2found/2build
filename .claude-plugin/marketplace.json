@@ -6,13 +6,13 @@
   },
   "metadata": {
     "version": "1.94.2",
-    "description": "Babysit — autonomous coding-agent skill pack."
+    "description": "Babysit — checkpointed coding-agent workflows from a goal to a reviewed, tested change."
   },
   "plugins": [
     {
       "name": "bbs",
       "version": "1.94.2",
-      "description": "Autonomous skill pack — scheduled runs, background jobs, CI loops.",
+      "description": "Plan, build, review and QA in your coding agent, with progress and evidence saved on disk.",
       "source": "./",
       "category": "productivity"
     }

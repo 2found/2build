@@ -1,15 +1,16 @@
 # Skill index
 
-Skills carry specialized workflows; Opus handles ordinary judgment inline.
+Skills carry specialized workflows; `semantic-decision` isolates bounded
+judgment with the current LLM by default and optional Cloudflare inference.
 The pack is organized around the [five archetypes](../.claude/skills/references/archetypes.md)
 of a product-building team — pick by the shape of the work, not the job title.
 
 | Archetype | Skills |
 |-----------|--------|
 | Prototyper | `office-hours`, `recon`, `prototype` |
-| Builder | `autopilot`, `plan-draft`, `design-ui`, `implement`, `review-pr`, `qa`, `browse`, `create-pr` |
+| Builder | `autopilot`, `plan-draft`, `design-ui`, `implement`, `review-pr`, `qa`, `browse`, `create-pr`, `semantic-decision`, `agent-first-docs` |
 | Sweeper | `sweep`, `review-pr`, `qa` |
-| Grower | `conversion-fix`, `copy-rewrite`, `growth-experiment`, `social-content` |
+| Grower | `conversion-fix`, `copy-rewrite`, `growth-experiment`, `social-content`, `product-marketing-page` |
 | Maintainer | `maintain`, `investigate`, `qa`, `analytics-review`, `triage` |
 | Setup | `setup-project` |
 
@@ -39,6 +40,7 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Audit security, deps, reliability, or scale and harden | `/bbs:maintain` |
 | Root-cause a bug | `/bbs:investigate` |
 | Turn babysit telemetry into ticket-ready findings | `/bbs:analytics-review` |
+| Make a bounded judgment, including whether human input is needed | `/bbs:semantic-decision` |
 | Classify and unblock a stalled/BLOCKED run | `/bbs:triage` |
 | Focused browser check | `/bbs:browse` |
 | Full test/fix browser loop | `/bbs:qa` |
@@ -48,3 +50,5 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Configure repo | `/bbs:setup-project` |
 | Evaluate external code | `/bbs:recon` |
 | Marketing and growth | `/bbs:conversion-fix`, `/bbs:copy-rewrite`, `/bbs:growth-experiment`, `/bbs:social-content` |
+| Agent-first onboarding docs and Markdown discovery | `/bbs:agent-first-docs` |
+| Product value, CTAs and a marketing quick start | `/bbs:product-marketing-page` |

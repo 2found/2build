@@ -1,7 +1,7 @@
 {
   "name": "bbs",
   "version": "1.94.2",
-  "description": "Autonomous product-building workflows for planning, implementation, review, and QA.",
+  "description": "Give your coding agent a goal. Babysit plans, builds, reviews and verifies, with progress saved on disk.",
   "author": {
     "name": "lohi-ai",
     "url": "https://github.com/lohi-ai"
@@ -13,8 +13,8 @@
   "skills": "./.claude/skills",
   "interface": {
     "displayName": "Babysit",
-    "shortDescription": "Plan, build, review, and QA while you are away.",
-    "longDescription": "Checkpointed autonomous product-building workflows for Codex, from a short requirement through implementation, review, and QA.",
+    "shortDescription": "From a goal to a reviewed, tested change.",
+    "longDescription": "Autopilot carries one ticket from requirement to a verified local commit in your Codex session. Plans, checkpoints and review/QA evidence stay on disk so work can resume after a restart. Foreman adds optional Orca-based coordination for multi-ticket projects.",
     "developerName": "lohi-ai",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],

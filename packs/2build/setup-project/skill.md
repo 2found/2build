@@ -11,12 +11,12 @@ description: Configure the current repo for babysit/autopilot. Use when the user
 
 # setup-project
 Set up only the config the repo needs. Re-running should be safe. Shared refs
-(`../references/*.md`) are filesystem paths beside this skill's directory, so
+(`../shared/*.md`) are filesystem paths beside this skill's directory, so
 read them by path, not as `skill://`.
 ## Create Or Update
 - `.babysit/git-flow.yaml`: `profile` + `base_branch`; add `finish` only when
   the human explicitly authorizes Foreman closeout. Everything else derives
-  (`../references/git-flow.md § Profiles`).
+  (`../shared/git-flow.md § Profiles`).
 - `.babysit/qa.yaml`: minimal local `url`, `start`, `check`, and `flows`.
 - `~/.babysit/config.yaml`: machine-local workspace registry and babysit settings.
   Agent enablement and the default agent belong in Orca, not this file. When
@@ -28,7 +28,7 @@ read them by path, not as `skill://`.
 ## Rules
 - Detect defaults from the repo before asking: remote, default branch, run
   commands (package scripts, compose, Makefile), app URL hints.
-- Ask **one** question: **what does a mistake cost in this repo?** (see `../references/git-flow.md § Profiles`) — the answer is the profile; never ask about `mode`/`land`/`push`/rigor directly:
+- Ask **one** question: **what does a mistake cost in this repo?** (see `../shared/git-flow.md § Profiles`) — the answer is the profile; never ask about `mode`/`land`/`push`/rigor directly:
   - A pet project — ship now, mistakes are cheap → `pet`: work lands on `base_branch`, no PR, smoke QA.
   - Client or small-team work — release speed matters more than polish → `startup`: tickets off `develop`, a PR each, standard QA.
   - A team or enterprise codebase — code quality outranks release speed → `enterprise`: the same shape plus a `staging` environment and strict QA, with code review on GitHub by someone else.
@@ -39,11 +39,11 @@ read them by path, not as `skill://`.
   `finish: land` for `pet` or `finish: pr` for `startup`/`enterprise`. Add
   `push:` only when the human asks for something the profile does not give
   them; `mode:`/`land:` stay unwritten.
-- **`base_branch` follows the profile's branch topology** (`../references/git-flow.md § Profiles`): `pet` → `main`; `startup`/`enterprise` → `develop`, so *integrated* and *shipped* are two events and `main` stays releasable. Detect before asking — if `origin/develop` exists, write it and say nothing. Ask only when the profile is `startup`/`enterprise` **and** there is no `develop` on the remote: **does every merge to `main` deploy, or do you cut releases?**
+- **`base_branch` follows the profile's branch topology** (`../shared/git-flow.md § Profiles`): `pet` → `main`; `startup`/`enterprise` → `develop`, so *integrated* and *shipped* are two events and `main` stays releasable. Detect before asking — if `origin/develop` exists, write it and say nothing. Ask only when the profile is `startup`/`enterprise` **and** there is no `develop` on the remote: **does every merge to `main` deploy, or do you cut releases?**
   - **Cut releases** (recommended) → have them create it first (`git switch -c develop main && git push -u origin develop`), then write `base_branch: develop`. Don't create the branch yourself — it changes the repo's shape and their host may need branch rules on it.
   - **Every merge deploys** → write the detected default branch and say plainly that the local compose is now the last gate before release.
   Never invent a `base_branch` that doesn't exist on the remote: the first `ensure` would find no `origin/<base>` and silently fork from local base instead.
-- There is no second git-flow question. Parallelism is requested per run, not configured: `foreman` gives a batch one worktree per ticket in any repo, whatever the profile — see `../references/worktrees.md`. Mention it only if the human asks about running several tickets at once.
+- There is no second git-flow question. Parallelism is requested per run, not configured: `foreman` gives a batch one worktree per ticket in any repo, whatever the profile — see `../shared/worktrees.md`. Mention it only if the human asks about running several tickets at once.
 - Re-run on a configured repo = switch: read `profile:` and `base_branch:` from `git-flow.yaml`, ask the question with the current answer marked as current, and on change rewrite only the keys that changed. A `base_branch` change needs the new branch pushed to origin first. Leave `qa.yaml`, `.env`, and the landing doc untouched unless they're missing.
 - Prefer the simple top-level `qa.yaml` shape with a localhost `url`; hosted
   URLs are secondary, never a substitute for local QA. If the project cannot

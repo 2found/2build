@@ -23,7 +23,11 @@ to hand back to the human. Keep the existing plan checkpoint and explicit
 `--stop-after` boundaries; after execution starts, do not stop for routine
 review findings, cosmetic choices, or locally repairable test failures.
 Composed skills' Taste decisions are summarized in the handoff, not separate
-approval requests. Genuine User Challenges still escalate.
+approval requests. For a judgment about needing human input, use
+`../semantic-decision/SKILL.md` kind `human-review` with the current checkpoint,
+accepted direction, evidence and missing input. Follow the shared human-review
+contract: repair local gaps, escalate genuine User Challenges, and honor all
+explicit stop/approval boundaries before considering a model recommendation.
 
 `DONE` means every acceptance criterion has current evidence, no material
 finding remains, and the committed change can proceed to the authorized
@@ -129,8 +133,9 @@ trigger is satisfied.
 3. A parent carrying `manifest.md` is a multi-ticket project: stop init and
    hand it to `foreman`; never dispatch or merge its children here. Otherwise
    pick the archetype workflow ([references/archetypes.md](../references/archetypes.md)):
-   named one wins; else route by the shape of the work; ambiguous or ordinary
-   production work → `builder`. Several *independent* requirements in one
+   named one wins; else use `../semantic-decision/SKILL.md` kind
+   `skill-route` with the requirement and archetype mandates to route by shape;
+   ambiguous or ordinary production work → `builder`. Several *independent* requirements in one
    invocation → don't batch here: autopilot runs one ticket end-to-end;
    parallel dispatch belongs to the `foreman` skill (one visible worker per
    ticket, each running autopilot). `NEEDS_CONTEXT` only when there is no ticket,
@@ -358,7 +363,10 @@ step is ever dispatched to a child, a second session, or an external process.
 ### Repair until the final change passes
 Apply this loop to every production workflow before its final handoff:
 
-1. Triage every review/QA finding. Fix in-scope defects autonomously; use
+1. Triage every review/QA finding using semantic-decision kind `review-finding`
+   with reproduction, cited guards/callers and the review verdict ladder;
+   reuse a recorded decision only while its evidence is current. Fix in-scope
+   defects autonomously; use
    `investigate` when the cause is unclear. Record evidence for refuted or
    nonblocking findings. Required behavior is never deferred just to get a
    green verdict; unrelated improvements stay outside the ticket.

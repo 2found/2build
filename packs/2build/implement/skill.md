@@ -16,8 +16,8 @@ guardrails.
   by design — goal, approach, unknowns — so you own the detail: derive files,
   task order, and steps from the code. If the work collapses to ≤3 trivial
   doc/comment-only edits, downgrade `ticket_size` one tier using the
-  downgrade hook in `../references/ticket-size-rubric.md` (it writes the
-  audit-log line). Shared refs (`../references/*.md`) are filesystem paths
+  downgrade hook in `../shared/ticket-size-rubric.md` (it writes the
+  audit-log line). Shared refs (`../shared/*.md`) are filesystem paths
   beside this skill's directory, so read them by path, not as `skill://`.
 - The plan file is the Claude Code plan: derive the native task list
   (TaskCreate) from `plan.md` — you own task order, one task per verifiable
@@ -50,6 +50,9 @@ guardrails.
 - Never branch, commit, or push — leave the change in the working tree.
   Skills are infra-isolated; git belongs to the invoking workflow
   (autopilot) or the human.
+- Select affected existing tests using `../semantic-decision/skill.md`
+  kind `testcase`, supplying changed behavior and its caller/flow map. Keep
+  mandatory repo checks and regression reproducers regardless of the choice.
 - Verify with the narrowest meaningful command (tests, typecheck, lint,
   build, or browser check) and summarize changed files, verification, and
   remaining risk.

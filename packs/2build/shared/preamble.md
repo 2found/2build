@@ -8,7 +8,7 @@ Use the printed `SKILL_REF` for all babysit invocations, including examples:
 Codex `$bbs:<skill>`, OMP/Cursor `/<skill>`, Claude Code/grok `/bbs:<skill>`.
 
 ## Resolving shared references
-Resolve `../references/<file>.md` from the skill's filesystem directory.
+Resolve `../shared/<file>.md` from the skill's filesystem directory.
 Do not use `skill://` for sibling references: some harnesses strip `..`.
 
 ## Output style — terse by default

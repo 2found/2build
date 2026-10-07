@@ -10,8 +10,8 @@ description: Simplify and shrink working code without changing behavior. Use to 
 > skill reports `BBS_DEGRADED` and stops.
 
 # sweep
-The Sweeper archetype (see `../references/archetypes.md`). Shared refs
-(`../references/*.md`) are filesystem paths beside this skill's directory, so
+The Sweeper archetype (see `../shared/archetypes.md`). Shared refs
+(`../shared/*.md`) are filesystem paths beside this skill's directory, so
 read them by path, not as `skill://`. Make the system
 smaller and clearer while keeping behavior identical: run the safety net
 first (tests / typecheck / build; add the narrowest characterization check

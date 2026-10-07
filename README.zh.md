@@ -2,85 +2,90 @@
 
 [English](README.md) | [Tiếng Việt](README.vi.md) | 中文 | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-**给它一个目标。你离开时，它会规划、实现、审查并验证。**
+**给 coding agent 一个目标，拿回经过审查和测试的变更。**
 
-Babysit 是一套 agent skill，加上配套的 Go CLI。单个串行 ticket 用 Autopilot；项目包含相互依赖的 ticket、需要监督 worker 时用 Foreman。Babysit 的 skill 按产品团队的五种工作角色组织：Prototyper、Builder、Sweeper、Grower、Maintainer，根据工作内容选择，而非文件类型。参见[角色说明](.claude/skills/references/archetypes.md)。
+Babysit 是面向 Claude Code、Codex 和 Antigravity 的开源 skill pack，配套 CLI 保存进度和验证证据。从 **Autopilot** 开始：在你现有的 agent session 中，将一个 ticket 从需求推进到本地 commit。
 
-## 安装
+<a id="安装"></a>
 
-安装 CLI，然后让 Babysit 自动检测并配置已安装的 harness：
+## 用一个 prompt 安装
+
+把下面的 prompt 粘贴到能运行终端命令的 coding agent：
+
+```text
+为我当前使用的 coding agent 安装 Babysit。
+按照 https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/install.md 操作。
+识别操作系统和当前 agent，复用可用的 bbs 或安装 CLI，然后只为此 agent 安装 skill pack。
+验证 bbs --version 和已安装的 plugin；缺少前提条件时明确报告，不要宣称成功。
+说明是否需要重启，并给出适合当前 agent 的准确 Autopilot 调用方式，让我运行第一个小任务。
+```
+
+需要受支持的 coding agent 及其现有 model 访问权限。Claude Code 和 Codex 还需要 CLI 在 PATH 中。Babysit 无需单独的 model 账户；agent 的正常使用费用仍适用。**只有 Foreman 需要 Orca。** 参见[安装与排错](docs/install.md)（英文）。
+
+<details>
+<summary>想手动运行命令？macOS 或 Linux 上的 Homebrew</summary>
 
 ```bash
+brew tap lohi-ai/babysit https://github.com/lohi-ai/babysit
 brew install lohi-ai/babysit/bbs
 bbs install
 ```
 
-安装后重启 agent。`bbs install` 支持 Claude Code、Codex 和 Antigravity；Claude Code 和 Codex 的 CLI 必须在 PATH 中。也可单独运行 `bbs install claude`、`bbs install codex` 或 `bbs install antigravity`。
+`bbs install` 为所有检测到的受支持 agent 安装。也可用 `bbs install claude`、`bbs install codex` 或 `bbs install antigravity` 选择一个。安装后重启 agent。没有 Homebrew 时使用 [release archive](docs/install.md#release-archives-macos-or-linux)；Windows 使用 WSL。
 
-三个操作系统均已覆盖：macOS 和 Linux 可用 Homebrew，Linux 也可下载对应架构的 tarball。Windows 不发布二进制文件 —— 请在 WSL 或 Git-Bash 中运行，或在 checkout 中执行 `go run ./cmd/bbs setup` 构建。完整平台矩阵见[安装详情](docs/install.md)。
+</details>
 
-要开发 Babysit 本身，请克隆仓库并运行 `go run ./cmd/bbs setup --full`；它会构建 `bbs` 并输出将当前 checkout 注册为本地插件的命令。`bbs update` 更新 CLI 和已安装的插件。
+## Babysit 有何不同？
 
-## 配置 Foreman
+Prompt 能描述如何构建。Babysit 加上 workflow 和磁盘状态，将目标推进到审查和验证，即使 session 重启也能继续。
 
-Foreman 需要启用了 orchestration 的 [Orca](https://www.onorca.dev)。它依次根据显式选择、兼容的阶段固定配置或目标主机上的 Orca 默认配置选择 worker 的 agent。Babysit 旧 YAML 中的 agent/provider/model/effort 偏好已弃用，不再生效。
+| 你需要 | Babysit 提供 |
+|--------|-------------|
+| 无需逐步指挥也能完成任务 | Autopilot 将一个 ticket 推进过规划、实现、审查修复和 QA。 |
+| crash 或 context reset 后继续 | 需求、计划、checkpoint 和 handoff 保存在磁盘，可据此恢复。 |
+| 知道结果是否经过检查 | 持久保存 review/QA verdict；完成要求当前检查通过且无未解决的重大问题。 |
+| 控制交付 | 独立 Autopilot 只做本地 commit；你查看证据后再 push 或创建 PR。 |
 
-Babysit 根据任务复杂度（`simple`、`normal` 或 `hard`）和阶段类别选择 worker 的 model 与 effort。规划、设计和审查属于 `critical` 阶段；实现、QA 和交付属于 `normal` 阶段。策略将这些组合映射到 `flash`、`pro` 或 `max` 层级，每个层级为所选 agent 配有对应的 model。显式的阶段覆盖配置和有效的已保存恢复路由优先。
+适用于需要经过验证的交接，或希望离开时 agent 继续工作的任务。简单修改可能只需 coding agent。Babysit 仍需要可用的项目测试环境；缺少访问权限或必需检查时会报告 `NEEDS_CONTEXT` 或 `BLOCKED`。
 
-在项目目录中查看生效的策略，或查询一次具体选择：
+<a id="autopilot单个-ticket"></a>
 
-```bash
-bbs foreman model --json
-bbs foreman model --agent codex --complexity normal --phase-class critical --json
-```
+## 运行第一个 ticket
 
-这些查询不需要 ticket 或 Orca 连接。添加 `--dir <repo-or-worktree>` 可查看其他项目的策略。在 `~/.babysit/settings.json` 或 `<repo>/.babysit/settings.json` 的 `foreman.models` 下覆盖单个字段；仓库配置优先于全局配置，全局配置优先于内置默认值。例如，将 `hard` 任务的 `normal` 阶段路由到 `max` 层级：
+1. 重启 agent，打开 Git repo，选择一个有明确成功检查的小 bug 或功能。Autopilot 在当前 checkout 上工作并 commit；需要隔离时先创建自己的 branch。
+2. 在 **agent chat 中调用 skill**，将示例换成你的任务：
 
-```json
-{
-  "foreman": {
-    "models": {
-      "routing": {
-        "hard": { "normal": "max" }
-      }
-    }
-  }
-}
-```
+   | Agent | 示例 |
+   |-------|------|
+   | Claude Code | `/bbs:autopilot "修复搜索结果为空时的状态，并添加回归测试"` |
+   | Codex | `$bbs:autopilot "修复搜索结果为空时的状态，并添加回归测试"` |
+   | Antigravity | 请它为任务使用已安装的 `autopilot` skill。 |
 
-各 agent 的 model/effort 绑定和恢复行为见 [model routing](.claude/skills/foreman/references/model-routing.md#model-tiers)。
+3. Autopilot 返回计划和 `/goal` block 时，审阅计划，再将 block 粘贴到同一 agent 以开始构建。没有 goal mode 的 agent 会在当前 session 中继续。
+4. 预期结果：本地 commit、review/QA 证据，以及说明改动和检查的 handoff。被阻塞时会指出缺口。重启后把 handoff 中的 ticket ID 交给 Autopilot 即可恢复。
 
-## Foreman：多 ticket 项目
+第一个 ticket 无需 Orca、新 worker session 或项目配置。开始前选好 session 的 model。[查看进度和恢复 session](docs/companion-cli.md)。
 
-在 agent 中调用 **Foreman skill**（以下是 skill 调用，不是 `bbs` CLI 命令）：
+## 按工作内容选择
 
-```text
-# Claude Code
-/bbs:foreman "重建横跨 web 和 API 的请求流程"
-/bbs:foreman --auto "重建横跨 web 和 API 的请求流程"
+Autopilot 将任务路由到产品团队的五种角色之一。也可指定 workflow 或直接调用 skill。
 
-# Codex
-$bbs:foreman "重建横跨 web 和 API 的请求流程"
-```
+| 角色 | 工作 |
+|------|------|
+| Prototyper | 在投入生产代码前验证风险假设。 |
+| Builder | 将功能或 bug 修复推进到 review 和 QA。 |
+| Sweeper | 移除冗余或优化已测量的热点，保持行为。 |
+| Grower | 改善文案、转化或可衡量的增长实验。 |
+| Maintainer | 诊断故障，强化可靠性、安全性和依赖。 |
 
-Foreman 初始化或恢复父项目，并绑定对应的 Orca Run。规划/设计 worker 首先创建总体计划、原型（或非 UI 的流程/接口设计），以及明确范围和依赖关系的稳定 ticket manifest。默认情况下，你先审阅这些产物和拟定的 ticket，之后才会创建子 ticket、worktree 或派发正式实现工作。显式指定 `--auto` 会将这次审查交给独立的证据检查 worker，并记录批准结果；它不会绕过安全暂停或后续 QA。
+在 [skill 索引](docs/skills.md)中查阅独立 skill 和 workflow 示例。
 
-批准后，已接受的方案转为具有明确依赖边的 ticket DAG。Foreman 只派发已就绪的 ticket，遵守 worker/资源限制，并确保每个 ticket worktree 只有一个写入 worker。每个 ticket 依次经历独立且范围明确的 Plan、Implement、Review 和 QA worker 阶段。路由依据任务复杂度和阶段，或单次派发的显式选择。
+<a id="配置-foreman"></a>
+<a id="foreman多-ticket-项目"></a>
 
-Foreman 通过 Orca 等待 worker 的报告、问题或升级请求；它不会轮询终端，也不会启动重试计时器。进入下一阶段前，它会检查当前阶段的产物、修订版本和 verdict。ticket 通过各项 gate 后，由配置的收尾策略（`review`、`land` 或 `pr`）决定交付方式。Foreman 验证回执，释放已结束的 worker 和租约，关闭自己拥有的 Orca 界面，并仅删除符合条件的干净 worktree，同时保留 branch。
+## 更大的项目：Foreman
 
-项目收尾同样由 worker 执行：审计和获授权的交付/清理 worker 先完成工作，再由只读的最终 QA worker 检查准确的已交付 base 或保留的 QA 组合。只有最终证据、清理和就绪检查全部通过，Foreman 才会完成父项目。相互影响的 ticket 还会在 land 前接受集成 QA；它不能替代项目最终 QA。
-
-## Autopilot：单个 ticket
-
-为单个 ticket 调用 **Autopilot skill**：
-
-```text
-# Claude Code skill，在你已打开的 session 中调用
-/bbs:autopilot "添加深色模式开关"
-```
-
-独立运行的 Autopilot 在你启动的 session 中规划、实现、审查和 QA。它不会另选 model，也不会中途切换 model；请在开始前选好。在 Codex 中使用 `$bbs:autopilot` 调用。它无需 Orca，也不会打开后台 worker session。
+对于存在依赖的多个 ticket，[Foreman](docs/foreman.md) 通过 [Orca](https://www.onorca.dev) 规划项目、用 worktree 隔离子 ticket、调度就绪任务并执行项目级 QA。默认先由你审阅父项目计划/设计，再派发生产工作；显式 `--auto` 将该审阅委托给 worker。配置的 finish policy 控制交付。
 
 ## Skill 与 CLI
 

@@ -10,8 +10,8 @@ description: Keep a mature system secure, reliable, and efficient at scale. Use 
 > skill reports `BBS_DEGRADED` and stops.
 
 # maintain
-The Maintainer archetype (see `../references/archetypes.md`). Shared refs
-(`../references/*.md`) are filesystem paths beside this skill's directory, so
+The Maintainer archetype (see `../shared/archetypes.md`). Shared refs
+(`../shared/*.md`) are filesystem paths beside this skill's directory, so
 read them by path, not as `skill://`. Audit a
 shipping system through one lens per run — **security**, **dependencies**,
 **reliability**, **scale/performance** (db schema, indexes, partitioning,

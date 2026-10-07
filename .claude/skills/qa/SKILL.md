@@ -20,7 +20,7 @@ Exercise the application like a user and leave reproducible evidence.
    `git diff $(git merge-base origin/"$BASE" HEAD)`. Target URL and login
    from `.babysit/qa.yaml`:
    ```bash
-   eval "$(bbs secrets load)"                         # exports .babysit/.env values
+   eval "$(bbs secrets load | sed -E '/^export CLOUDFLARE_(ACCOUNT_ID|API_TOKEN)=/d')"                         # exports .babysit/.env values
    ENV=$(bbs secrets qa default-env); ENV=${ENV:-local}
    eval "$(bbs secrets qa probe --env "$ENV" 2>/dev/null)"  # QA_ENV_URL, QA_ENV_{USERNAME,PASSWORD}_ENV, …
    QA_USER=$(printenv "${QA_ENV_USERNAME_ENV:-QA_USER}" 2>/dev/null || true)  # standard: QA_USER / QA_PASS
@@ -84,6 +84,10 @@ Exercise the application like a user and leave reproducible evidence.
    criterion* case with the gap named in `SUMMARY`; an uncoverable criterion
    is named as a gap now, never silently dropped. Save the matrix:
    `bbs ticket path evidence --skill qa --name test-matrix.md --write`.
+   Before finalizing the matrix, use `../semantic-decision/SKILL.md`
+   kind `testcase` to classify candidate cases and existing tests as
+   required/adjacent/unaffected against the impact map. Batch shared context;
+   preserve the coverage floors above and record evidence for exclusions.
    Mirror the matrix into the native task list (TaskCreate) — one task per
    case, closed only when its evidence lands.
 5. Execute the flows end-to-end with a real client. Web UI: the `browse`

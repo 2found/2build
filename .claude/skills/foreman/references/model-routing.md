@@ -31,7 +31,8 @@ has been removed; use Orca settings for new worker routes.
 
 ## Task complexity
 
-Classify each task assignment from its requirement, plan, and acceptance commands;
+Use `../semantic-decision/SKILL.md` kind `task-complexity` with this rubric to
+classify each assignment from its requirement, plan, and acceptance commands;
 weak evidence stays `normal`. A child or recheck does not inherit the parent's
 `hard` label: record the concrete risk in that assignment before selecting `hard`.
 Classify parent planning and composed integration or

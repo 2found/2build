@@ -6,7 +6,7 @@ needs-state:
   branch_pushed: optional
 ---
 # maintainer
-The Maintainer archetype (see `../references/archetypes.md`). Use to keep a
+The Maintainer archetype (see `../shared/archetypes.md`). Use to keep a
 production system safe as it scales. Two modes, chosen from the invocation:
 
 | Mode | When | Skill |

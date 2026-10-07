@@ -32,6 +32,10 @@ const configHeader = `# babysit configuration — edit freely, changes take effe
 # proactive: true           # Auto-invoke skills when the request matches one.
 #                           # Set to false to only run skills explicitly typed.
 #
+# ─── Semantic decisions (always available; provider selected at user scope) ──
+# semantic_decision_provider: llm    # llm (calling agent) | cloudflare
+# semantic_decision_model: clef-flash # clef-flash | clef
+# Credentials: environment, then ~/.babysit/.env; never project .env.
 # ─── Telemetry ───────────────────────────────────────────────────────
 # telemetry: local          # off | local
 #                           #   off   — no data recorded

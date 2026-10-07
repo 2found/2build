@@ -10,8 +10,8 @@ Orca transport and does not port to a soot pack. Output layout:
         README.md
         build-meta.json      version/commit provenance (release builds only)
         <skill>/skill.md     one per capability
-        <skill>/…            aux files copied verbatim (references/, workflows/, data/)
-        shared/              .claude/skills/references/ copied verbatim
+        <skill>/…            aux files (references/, workflows/, data/)
+        shared/              .claude/skills/references/ (Markdown paths translated)
 
 Install into a soot deployment:
     soot add <babysit-repo> --path packs/2build
@@ -78,7 +78,19 @@ def with_prerequisite(text):
     """Insert the bbs-CLI prerequisite after the frontmatter block."""
     m = FRONTMATTER.match(text)
     at = m.end() if m else 0
-    return text[:at] + "\n" + PREREQUISITE + text[at:]
+    prerequisite = PREREQUISITE
+    if frontmatter_field(text, "name") == "semantic-decision":
+        prerequisite = prerequisite.replace(
+            "skill reports `BBS_DEGRADED` and stops.",
+            "skill reports `BBS_DEGRADED` and uses the calling LLM fallback;\n"
+            "> retain the request, choice and cited reason in the handoff.")
+    return text[:at] + "\n" + prerequisite + text[at:]
+
+
+def pack_markdown(text):
+    """Translate source skill-directory paths to the pack's filesystem layout."""
+    text = text.replace("../references/", "../shared/")
+    return re.sub(r"(\.\./[A-Za-z0-9_-]+/)SKILL\.md\b", r"\1skill.md", text)
 
 
 def copy_skill(dst_dir, src_dir):
@@ -91,6 +103,8 @@ def copy_skill(dst_dir, src_dir):
         target = dst_dir / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, target)
+        if target.suffix == ".md":
+            target.write_text(pack_markdown(target.read_text()))
         if rel == Path("skill.md"):
             target.write_text(with_prerequisite(target.read_text()))
 
@@ -189,13 +203,12 @@ def build(out, version, commit):
         if not skill_file.is_file():
             failures.append(f"{name}: missing SKILL.md")
             continue
-        body = skill_file.read_bytes()
-        packed = len(body) + 1 + len(PREREQUISITE.encode())
+        text = skill_file.read_text()
+        packed = len(with_prerequisite(pack_markdown(text)).encode())
         if packed > SOOT_SKILL_LIMIT:
             failures.append(
                 f"{name}: skill.md is {packed} bytes, over the {SOOT_SKILL_LIMIT}-byte soot skill limit")
             continue
-        text = body.decode()
         description = frontmatter_field(text, "description")
         if not description:
             failures.append(f"{name}: no description in SKILL.md frontmatter")
@@ -219,6 +232,8 @@ def build(out, version, commit):
                 target = dst / path.relative_to(shared)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(path, target)
+                if target.suffix == ".md":
+                    target.write_text(pack_markdown(target.read_text()))
 
     manifest = {
         "api_version": "soot/v1",
@@ -263,8 +278,9 @@ def build(out, version, commit):
         "per-arch tarball from the latest GitHub release. Windows publishes no",
         "binary — run inside WSL or Git-Bash (the Linux tarball works there), or",
         "build `go run ./cmd/bbs setup` from a checkout. A plugin-only install ships",
-        "no compiled binary; without `bbs` the skills report `BBS_DEGRADED` and stop.",
-        "The same prerequisite is inlined at the top of every `skill.md`, so the",
+        "no compiled binary; without `bbs` the skills report `BBS_DEGRADED` and stop,",
+        "except `semantic-decision`, which uses its calling LLM fallback.",
+        "The prerequisite is inlined at the top of every `skill.md`, so the",
         "agent reads it on any skill load.",
         "",
         "| Capability | Bytes | When to use |",

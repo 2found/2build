@@ -24,18 +24,25 @@ a precise ask.
    all → `NEEDS_CONTEXT` asking which run to triage.
 2. Name the proximate cause in one sentence, from evidence — never from the
    status label alone.
-3. Classify:
+3. Use `../semantic-decision/skill.md` kind `recovery` with the evidence,
+   available inputs and prior attempts to classify using the criteria below.
+   Shared refs are filesystem paths beside this skill's directory, so read
+   them by path, not as `skill://`.
+   Classify:
    - **Recoverable** — transient environment (network, rate limit, crashed
      session), mechanical state (dirty tree, stale lock, missing install),
      or a regenerable artifact (checkpoint says `done_step`, next step never
-     ran). A fresh dispatch from the checkpoint clears these. A
+     ran), or an in-scope defect the resumed workflow can repair. Dispatch
+     repair to `investigate`/`implement` through the workflow; triage does not
+     edit code. A fresh dispatch from the checkpoint addresses these. A
      `clean-handoff-audit clean:false` is recoverable by construction:
      `uncommitted changes` → re-dispatch instructing a commit-first pass;
      `checkpoint predates the last commit` → run `bbs autopilot checkpoint
      --refresh` and the audit clears without a re-run.
    - **Needs-human** — missing input only the human has (credentials, an
-     ambiguous requirement, a product decision), or a verdict that BLOCKED on
-     a genuine finding. Retrying reproduces the block.
+     ambiguous requirement, a product decision), or a finding whose repair
+     needs missing authority or a change to the accepted direction. A genuine
+     but locally repairable finding alone does not require human review.
 4. Post the triage handoff to the ticket
    (`bbs ticket add-handoff --skill triage`): cause, classification, evidence
    pointers, and the action taken.

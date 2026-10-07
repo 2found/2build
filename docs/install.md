@@ -1,7 +1,48 @@
-# Installing the `bbs` CLI
+# Install Babysit
 
-Install the `bbs` CLI with Homebrew or a release tarball, then run `bbs install`
-to configure your coding harnesses. No Babysit checkout is required.
+For agent-assisted installation, copy the [one installation prompt in the README](../README.md#install-with-one-prompt).
+Babysit needs **both** the `bbs` CLI and the skill pack in your coding agent.
+No Babysit checkout or Orca installation is needed for Autopilot.
+
+## Installation contract for agents
+
+1. Identify the OS/architecture and the **current harness from session context**.
+   Installed executables alone do not identify the agent running this session.
+   Target that harness, rather than installing into every agent on the machine.
+2. Check `command -v bbs`, `bbs --version` and `bbs install --help`. Reuse a
+   working released CLI that supports installation. If an older CLI lacks
+   `install`, use `bbs update` for a supported install shape or replace it with
+   a current release archive, then recheck.
+   For a missing CLI, use Homebrew below if available, otherwise a verified
+   release archive. Do not require Go, Node, a source checkout or Orca for a
+   release install. Windows users should run the CLI and coding agent in WSL.
+3. For Claude Code/Codex, check the harness CLI is on PATH and supports
+   `plugin` commands. A desktop app alone is insufficient. If missing, report
+   the exact prerequisite and let the user enable/install that harness's CLI;
+   do not silently install the pack for a different agent.
+4. Run `bbs install claude`, `bbs install codex`, or `bbs install antigravity`
+   for the current harness. Installation must exit successfully. If a command
+   fails, fix a recoverable local issue and retry for that target, or report the
+   failed command and the missing prerequisite.
+5. Verify **both layers** before reporting installed:
+
+   | Layer | Check |
+   |-------|-------|
+   | CLI | `bbs --version` reports a release version and `bbs install --help` works from the user's shell. |
+   | Claude Code | `claude plugin list --json` shows `bbs@babysit` installed and enabled. |
+   | Codex | `codex plugin list --json` shows Babysit installed and enabled; do not confuse an available marketplace listing with an installed plugin. |
+   | Antigravity | Its managed plugin has `plugin.json`, `skills/autopilot/SKILL.md` and `skills/references/preamble.md` in the locations below. |
+
+6. Tell the user to restart the affected agent and supply its first invocation:
+   Claude Code `/bbs:autopilot`, Codex `$bbs:autopilot`; in Antigravity ask it to
+   use the installed `autopilot` skill. After restart, confirm that the agent
+   can discover the skill before claiming it is loaded. Explain the
+   [first-ticket plan → `/goal` → build handoff](../README.md#try-your-first-ticket).
+
+Completion means the CLI is runnable and the pack is installed for the intended
+agent. A restart still pending means **installed, restart required**, not a
+verified first run. The user's existing agent/model account supplies inference;
+Babysit adds no separate model service requirement. Normal agent usage costs apply.
 
 ## Install into your harness
 
@@ -83,18 +124,19 @@ and reads `VERSION` from the checkout instead, so it stays accurate after a
 
 ```bash
 brew tap lohi-ai/babysit https://github.com/lohi-ai/babysit
-brew install bbs
+brew install lohi-ai/babysit/bbs
 bbs install
 ```
 
 The explicit tap URL is required because the repository is `lohi-ai/babysit`
-rather than the conventional `homebrew-babysit` name.
+rather than the conventional `homebrew-babysit` name. The fully qualified formula
+selects this tap's package. See [Homebrew's tap documentation](https://docs.brew.sh/Taps).
 
 Verify:
 
 ```bash
 bbs --help          # babysit CLI
-bbs config list     # prints ~/.babysit/config.yaml
+bbs --version       # installed CLI version
 ```
 
 Upgrade / uninstall:
@@ -111,29 +153,43 @@ copy if present. A failed Homebrew upgrade returns a failure instead of
 claiming the entire update succeeded. Other standalone binary copies must
 be replaced manually. Use `type -a bbs` to inspect PATH precedence.
 
-## Linux — tarball (secondary)
+## Release archives (macOS or Linux)
 
-No Homebrew formula path on Linux; download the tarball for your architecture
-from the [latest release](https://github.com/lohi-ai/babysit/releases/latest)
-and put `bbs` on your `PATH`.
+Homebrew works on macOS and Linux. Without it, download the archive for your OS
+and architecture plus `checksums.txt` from the **same**
+[release](https://github.com/lohi-ai/babysit/releases/latest).
+Use the platform matrix below to choose the archive. Verify its SHA-256 with
+`sha256sum` on Linux or `shasum -a 256` on macOS against the matching row in
+`checksums.txt` before extracting. Keep the published filename so it matches
+that row. Do not install an archive with a missing or mismatched checksum.
+
+After verification, extract `bbs` and install it:
 
 ```bash
-VERSION=<version>          # e.g. 1.55.20, without a leading v
-ARCH=amd64                 # or arm64
-curl -fsSL -o bbs.tar.gz \
-  "https://github.com/lohi-ai/babysit/releases/download/v${VERSION}/bbs_${VERSION}_linux_${ARCH}.tar.gz"
-
-# Verify the checksum against checksums.txt from the same release, then:
-tar -xzf bbs.tar.gz bbs
-install -m 0755 bbs ~/.local/bin/bbs          # or /usr/local/bin
+mkdir -p ~/.local/bin
+install -m 0755 bbs ~/.local/bin/bbs
+export PATH="$HOME/.local/bin:$PATH"
+bbs --version
 bbs install
-
-# Recreate the aliases the formula would make for you:
-ln -sf bbs ~/.local/bin/bbs-config
-ln -sf bbs ~/.local/bin/bbs-env
 ```
 
-Checksums for every artifact are published as `checksums.txt` on the release.
+Add the PATH entry to your shell's startup file if it is missing, then verify
+`bbs --version` in a new shell. The `bbs-config` / `bbs-env` compatibility aliases
+are optional; current skills call `bbs <subcommand>` directly.
+
+## Troubleshooting the first install
+
+| Symptom | Next step |
+|---------|-----------|
+| `brew` is missing | Use the release archive path above; Homebrew is optional. |
+| `bbs: command not found` after extracting | Check `~/.local/bin/bbs --version`, add `~/.local/bin` to PATH and restart the shell/agent. |
+| No supported harness detected | Run `bbs install <harness>` for the current supported agent. Claude Code/Codex still require their CLI on PATH. |
+| Harness has no `plugin` subcommand | Update/enable its CLI using that harness's own installation instructions, then retry the selected target. |
+| Installation exits nonzero | Read the named harness's error; another harness succeeding does not mean this one installed. Retry `bbs install <harness>`. |
+| Skill is missing after installation | Restart the agent, check the plugin is enabled, and verify installation in the same user/environment where the agent runs. |
+
+For a source/development install, use `go run ./cmd/bbs setup --full` in a
+checkout, then run the local marketplace registration commands it prints.
 
 ## Platform matrix
 
@@ -171,17 +227,17 @@ yet. New callers should use `bbs secrets …`.
 
 ## For maintainers: cutting a release
 
-The release pipeline is built but fired by a human, never by automation.
+Changing `VERSION` and pushing to `main` triggers the release pipeline.
 
-1. Bump `VERSION` and its two mirrors in `.claude-plugin/marketplace.json`
-   (`metadata.version`, `plugins[0].version`) — the 3-place rule in
+1. Bump `VERSION`, both fields in `.claude-plugin/marketplace.json`
+   (`metadata.version`, `plugins[0].version`) and `.codex-plugin/plugin.json`
+   (`version`) — the 4-field rule in
    [CLAUDE.md](../CLAUDE.md#releasing--version-bumps).
-2. Tag and push: `git tag "v$(cat VERSION)" && git push origin "v$(cat VERSION)"`.
-3. `.github/workflows/release.yml` guards that the tag equals `v$(cat VERSION)`,
-   runs goreleaser to build the four archives + `checksums.txt`, publishes a
-   **draft** GitHub Release, then rewrites `Formula/bbs.rb` with the real
-   per-platform checksums and commits it to the default branch.
-4. Review and publish the draft release.
+2. Push the approved version change to `main`. The workflow creates its tag
+   inside the release job; a manual `v*` tag remains a supported alternative.
+3. `.github/workflows/release.yml` validates all four versions, builds the four
+   archives plus checksums, commits the real checksums into `Formula/bbs.rb`,
+   then publishes the GitHub Release.
 
 Validate the pipeline locally without tagging:
 

@@ -37,7 +37,7 @@ window, give each `export AGENT_BROWSER_NAMESPACE=<agent-id>` on top.
 Sessions are isolated browsers, so login state doesn't carry across agent windows by itself. To share one "profile", add `--restore bbs-profile` to `open` (and `close`): every session loads/saves the same cookies+localStorage bundle under `~/.agent-browser/sessions/`, so a login done in one window is there for the next. Don't point concurrent sessions at one `--profile` dir instead — Chromium locks the user-data-dir per instance.
 **Credentials for a sign-in never live in this skill or the transcript.** When a check needs to log in, take them from the project's standard QA env — `bbs secrets load` exports the gitignored `.babysit/.env` into the shell, and `.babysit/qa.yaml` names which vars hold them (standard: `QA_USER` / `QA_PASS`):
 ```bash
-eval "$(bbs secrets load)"                              # exports .babysit/.env
+eval "$(bbs secrets load | sed -E '/^export CLOUDFLARE_(ACCOUNT_ID|API_TOKEN)=/d')"                              # exports .babysit/.env
 eval "$(bbs secrets qa probe --env "$(bbs secrets qa default-env)" 2>/dev/null)"
 agent-browser type @e<n> "$(printenv "${QA_ENV_USERNAME_ENV:-QA_USER}")"
 agent-browser type @e<n> "$(printenv "${QA_ENV_PASSWORD_ENV:-QA_PASS}")"

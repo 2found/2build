@@ -34,7 +34,8 @@ Record the *why* behind a choice in one clause, not a paragraph.
    design spec from `pointers.design` if present; otherwise invoke the
    `design-ui` skill via the Skill tool before finalizing the plan — its
    spec and prototype are plan inputs.
-3. Classify scope as XS, S, M, or L (rubric:
+3. Use `../semantic-decision/SKILL.md` with kind `task-size` to classify
+   scope as XS, S, M, or L from the requirement and expected changes (rubric:
    `../references/ticket-size-rubric.md`) and persist it:
    `bbs ticket set-pointer ticket_size <size>`.
 4. Write **Approach** as architecture, not a task list (`implement` owns task
@@ -44,7 +45,10 @@ Record the *why* behind a choice in one clause, not a paragraph.
    is one line here (`implement` fills in best practice). Lead with what a
    human is most likely to tweak: data model, API/type contracts,
    user-facing behavior.
-5. For L work, split into ordered sub-tickets with independent verification.
+5. For L work, use semantic-decision kind `orchestration` with the proposed
+   dependency boundaries to assess single-ticket vs multi-ticket scope; split
+   multi-ticket work into ordered sub-tickets with independent verification.
+   This recommendation does not dispatch workers; Foreman owns orchestration.
 6. Before handoff, re-check the size: if ≥40% of the in-scope items ended up
    deferred to follow-up tickets, downgrade `ticket_size` one tier using the
    downgrade hook in `../references/ticket-size-rubric.md` (it writes the

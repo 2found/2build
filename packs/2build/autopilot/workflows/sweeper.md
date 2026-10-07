@@ -6,7 +6,7 @@ needs-state:
   branch_pushed: optional
 ---
 # sweeper
-The Sweeper archetype (see `../references/archetypes.md`). Use when working code
+The Sweeper archetype (see `../shared/archetypes.md`). Use when working code
 should get smaller or faster without changing behavior.
 ## run
 > produces: verdict:sweeper + qa:checked

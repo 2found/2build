@@ -18,6 +18,11 @@ actual behavior, criterion ID, tested SHA/runtime, screenshot/log paths, severit
 and the owning seed. Compare against the previously verified candidate after a
 repair; avoid repeated cosmetic churn that worsens usability.
 
+Use `../semantic-decision/SKILL.md` kind `review-finding` to classify each
+observed finding's severity (`material/minor/nit`) from the criterion and runtime
+evidence. A broken criterion stays material; this classification grants no
+approval authority and never replaces exercising the journey.
+
 Return checks for every assigned criterion and unresolved findings. `material`
 blocks acceptance; `minor` and `nit` are nonblocking only when the criterion still
 works. Unavailable runtime or missing evidence is a gap, never PASS. Submit via

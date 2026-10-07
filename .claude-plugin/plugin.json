@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "description": "Autonomous coding-agent skill pack — scheduled runs, background jobs, CI loops.",
+  "description": "Give your coding agent a goal. Babysit plans, builds, reviews and verifies, with progress saved on disk.",
   "homepage": "https://github.com/lohi-ai/babysit",
   "repository": "https://github.com/lohi-ai/babysit",
   "license": "MIT",

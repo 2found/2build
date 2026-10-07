@@ -43,6 +43,9 @@ guardrails.
 - Never branch, commit, or push — leave the change in the working tree.
   Skills are infra-isolated; git belongs to the invoking workflow
   (autopilot) or the human.
+- Select affected existing tests using `../semantic-decision/SKILL.md`
+  kind `testcase`, supplying changed behavior and its caller/flow map. Keep
+  mandatory repo checks and regression reproducers regardless of the choice.
 - Verify with the narrowest meaningful command (tests, typecheck, lint,
   build, or browser check) and summarize changed files, verification, and
   remaining risk.

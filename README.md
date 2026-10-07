@@ -2,85 +2,91 @@
 
 English | [Tiếng Việt](README.vi.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-**Give it a goal. It plans, builds, reviews, and verifies while you are away.**
+**Give your coding agent a goal. Come back to a reviewed, tested change.**
 
-Babysit is an agent skill pack plus a companion Go CLI. Use Autopilot for one serial ticket; use Foreman when a project needs dependent tickets and supervised workers. Babysit skills follow five product-building archetypes—Prototyper, Builder, Sweeper, Grower, Maintainer—chosen by the work, not the file type. See [the archetypes](.claude/skills/references/archetypes.md).
+Babysit is an open-source skill pack for Claude Code, Codex and Antigravity, with a companion CLI that saves progress and verification evidence. Start with **Autopilot**: one ticket, from requirement to a local commit, in the agent session you already use.
 
-## Install
+<a id="install"></a>
 
-Install the CLI, then let Babysit detect and configure your harnesses:
+## Install with one prompt
+
+Paste this into your coding agent with terminal access:
+
+```text
+Install Babysit for the coding agent I am using. Follow
+https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/install.md. Detect my OS and
+current agent, reuse a working bbs installation or install the CLI, then install the
+skill pack for this agent only. Verify bbs --version and the installed plugin; report
+any missing prerequisite instead of claiming success. Tell me whether I need to restart
+and give me the exact Autopilot invocation for my agent to run my first small task.
+```
+
+You need a supported coding agent and its existing model access. Claude Code and Codex also need their CLI on PATH. Babysit has no separate model account to configure; your agent's normal usage charges apply. **Orca is only required for Foreman.** See [installation and troubleshooting](docs/install.md).
+
+<details>
+<summary>Prefer terminal commands? Homebrew on macOS or Linux</summary>
 
 ```bash
+brew tap lohi-ai/babysit https://github.com/lohi-ai/babysit
 brew install lohi-ai/babysit/bbs
 bbs install
 ```
 
-Restart your agent after installing. `bbs install` supports Claude Code, Codex and Antigravity; Claude Code and Codex need their CLI on PATH. To install for one harness only, use `bbs install claude`, `bbs install codex`, or `bbs install antigravity`.
+`bbs install` configures all detected supported agents. Use `bbs install claude`, `bbs install codex`, or `bbs install antigravity` to select one. Restart that agent after installation. Without Homebrew, use a [release archive](docs/install.md#release-archives-macos-or-linux); on Windows, use WSL.
 
-All three OSes are covered: Homebrew on macOS and Linux, or the per-arch tarball from the latest release on Linux. Windows publishes no binary — run inside WSL or Git-Bash, or build `go run ./cmd/bbs setup` from a checkout. See [installation details](docs/install.md) for the full platform matrix.
+</details>
 
-To work on Babysit itself, clone the repository and run `go run ./cmd/bbs setup --full`; it builds `bbs` and prints local plugin registration commands. `bbs update` refreshes the CLI and installed plugins.
+## Why Babysit?
 
-## Configure Foreman
+A prompt can describe how to build something. Babysit adds the workflow and durable state needed to carry a goal through review and verification, even after a session restarts.
 
-Foreman requires [Orca](https://www.onorca.dev) with orchestration enabled. It selects a worker's agent from an explicit choice, a compatible phase pin, or Orca's configured default on the destination host. Legacy Babysit YAML agent/provider/model/effort preferences are retired and ignored.
+| What you need | What Babysit adds |
+|---------------|-------------------|
+| Finish a task without directing every step | Autopilot carries one ticket through planning, implementation, review fixes and QA. |
+| Pick up after a crash or context reset | Requirements, plans, checkpoints and handoffs live on disk. Resume from that evidence. |
+| Know whether the result works | Review and QA verdicts are persisted; completion requires current checks and no unresolved material findings. |
+| Keep control of delivery | Standalone Autopilot commits locally. You review the evidence before pushing or opening a PR. |
 
-Babysit selects the worker's model and effort from task complexity (`simple`, `normal`, or `hard`) and phase class. Planning, design, and review are `critical` phases; implementation, QA, and delivery are `normal` phases. The policy maps these combinations to `flash`, `pro`, or `max` tiers, each with model bindings for the selected agent. Explicit phase overrides and valid persisted resume routes take precedence.
+Use it when a task needs a verified handoff or you want to leave a run working while you are away. A quick edit may need only your coding agent. Babysit still needs a usable project test environment; missing access or required checks are reported as `NEEDS_CONTEXT` or `BLOCKED`.
 
-Inspect the effective policy or look up one selection from your project directory:
+<a id="autopilot-one-ticket"></a>
 
-```bash
-bbs foreman model --json
-bbs foreman model --agent codex --complexity normal --phase-class critical --json
-```
+## Try your first ticket
 
-These lookups need no ticket or Orca connection. Add `--dir <repo-or-worktree>` to inspect another project's policy. Override individual fields under `foreman.models` in `~/.babysit/settings.json` or `<repo>/.babysit/settings.json`; repository settings take precedence over global settings, then built-in defaults. For example, route normal phases of hard tasks to the `max` tier:
+1. Restart your agent, open a Git repo and choose a small bug or feature with a clear success check. Autopilot works and commits on your current checkout; create your preferred branch first if you want isolation.
+2. Invoke the **skill in agent chat**, replacing the example with your task:
 
-```json
-{
-  "foreman": {
-    "models": {
-      "routing": {
-        "hard": { "normal": "max" }
-      }
-    }
-  }
-}
-```
+   | Agent | Example |
+   |-------|---------|
+   | Claude Code | `/bbs:autopilot "Fix the empty search result state and add a regression test"` |
+   | Codex | `$bbs:autopilot "Fix the empty search result state and add a regression test"` |
+   | Antigravity | Ask it to use the installed `autopilot` skill for your task. |
 
-See [model routing](.claude/skills/foreman/references/model-routing.md#model-tiers) for per-agent model/effort bindings and resume behavior.
+3. When Autopilot returns a plan and a `/goal` block, review the plan, then paste that block into the same agent to start the build. On an agent without goal mode, it continues in the same session.
+4. Expect a local commit, review and QA evidence, and a handoff naming what changed and what was checked. A blocked run names the gap. After a restart, give Autopilot the ticket ID from the handoff to resume.
 
-## Foreman: multi-ticket projects
+No Orca, new worker session or project configuration is needed for this first ticket. You choose the session's model before starting. [Inspect progress and recover a session](docs/companion-cli.md).
 
-Invoke the **Foreman skill** in your agent (the examples are skill invocations, not `bbs` CLI commands):
+## Pick the work, not the job title
 
-```text
-# Claude Code
-/bbs:foreman "Rebuild the request flow across web and API"
-/bbs:foreman --auto "Rebuild the request flow across web and API"
+Autopilot routes a task to one of five product-team archetypes. You can also name the workflow or invoke a skill directly.
 
-# Codex
-$bbs:foreman "Rebuild the request flow across web and API"
-```
+| Archetype | Use it to |
+|-----------|-----------|
+| Prototyper | Validate a risky idea before investing in production code. |
+| Builder | Deliver a feature or bug fix through review and QA. |
+| Sweeper | Remove weight or improve a measured hot path while preserving behavior. |
+| Grower | Improve copy, conversion or a measurable growth experiment. |
+| Maintainer | Diagnose failures and harden reliability, security or dependencies. |
 
-Foreman initializes or resumes a parent project and binds its Orca Run. A planning/design worker first creates one general plan, prototype (or a non-UI workflow/interface design), and stable ticket manifest covering scope and dependencies. By default, you review those artifacts and proposed tickets before child tickets, worktrees, or production dispatch. Explicit `--auto` delegates that review to a separate evidence-checking worker and records the approval; it does not bypass safety holds or later QA.
+Browse the [skill index](docs/skills.md) for individual skills and workflow examples.
 
-After approval, accepted seeds become a ticket DAG with explicit dependency edges. Foreman dispatches only ready tickets, within worker/resource limits, and keeps one writer per ticket worktree. Each ticket moves through separate bounded Plan, Implement, Review, and QA worker phases. Routing uses task complexity plus phase or explicit per-dispatch choices.
+<a id="configure-foreman"></a>
+<a id="foreman-multi-ticket-projects"></a>
 
-Foreman waits for worker reports, questions, or escalations through Orca; it does not poll terminals or start retry timers. It checks each phase's artifacts, revisions, and verdicts before advancing. Once a ticket passes its gates, its configured finish policy (`review`, `land`, or `pr`) controls delivery. Foreman verifies the receipt, releases settled workers and leases, closes owned Orca surfaces, and removes only eligible clean worktrees while retaining branches.
+## Larger projects: Foreman
 
-Project finish is worker-led too: audit and authorized delivery/cleanup workers settle first, then a read-only final QA worker checks the exact delivered base or retained QA composition. Foreman completes the parent only after final evidence, cleanup, and readiness pass. Interacting tickets also receive pre-land integration QA; it does not replace final project QA.
-
-## Autopilot: one ticket
-
-Invoke the **Autopilot skill** for a single ticket:
-
-```text
-# Claude Code skill, in the session you opened
-/bbs:autopilot "Add a dark-mode toggle"
-```
-
-Standalone Autopilot plans, implements, reviews, and QAs in the session you started. It does not choose a new model or switch models mid-run; choose the model before starting. In Codex, invoke the skill as `$bbs:autopilot`. It works without Orca and never opens a background worker session.
+For dependent tickets and supervised workers, [Foreman](docs/foreman.md) uses [Orca](https://www.onorca.dev) to plan a project, isolate child tickets in worktrees, dispatch ready work and run project-wide QA. It presents the parent plan/design for review before production dispatch; explicit `--auto` delegates that review. The configured finish policy controls delivery.
 
 ## Skills and CLI
 
@@ -99,6 +105,27 @@ bbs autopilot recover --json
 `snapshot` reads canonical ticket state and gate evidence; `recover` adds bounded artifact excerpts for resuming work.
 
 Run `bbs <subcommand> --help` for usage. More detail: [companion CLI](docs/companion-cli.md), [profiles](docs/profiles.md), and [operations](docs/operations.md).
+
+## Semantic decisions
+
+`semantic-decision` makes task sizing, complexity, routing, test impact and review
+judgments an explicit reusable skill step. Its default provider is the current
+LLM; no configuration or extra model process is needed. To use Cloudflare:
+
+```bash
+bbs config set semantic_decision_provider cloudflare
+bbs config set semantic_decision_model clef-flash  # or clef
+```
+
+Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in the environment or
+`~/.babysit/.env`. Only user configuration selects the provider; project policy
+can restrict external inference. Cloudflare errors or uncertain answers fall
+back to the current LLM. See the [skill](.claude/skills/semantic-decision/SKILL.md)
+and [contract](.claude/skills/references/semantic-decision.md). See
+[settings without a dashboard control](docs/operations.md#settings-without-a-dashboard-control)
+for config paths, defaults, project limits and human-review behavior.
+
+For agents, the [Markdown documentation index](llms.txt) links directly to installation, skill and runtime contracts.
 
 ## Repository layout
 

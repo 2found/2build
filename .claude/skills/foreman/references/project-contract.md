@@ -36,14 +36,19 @@ Before child creation, worktrees, or production dispatch:
    Silence is not approval. Only current `approved` unlocks children.
 4. **`--auto` delegates the human design reviews** within authorized scope.
    Dispatch a critical-phase design reviewer to inspect the artifacts/prototype
-   and fill the five-line rubric with evidence. Foreman verifies it, publishes
-   `project-plan`, then uses
+   and fill the five-line rubric with evidence. Use
+   `../semantic-decision/SKILL.md` kind `human-review` to judge that evidence
+   against the accepted direction and delegated scope (shared human-review
+   contract in `../references/semantic-decision.md`). Only `proceed` advances
+   to self-resolution; repair `revise`, route `needs-human`, and record `blocked`.
+   Foreman verifies it, publishes `project-plan`, then uses
    `approval self-resolve --foreman "$FOREMAN_ID" --rubric-file <path>` and logs
    telemetry. runtime.md owns flag adoption; recorded `auto: true` survives resume,
    omitted flags and restart. Old records default to human review. Holds/grants,
    non-delegable decisions and finish policy still apply; no fake human verdicts.
 5. Review child plans with critical-phase workers against accepted parent artifacts;
-   Foreman applies their evidenced rubrics autonomously. Keep these `kind=plan`
+   Foreman applies the same `human-review` step to their evidenced rubrics
+   under child-review policy. Keep these `kind=plan`
    reviews distinct from `project-plan`. Material scope/design changes pause
    affected production and reopen the parent checkpoint; unaffected work continues.
    Re-read `approval status` before dispatch and finish. On resume preserve live

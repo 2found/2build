@@ -4,10 +4,13 @@ description: Canonical S/M/L signals used by plan-draft to classify tickets and 
 ---
 # Ticket size rubric
 The `ticket_size` pointer (`XS`|`S`|`M`|`L`) controls depth inside heavy
-skills. `plan-draft` sets it at Step 1 against the expected footprint;
+skills. `plan-draft` sets it via [semantic-decision](semantic-decision.md)
+(kind `task-size`) against the expected footprint and this full rubric;
 downstream skills read it via `bbs ticket ensure-size` (returns the pointer,
-or estimates from the PR diff, persists, and prints — never re-estimate
-inline). When you change thresholds here, update `bbs ticket`'s `ensure-size`
+or estimates from the PR diff, persists, and prints — never duplicate this rubric
+inline). The diff estimate is mechanical; before relying on it to reduce
+verification depth, use `task-size` with the requirement and API/migration
+semantics, then persist the reconciled size. When you change thresholds here, update `bbs ticket`'s `ensure-size`
 in the same commit.
 Signals measured against the PR diff (`git diff <base>...HEAD`): **files**
 (name-only count), **loc** (insertions+deletions), **modules** (distinct

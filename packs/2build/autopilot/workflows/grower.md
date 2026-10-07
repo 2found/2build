@@ -6,7 +6,7 @@ needs-state:
   requirement_md: optional
 ---
 # grower
-The Grower archetype (see `../references/archetypes.md`). Use to move a metric on
+The Grower archetype (see `../shared/archetypes.md`). Use to move a metric on
 a product that already ships. Measure before you build; scaffold only one
 reversible experiment per run.
 ## run

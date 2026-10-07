@@ -2,85 +2,89 @@
 
 [English](README.md) | [Tiếng Việt](README.vi.md) | [中文](README.zh.md) | 日本語 | [한국어](README.ko.md)
 
-**目標を渡す。席を離れている間に、計画、実装、レビュー、検証まで進める。**
+**Coding agent に目標を渡す。レビューとテストを経た変更を受け取る。**
 
-Babysit は agent 向けの skill パックと、それを支える Go CLI。直列で進める 1 つの ticket には Autopilot、依存関係のある複数の ticket と worker の監督が必要なプロジェクトには Foreman を使う。skill は製品開発チームの 5 つの役割 — Prototyper、Builder、Sweeper、Grower、Maintainer — に沿って構成され、ファイルの種類ではなく作業内容で選ぶ。[役割の説明](.claude/skills/references/archetypes.md)を参照。
+Babysit は Claude Code、Codex、Antigravity 向けのオープンソース skill pack です。付属 CLI が進捗と検証の証拠を保存します。まずは **Autopilot**：いつもの agent session で、1 つの ticket を要件からローカル commit まで進めます。
 
-## インストール
+<a id="インストール"></a>
 
-CLI をインストールし、Babysit に harness の検出と設定を任せる：
+## 1 つの prompt でインストール
+
+ターミナルを実行できる coding agent に、次を貼り付けてください：
+
+```text
+今使っている coding agent に Babysit をインストールしてください。
+https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/install.md に従い、OS と現在の agent を確認し、動作する bbs があれば再利用、なければ CLI をインストールして、この agent だけに skill pack を導入してください。
+bbs --version とインストール済み plugin を検証し、前提条件が不足していれば成功とせず報告してください。
+再起動が必要かを説明し、最初の小さなタスクを実行するための、この agent 用の正確な Autopilot 呼び出しを教えてください。
+```
+
+対応 coding agent と、その既存の model 利用環境が必要です。Claude Code と Codex は CLI が PATH 上に必要です。Babysit 用の model アカウントは不要ですが、agent の通常の利用料金は発生します。**Orca が必要なのは Foreman だけです。** [インストールとトラブル対処](docs/install.md)（英語）を参照してください。
+
+<details>
+<summary>コマンドで導入する場合：macOS / Linux の Homebrew</summary>
 
 ```bash
+brew tap lohi-ai/babysit https://github.com/lohi-ai/babysit
 brew install lohi-ai/babysit/bbs
 bbs install
 ```
 
-インストール後は agent を再起動する。`bbs install` は Claude Code、Codex、Antigravity に対応する。Claude Code と Codex の CLI は PATH 上に必要。個別に設定するには `bbs install claude`、`bbs install codex`、`bbs install antigravity` を使う。
+`bbs install` は検出した対応 agent すべてに導入します。1 つだけなら `bbs install claude`、`bbs install codex`、`bbs install antigravity` を使います。導入後は agent を再起動してください。Homebrew がない場合は [release archive](docs/install.md#release-archives-macos-or-linux)、Windows では WSL を使います。
 
-3 OS すべてに対応する：macOS と Linux は Homebrew、Linux は各アーキテクチャ向け tarball でもインストール可能。Windows 向けバイナリは公開していない — WSL または Git-Bash 内で実行するか、checkout から `go run ./cmd/bbs setup` でビルドする。完全なプラットフォーム一覧は[インストールの詳細](docs/install.md)を参照。
+</details>
 
-Babysit 自体を開発する場合は、リポジトリを clone して `go run ./cmd/bbs setup --full` を実行する。`bbs` を build し、checkout をローカルプラグインとして登録するコマンドを表示する。`bbs update` は CLI とインストール済みプラグインを更新する。
+## Babysit の違い
 
-## Foreman の設定
+Prompt は作り方を説明できます。Babysit は workflow とディスク上の状態を加え、目標からレビュー・検証まで進めます。Session を再起動しても再開できます。
 
-Foreman には orchestration を有効にした [Orca](https://www.onorca.dev) が必要。worker の agent は、明示的な指定、互換性のあるフェーズ固定設定、実行先ホストの Orca デフォルト設定の順で選ぶ。Babysit の旧 YAML にある agent/provider/model/effort 設定は廃止され、無視される。
+| 必要なこと | Babysit が提供すること |
+|------------|-----------------------|
+| 毎ステップ指示せずにタスクを終える | Autopilot が 1 ticket の計画、実装、レビュー修正、QA を進めます。 |
+| Crash や context reset から再開する | 要件、計画、checkpoint、handoff をディスクに保存し、そこから復元します。 |
+| 結果が検証されたか確認する | Review / QA verdict を保存し、完了には最新チェックの成功と重大な未解決指摘がないことを要求します。 |
+| 納品を自分で管理する | 単独 Autopilot はローカル commit まで。証拠を確認してから push や PR 作成を行います。 |
 
-Babysit はタスクの複雑度（`simple`、`normal`、`hard`）とフェーズ区分から worker の model と effort を選ぶ。計画、設計、レビューは `critical`、実装、QA、引き渡しは `normal` フェーズに分類される。ポリシーはこの組み合わせを `flash`、`pro`、`max` の tier に対応づけ、各 tier が選択された agent 用の model 設定を持つ。明示的なフェーズ別の上書き設定と、再開用に保存された有効なルートが優先される。
+検証を伴う引き継ぎが必要なタスクや、席を離れている間の作業に向きます。小さな修正なら coding agent だけで足りる場合もあります。プロジェクトのテスト環境は必要です。アクセスや必須チェックが不足すると `NEEDS_CONTEXT` / `BLOCKED` で報告します。
 
-プロジェクトのディレクトリで、有効なポリシー全体または個別の選択結果を確認する：
+<a id="autopilot1-つの-ticket"></a>
 
-```bash
-bbs foreman model --json
-bbs foreman model --agent codex --complexity normal --phase-class critical --json
-```
+## 最初の ticket を実行
 
-この照会には ticket も Orca 接続も不要。別のプロジェクトを調べるには `--dir <repo-or-worktree>` を追加する。`~/.babysit/settings.json` または `<repo>/.babysit/settings.json` の `foreman.models` でフィールド単位の上書きができる。リポジトリ設定、グローバル設定、組み込みデフォルトの順に優先される。例えば、`hard` タスクの `normal` フェーズを `max` tier に割り当てるには：
+1. Agent を再起動し、Git repo を開き、成功条件が明確な小さな bug や機能を選びます。Autopilot は現在の checkout で作業・commit します。分離したい場合は先に branch を作成してください。
+2. **Agent chat で skill を呼び出し**、例を自分のタスクに置き換えます：
 
-```json
-{
-  "foreman": {
-    "models": {
-      "routing": {
-        "hard": { "normal": "max" }
-      }
-    }
-  }
-}
-```
+   | Agent | 例 |
+   |-------|----|
+   | Claude Code | `/bbs:autopilot "検索結果が空の状態を修正し、回帰テストを追加する"` |
+   | Codex | `$bbs:autopilot "検索結果が空の状態を修正し、回帰テストを追加する"` |
+   | Antigravity | 導入済みの `autopilot` skill を使ってタスクを進めるよう依頼します。 |
 
-agent ごとの model/effort 設定と再開時の動作は [model routing](.claude/skills/foreman/references/model-routing.md#model-tiers) を参照。
+3. 計画と `/goal` block が返されたら計画を確認し、同じ agent に block を貼り付けて build を開始します。Goal mode のない agent では、その session で続行します。
+4. 結果はローカル commit、review / QA の証拠、変更とチェックを記した handoff です。停止した場合は不足が報告されます。再起動後は handoff の ticket ID を Autopilot に渡して再開します。
 
-## Foreman：複数 ticket のプロジェクト
+最初の ticket に Orca、新しい worker session、プロジェクト設定は不要です。開始前に session の model を選んでください。[進捗確認と session 復旧](docs/companion-cli.md)。
 
-agent 内で **Foreman skill** を呼び出す（以下は skill の呼び出し例であり、`bbs` CLI コマンドではない）：
+## 仕事の内容で選ぶ
 
-```text
-# Claude Code
-/bbs:foreman "web と API にまたがるリクエスト処理フローを作り直す"
-/bbs:foreman --auto "web と API にまたがるリクエスト処理フローを作り直す"
+Autopilot はタスクを製品チームの 5 つの役割に振り分けます。Workflow の指定や skill の直接呼び出しも可能です。
 
-# Codex
-$bbs:foreman "web と API にまたがるリクエスト処理フローを作り直す"
-```
+| 役割 | 仕事 |
+|------|------|
+| Prototyper | 本番コードに投資する前にリスクのある仮説を検証。 |
+| Builder | 機能や bug 修正を review と QA まで完了。 |
+| Sweeper | 動作を保ちながら冗長な部分を削除、測定済みのホットパスを改善。 |
+| Grower | 文案、コンバージョン、測定可能な成長実験を改善。 |
+| Maintainer | 障害の原因を調べ、信頼性・セキュリティ・依存関係を強化。 |
 
-Foreman は親プロジェクトを初期化または再開し、対応する Orca Run を関連づける。計画・設計 worker が最初に、全体計画、prototype（UI のない作業ではフローやインターフェースの設計）、スコープと依存関係を定めた安定した ticket manifest を作る。デフォルトでは、子 ticket や worktree の作成、本実装の割り当てに進む前に、これらの成果物と ticket 案を人がレビューする。明示的に `--auto` を指定すると、そのレビューを証拠を確認する別の worker に委ね、承認を記録する。安全上の保留や後続の QA は省略しない。
+個別 skill と workflow の例は [skill 一覧](docs/skills.md)を参照してください。
 
-承認後、受け入れた案を明示的な依存関係を持つ ticket DAG に変換する。Foreman は worker・リソース上限の範囲で準備のできた ticket だけを割り当て、各 ticket worktree の書き込み担当を 1 worker に保つ。各 ticket は、範囲を限定した個別の Plan、Implement、Review、QA の worker フェーズを進む。ルーティングにはタスクの複雑度とフェーズ、または割り当てごとの明示的な指定を使う。
+<a id="foreman-の設定"></a>
+<a id="foreman複数-ticket-のプロジェクト"></a>
 
-Foreman は Orca を通じて worker の報告、質問、エスカレーションを待つ。terminal のポーリングや再試行タイマーの起動はしない。先に進む前に、各フェーズの成果物、リビジョン、verdict を確認する。ticket が gate を通過すると、設定された終了ポリシー（`review`、`land`、`pr`）に従って引き渡す。Foreman は実行結果の受領記録を検証し、終了した worker とリースを解放し、自身が所有する Orca の画面を閉じる。削除するのは条件を満たす clean な worktree だけで、branch は保持する。
+## 大きなプロジェクト：Foreman
 
-プロジェクトの完了処理も worker が担う。監査と、許可された引き渡し・クリーンアップの worker が先に終了し、その後、読み取り専用の最終 QA worker が、実際に引き渡された base または保持された QA 用の統合状態を確認する。最終証拠、クリーンアップ、準備状態の確認がすべて通過して初めて、Foreman は親プロジェクトを完了する。相互に影響する ticket には land 前の統合 QA も行うが、これはプロジェクト最終 QA の代わりにはならない。
-
-## Autopilot：1 つの ticket
-
-単一 ticket には **Autopilot skill** を呼び出す：
-
-```text
-# 開いている session 内で Claude Code skill を呼び出す
-/bbs:autopilot "ダークモードの切り替えを追加する"
-```
-
-単独の Autopilot は、起動した session 内で計画、実装、レビュー、QA を行う。新たな model を選んだり、途中で model を切り替えたりはしない。開始前に model を選ぶ。Codex では `$bbs:autopilot` として呼び出す。Orca なしで動作し、バックグラウンドの worker session は開かない。
+依存する複数 ticket には [Foreman](docs/foreman.md) を使います。[Orca](https://www.onorca.dev) 経由で全体計画、子 ticket の worktree 分離、実行可能な作業の dispatch、プロジェクト全体の QA を行います。既定では本番作業の dispatch 前に親計画・設計を確認します。明示的な `--auto` はその確認を worker に委任します。設定済み finish policy が納品を決めます。
 
 ## Skill と CLI
 

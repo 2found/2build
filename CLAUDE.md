@@ -216,7 +216,7 @@ terminal or wrap them in an orchestrator that can relay `NEEDS_CONTEXT`.
 
 | Compatibility | Skills |
 |---------------|--------|
-| **`INVOKER`-agnostic** (safe to chain unattended) | `analytics-review`, `autopilot`, `browse`, `conversion-fix`, `copy-rewrite`, `create-pr`, `design-ui`, `fix-pr`, `foreman`, `growth-experiment`, `implement`, `investigate`, `maintain`, `phased-build`, `plan-draft`, `prototype`, `qa`, `reason`, `recon`, `review-pr`, `social-content`, `sweep`, `triage` |
+| **`INVOKER`-agnostic** (safe to chain unattended) | `agent-first-docs`, `analytics-review`, `autopilot`, `browse`, `conversion-fix`, `copy-rewrite`, `create-pr`, `design-ui`, `fix-pr`, `foreman`, `growth-experiment`, `implement`, `investigate`, `maintain`, `phased-build`, `plan-draft`, `product-marketing-page`, `prototype`, `qa`, `reason`, `recon`, `review-pr`, `semantic-decision`, `social-content`, `sweep`, `triage` |
 | **`developer`-only** (require a human at the keyboard) | `office-hours`, `setup-project` |
 
 Foreman reaches its parent human design checkpoint by default; unattended callers

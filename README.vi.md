@@ -2,85 +2,91 @@
 
 [English](README.md) | Tiếng Việt | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-**Giao cho nó một mục tiêu. Nó lên kế hoạch, viết code, review và kiểm chứng trong lúc bạn đi vắng.**
+**Giao mục tiêu cho coding agent. Nhận lại thay đổi đã được review và kiểm thử.**
 
-Babysit là bộ skill cho agent kèm CLI viết bằng Go. Dùng Autopilot cho một ticket chạy tuần tự; dùng Foreman khi dự án có nhiều ticket phụ thuộc nhau và cần worker được giám sát. Các skill theo năm hình mẫu của một đội xây dựng sản phẩm — Prototyper, Builder, Sweeper, Grower, Maintainer — được chọn theo công việc, không theo loại file. Xem [các hình mẫu](.claude/skills/references/archetypes.md).
+Babysit là bộ skill mã nguồn mở cho Claude Code, Codex và Antigravity, kèm CLI lưu tiến độ và bằng chứng kiểm chứng. Bắt đầu với **Autopilot**: một ticket, từ yêu cầu đến commit cục bộ, ngay trong session agent bạn đang dùng.
 
-## Cài đặt
+<a id="cài-đặt"></a>
 
-Cài CLI, rồi để Babysit tự phát hiện và cài cho các harness trên máy:
+## Cài bằng một prompt
+
+Dán prompt này vào coding agent có quyền chạy terminal:
+
+```text
+Cài Babysit cho coding agent tôi đang dùng theo
+https://raw.githubusercontent.com/lohi-ai/babysit/main/docs/install.md. Xác định hệ điều
+hành và agent hiện tại, dùng lại bbs nếu đã hoạt động hoặc cài CLI, rồi cài skill pack
+chỉ cho agent này. Kiểm tra bbs --version và plugin đã cài; nếu thiếu điều kiện cần thì
+báo rõ, không kết luận thành công. Cho tôi biết có cần khởi động lại không và đưa đúng
+lời gọi Autopilot cho agent của tôi để chạy tác vụ nhỏ đầu tiên.
+```
+
+Bạn cần coding agent được hỗ trợ và quyền dùng model sẵn có của nó. Claude Code và Codex cần CLI trên PATH. Babysit không yêu cầu tài khoản model riêng; chi phí sử dụng agent vẫn áp dụng. **Chỉ Foreman cần Orca.** Xem [cài đặt và xử lý lỗi](docs/install.md) (tiếng Anh).
+
+<details>
+<summary>Muốn tự chạy lệnh? Homebrew trên macOS hoặc Linux</summary>
 
 ```bash
+brew tap lohi-ai/babysit https://github.com/lohi-ai/babysit
 brew install lohi-ai/babysit/bbs
 bbs install
 ```
 
-Khởi động lại agent sau khi cài. `bbs install` hỗ trợ Claude Code, Codex và Antigravity; Claude Code và Codex cần CLI trên PATH. Muốn chọn riêng, chạy `bbs install claude`, `bbs install codex` hoặc `bbs install antigravity`.
+`bbs install` cài cho tất cả agent được hỗ trợ mà nó phát hiện. Chọn riêng bằng `bbs install claude`, `bbs install codex` hoặc `bbs install antigravity`. Khởi động lại agent sau khi cài. Không có Homebrew thì dùng [archive từ release](docs/install.md#release-archives-macos-or-linux); trên Windows, dùng WSL.
 
-Cả 3 hệ điều hành đều được hỗ trợ: Homebrew trên macOS và Linux, hoặc tarball theo kiến trúc từ bản release mới nhất trên Linux. Windows không có binary chính thức — chạy trong WSL hoặc Git-Bash, hoặc build bằng `go run ./cmd/bbs setup` từ checkout. Xem [hướng dẫn cài đặt](docs/install.md) cho ma trận nền tảng đầy đủ.
+</details>
 
-Để phát triển chính Babysit, clone repo rồi chạy `go run ./cmd/bbs setup --full`; lệnh này build `bbs` và in lệnh đăng ký plugin từ checkout. `bbs update` cập nhật CLI và các plugin đã cài.
+## Babysit khác gì?
 
-## Cấu hình Foreman
+Một prompt có thể mô tả cách làm. Babysit bổ sung workflow và trạng thái trên đĩa để đi từ mục tiêu đến review và kiểm chứng, kể cả khi session phải khởi động lại.
 
-Foreman cần [Orca](https://www.onorca.dev) đã bật orchestration. Agent của worker được chọn từ chỉ định tường minh, cấu hình đã ghim cho pha tương thích, hoặc mặc định của Orca trên máy đích. Các thiết lập agent/provider/model/effort trong YAML cũ của Babysit đã bị loại bỏ và không còn được dùng.
+| Bạn cần | Babysit cung cấp |
+|---------|-----------------|
+| Hoàn thành tác vụ mà không chỉ dẫn từng bước | Autopilot đi qua lên kế hoạch, triển khai, sửa lỗi review và QA cho một ticket. |
+| Tiếp tục sau crash hoặc mất context | Yêu cầu, kế hoạch, checkpoint và handoff được lưu trên đĩa để khôi phục. |
+| Biết kết quả đã được kiểm tra | Verdict review và QA được lưu; chỉ hoàn tất khi kiểm tra hiện tại đạt và không còn phát hiện nghiêm trọng chưa xử lý. |
+| Chủ động bàn giao | Autopilot độc lập commit cục bộ. Bạn xem bằng chứng trước khi push hoặc mở PR. |
 
-Babysit chọn model và effort cho worker theo độ phức tạp của công việc (`simple`, `normal` hoặc `hard`) và loại pha. Lên kế hoạch, thiết kế và review thuộc pha `critical`; triển khai, QA và bàn giao thuộc pha `normal`. Chính sách ánh xạ các tổ hợp này tới tier `flash`, `pro` hoặc `max`, mỗi tier có cấu hình model cho agent được chọn. Chỉ định riêng cho pha và route hợp lệ đã lưu để resume được ưu tiên.
+Dùng khi tác vụ cần bàn giao có kiểm chứng hoặc bạn muốn để agent làm việc lúc đi vắng. Sửa nhanh một chỗ có thể chỉ cần coding agent. Babysit vẫn cần môi trường kiểm thử của dự án; thiếu quyền truy cập hoặc kiểm tra bắt buộc sẽ được báo `NEEDS_CONTEXT` hoặc `BLOCKED`.
 
-Xem chính sách có hiệu lực hoặc tra một lựa chọn từ thư mục dự án:
+<a id="autopilot-một-ticket"></a>
 
-```bash
-bbs foreman model --json
-bbs foreman model --agent codex --complexity normal --phase-class critical --json
-```
+## Chạy ticket đầu tiên
 
-Các lệnh tra cứu này không cần ticket hay kết nối Orca. Thêm `--dir <repo-or-worktree>` để xem chính sách của dự án khác. Ghi đè từng trường dưới `foreman.models` trong `~/.babysit/settings.json` hoặc `<repo>/.babysit/settings.json`; cấu hình repo được ưu tiên hơn cấu hình toàn cục, rồi mới tới mặc định tích hợp. Ví dụ, dùng tier `max` cho pha `normal` của công việc `hard`:
+1. Khởi động lại agent, mở Git repo và chọn một bug hoặc tính năng nhỏ với tiêu chí kiểm tra rõ ràng. Autopilot làm việc và commit trên checkout hiện tại; tạo branch bạn muốn trước nếu cần tách công việc.
+2. Gọi **skill trong chat của agent**, thay ví dụ bằng tác vụ của bạn:
 
-```json
-{
-  "foreman": {
-    "models": {
-      "routing": {
-        "hard": { "normal": "max" }
-      }
-    }
-  }
-}
-```
+   | Agent | Ví dụ |
+   |-------|-------|
+   | Claude Code | `/bbs:autopilot "Sửa trạng thái tìm kiếm không có kết quả và thêm regression test"` |
+   | Codex | `$bbs:autopilot "Sửa trạng thái tìm kiếm không có kết quả và thêm regression test"` |
+   | Antigravity | Yêu cầu dùng skill `autopilot` đã cài cho tác vụ của bạn. |
 
-Xem [model routing](.claude/skills/foreman/references/model-routing.md#model-tiers) để biết cách cấu hình model/effort theo agent và cách xử lý khi resume.
+3. Khi Autopilot trả kế hoạch và block `/goal`, đọc kế hoạch rồi dán block vào cùng agent để bắt đầu build. Với agent không có goal mode, nó tiếp tục trong session hiện tại.
+4. Kết quả mong đợi: commit cục bộ, bằng chứng review/QA và handoff ghi rõ thay đổi cùng kiểm tra đã chạy. Nếu bị chặn, báo cáo sẽ nêu phần còn thiếu. Sau khi khởi động lại, đưa ticket ID từ handoff cho Autopilot để tiếp tục.
 
-## Foreman: dự án nhiều ticket
+Ticket đầu không cần Orca, session worker mới hay cấu hình dự án. Chọn model của session trước khi chạy. [Xem tiến độ và khôi phục session](docs/companion-cli.md).
 
-Gọi **skill Foreman** trong agent (các ví dụ là lời gọi skill, không phải lệnh CLI `bbs`):
+## Chọn theo công việc
 
-```text
-# Claude Code
-/bbs:foreman "Xây dựng lại luồng xử lý yêu cầu trên web và API"
-/bbs:foreman --auto "Xây dựng lại luồng xử lý yêu cầu trên web và API"
+Autopilot chọn một trong năm hình mẫu của đội xây dựng sản phẩm. Bạn cũng có thể chỉ định workflow hoặc gọi skill trực tiếp.
 
-# Codex
-$bbs:foreman "Xây dựng lại luồng xử lý yêu cầu trên web và API"
-```
+| Hình mẫu | Công việc |
+|----------|-----------|
+| Prototyper | Kiểm chứng ý tưởng rủi ro trước khi đầu tư code production. |
+| Builder | Hoàn thành tính năng hoặc sửa bug qua review và QA. |
+| Sweeper | Loại bỏ phần dư hoặc tối ưu điểm nóng đã đo, giữ nguyên hành vi. |
+| Grower | Cải thiện copy, conversion hoặc thử nghiệm tăng trưởng có đo lường. |
+| Maintainer | Tìm nguyên nhân lỗi, củng cố độ tin cậy, bảo mật và dependency. |
 
-Foreman khởi tạo hoặc tiếp tục dự án cha và liên kết với Orca Run tương ứng. Worker lên kế hoạch/thiết kế tạo trước một kế hoạch tổng thể, prototype (hoặc thiết kế luồng/giao diện cho công việc không có UI), cùng manifest ticket ổn định ghi rõ phạm vi và các phụ thuộc. Mặc định, bạn duyệt các tài liệu này và ticket đề xuất trước khi tạo ticket con, worktree hay giao việc triển khai. Cờ `--auto` giao bước duyệt đó cho một worker riêng kiểm tra bằng chứng và ghi lại phê duyệt; nó không bỏ qua các lệnh giữ vì an toàn hay QA về sau.
+Xem [danh mục skill](docs/skills.md) để chọn skill riêng và ví dụ workflow.
 
-Sau khi được duyệt, các đề xuất đã chấp nhận trở thành DAG ticket với cạnh phụ thuộc rõ ràng. Foreman chỉ giao ticket đã sẵn sàng, trong giới hạn worker/tài nguyên, và giữ một worker có quyền ghi cho mỗi worktree ticket. Mỗi ticket đi qua các pha worker riêng có phạm vi giới hạn: Plan, Implement, Review và QA. Việc chọn route dựa trên độ phức tạp cùng pha, hoặc chỉ định tường minh cho từng lần giao việc.
+<a id="cấu-hình-foreman"></a>
+<a id="foreman-dự-án-nhiều-ticket"></a>
 
-Foreman chờ báo cáo, câu hỏi hoặc yêu cầu hỗ trợ từ worker qua Orca; nó không dò terminal hay tạo bộ hẹn giờ thử lại. Nó kiểm tra tài liệu, phiên bản sửa đổi và verdict của từng pha trước khi đi tiếp. Khi ticket vượt qua các gate, chính sách kết thúc đã cấu hình (`review`, `land` hoặc `pr`) quyết định cách bàn giao. Foreman xác minh kết quả, giải phóng worker đã kết thúc và các lease, đóng các tab/cửa sổ Orca do nó sở hữu, và chỉ xóa worktree sạch đủ điều kiện, vẫn giữ branch.
+## Dự án lớn hơn: Foreman
 
-Việc kết thúc dự án cũng do worker thực hiện: các worker kiểm tra và bàn giao/dọn dẹp được ủy quyền phải kết thúc trước, rồi worker QA cuối chỉ đọc kiểm tra đúng base đã bàn giao hoặc bản ghép QA được giữ lại. Foreman chỉ hoàn tất dự án cha sau khi bằng chứng cuối, dọn dẹp và trạng thái sẵn sàng đều đạt. Các ticket tương tác với nhau còn được QA tích hợp trước khi land; bước đó không thay thế QA cuối dự án.
-
-## Autopilot: một ticket
-
-Gọi **skill Autopilot** cho một ticket:
-
-```text
-# Skill Claude Code, trong session bạn đã mở
-/bbs:autopilot "Thêm nút bật chế độ tối"
-```
-
-Autopilot chạy độc lập sẽ lên kế hoạch, triển khai, review và QA ngay trong session bạn khởi động. Nó không chọn model mới hay đổi model giữa chừng; hãy chọn model trước khi bắt đầu. Trong Codex, gọi skill bằng `$bbs:autopilot`. Nó hoạt động không cần Orca và không mở session worker chạy nền.
+Với nhiều ticket phụ thuộc nhau, [Foreman](docs/foreman.md) dùng [Orca](https://www.onorca.dev) để lên kế hoạch tổng thể, tách ticket con vào worktree, giao việc đã sẵn sàng và QA toàn dự án. Mặc định bạn duyệt kế hoạch/thiết kế trước khi giao việc triển khai; `--auto` giao bước duyệt đó cho worker. Chính sách finish đã cấu hình quyết định cách bàn giao.
 
 ## Skill và CLI
 

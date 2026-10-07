@@ -2,6 +2,7 @@
   "api_version": "soot/v1",
   "id": "2build",
   "use": [
+    "agent-first-docs",
     "analytics-review",
     "autopilot",
     "browse",
@@ -16,17 +17,28 @@
     "maintain",
     "office-hours",
     "plan-draft",
+    "product-marketing-page",
     "prototype",
     "qa",
     "reason",
     "recon",
     "review-pr",
+    "semantic-decision",
     "setup-project",
     "social-content",
     "sweep",
     "triage"
   ],
   "capabilities": {
+    "agent-first-docs": {
+      "skills": [
+        {
+          "name": "2build_agent-first-docs",
+          "file": "agent-first-docs/skill.md",
+          "description": "Write product documentation and quick starts that begin with one coding-agent prompt, then human and agent references. Use for agent-assisted onboarding and discoverable Markdown documentation."
+        }
+      ]
+    },
     "analytics-review": {
       "skills": [
         {
@@ -153,6 +165,15 @@
         }
       ]
     },
+    "product-marketing-page": {
+      "skills": [
+        {
+          "name": "2build_product-marketing-page",
+          "file": "product-marketing-page/skill.md",
+          "description": "Write or revise product introduction pages around customer value and a clear activation path. Use for product heroes, benefits, CTAs and agent-assisted quick starts, rather than full technical manuals."
+        }
+      ]
+    },
     "prototype": {
       "skills": [
         {
@@ -194,7 +215,16 @@
         {
           "name": "2build_review-pr",
           "file": "review-pr/skill.md",
-          "description": "Review code before it lands — the current branch, working diff, or a GitHub pull request. Use when asked to review a PR/diff/change, run a code review, do a pre-merge or pre-commit check, hunt for bugs, or gate a change before landing. Surfaces correctness bugs, removed behavior, cross-file breakage, security, performance, and cleanup, then verifies each candidate before reporting. Effort levels low|medium|high|xhigh|max (default medium); --fix applies findings to the working tree, --comment posts inline PR comments. Verbatim mirror of Claude Code's /code-review."
+          "description": "Review code before it lands — the current branch, working diff, or a GitHub pull request. Use when asked to review a PR/diff/change, run a code review, do a pre-merge or pre-commit check, hunt for bugs, or gate a change before landing. Surfaces correctness bugs, removed behavior, cross-file breakage, security, performance, and cleanup, then verifies each candidate before reporting. Effort levels low|medium|high|xhigh|max (default medium); --fix applies findings to the working tree, --comment posts inline PR comments. Claude Code /code-review pipeline with babysit semantic-decision integration."
+        }
+      ]
+    },
+    "semantic-decision": {
+      "skills": [
+        {
+          "name": "2build_semantic-decision",
+          "file": "semantic-decision/skill.md",
+          "description": "Make an explicit, structured judgment from evidence and bounded choices. Use for task sizing, skill routing, orchestration need, test impact, review findings, recovery, decision tiers, or whether human/deeper review is warranted. Defaults to the current LLM; configured Cloudflare Clef/Clef-flash can replace the provider."
         }
       ]
     },

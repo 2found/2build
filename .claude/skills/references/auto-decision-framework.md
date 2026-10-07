@@ -1,11 +1,29 @@
 # Auto-Decision Framework
 Classify → act → report. Auto-deciding replaces human judgment, not analysis.
+For bounded judgment (scope, routing, tests, review), use the [semantic-decision skill](../semantic-decision/SKILL.md) after collecting evidence.
+Its default LLM provider, optional Cloudflare provider and contract apply;
+mechanical facts and User Challenges stay governed by this framework.
 
 | Tier | When | Action |
 |------|------|--------|
 | Mechanical | One clearly right answer. | Decide silently; no log. |
 | Taste | Multiple reasonable choices. | Apply the principles; report in the run summary. |
 | User Challenge | A guess could land incorrect work or change the user's direction. | Never auto-decide; emit `NEEDS_CONTEXT` via the [preamble's channel](preamble.md#one-mode-four-escalation-channels). |
+
+## Classifying a judgment
+If the tier itself needs judgment, run `semantic-decision` kind `decision-tier`
+with the proposed action, user direction, relevant evidence, alternatives and
+scope/authority; choices are `Mechanical`, `Taste`, `User Challenge` using the
+row definitions above. Known mechanical facts and explicit User Challenges
+need no classifier. A model cannot downgrade missing authority or a known
+User Challenge. Uncertain tier classification falls back to the calling LLM;
+only unresolved non-derivable input escalates, not provider uncertainty.
+Do not recursively classify while executing semantic-decision itself.
+
+When deciding whether a checkpoint needs human input, use its owner's policy
+first, then the shared [human-review contract](semantic-decision.md#human-review).
+The owner (Foreman, Autopilot, or direct skill) also decides where Taste results
+are reported; semantic-decision adds no approval gate of its own.
 
 ## The 6 Decision Principles
 1. **Correctness:** don't guess when the result could be wrong.

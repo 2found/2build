@@ -12,8 +12,94 @@ bbs config set proactive true        # false = only run skills typed explicitly
 bbs config set foreman_status_interval 3600  # seconds between foreman reconciliation ticks
 bbs config set parallel_max_workers 4     # balanced laptop-safe ceiling
 bbs config set parallel_global_units auto  # global weighted Foreman capacity
-bbs config list                      # show all keys + annotated docs
+bbs config list                      # show saved YAML (not all effective defaults)
 ```
+
+### Settings without a dashboard control
+
+These settings are available through the CLI or files; no UI feature flag is
+needed. Inspect saved user settings with `bbs config list` or
+`bbs config get <key>`. An absent key prints nothing and uses its built-in
+default; `list` does not enumerate every default or refresh old header comments.
+
+To open the user configuration directly:
+
+```bash
+BBS_CONFIG_DIR="${BABYSIT_STATE_DIR:-$HOME/.babysit}"
+mkdir -p "$BBS_CONFIG_DIR"
+nano "$BBS_CONFIG_DIR/config.yaml"
+```
+
+`bbs config set <key> <value>` creates/updates that YAML without needing an
+editor. A key being writable does not mean it is supported: use documented
+keys below and the configuration examples above.
+
+| Setting / file | How to inspect or change | Default / scope |
+|----------------|--------------------------|-----------------|
+| `semantic_decision_provider` | `bbs config get semantic_decision_provider`; `bbs config set semantic_decision_provider cloudflare` | `llm`; user scope only |
+| `semantic_decision_model` | `bbs config set semantic_decision_model clef-flash` or `clef` | `clef-flash`, used only with `cloudflare` |
+| Semantic credentials | Edit `$BBS_CONFIG_DIR/.env` with `nano`; set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` | Environment wins, then user `.env`; project `.env` is ignored |
+| Project inference limits | Edit `<repo>/.babysit/semantic-decision.yaml` | Optional; can restrict external inference, not enable it or select provider/model |
+| Foreman model/effort routes | `bbs foreman model --json`; edit `~/.babysit/settings.json` or `<repo>/.babysit/settings.json` | Built-in policy, then user, then repo overrides; [schema](../.claude/skills/foreman/references/model-routing.md#model-tiers) |
+| Finish, rigor and repo profile | `bbs autopilot git-flow`; edit `<repo>/.babysit/git-flow.yaml` | [Profile policy](profiles.md); separate from semantic provider configuration |
+
+The semantic-decision step always exists. Selecting Cloudflare is the explicit
+user opt-in to external inference; credentials alone do not select it. Switch
+back with `bbs config set semantic_decision_provider llm`. No separate
+`semantic_decision_enabled` switch is needed. The CLI reads config each call;
+there is no daemon restart or rebuild for settings changes.
+
+Project restrictions, for example:
+
+```yaml
+# <repo>/.babysit/semantic-decision.yaml
+allowed_kinds: [task-size, task-complexity, testcase]
+# enabled: false  # force the LLM provider for this project
+```
+
+Other decision kinds fall back to LLM. `allowed_kinds: []` permits no external
+inference; omitted permits all kinds under the user's chosen provider.
+Malformed policy also falls back. `enabled: true` grants no access the user
+has not configured. Do not run `bbs secrets load` to source project credentials
+for this provider; its credentials belong in the user file or environment.
+
+Cloudflare's 20-second timeout and 0.75 confidence threshold are currently code
+constants, not hidden config keys. Request/response format, all decision kinds
+and telemetry fields live in the
+[semantic-decision contract](../.claude/skills/references/semantic-decision.md).
+
+### Decision coverage and human review
+
+Bounded judgments now use one `semantic-decision` step, with the current LLM
+as default. This coverage audit separates judgments from enforced policy:
+
+| Decision | Consumer / kind | What still governs execution |
+|----------|-----------------|------------------------------|
+| Mechanical, Taste, or User Challenge | Auto-Decision Framework / `decision-tier` | Known User Challenges and missing authority cannot be downgraded |
+| Size, complexity, workflow and decomposition | Plan-draft, Foreman routing, Autopilot / `task-size`, `task-complexity`, `skill-route`, `orchestration` | Explicit user selections, rubric floors, workflow prerequisites |
+| Impacted tests and coverage | Implement, QA / `testcase` | Required criteria, regression reproducers and repo checks |
+| Finding validity and product severity | Review-pr, Fix-pr, Autopilot repair, Foreman product evaluator / `review-finding` | Cited disproof before refuting; broken criteria remain material |
+| Extra review worth doing | Review-pr / `deep-review` | Mandatory phases of the selected effort still run |
+| Plan evidence sufficient; human input needed | Foreman parent/child review, Autopilot / `human-review` | Artifact freshness, delegation, holds, grants, safety floors and approval CLI |
+| Recoverable blocker or missing human input | Triage / `recovery` | Retry budget, ownership and dispatch authority |
+
+Foreman's parent plan requires human review unless explicit, persisted `--auto`
+delegates it. Child reviews are autonomous by default within the accepted parent
+plan and current bounds. Semantic judgment evaluates the rubric; `approval
+self-resolve` still enforces floor → rubric → authority → approval. A model's
+`proceed` answer is not an approval record.
+
+Autopilot honors `--stop-after` and invoker-held approvals, repairs routine
+findings itself, and escalates non-derivable User Challenges. Composed Taste
+choices go in its handoff; it never gains permission to push or release from a
+semantic answer. Direct skills retain the Auto-Decision Framework's own final
+reporting gate. The shared [human-review contract](../.claude/skills/references/semantic-decision.md#human-review)
+distinguishes `proceed`, `revise`, `needs-human`, and `blocked`.
+
+Open-ended design, hypothesis generation and experiment ideation still belong
+to their domain skills; once they have evidence and bounded alternatives they
+can use the shared `custom` kind. Deterministic branch/DAG checks, retry counts,
+resource admission, artifact hashes and release gates do not need inference.
 
 ### Machine-global worker admission
 

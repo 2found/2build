@@ -6,7 +6,7 @@ needs-state:
   requirement_md: optional
 ---
 # prototyper
-The Prototyper archetype (see `../references/archetypes.md`). Use when the work
+The Prototyper archetype (see `../shared/archetypes.md`). Use when the work
 is "does this even work?" rather than "build this." Optimize for learning speed,
 not durability.
 ## run
