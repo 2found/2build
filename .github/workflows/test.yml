@@ -9,8 +9,6 @@ name: Test
 # and workspace layout, so a change to the Go sources, hooks/, or tests/ can break them
 # without touching a single .go file.
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_call:
     inputs:

@@ -42,7 +42,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
   verify:
     needs: plan
-    if: needs.plan.outputs.release == 'true'
+    # Main checks run once here, including pushes without a version bump.
     uses: ./.github/workflows/test.yml
     with:
       ref: ${{ needs.plan.outputs.commit }}
