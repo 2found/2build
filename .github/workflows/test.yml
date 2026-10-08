@@ -12,15 +12,28 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test scripts/release-plan.test.mjs scripts/release-assets.test.mjs
+      - run: python3 tests/test_codex_plugin.py
 
       # The suites invoke ./bbs — a build artifact that is gitignored.
       # Without this they all fail on a missing binary rather than on

@@ -317,18 +317,20 @@ Four fields must stay in sync across both plugin ecosystems:
 
 Quick check: `grep -r "version" .claude-plugin/ .codex-plugin/ VERSION` — all four should show the same value. CI enforces this too: `.github/workflows/release.yml` fails the run when they disagree, rather than shipping a plugin that misreports its own version.
 
-**Bumping VERSION on `main` is the release.** The push triggers `release.yml`,
-which tags `v$(cat VERSION)`, builds the four archives with goreleaser, commits
-the real checksums into `Formula/bbs.rb`, and only then publishes the GitHub
-Release. Commits that don't touch `VERSION` are a no-op — the run stops as soon
-as it sees the tag already exists. Pushing a `v*` tag by hand still works for
-re-cutting or for tagging a commit that isn't main's head.
+**Bumping VERSION on `main` is the release.** `release.yml` validates all four
+version fields, calls the full test workflow, then tags the verified source.
+Dependent distribution jobs build the four CLI archives (with the dashboard
+embedded), the 2build pack and versioned docs/download metadata, commit the
+formula's checksums, and publish the complete draft last. Ordinary pushes with
+an already tagged version do not release. A manual `v*` tag must match `VERSION`;
+workflow dispatch with an existing tag resumes an unpublished release.
 
-Two rules the file's comments explain in place, worth knowing before editing it:
-the version is never derived from commit messages (it would desync the four
-places above), and the tagging must stay *inside* the release job — a tag pushed
-with the default `GITHUB_TOKEN` does not trigger workflows, so a separate
-tagging workflow would mint tags that never build.
+The version is never derived from commit messages. Tagging and distribution
+stay in one dependency graph: `GITHUB_TOKEN`-created tags do not start another
+workflow. Published assets/tags are immutable; fixes need a new version.
+`DOWNLOADS.md`, `release.json` and `checksums.txt` are assets of each release and
+its body links the matching docs. 2build ships a CLI with an embedded web
+dashboard, not a separate native desktop app.
 
 ## Telemetry
 

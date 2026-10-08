@@ -258,22 +258,35 @@ yet. New callers should use `bbs secrets …`.
 
 ## For maintainers: cutting a release
 
-Changing `VERSION` and pushing to `main` triggers the release pipeline.
+Changing `VERSION` and pushing to `main` triggers the release pipeline. Keep the
+Claude marketplace's `metadata.version` and `plugins[0].version`, and the Codex
+plugin's `version`, in the same commit. A push that retains an existing version
+is a no-op; CI does not generate versions from commit messages.
 
-1. Bump `VERSION`, both fields in `.claude-plugin/marketplace.json`
-   (`metadata.version`, `plugins[0].version`) and `.codex-plugin/plugin.json`
-   (`version`) — the 4-field rule in
-   [CLAUDE.md](../CLAUDE.md#releasing--version-bumps).
-2. Push the approved version change to `main`. The workflow creates its tag
-   inside the release job; a manual `v*` tag remains a supported alternative.
-3. `.github/workflows/release.yml` validates all four versions, builds the four
-   archives plus checksums, commits the real checksums into `Formula/bbs.rb`,
-   then publishes the GitHub Release.
+CI validates the mirrors and runs the full test workflow before tagging the
+verified commit. It builds macOS/Linux amd64+arm64 CLI archives with the dashboard
+SPA embedded, the versioned 2build pack, and a documentation archive. The release
+also carries `release.json`, `DOWNLOADS.md` and `checksums.txt`; the release body
+is the current download page and links the documentation at that tag.
 
-Validate the pipeline locally without tagging:
+The complete release stays draft while CI commits `Formula/bbs.rb` with the real
+checksums, and publishes only afterward. A concurrent main version change stops
+formula sync rather than writing an older formula over it. This product has no
+separate native desktop app; `bbs dashboard` serves the embedded web dashboard.
 
-```bash
-goreleaser check                       # config is valid
-goreleaser build --snapshot --clean    # 4 binaries
-brew style Formula/bbs.rb              # formula lint
+Tag creation and distribution share one dependency graph because tags pushed
+with `GITHUB_TOKEN` do not trigger another workflow. A manual `v*` tag remains
+supported and must match source. Rerun failed jobs or dispatch `release.yml` with
+the existing tag to resume an unpublished release. Never move published tags or
+replace their assets; a changed build needs a new version.
+
+```sh
+goreleaser check
+goreleaser build --snapshot --clean
+node --test scripts/release-plan.test.mjs scripts/release-assets.test.mjs
 ```
+
+The 2found website consumes published release catalogs hourly. Optional secret
+`WEBSITE_DISPATCH_TOKEN`, scoped only to dispatch `2found/2found.dev`, triggers an
+immediate refresh. A notification failure does not undo the product release;
+the scheduled consumer repairs missed refreshes. Never store that token in source.

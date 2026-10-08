@@ -5,8 +5,9 @@
 # The babysit skill pack and the hooks are NOT in these artifacts — they
 # install via `git clone` + `go run ./cmd/bbs setup` (see README / docs/install.md).
 #
-# The pipeline is built but never fired here: the human tags a release
-# (`git tag vX.Y.Z && git push --tags`) and the release workflow runs goreleaser.
+# A new VERSION pushed to main (or a manual v* tag) starts the release pipeline.
+# CI builds without publishing, stages docs/downloads and the formula, then
+# publishes the complete draft.
 #
 # Verify locally without a tag:  goreleaser build --snapshot --clean
 version: 2
@@ -68,6 +69,6 @@ release:
   github:
     owner: 2found
     name: 2build
-  # The pipeline builds artifacts; a human reviews the draft before it goes live.
+  # The workflow publishes the complete draft after distribution gates pass.
   draft: true
   prerelease: auto
