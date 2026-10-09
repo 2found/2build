@@ -1,4 +1,32 @@
 # Project pointers and workspace registration
+
+## Project context links
+`AGENTS.md` is the project's navigation map. Before adding tooling pointers,
+link its project-specific sources of truth with a short note on when to read:
+
+- **Architecture — required:** component/service boundaries, dependencies,
+  data flow and engineering constraints. Use the repo's actual architecture
+  document(s), whether named `ARCHITECT*.md`, `ARCHITECTURE*.md` or a maintained
+  section of another document. In a multi-service repo, map each service to the
+  relevant document instead of presenting an undifferentiated list.
+- **Design — when applicable:** UI/UX rules, design system, tokens and shared
+  components for projects with a visual/user-facing surface. Link the existing
+  design authority and say to read it before visual/UI changes.
+- **Deployment — when applicable:** environments, deploy/release procedure,
+  prerequisites and rollback for deployable services or sites. Link the owning
+  runbook and say to read it before deployment work. A library with no deployed
+  service does not need an invented deployment document.
+
+Use real relative Markdown links and existing filenames/anchors; verify the
+linked content covers the claimed purpose. Reuse existing service lists or
+sections rather than adding a second index. If the harness uses `CLAUDE.md` as
+its entrypoint, keep the same map reachable there without duplicating policy.
+Missing architecture guidance, or applicable design/deployment guidance, is a
+named documentation gap: report the missing owner/content and next step. Do not
+insert dangling links, create empty templates or invent operational details to
+make setup look complete. Drafting the missing documents is separate scoped work.
+
+## 2build pointers
 Add one concise pointer section in `AGENTS.md` or `CLAUDE.md`. Adapt skill
 invocations to the active harness using the preamble's `SKILL_REF`; the template
 below uses Claude Code syntax. Omit the browser bullet for CLI/library repos

@@ -33,7 +33,15 @@ is unknown, report the assumption. Missing one filename is not itself a defect
 when another entrypoint correctly serves the intended harness.
 
 ## Evidence checks
-Inspect the following only where relevant or present:
+First check the [project context links](../setup-project/references/project-pointers.md#project-context-links)
+contract: `AGENTS.md` must lead to the project's architecture guidance, and to
+design/deployment guidance when those apply. Verify service coverage and when
+each document should be read. Distinguish a missing link to existing guidance
+from missing documentation; report either gap even if there is no file to
+inspect. Do not require a particular filename or design/deployment docs for
+projects that do not need them.
+
+Then inspect the following where relevant or present:
 
 | Surface | Compare against | Report when |
 | --- | --- | --- |

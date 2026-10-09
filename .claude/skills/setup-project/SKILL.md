@@ -14,7 +14,9 @@ by path, not as `skill://`.
 ## Discover before writing
 Read applicable `AGENTS.md` / `CLAUDE.md`, existing `.babysit` configuration,
 remote/default branches, package scripts, lockfiles, Makefile/compose and CI.
-Derive service working directories, runtime, local target and useful checks.
+Discover the project's architecture authority and, where applicable, design
+and deployment guidance. Derive service working directories, runtime, local
+target and useful checks.
 Preserve explicit user choices, intentional overrides, named environments and
 credential variable names. Do not copy template ports or commands as facts.
 
@@ -55,6 +57,10 @@ not rewrite architecture docs or unrelated instructions during onboarding.
   missing placeholders with `bbs secrets seed --repo-root <repo> <names...>`.
   Never replace values or invent accounts. Multiple GitHub accounts may need
   `GH_ACCOUNT`; use a known login, never guess one.
+- Make `AGENTS.md` a project map: link architecture guidance, plus design and
+  deployment guidance when applicable, with service scope and when to read each.
+  Follow [project context links](references/project-pointers.md#project-context-links);
+  these project characteristics belong alongside the tooling configuration.
 - Add one concise 2build pointer section to the existing instruction entrypoint
   (`AGENTS.md` preferred when both exist; create it if neither exists). Read
   [project pointers](references/project-pointers.md) for the section and,
