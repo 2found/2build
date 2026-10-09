@@ -8,7 +8,7 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Archetype | Skills |
 |-----------|--------|
 | Prototyper | `recon`, `prototype` |
-| Builder | `autopilot`, `plan-draft`, `design-ui`, `implement`, `review-pr`, `test`, `qa`, `browse`, `create-pr`, `semantic-decision`, `agent-first-docs` |
+| Builder | `autopilot`, `plan-draft`, `design-ui`, `implement`, `review-pr`, `test`, `qa`, `browse`, `create-pr`, `release-prd`, `semantic-decision`, `agent-first-docs` |
 | Sweeper | `sweep`, `review-pr`, `qa` |
 | Grower | `product-marketing-page` |
 | Maintainer | `maintain`, `investigate`, `qa`, `analytics-review`, `harness-audit`, `triage` |
@@ -49,6 +49,7 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Full test/fix browser loop | `/bbs:qa` |
 | Pre-landing code review | `/bbs:review-pr` |
 | Create a pull request after human review | `/bbs:create-pr` |
+| Release to production through distribution, deploy and hypercare | `/bbs:release-prd` |
 | UI design and prototype | `/bbs:design-ui` |
 | Configure repo | `/bbs:setup-project` |
 | Audit AGENTS.md, CLAUDE.md and related harness files | `/bbs:harness-audit` |
@@ -58,6 +59,16 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Product value, CTAs and a marketing quick start | `/bbs:product-marketing-page` |
 
 ## Skill boundary
+
+`release-prd` reads the target repo's release profile (`RELEASE.md`,
+`.babysit/release.md`, or the linked inline instructions). Use
+`/bbs:release-prd --local` when CI quota is exhausted: checks and builds run
+locally, required artifacts are published manually, and affected automatic
+workflows are guarded/restored. `/bbs:release-prd --local --dry-run` reports
+the plan without mutations; `--prepare` stops before remote delivery and
+`--resume <tag>` recovers a partial release. Options are skill instructions,
+not a new CLI subcommand. Codex uses `$bbs:release-prd` with the same options.
+Autopilot's existing QA checkpoint does not grant release authority.
 
 A standalone skill earns its place by owning a 2build contract, evidence format,
 repo convention or workflow boundary. Ordinary reasoning, brainstorming, copy

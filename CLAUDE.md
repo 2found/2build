@@ -216,7 +216,7 @@ terminal or wrap them in an orchestrator that can relay `NEEDS_CONTEXT`.
 
 | Compatibility | Skills |
 |---------------|--------|
-| **`INVOKER`-agnostic** (safe to chain unattended) | `agent-first-docs`, `analytics-review`, `autopilot`, `browse`, `create-pr`, `design-ui`, `fix-pr`, `foreman`, `harness-audit`, `implement`, `investigate`, `maintain`, `phased-build`, `plan-draft`, `product-marketing-page`, `prototype`, `qa`, `recon`, `review-pr`, `semantic-decision`, `setup-project`, `sweep`, `test`, `triage` |
+| **`INVOKER`-agnostic** (safe to chain unattended) | `agent-first-docs`, `analytics-review`, `autopilot`, `browse`, `create-pr`, `design-ui`, `fix-pr`, `foreman`, `harness-audit`, `implement`, `investigate`, `maintain`, `phased-build`, `plan-draft`, `product-marketing-page`, `prototype`, `qa`, `recon`, `release-prd`, `review-pr`, `semantic-decision`, `setup-project`, `sweep`, `test`, `triage` |
 | **`developer`-only** (require a human at the keyboard) | None; unresolved setup policy uses the caller's `NEEDS_CONTEXT` channel. |
 
 Foreman reaches its parent human design checkpoint by default; unattended callers
@@ -302,6 +302,12 @@ go run ./cmd/bbs setup --uninstall
 ```
 
 ## Releasing — version bumps
+
+Use [.claude/skills/release-prd/SKILL.md](.claude/skills/release-prd/SKILL.md)
+with [RELEASE.md](RELEASE.md) for the complete delivery and post-release contract.
+`--local` runs checks/build/distribution on the operator's machine without CI
+runtime; its workflow guard restores original workflow states afterward.
+Autopilot still stops at its existing QA handoff and does not invoke release.
 
 When bumping the version (any change to `VERSION`), **always update both plugin manifests in the same commit: `.claude-plugin/marketplace.json` for Claude Code and `.codex-plugin/plugin.json` for Codex**. The plugin loaders use those files to detect upgrades — a stale version can leave users on old skills.
 

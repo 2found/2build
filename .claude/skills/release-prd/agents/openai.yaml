@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release production"
+  short_description: "Release, publish, deploy and verify production"
+  default_prompt: "Use $release-prd to release this project to production and complete post-deploy checks."

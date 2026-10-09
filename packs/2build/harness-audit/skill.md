@@ -29,7 +29,9 @@ or change global settings as part of an audit.
 
 Start at the requested repo/service or file. Discover root and relevant nested
 `AGENTS.md` / `CLAUDE.md`, imports/symlinks and referenced architecture, design,
-run/test/deploy docs. Follow links needed to establish an operational claim;
+run/test/deploy/release docs. Discover the linked release profile, otherwise
+`.babysit/release.md`, `RELEASE.md` or an existing inline release section.
+Follow links needed to establish an operational claim;
 exclude dependency/vendor/generated trees unless referenced. Do not traverse
 every sibling repo or entire monorepo for a service-scoped request.
 
@@ -42,11 +44,18 @@ when another entrypoint correctly serves the intended harness.
 ## Evidence checks
 First check the [project context links](../setup-project/references/project-pointers.md#project-context-links)
 contract: `AGENTS.md` must lead to the project's architecture guidance, and to
-design/deployment guidance when those apply. Verify service coverage and when
+design/deployment/release guidance when those apply. Verify service coverage and when
 each document should be read. Distinguish a missing link to existing guidance
 from missing documentation; report either gap even if there is no file to
 inspect. Do not require a particular filename or design/deployment docs for
 projects that do not need them.
+
+For a releasable app, CLI, library or pack, use
+[release-prd's profile contract](../release-prd/references/project-profile.md)
+to audit release coverage. An equivalent linked inline section/runbook is
+valid; missing `RELEASE.md` alone is not a finding. Missing release guidance
+for an actual release surface, an unreachable existing profile or conflicting
+duplicate owners is a finding. A non-releasable repo can mark this N/A.
 
 Then inspect the following where relevant or present:
 
@@ -57,6 +66,7 @@ Then inspect the following where relevant or present:
 | Architecture and operational rules | Representative implementation and current configuration at the named path | Guidance contradicts reality, duplicates have drifted, ownership or exceptions are ambiguous |
 | `.babysit/git-flow.yaml` | [git-flow](../shared/git-flow.md), actual refs and effective `bbs autopilot git-flow` output | Nonexistent base, conflicting release policy or unexplained override; intentional overrides are valid |
 | `.babysit/qa.yaml` and local overrides | Effective local environment, service commands, credential variable names and meaningful flows | Wrong/missing target, hosted-only QA, no failure/empty/validation case, override changes target or credential source unexpectedly |
+| Release profile (`RELEASE.md`, `.babysit/release.md` or linked inline owner) | Version/mirror/lockfile sources, tags/changelog, CI/script stage ownership, package registries, current deploy/rollback runbook, observation rules and CLI installation paths | Wrong repo/component/version identity, stale commands, missing required stage or unjustified N/A, ambiguous artifact/SHA, unverifiable hypercare bounds, missing local update verification or profile unreachable from entrypoints |
 | Ignore rules and examples | Tracked filenames, `.gitignore`, `.env.example`, configuration references | Secret-bearing local files tracked or not ignored, committed credential literals, names pointing at the wrong environment |
 | Related repo/workspace pointers | Only relevant entries in `~/.babysit/config.yaml`, named local paths and `RELATED_*_REPO` fallback | Referenced repo unavailable, roles disagree, machine paths committed, project-local `.babysit/config.yaml` mistaken for the registry |
 
@@ -65,6 +75,15 @@ Missing `.babysit` files or workspace registration in a repo that does not use
 those features is not a finding. For CLI/library repos, validate their actual
 check path instead of requiring a browser URL. An unavailable submodule or
 machine-local repo is an evidence gap, not proof its documentation is wrong.
+
+When `--local` release support is claimed, trace its checks, builds, packaging,
+publication and deploy commands statically against CI and helpers. Report
+missing CI-equivalent checks, remote build/Actions dependencies disguised as
+local execution, absent guard/restoration for relevant automatic workflows,
+or instructions that bypass landing/authentication policy. Check that original
+workflow states survive failures/resumes and already published artifacts are
+verified before retry. Distinguish an intentional unsupported local path from
+a false claim of support; missing live permissions are unverified facts.
 
 For instruction quality, keep project-specific constraints and failure lessons
 that change decisions. Flag generic filler, repeated policy, stale examples or
@@ -95,7 +114,10 @@ separately from configured intent. Execute application checks or start services
 only when runtime verification is requested, after inspecting side effects and
 prerequisites. Missing tools/services become `NOT RUN` with a reason. Never run
 migration, rollback, seed, deployment or destructive prepare hooks to “verify”
-documentation. A health response proves reachability, not auth or user flows;
+documentation. Auditing release guidance also does not authorize version bumps,
+tags, publication, workflow suspension/dispatch or local CLI upgrades, including
+`npm pack --dry-run` whose lifecycle hooks can mutate/build. A health response
+proves reachability, not auth or user flows;
 use `browse` / `qa` for requested UI execution.
 
 ## Findings, optional fixes and output

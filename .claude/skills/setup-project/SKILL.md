@@ -1,6 +1,6 @@
 ---
 name: setup-project
-description: Initialize or update a repo's 2build configuration, QA target and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files.
+description: Initialize or update a repo's 2build configuration, QA target, release profile and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files.
 ---
 # setup-project
 Create the minimum configuration future runs need. Re-running preserves valid
@@ -14,8 +14,9 @@ by path, not as `skill://`.
 ## Discover before writing
 Read applicable `AGENTS.md` / `CLAUDE.md`, existing `.babysit` configuration,
 remote/default branches, package scripts, lockfiles, Makefile/compose and CI.
-Discover the project's architecture authority and, where applicable, design
-and deployment guidance. Derive service working directories, runtime, local
+Discover the project's architecture authority and, where applicable, design,
+deployment and release guidance, including version sources, package publication
+and automatic pipelines. Derive service working directories, runtime, local
 target and useful checks.
 Preserve explicit user choices, intentional overrides, named environments and
 credential variable names. Do not copy template ports or commands as facts.
@@ -59,9 +60,22 @@ not rewrite architecture docs or unrelated instructions during onboarding.
   Never replace values or invent accounts. Multiple GitHub accounts may need
   `GH_ACCOUNT`; use a known login, never guess one.
 - Make `AGENTS.md` a project map: link architecture guidance, plus design and
-  deployment guidance when applicable, with service scope and when to read each.
+  deployment/release guidance when applicable, with service scope and when to read each.
   Follow [project context links](references/project-pointers.md#project-context-links);
   these project characteristics belong alongside the tooling configuration.
+- Release profile: for a releasable app, CLI, library or pack, reuse the profile
+  linked by the instruction entrypoint, otherwise existing `.babysit/release.md`,
+  `RELEASE.md` or a maintained inline section. Fill missing/requested facts using
+  [release-prd's profile contract](../release-prd/references/project-profile.md).
+  If no equivalent owner exists, create `RELEASE.md` from observed version files,
+  scripts, CI and runbooks, then link it from `AGENTS.md`/`CLAUDE.md`. Separate
+  independent components/submodules and distinguish normal pipeline ownership
+  from the local execution path. Mark non-applicable distribution/deploy/update
+  stages N/A with reasons; record unresolved commands, thresholds or authority
+  as gaps rather than inventing them. Preserve existing landing/publication
+  policy; setup does not grant workflow suspension or release permission.
+  A local path that still invokes Actions/Cloud Build is not `--local` support.
+  For a repo with no release surface, record N/A without creating an empty file.
 - Add one concise 2build pointer section to the existing instruction entrypoint
   (`AGENTS.md` preferred when both exist; create it if neither exists). Read
   [project pointers](references/project-pointers.md) for the section and,
@@ -102,4 +116,6 @@ CONFIG: <files/keys changed, or already configured; workspace registration if an
 VERIFY: <config checks and local probe results; explicit unverified items>
 NEXT: <remaining prerequisite or /bbs:autopilot "<feature>">
 ```
-Do not branch, commit, push or deploy as part of this skill.
+Do not branch, commit, push, tag, publish, deploy, suspend workflows or upgrade
+local tools as part of this skill. Creating a release profile prepares future
+delivery; an execution request belongs to `release-prd`.

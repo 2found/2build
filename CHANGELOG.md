@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **`release-prd` skill** — per-repo production delivery from version/changelog
+  and main sync through GitHub/package distribution, app deployment, hypercare
+  and local CLI updates. `--local` runs the full delivery from the operator's
+  machine when CI quota is exhausted, with workflow suspension/restoration;
+  `--dry-run`, `--prepare` and `--resume` support planning and recovery.
+- **2build release profile** — normal pipeline ownership and equivalent local
+  CLI/pack/docs/formula delivery, with post-release install verification.
+
+### Changed
+
+- **`setup-project` and `harness-audit`** — setup prepares and links a release
+  profile from repository facts; audit checks release-stage coverage, command
+  accuracy, local execution, workflow restoration and post-release evidence.
+  Existing inline/runbook profiles remain valid without a new filename.
+
 ## 1.96.0 — 2026-10-09
 
 ### Added

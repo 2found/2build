@@ -16,15 +16,23 @@ link its project-specific sources of truth with a short note on when to read:
   prerequisites and rollback for deployable services or sites. Link the owning
   runbook and say to read it before deployment work. A library with no deployed
   service does not need an invented deployment document.
+- **Release — when applicable:** versioned delivery for apps, CLIs, libraries
+  or packs, including publication and post-release verification. Link the
+  existing profile/inline owner or the `RELEASE.md` prepared during setup and
+  say to read it before invoking `release-prd`. A library can need release
+  guidance while deployment is N/A. Reuse one owner; do not create a second
+  profile merely to satisfy a filename convention.
 
 Use real relative Markdown links and existing filenames/anchors; verify the
 linked content covers the claimed purpose. Reuse existing service lists or
 sections rather than adding a second index. If the harness uses `CLAUDE.md` as
 its entrypoint, keep the same map reachable there without duplicating policy.
-Missing architecture guidance, or applicable design/deployment guidance, is a
+Missing architecture guidance, or applicable design/deployment/release guidance, is a
 named documentation gap: report the missing owner/content and next step. Do not
 insert dangling links, create empty templates or invent operational details to
-make setup look complete. Drafting the missing documents is separate scoped work.
+make setup look complete. Setup can prepare a release profile from verified
+repository facts; drafting missing architecture/design/deployment policy is
+separate scoped work. Unresolved release policy remains a named gap.
 
 ## 2build pointers
 Add one concise pointer section in `AGENTS.md` or `CLAUDE.md`. Adapt skill
@@ -38,6 +46,7 @@ This repo is configured for 2build autonomous runs.
 
 - Git policy: `.babysit/git-flow.yaml`
 - QA harness: `.babysit/qa.yaml`
+- Production release: read [RELEASE.md](RELEASE.md), then use `/bbs:release-prd`; `--local` runs delivery from this machine when CI is unavailable. Setting up this profile does not execute a release.
 - Browser: for any UI check — open a URL, click a flow, read console errors, screenshot — invoke `/bbs:browse` (or `/bbs:qa` for a full loop). These drive a real Chromium via `agent-browser`; there is no separate browser *tool* to look for, and `WebFetch` is not a substitute. One-time: `npm install -g agent-browser cloakbrowser`.
 - Default run: `/goal "STATUS: DONE or STATUS: BLOCKED appears" /bbs:autopilot "<task>"`
 
@@ -46,6 +55,10 @@ QA must prove the local target or name the blocker, and must include at least on
 Reuse existing 2build/Babysit pointers. Edit only those bullets; a section named
 `## 2build` may also contain unrelated project instructions, so do not replace
 it wholesale. Do not install browser tooling during setup.
+Include the release bullet only for a releasable repo, substituting its actual
+profile link or inline anchor. Do not insert a `RELEASE.md` link if that file
+was not created or an existing owner was reused. Options are skill instructions,
+not a `bbs release-prd` CLI subcommand.
 When related repos exist or the user provides them, also add or update this
 section:
 ```md

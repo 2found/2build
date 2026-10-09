@@ -18,6 +18,7 @@
     "prototype",
     "qa",
     "recon",
+    "release-prd",
     "review-pr",
     "semantic-decision",
     "setup-project",
@@ -170,6 +171,15 @@
         }
       ]
     },
+    "release-prd": {
+      "skills": [
+        {
+          "name": "2build_release-prd",
+          "file": "release-prd/skill.md",
+          "description": "Release a repository or selected services to production, from version and changelog through main sync, GitHub release, package distribution, deployment and hypercare. Supports --local when CI quota is exhausted; use --dry-run for a read-only release plan."
+        }
+      ]
+    },
     "review-pr": {
       "skills": [
         {
@@ -193,7 +203,7 @@
         {
           "name": "2build_setup-project",
           "file": "setup-project/skill.md",
-          "description": "Initialize or update a repo's 2build configuration, QA target and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files."
+          "description": "Initialize or update a repo's 2build configuration, QA target, release profile and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files."
         }
       ]
     },
