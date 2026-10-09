@@ -11,8 +11,9 @@ is "does this even work?" rather than "build this." Optimize for learning speed,
 not durability.
 ## run
 > produces: verdict:prototyper
-1. Resolve the assumption to test from `requirement.md` or the invocation. If it
-   is unclear whether the idea is even worth a spike, run `office-hours` first.
+1. Resolve the assumption to test from `requirement.md` or the invocation.
+   Name the evidence that would justify building; if a spike cannot answer
+   that question, stop with the missing evidence and next action.
 2. Run `prototype`: build the smallest quarantined spike and capture the signal.
 3. Checkpoint the verdict and what was learned. Keep throwaway code quarantined;
    a validated spike supplies evidence and a production requirement, never code

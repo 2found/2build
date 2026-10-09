@@ -1,14 +1,23 @@
 ---
 name: create-pr
-description: Prepare and create a pull request from the current branch. Use when code is ready to push, the user asks for a PR, or a babysit handoff is ready for human review.
+description: Prepare and create a pull request from the current branch. Use when the user requests a PR or a workflow authorizes the PR handoff.
 ---
 # create-pr
 Create a reviewable PR without merging it.
 ## Flow
 1. Inspect git status, branch, commits, and remote. Resolve policy with `eval "$(bbs autopilot git-flow)"` — `$BBS_BASE_BRANCH`, `$BBS_MODE`, `$BBS_LAND`, `$BBS_PUSH`. Honor the mode and the landing policy — see below. Load repo env: `eval "$(bbs secrets load | sed -E '/^export CLOUDFLARE_(ACCOUNT_ID|API_TOKEN)=/d')"`; if `GH_ACCOUNT` is set, `gh auth switch -u "$GH_ACCOUNT"` before any push or `gh pr` call (multi-account machines fail with "Repository not found" on the wrong account).
-2. Read requirement, plan, implementation handoff, and verification evidence when present. Carry them into the PR body as a short reviewer explainer: context and intent, where new code meets existing behavior, deviations from the plan (implement handoff's `## Deviations`), QA evidence. End the body with a **Reviewer quiz**: 2–3 questions probing what the diff alone can't show — behavior that rides on existing code paths, the consequence of a deviation, what else the change can reach — with answers collapsed in a `<details>` block so the reviewer self-checks before merging.
+2. Read requirement, plan, implementation handoff, and verification evidence when present. Carry them into the PR body as a short reviewer explainer: context and intent, where new code meets existing behavior, deviations from the plan (implement handoff's `## Deviations`), QA evidence. Highlight any consequential interpretation, system impact or unresolved assumption the reviewer must judge. Include prototype/QA links when relevant; no mandatory quiz or repeated plan.
 3. Resolve mechanical version or changelog requirements only when the repo requires them.
-4. If `origin/<base_branch>` has moved since the cut, run `bbs ticket refresh` first (no-op when current) so CI tests the change against the latest base. Commit remaining intended changes, push the ticket branch, and open the PR against `base_branch`. If `push: false`, stop with `BLOCKED` naming the policy instead of pushing. After the PR opens, persist it with `bbs ticket set-pointer pr <url>` and run `bbs ticket set-status in_review`. `board --pr` and `fix-pr` resolve the PR from this pointer; status becomes `done` only after the PR is observed merged.
+4. With a resolved ticket, if `origin/<base_branch>` has moved, run
+   `bbs ticket refresh` first. Without a ticket, follow the repo's base-sync
+   policy. Refreshing changes the tested state: rerun affected checks before
+   claiming current verification. Commit only remaining intended changes.
+   If `push: false`, stop with `BLOCKED` naming the policy before pushing.
+   For a resolved ticket, inspect `bbs ticket readiness --action pr --json`
+   and require `data.ready=true` for the final head. Then push the source
+   branch and open the PR against `base_branch`. When a ticket resolves,
+   persist `bbs ticket set-pointer pr <url>` and `bbs ticket set-status in_review`.
+   `board --pr` and `fix-pr` use the pointer; status becomes `done` only after the PR is observed merged.
 5. Return the PR URL, title, summary, tests, and concerns. Cross-repo tickets: a sibling repo's change needs its own create-pr run there; list the sibling repo + branch in the summary instead of fanning out.
 ## Git-flow policy
 `land: none` (the `pet` profile) means this repo does not do PRs — the push
@@ -17,10 +26,9 @@ Create a reviewable PR without merging it.
 ```
 STATUS: BLOCKED
 SUMMARY: this repo is a pet project (profile: pet, land: none) — work lands on
-$BBS_BASE_BRANCH directly, there is no PR step. The qa + review-pr verdicts
-were the gate, and the push already released it.
-NEXT: nothing — you're done. To start doing PRs here, re-run /bbs:setup-project
-and pick "client or small-team work".
+$BBS_BASE_BRANCH directly, there is no PR step. This invocation did not push
+or release anything.
+NEXT: follow the configured direct-delivery workflow; change policy only if requested.
 ```
 
 The PR is always cut from the **ticket branch** and targets `$BBS_BASE_BRANCH`.
@@ -42,5 +50,5 @@ STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: PR_CREATED
 PR: <url>
 SUMMARY: <title + checks>
-NEXT: human review — pass the quiz before merging
+NEXT: human review
 ```

@@ -333,7 +333,7 @@ def build(out, version, commit):
         "| Validate an idea | [prototype](prototype/skill.md), [recon](recon/skill.md) |",
         "| Finish a ticket | [autopilot](autopilot/skill.md), [implement](implement/skill.md), [qa](qa/skill.md) |",
         "| Simplify code | [sweep](sweep/skill.md) |",
-        "| Improve marketing | [product-marketing-page](product-marketing-page/skill.md), [conversion-fix](conversion-fix/skill.md) |",
+        "| Improve marketing | [product-marketing-page](product-marketing-page/skill.md) |",
         "| Diagnose or harden | [investigate](investigate/skill.md), [maintain](maintain/skill.md) |",
         "",
         "`foreman` is not included: its project coordinator requires the Orca",

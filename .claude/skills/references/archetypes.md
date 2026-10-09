@@ -11,10 +11,10 @@ dependent child; autopilot never recursively expands its own scope.
 
 | # | Archetype | Mandate | Workflow | Skills it composes |
 |---|-----------|---------|----------|--------------------|
-| 1 | **Prototyper** | Churn brand-new ideas; most won't ship. Learn one thing fast. | `prototyper` | `office-hours` (judge), `recon` (scout), `prototype` (spike) |
+| 1 | **Prototyper** | Churn brand-new ideas; most won't ship. Learn one thing fast. | `prototyper` | `recon` (scout), `prototype` (spike) |
 | 2 | **Builder** | Turn a prototype/idea into production-grade product and infra. | `builder` | `plan-draft`, `design-ui`, `implement`, `review-pr`, `qa`, `semantic-decision`, `agent-first-docs` |
 | 3 | **Sweeper** | Clean up the UI, simplify code and systems, unship, optimize. | `sweeper` | `sweep`, `review-pr`, `qa` |
-| 4 | **Grower** | Iterate on a shipped product to improve product-market fit. | `grower` | `growth-experiment`, `conversion-fix`, `copy-rewrite`, `social-content`, `product-marketing-page` |
+| 4 | **Grower** | Iterate on a shipped product to improve product-market fit. | `grower` | `product-marketing-page`, `plan-draft`, `implement`, `qa` |
 | 5 | **Maintainer** | Keep a mature system secure, reliable, fast, and efficient at scale. | `maintainer` | `maintain` (audit), `investigate` (fix), `qa` |
 `semantic-decision` is Builder-owned shared judgment infrastructure; all
 archetypes reuse its LLM-default step and optional Cloudflare provider.

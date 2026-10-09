@@ -2,7 +2,8 @@
 
 **Check whether a reasoning scaffold improves the answer.**
 
-This differential benchmark evaluates 2build's [reason skill](../../.claude/skills/reason/SKILL.md)
+This archived differential benchmark evaluates the retired `reason` skill's
+[saved scaffold](scaffold.md)
 across planning, coding, UI, architecture and QA problems. It compares a task
 alone with the same task plus the skill's five-move scaffold across model tiers.
 
@@ -25,8 +26,8 @@ no repo/web/shell access) so runs are comparable across models and conditions.
 
 `scaffold.md` is the pre-overhaul snapshot tested on 2026-07-29. The skill was
 revised afterward (deliverable shape rule, quantify + spec-sweep in Attack).
-Use the saved snapshot to reproduce this experiment; re-extract from the current
-skill when evaluating a new version, and record which version you tested.
+Use the saved snapshot to reproduce this experiment. The standalone skill is
+retired; any new evaluation must save and identify its own candidate scaffold.
 
 ## Layout
 

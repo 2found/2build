@@ -7,10 +7,10 @@ of a product-building team — pick by the shape of the work, not the job title.
 
 | Archetype | Skills |
 |-----------|--------|
-| Prototyper | `office-hours`, `recon`, `prototype` |
+| Prototyper | `recon`, `prototype` |
 | Builder | `autopilot`, `plan-draft`, `design-ui`, `implement`, `review-pr`, `qa`, `browse`, `create-pr`, `semantic-decision`, `agent-first-docs` |
 | Sweeper | `sweep`, `review-pr`, `qa` |
-| Grower | `conversion-fix`, `copy-rewrite`, `growth-experiment`, `social-content`, `product-marketing-page` |
+| Grower | `product-marketing-page` |
 | Maintainer | `maintain`, `investigate`, `qa`, `analytics-review`, `triage` |
 | Setup | `setup-project` |
 
@@ -46,9 +46,26 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Full test/fix browser loop | `/bbs:qa` |
 | Pre-landing code review | `/bbs:review-pr` |
 | Create a pull request after human review | `/bbs:create-pr` |
-| Product or UI ideation | `/bbs:office-hours`, `/bbs:design-ui` |
+| UI design and prototype | `/bbs:design-ui` |
 | Configure repo | `/bbs:setup-project` |
 | Evaluate external code | `/bbs:recon` |
-| Marketing and growth | `/bbs:conversion-fix`, `/bbs:copy-rewrite`, `/bbs:growth-experiment`, `/bbs:social-content` |
+| Measurable growth workflow | `/bbs:autopilot grower` |
 | Agent-first onboarding docs and Markdown discovery | `/bbs:agent-first-docs` |
 | Product value, CTAs and a marketing quick start | `/bbs:product-marketing-page` |
+
+## Skill boundary
+
+A standalone skill earns its place by owning a 2build contract, evidence format,
+repo convention or workflow boundary. Ordinary reasoning, brainstorming, copy
+and script writing are direct agent tasks.
+
+Removed shortcuts: `conversion-fix`, `copy-rewrite`, `growth-experiment`,
+`office-hours`, `reason`, `social-content`. Ask the agent directly for those
+jobs; use `autopilot grower` for a persisted experiment workflow, `prototype`
+for a quarantined technical spike, and `product-marketing-page` for the
+product activation/docs standard. The reasoning benchmark remains archived
+under `tests/reason-bench`; it is not an installed skill.
+
+`create-pr`/`fix-pr` retain PR and ticket-state protocols; `analytics-review`
+retains telemetry interpretation; `triage` retains bounded checkpoint recovery.
+Low personal usage alone is not a reason to remove these contracts.

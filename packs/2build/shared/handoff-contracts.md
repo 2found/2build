@@ -17,13 +17,8 @@ Only developer runs may also rely on conversation. Resolve identity via the
 | `qa` | `PASS` \| `FIXED(<N>)` \| `FAIL` |
 | `review-pr` | `PASS` \| `FINDINGS(<N>)` \| `FIXED(<N>)` |
 | `create-pr` | `PR_CREATED` |
-| `conversion-fix` | `FIXED` \| `AUDITED` |
-| `copy-rewrite` | `REWRITTEN` |
 | `design-ui` | `DESIGNED` |
-| `growth-experiment` | `RANKED` \| `SCAFFOLDED` |
-| `office-hours` | `DESIGNED` \| `NOT_READY` |
 | `recon` | `STEAL(<approach>)` \| `PASS` |
-| `social-content` | `SCRIPTS` |
 | `setup-project` | `CONFIGURED` |
 
 New skills pick a one-line verdict and document it in their own SKILL.md.

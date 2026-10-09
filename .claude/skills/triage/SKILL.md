@@ -28,17 +28,21 @@ a precise ask.
      ran), or an in-scope defect the resumed workflow can repair. Dispatch
      repair to `investigate`/`implement` through the workflow; triage does not
      edit code. A fresh dispatch from the checkpoint addresses these. A
-     `clean-handoff-audit clean:false` is recoverable by construction:
-     `uncommitted changes` → re-dispatch instructing a commit-first pass;
-     `checkpoint predates the last commit` → run `bbs autopilot checkpoint
-     --refresh` and the audit clears without a re-run.
+     `clean-handoff-audit clean:false` is a symptom requiring ownership checks:
+     `uncommitted changes` → distinguish this run's work from user/other-run
+     edits before resuming its normal verify/commit path; never commit all dirt.
+     `checkpoint predates the last commit` → verify ticket/head identity, then
+     run `bbs autopilot checkpoint --refresh` if appropriate and inspect the
+     audit again; refreshing metadata does not prove the work passed.
    - **Needs-human** — missing input only the human has (credentials, an
      ambiguous requirement, a product decision), or a finding whose repair
      needs missing authority or a change to the accepted direction. A genuine
      but locally repairable finding alone does not require human review.
 4. Post the triage handoff to the ticket
-   (`bbs ticket add-handoff --skill triage`): cause, classification, evidence
-   pointers, and the action taken.
+   (`bbs ticket add-handoff --skill triage --status <status> --body-file <path>`):
+   cause, classification, prior attempts, evidence pointers and planned action.
+   Persist the retry decision before dispatch so a restart cannot spend it twice;
+   append the observed result afterward.
 5. Act:
    - Recoverable → clear the mechanical cause if trivial (never `--force`,
      never delete work), then re-dispatch `/bbs:autopilot <workflow> <ticket>`

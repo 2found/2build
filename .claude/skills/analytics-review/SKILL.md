@@ -14,18 +14,23 @@ tickets, not dashboards. Read-only — it never edits the pack in the same run.
 2. Aggregate `skill-usage.jsonl`: runs / error rate / median duration per
    skill (`event:"end"` rows carry `outcome` + `duration_s`), plus the audit
    events (`skill-verdict-audit`, Hook C rows). Flag skills with error rate
-   ≥25% or that never fire.
+   ≥25% with at least five completed runs. Compare against the installed skill
+   inventory before reporting zero usage; low usage alone is not a defect.
 3. Aggregate `decisions.jsonl`. `kind:"resize"` rows → is `plan-draft`
    habitually over-sizing?
 4. Find where runs die: `outcome:"error"` clusters, BLOCKED/NEEDS_CONTEXT in
    verdict audits, and tickets whose checkpoint stopped advancing (if ticket
-   state is reachable). Also pair `start`/`end` rows by `(session, skill)` to
-   find **orphaned runs** — a `start` with no matching `end` died without
-   closing. Pair within the window only: session ids drifted in older
+   state is reachable). Pair `start`/`end` rows by `invocation_id` when present
+   (the current runtime schema); legacy rows fall back to `(session, skill)`.
+   Find **unmatched starts**, not presumed crashes. Check live session/ticket
+   state and window boundaries before calling a run orphaned; separate unknown
+   completion from observed failure. Pair repeated starts/ends chronologically
+   rather than collapsing all invocations into one pair. Pair within the window
+   only: session ids drifted in older
    history, so cross-history gross `starts − ends` is unreliable (it can even
    go negative at a window edge). A skill that emits `start` but *never* any
-   `end` is an instrumentation gap, not a death — report it separately. This
-   is the direct read on the pack's "it finishes" guarantee.
+   `end` may indicate an instrumentation gap — report that uncertainty
+   separately from confirmed run failures.
 5. Emit the report: a ranked, ticket-ready list. Each item is one line of
    ticket title + one line of evidence (counts, skill names, sample ts). ≤7
    items; below that bar, say "no action needed" — an empty report is a valid

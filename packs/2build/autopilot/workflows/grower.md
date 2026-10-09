@@ -15,13 +15,16 @@ reversible experiment per run.
    evidence. Name the baseline, target metric, activation moment, and exposure
    unit. Missing product data may still yield an instrumentation-first
    experiment, but never a fabricated market-fit conclusion.
-2. Run the matching growth skill: `growth-experiment` to rank experiments,
-   `conversion-fix` for an activation surface, `copy-rewrite` for positioning,
-   `social-content` for acquisition. Pick by the invocation; default to
-   `growth-experiment`.
+2. Assess the requested opportunity directly against that evidence. Recommend
+   one measurable experiment with its constraining assumption; rank alternatives
+   only when useful to the decision. For product-page work, use
+   `product-marketing-page` for the activation/docs contract. Ordinary copy,
+   ideation and scripts need no specialist skill. Publishing is caller-owned.
 3. If asked to implement, scaffold the smallest flagged, reversible variant with
-   exposure and conversion tracking. An unmeasurable variant is `BLOCKED`, not
-   shipped. Otherwise stop at the ranked recommendation.
+   exposure and conversion tracking, reusing existing flag/event patterns.
+   Route UI changes through `plan-draft`/`design-ui` and execution through
+   `implement`. An unmeasurable variant is `BLOCKED`, not shipped. Otherwise
+   stop at the ranked recommendation.
 4. If code changed, in the current autopilot session run `review-pr --fix` and
    then `qa` under its gate policy. Persist and read back both verdicts, apply the
    **Repair until the final change passes** loop, and require

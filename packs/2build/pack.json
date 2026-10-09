@@ -6,26 +6,20 @@
     "analytics-review",
     "autopilot",
     "browse",
-    "conversion-fix",
-    "copy-rewrite",
     "create-pr",
     "design-ui",
     "fix-pr",
-    "growth-experiment",
     "implement",
     "investigate",
     "maintain",
-    "office-hours",
     "plan-draft",
     "product-marketing-page",
     "prototype",
     "qa",
-    "reason",
     "recon",
     "review-pr",
     "semantic-decision",
     "setup-project",
-    "social-content",
     "sweep",
     "triage"
   ],
@@ -66,30 +60,12 @@
         }
       ]
     },
-    "conversion-fix": {
-      "skills": [
-        {
-          "name": "2build_conversion-fix",
-          "file": "conversion-fix/skill.md",
-          "description": "Audit and improve a marketing or activation surface in source. Use for landing pages, pricing, signup, onboarding, paywalls, conversion friction, or CRO requests."
-        }
-      ]
-    },
-    "copy-rewrite": {
-      "skills": [
-        {
-          "name": "2build_copy-rewrite",
-          "file": "copy-rewrite/skill.md",
-          "description": "Rewrite product marketing copy in source. Use for headlines, hero text, CTAs, feature copy, positioning clarity, tone, or copy audits."
-        }
-      ]
-    },
     "create-pr": {
       "skills": [
         {
           "name": "2build_create-pr",
           "file": "create-pr/skill.md",
-          "description": "Prepare and create a pull request from the current branch. Use when code is ready to push, the user asks for a PR, or a babysit handoff is ready for human review."
+          "description": "Prepare and create a pull request from the current branch. Use when the user requests a PR or a workflow authorizes the PR handoff."
         }
       ]
     },
@@ -107,16 +83,7 @@
         {
           "name": "2build_fix-pr",
           "file": "fix-pr/skill.md",
-          "description": "Address unresolved review comments on an open pull request — fix in the ticket worktree, reply in-thread, resolve threads, push. Use after a human or bot review leaves comments on a PR."
-        }
-      ]
-    },
-    "growth-experiment": {
-      "skills": [
-        {
-          "name": "2build_growth-experiment",
-          "file": "growth-experiment/skill.md",
-          "description": "Propose, rank, and optionally scaffold a measurable product growth experiment. Use for A/B tests, activation, retention, acquisition, funnel, or ICE-ranking requests."
+          "description": "Address unresolved review comments on an open pull request — fix on the PR head branch, reply in-thread, resolve threads, push. Use after a human or bot review leaves comments on a PR."
         }
       ]
     },
@@ -144,15 +111,6 @@
           "name": "2build_maintain",
           "file": "maintain/skill.md",
           "description": "Keep a mature system secure, reliable, and efficient at scale. Use for security and dependency audits, reliability hardening, db/query performance (schema, indexes, partitioning, caching, batching, async processing), and architecture reviews under change or scale pressure."
-        }
-      ]
-    },
-    "office-hours": {
-      "skills": [
-        {
-          "name": "2build_office-hours",
-          "file": "office-hours/skill.md",
-          "description": "Stress-test an idea before building. Use for startup/product judgment, builder brainstorming, narrowing a wedge, shaping a requirement, or deciding whether an idea is worth implementing."
         }
       ]
     },
@@ -192,15 +150,6 @@
         }
       ]
     },
-    "reason": {
-      "skills": [
-        {
-          "name": "2build_reason",
-          "file": "reason/skill.md",
-          "description": "Deliberate-reasoning scaffold that lifts a smaller model's planning, solution design, debugging, and QA thinking toward frontier quality. Use before drafting a plan, choosing between designs, diagnosing a hard bug, writing a QA plan, or whenever the first plausible answer might be wrong. Composable — run another skill \"with reason\" to harden its decision points."
-        }
-      ]
-    },
     "recon": {
       "skills": [
         {
@@ -234,15 +183,6 @@
           "name": "2build_setup-project",
           "file": "setup-project/skill.md",
           "description": "Configure the current repo for babysit/autopilot. Use when the user asks to set up a project, initialize babysit config, or make autopilot understand branch and QA defaults."
-        }
-      ]
-    },
-    "social-content": {
-      "skills": [
-        {
-          "name": "2build_social-content",
-          "file": "social-content/skill.md",
-          "description": "Create short-form product video scripts for TikTok, Reels, or Shorts. Use for hooks, scripts, captions, production notes, or a small content calendar."
         }
       ]
     },
