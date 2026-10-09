@@ -10,11 +10,6 @@ description: Design and iterate a reviewable UI using the project's design autho
 > skill reports `BBS_DEGRADED` and continues design; ticket-state writes
 > remain unavailable until the CLI is installed.
 
-> **Optional Soot design data.** If using `bbs design suggest` or
-> `ux-check`, pass `--data <packs_dir>/2build/design-ui/data`, resolving
-> `packs_dir` from the deployment file. These tables are optional aids,
-> not prerequisites for designing or verifying the UI.
-
 # design-ui
 Make it really good, use lots of tokens and iterate till you're proud of it.
 
@@ -38,8 +33,7 @@ allow design judgment. Do not invent business facts or rebrand an existing UI.
 
 Document reusable project decisions only when needed, in the existing design
 authority or a concise `DESIGN.md` linked from `AGENTS.md`. No mandatory schema
-or exhaustive inventory. The optional [token format](references/design-md-template.md)
-serves `bbs design tokens`; the other `bbs design` helpers are optional too.
+or exhaustive inventory.
 
 ## Make and iterate
 Deliver a preview the user can open. A design-only phase keeps it isolated

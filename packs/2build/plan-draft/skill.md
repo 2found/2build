@@ -48,9 +48,8 @@ by path, not as `skill://`.
    already resolved; do not repeat the decision detail.
    Shared refs are filesystem paths beside this skill, not `skill://` resources.
 2. Survey existing patterns before proposing new ones. For UI/frontend work,
-   inspect components (`bbs design components`), tokens (`bbs design tokens`)
-   and the nearest similar flow; for backend work, routes, data access and
-   errors. When adding or reshaping a user-facing surface, inspect the design
+   read the declared design doc, component/token source and nearest similar
+   flow; for backend work, routes, data access and errors. When adding or reshaping a user-facing surface, inspect the design
    spec at `pointers.design` and its prototype for coverage of the planned flows
    and key states. Invoke `design-ui` to supply missing/outdated coverage before
    finalizing the plan. The spec and reviewable prototype are plan inputs and

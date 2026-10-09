@@ -25,8 +25,7 @@ allow design judgment. Do not invent business facts or rebrand an existing UI.
 
 Document reusable project decisions only when needed, in the existing design
 authority or a concise `DESIGN.md` linked from `AGENTS.md`. No mandatory schema
-or exhaustive inventory. The optional [token format](references/design-md-template.md)
-serves `bbs design tokens`; the other `bbs design` helpers are optional too.
+or exhaustive inventory.
 
 ## Make and iterate
 Deliver a preview the user can open. A design-only phase keeps it isolated

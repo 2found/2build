@@ -2,10 +2,10 @@
 # tests/test_bbs_self_call_install_shape.sh — the binary must reach itself.
 #
 # bbs is a multicall binary, and several subcommands need another one's answer
-# (ticket needs the slug, ticket base-ops needs autopilot's base-branch, design
-# needs the ticket's design pointer). Those used to be subprocess calls through
+# (ticket needs the slug, ticket base-ops needs autopilot's base-branch).
+# Those used to be subprocess calls through
 # `bbs-<sub>` argv0 aliases resolved off PATH — and Formula/bbs.rb ships exactly
-# two of them, bbs-config and bbs-env. None of the three that were needed.
+# two of them, bbs-config and bbs-env, neither of the needed aliases.
 #
 # The failure was silent, which is why it survived: identity.Resolve() treated a
 # missing bbs-slug as "no answer" and fell through to SLUG=unknown, so every
@@ -54,7 +54,7 @@ ln -sf bbs "$BREW/bbs-env"
 
 DEV="$T/dev"; mkdir -p "$DEV"
 cp "$BIN" "$DEV/bbs"
-for a in config env slug ticket autopilot design dashboard secrets qa-config update upgrade; do
+for a in config env slug ticket autopilot dashboard secrets qa-config update upgrade; do
   ln -sf bbs "$DEV/bbs-$a"
 done
 

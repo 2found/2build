@@ -36,11 +36,10 @@ guardrails.
   the reuse notes in the plan's **Approach**, then grep shared/lib/util dirs and the
   nearest similar feature. A new shared util or abstraction is a plan
   decision, not an ad-hoc call.
-- UI: reuse the design system — components, tokens (`bbs design tokens`; if
-  CLAUDE.md/AGENTS.md declares a design doc at a non-root path, pass
-  `--design <path>` and treat it as authoritative), spacing, interaction
-  patterns. Read the linked design spec and inspect its prototype (from the
-  plan or `pointers.design`); the accepted flows, states and appearance are the
+- UI: read the design doc linked from AGENTS.md/CLAUDE.md at its declared
+  path and inspect the actual component/token source. Reuse the project's
+  components, tokens, spacing and interaction patterns. Read the linked design
+  spec and inspect its prototype (from the plan or `pointers.design`); the accepted flows, states and appearance are the
   baseline. Build to it. No new one-off component, color, font size, or layout when the
   project has one. New user-facing surface with no design spec
   (`pointers.design` empty, nothing in conversation) → invoke the `design-ui`

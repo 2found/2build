@@ -119,7 +119,6 @@ core bins are now Go and ship inside this one binary, reachable as `bbs <sub>`:
 | `bbs ticket …` | `ticket` | ticket identity core (`env`, `resolve`, `set-verdict`, `verdict-status`, `session`, `board`) — see the strangler note below |
 | `bbs update` | `update` | update the active CLI installation, an additional Homebrew copy when one is installed, and installed harness plugins; `update check` probes for a newer release |
 | `bbs secrets …` (alias `bbs-env`) | `secrets` | project-local `.babysit/.env` credential loader (`load` / `seed` / `ensure-gitignore`), env resolution with `.env.base` auto-load (`resolve` / `is-set` / `list-prefix` / `prompt`), and `.babysit/qa.yaml` fields (`qa probe` / `qa list` / …) |
-| `bbs design …` | `design` | design-intelligence broker (`tokens` / `suggest` / `components` / `ux-check`) — the CSV/DESIGN.md data files ship with the skill pack |
 
 **Strangler note on `ticket`:** the Go `ticket` command owns the identity core
 (resolve, verdicts, session, board), the index.json state-accessors
@@ -139,12 +138,8 @@ precedence when it exists, so `bbs dashboard build` still does what it always
 did. `--snapshot` needs real files next to `index.html`, so it unpacks the
 embedded copy into `~/.babysit/cache/dashboard` and writes `data.js` there.
 
-**Note on `design`:** the `design` command itself is Go (ships in the binary),
-but its CSV/DESIGN.md data files live in the skill pack, so a brew-only
-`bbs design suggest` needs `--data <dir>` pointed at a skill-pack checkout.
-
 The release binary contains the CLI. `bbs install` supplies the skill pack
-(skills, workflows, DESIGN.md/CSV data) through each harness's plugin system.
+(skills and workflows) through each harness's plugin system.
 
 `bbs --version` (or `-v`) prints the version. A release binary reports the tag
 it was built from, injected at build time; a clone install has no injected value

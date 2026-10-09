@@ -43,7 +43,8 @@ func TestRemovedCommandsRejectWithoutCreatingState(t *testing.T) {
 	for _, args := range [][]string{
 		{"autopilot", "probe"}, {"autopilot", "explain"},
 		{"autopilot", "context"}, {"ticket", "get-pointer", "pr"},
-		{"agent", "resolve"},
+		{"agent", "resolve"}, {"design"}, {"design", "tokens"},
+		{"design", "suggest"}, {"design", "components"}, {"design", "ux-check"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			cmd := exec.Command(bin, args...)
@@ -52,7 +53,11 @@ func TestRemovedCommandsRejectWithoutCreatingState(t *testing.T) {
 			if err == nil {
 				t.Fatalf("removed command succeeded: %s", out)
 			}
-			if args[0] != "agent" && !strings.Contains(string(out), "unknown subcommand: "+args[1]) {
+			if args[0] == "design" {
+				if !strings.Contains(string(out), `unknown command "design"`) {
+					t.Fatalf("design failed for a reason other than removal: %s", out)
+				}
+			} else if args[0] != "agent" && !strings.Contains(string(out), "unknown subcommand: "+args[1]) {
 				t.Fatalf("command failed for a reason other than removal: %s", out)
 			}
 		})

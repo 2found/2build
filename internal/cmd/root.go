@@ -47,7 +47,7 @@ func resolveVersion() string {
 // untouched.
 //
 // Commands that already print their own usage for an unrecognized flag (config,
-// env, slug, ticket, design, …) are left alone.
+// env, slug, ticket, …) are left alone.
 func guardHelp(c *cobra.Command) *cobra.Command {
 	inner := c.RunE
 	c.RunE = func(cmd *cobra.Command, args []string) error {
@@ -74,7 +74,7 @@ func NewRootCmd() *cobra.Command {
 	root.CompletionOptions.DisableDefaultCmd = true
 	root.AddCommand(
 		newConfigCmd(), newEnvCmd(), newSlugCmd(), newTicketCmd(), newQAConfigCmd(),
-		newSecretsCmd(), newDesignCmd(), newDashboardCmd(), newHooksCmd(),
+		newSecretsCmd(), newDashboardCmd(), newHooksCmd(),
 		newForemanCmd(), newWorkspaceCmd(), newSemanticDecisionCmd(),
 		guardHelp(newSkillRuntimeCmd()), newAgentCmd(),
 		newSetupCmd(), newInstallCmd(),

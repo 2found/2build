@@ -243,7 +243,6 @@ babysit/
 │                    #   bbs autopilot checkpoint + timeline runner behind the autopilot skill
 │                    #   bbs ticket    ticket identity (the big subcommand); `ticket env` derives
 │                    #                 slug / branch / ticket from git remote + branch
-│                    #   bbs design    query DESIGN.md tokens / suggest products / list components / ux-check
 │                    #   bbs upgrade (+ upgrade check), dashboard, foreman, …
 │                    #   bbs hooks <name>   release gate, session writer, repo pre-commit
 │                    #                 (compiled subcommands, not files)

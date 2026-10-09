@@ -89,12 +89,6 @@ def with_prerequisite(text):
             "skill reports `BBS_DEGRADED` and stops.",
             "skill reports `BBS_DEGRADED` and continues design; ticket-state writes\n"
             "> remain unavailable until the CLI is installed.")
-        prerequisite += (
-            "> **Optional Soot design data.** If using `bbs design suggest` or\n"
-            "> `ux-check`, pass `--data <packs_dir>/2build/design-ui/data`, resolving\n"
-            "> `packs_dir` from the deployment file. These tables are optional aids,\n"
-            "> not prerequisites for designing or verifying the UI.\n\n"
-        )
     return text[:at] + "\n" + prerequisite + text[at:]
 
 

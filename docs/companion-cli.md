@@ -32,13 +32,13 @@ production; a frozen byte-identical copy of the old script lives at
 | `bbs foreman model` | Prints the effective model policy as JSON; add `--agent codex --complexity normal --phase-class critical` to select a model/effort. Defaults are built into bbs; override individual fields in `~/.babysit/settings.json` or `<repo>/.babysit/settings.json` (repo wins). `--dir` selects the assignment repo/worktree. See [model settings](../.claude/skills/foreman/references/model-routing.md#model-tiers). |
 | `bbs update` | `git pull` + `bbs setup`, then refreshes installed Claude Code and Codex plugins; writes a `JUST_UPGRADED` marker. `bbs update check` is the cached probe — prints `UPGRADE_AVAILABLE <old> <new>` when a new release exists |
 | `bbs secrets` | Everything a skill reads to reach a running app. `load` (emit `export KEY='…'` for `.babysit/.env` keys not already in shell env) / `seed` / `ensure-gitignore` — project-local credential auto-loader; `resolve` / `is-set` / `list-prefix` / `prompt` — env resolution with `.env.base` auto-load; `qa <probe\|list\|default-env\|check\|leak-check>` — named-environment fields (`url`, `start`, `check`, `flows`, `prepare`/`revert`) from `.babysit/qa.yaml` |
-| `bbs design` | `tokens` (DESIGN.md frontmatter → JSON, `--field` for a leaf) / `suggest --product <type>` / `components` / `ux-check` — design-intelligence broker for the design-ui skill |
 | `bbs dashboard` | Serves the dashboard + JSON API on `127.0.0.1` and opens it. The SPA is embedded in released binaries, so a brew-only install needs no checkout and no npm; a checkout's own `web/dist` wins when it exists. `--snapshot` writes `web/dist/data.js` and opens the `file://` build instead, `build` rebuilds `web/`, `--no-open` for CI, `--dev` for vite + HMR |
 
 CLI simplification removes these redundant entry points:
 
 | Removed | Replacement | Reason |
 |---------|-------------|--------|
+| `bbs design` (`tokens`, `suggest`, `components`, `ux-check`) | Read the project's design doc and component/token source directly. | No workflow needs the parser or generic CSV recommendations; `design-ui` handles project context and visual iteration. |
 | `bbs autopilot probe`, `bbs autopilot explain` | `bbs autopilot snapshot --json` | The skill already uses the canonical snapshot; the old probe initialized ticket state and maintained a second routing implementation. Mode is in `data.run.mode`, with policy, artifacts and gates alongside it. |
 | `bbs autopilot context` | `bbs autopilot recover --json` | No skill, hook or dashboard consumes the cursor/delta cache. Recovery supplies the bounded artifact view without writing a cache. |
 | `bbs ticket get-pointer <key>` | `bbs ticket get pointers.<key>` | Same field read through the existing dotted-path accessor. |
