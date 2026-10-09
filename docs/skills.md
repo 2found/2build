@@ -8,7 +8,7 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Archetype | Skills |
 |-----------|--------|
 | Prototyper | `recon`, `prototype` |
-| Builder | `autopilot`, `plan-draft`, `design-ui`, `implement`, `review-pr`, `qa`, `browse`, `create-pr`, `semantic-decision`, `agent-first-docs` |
+| Builder | `autopilot`, `plan-draft`, `design-ui`, `implement`, `review-pr`, `test`, `qa`, `browse`, `create-pr`, `semantic-decision`, `agent-first-docs` |
 | Sweeper | `sweep`, `review-pr`, `qa` |
 | Grower | `product-marketing-page` |
 | Maintainer | `maintain`, `investigate`, `qa`, `analytics-review`, `triage` |
@@ -35,6 +35,9 @@ of a product-building team — pick by the shape of the work, not the job title.
 | End-to-end checkpointed work through QA handoff | `/bbs:autopilot` |
 | Plan without coding | `/bbs:plan-draft` |
 | Implement a scoped change | `/bbs:implement` |
+| Add missing behavioral coverage | `/bbs:test create` |
+| Audit weak, redundant or unrun tests | `/bbs:test audit` |
+| Measure and optimize test lanes | `/bbs:test optimize` |
 | Validate a risky idea with a throwaway spike | `/bbs:prototype` |
 | Simplify, unship, or optimize without changing behavior | `/bbs:sweep` |
 | Audit security, deps, reliability, or scale and harden | `/bbs:maintain` |

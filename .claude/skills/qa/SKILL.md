@@ -72,7 +72,15 @@ Exercise the application like a user and leave reproducible evidence.
    are filesystem paths beside this skill's directory, so read them by path,
    not as `skill://`.
 3. Code-level checks (tests, typecheck, lint) first — they gate, they don't
-   prove.
+   prove user journeys. Read [test](../test/SKILL.md) for affected-test
+   selection and failure investigation. Use the implementation handoff as
+   evidence, then check its coverage against the current change and callers.
+   Reuse automated results only when they cover the same tested code state
+   (including uncommitted changes), environment/prerequisites and required
+   scope, and no mandatory gate requires a fresh run. Otherwise run the
+   affected lanes and required checks. Never weaken or skip a failing test
+   to obtain green; follow `test`'s investigation and authorization rules.
+   Whole-suite `audit` and `optimize` are not routine QA steps.
 4. Size the matrix to the repo's rigor: `eval "$(bbs autopilot git-flow)"` →
    `$BBS_RIGOR` (see § Rigor tiers; unset or unreadable = `standard`).
    Trace material plan findings/unknowns to acceptance cases or supporting
@@ -99,9 +107,11 @@ Exercise the application like a user and leave reproducible evidence.
    is named as a gap now, never silently dropped. Save the matrix:
    `bbs ticket path evidence --skill qa --name test-matrix.md --write`.
    Before finalizing the matrix, use `../semantic-decision/SKILL.md`
-   kind `testcase` to classify candidate cases and existing tests as
+   kind `testcase` to classify candidate user-journey cases as
    required/adjacent/unaffected against the impact map. Batch shared context;
    preserve the coverage floors above and record evidence for exclusions.
+   Reuse the automated-test classification from step 3 rather than repeating
+   it unchanged; automated coverage never replaces the executed journeys below.
    Mirror the matrix into the native task list (TaskCreate) — one task per
    case, closed only when its evidence lands.
 5. Execute the flows end-to-end with a real client. Web UI: the `browse`
@@ -119,8 +129,10 @@ Exercise the application like a user and leave reproducible evidence.
    Off-script time around the changed
    surface — findings feed back as derived cases — per the tier: `smoke`
    skips it, `standard` spends a few minutes, `strict` always spends it.
-6. Fix regressions owned by the current branch, then rerun the affected flow
-   and checks.
+6. Fix regressions owned by the current branch. Use `test`'s scoped `create`
+   workflow to decide whether the fix needs a regression test; existing
+   meaningful coverage may suffice. Rerun the original reproducer, affected
+   flow and checks on the repaired code.
 7. Finish with one full end-to-end pass of the primary user journey on the
    final code state — any code change after it invalidates the verdict.
    Screenshot this verdict-bearing pass — and each failure or fixed

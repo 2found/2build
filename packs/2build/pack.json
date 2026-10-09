@@ -21,6 +21,7 @@
     "semantic-decision",
     "setup-project",
     "sweep",
+    "test",
     "triage"
   ],
   "capabilities": {
@@ -192,6 +193,15 @@
           "name": "2build_sweep",
           "file": "sweep/skill.md",
           "description": "Simplify and shrink working code without changing behavior. Use to remove dead code, unship unused features, cut complexity, tidy UI, or optimize a measured hot path."
+        }
+      ]
+    },
+    "test": {
+      "skills": [
+        {
+          "name": "2build_test",
+          "file": "test/skill.md",
+          "description": "Create meaningful regression coverage, audit weak or redundant tests, and optimize test lanes using measured cost and change impact. Use for test creation, suite audits, failing-test investigation, or CI test optimization; browser journey QA stays with qa/browse."
         }
       ]
     },

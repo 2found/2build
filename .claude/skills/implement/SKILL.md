@@ -59,12 +59,18 @@ guardrails.
 - Never branch, commit, or push — leave the change in the working tree.
   Skills are infra-isolated; git belongs to the invoking workflow
   (autopilot) or the human.
-- Select affected existing tests using `../semantic-decision/SKILL.md`
-  kind `testcase`, supplying changed behavior and its caller/flow map. Keep
-  mandatory repo checks and regression reproducers regardless of the choice.
+- When planning verification, read [test](../test/SKILL.md) and use its
+  `create` workflow scoped to this change: identify changed behavior, plausible
+  failures, existing evidence, the lowest credible layer and whether another
+  test is needed. Follow its failure-investigation rules; never weaken or skip
+  a test to obtain green. It owns affected-case selection through
+  `semantic-decision`; retain mandatory repo checks and regression reproducers.
+  Whole-suite `audit` and `optimize` are not routine implement steps.
 - Verify with the narrowest meaningful command (tests, typecheck, lint,
   build, or browser check) and summarize changed files, verification, and
-  remaining risk.
+  remaining risk. In the handoff, identify the tested code state (including
+  uncommitted changes), commands, environment/prerequisites, selected lanes
+  and results so QA can assess freshness and reuse valid automated evidence.
 ## Ticket Mode
 When running inside babysit, read `requirement.md`, `plan.md`, and the checkpoint if present. Write concise handoff notes for what changed and how it was verified, plus a `## Deviations` section when any occurred — one entry each:
 ```
