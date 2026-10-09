@@ -76,7 +76,7 @@
         {
           "name": "2build_design-ui",
           "file": "design-ui/skill.md",
-          "description": "Design a feature, page, or component and deliver a reviewable prototype before implementation. Use for UI/UX specs, style/color/typography selection, and early design feedback on frontend work."
+          "description": "Design and iterate a reviewable UI using the project's design authority and existing screens. Use for UI design requests or a workflow's design/prototype handoff; a direct build request can use the working UI as its prototype."
         }
       ]
     },

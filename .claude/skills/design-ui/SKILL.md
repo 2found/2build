@@ -1,107 +1,60 @@
 ---
 name: design-ui
-description: Design a feature, page, or component and deliver a reviewable prototype before implementation. Use for UI/UX specs, style/color/typography selection, and early design feedback on frontend work.
+description: Design and iterate a reviewable UI using the project's design authority and existing screens. Use for UI design requests or a workflow's design/prototype handoff; a direct build request can use the working UI as its prototype.
 ---
 # design-ui
+Make it really good, use lots of tokens and iterate till you're proud of it.
 
-Design the smallest complete UI spec a builder can implement — and prove it
-with a prototype the human can open.
+Own project continuity and a reviewable design handoff. Choose the design
+approach from the brief, not a preset style or checklist.
 
-## Flow
+Follow [preamble](../references/preamble.md) and the
+[Auto-Decision Framework](../references/auto-decision-framework.md).
+Shared refs are filesystem paths beside this skill's directory, so read them
+by path, not as `skill://`.
 
-1. **Context.** Read the request and requirement (ticket `pointers.*`, else
- conversation). The landing doc's declared design doc is authoritative —
- pass a non-root path via `bbs design tokens --design <path>`. Then
- `bbs design components --root <fe-root>` and the nearest existing screen
- that solves a similar problem. Designing **into an existing screen** — a
- new section, tab, or field group on a page that already exists — makes
- that page the primary design source: read the code that renders it, open
- it live (`browse`) before designing, and inventory the sibling sections'
- actual components, wrappers, headings, and spacing — the new section
- inherits those, never a fresh style.
-2. **No design doc found? Author DESIGN.md** at the repo root in the
- `babysit-design/v1` shape (`references/design-md-template.md`), then
- continue with it as the master:
-   - **Existing product:** derive it from what ships — extract tokens from
-    the live styles, inventory components (`bbs design components`), codify
-    the de facto reuse rules. No rebrand.
-   - **New project (no UI yet):** derive routine brand/style choices from the
-   accepted audience, product intent and constraints through the Taste
-   framework. A durable Foreman `--auto` delegation covers those choices.
-   Missing audience, conflicting brand requirements or a material direction
-   change is a User Challenge through the invocation channel. Draft with
-   `bbs design suggest --product "<type>"` (product types in
-   `data/products.csv`), write DESIGN.md, then prototype against it.
-    Record how the file was authored as the first Decisions Log row.
-3. **Spec.** User, primary job, entry point; layout, controls, responsive
- behavior; empty/loading/error/success states; accessibility notes. Name
- the existing components, tokens, and copy style being reused.
-4. **Prototype — required for any user-facing surface.** Build the cheapest
- artifact a human can open and judge:
-   - Runnable frontend (Next.js, Vite, …): a throwaway route under a clearly
-    marked path (`app/prototype/<slug>/page.tsx` or the repo's equivalent),
-    built from the real design-system components and tokens.
-   - No runnable frontend, or a standalone request: one self-contained HTML
-   file (inline CSS, no external assets) at `tickets/<ticket>/prototype.html`
-   when a ticket resolves, else in the working directory. **Token-skinned,
-   not free-form:** inline the project's real tokens (colors, radii,
-   spacing, type scale from DESIGN.md / `bbs design tokens`) as CSS
-   variables and imitate inventory components, copying their actual styles
-   from the nearest real screen — the mock must look like the product,
-   because `implement` builds to it as the accepted look. Free-form styling
-   only when the project has no UI yet (step 2's new-project path).
-    Extending an existing page: prototype the new section **in context** —
-    inside a throwaway copy of the host page, or with one sibling section
-    copied verbatim beside it — so what the human judges is whether it looks
-    like it was always there.
-    Show the primary state plus the empty and error variants on the same
-    surface. Real copy, never lorem ipsum.
-5. **Check.** Run `bbs design ux-check --category accessibility` always, plus
- the categories the surface touches (forms, navigation, charts, …), and fix
- violations in the prototype. Verify it actually renders — load the dev
- route or open the HTML (use `browse` when available). The prototype stays a
- local file the human opens locally — **never publish it as a Claude Artifact
- (`claude.ai`).** `browse` already renders at any device width (390px mobile
- included) without sending the mock — which clones the project's real tokens
- and screens — to an external service.
-6. **Handoff.** When a ticket resolves, write the spec to `design.md` and
- `bbs ticket set-pointer design <path>`; otherwise emit it inline. State
- the prototype path and the one command/URL to view it.
+## Project continuity
+Read the brief (conversation or ticket), `AGENTS.md` and its linked architecture
+and design docs. The declared design doc is authoritative wherever it lives.
+Inspect actual components, tokens and the nearest screen; extending a page
+means reviewing it in context and inheriting its local patterns.
 
-## Rules
+Preserve the project's stack, library, content and asset constraints. For a new
+product, derive a direction from the audience and purpose; missing brand rules
+allow design judgment. Do not invent business facts or rebrand an existing UI.
 
-- Prototype-first: a text-only spec for a user-facing surface is not done —
-if a prototype is genuinely impossible, return `DONE_WITH_CONCERNS` naming
-why.
-- Quality gate (from ux-check data, non-negotiable): SVG icons — never emoji
-as icons; text contrast ≥ 4.5:1; touch targets ≥ 44px; visible focus
-states; visible labels — not placeholder-only; mobile-first responsive.
-- Component library: the project's own (per DESIGN.md's inventory) always
-comes first. When the project has none, prefer  shadcn/ui
-([https://ui.shadcn.com/docs/installation](https://ui.shadcn.com/docs/installation)). Never hand-roll a primitive
-either one provides.
-- Every prototype element maps to a named component in DESIGN.md's inventory,
-or is flagged `NEW:` in the spec with a one-clause why — a novel component
-is a Taste decision within accepted direction. Respect an explicit
-human-held checkpoint; novelty alone does not override design delegation.
-- On an existing page, the sibling sections outrank the global inventory:
-reuse the exact section/card/form primitives that page already uses;
-diverging from the host page's local patterns is itself a `NEW:` flag,
-and a Taste decision with its reason. A material direction change returns
-to the parent checkpoint.
-- Prototype code is disposable and isolated: never wire it into production
-navigation, routes, or shared state — `implement` rebuilds it properly
-following this spec; do not build the production feature here.
-- Do not invent brand tokens, icons, claims, or product positioning.
+Document reusable project decisions only when needed, in the existing design
+authority or a concise `DESIGN.md` linked from `AGENTS.md`. No mandatory schema
+or exhaustive inventory. The optional [token format](references/design-md-template.md)
+serves `bbs design tokens`; the other `bbs design` helpers are optional too.
 
-## Output
+## Make and iterate
+Deliver a preview the user can open. A design-only phase keeps it isolated
+from production navigation/state; a direct build request uses the requested
+app, without a duplicate throwaway UI. Show existing-page changes in context.
+
+Use `browse` or the caller's browser tooling: render, inspect screenshots at
+relevant widths, exercise the main journey and a relevant failure/empty state,
+fix what falls short, and recheck. Honor requested build/verification commands.
+A build is not visual evidence; report blocked inspection. Keep previews local
+unless publishing is requested.
+
+## Handoff
+Record only decisions the UI cannot convey, deliberate departures from project
+rules, unresolved facts and links to the preview/verification evidence.
+With a ticket, resolve `bbs ticket path design --write`, write the note there,
+then `bbs ticket set-pointer design <path>`. Otherwise an inline note suffices.
+
+The caller owns review checkpoints; neither add approval rounds nor skip held
+ones. Preserve the reviewed UI as the implementation baseline for comparison.
+Do not commit, push or deploy as part of this skill.
 
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: DESIGNED
-PROTOTYPE: <path + how to view, or none + why>
-SUMMARY: <UI spec + key decisions>
-NEXT: standalone — human reviews prototype, then plan-draft or implement;
-      inside a workflow — continue, prototype rides to the final handoff
+PROTOTYPE: <path/URL and how to open; or why unavailable>
+VERIFY: <rendered views, exercised flows, checks and gaps>
+SUMMARY: <project decisions and design note location>
+NEXT: <caller's next step or unresolved prerequisite>
 ```
-
+A text-only spec is not a completed visual design.

@@ -85,14 +85,15 @@ def with_prerequisite(text):
             "skill reports `BBS_DEGRADED` and uses the calling LLM fallback;\n"
             "> retain the request, choice and cited reason in the handoff.")
     if frontmatter_field(text, "name") == "design-ui":
+        prerequisite = prerequisite.replace(
+            "skill reports `BBS_DEGRADED` and stops.",
+            "skill reports `BBS_DEGRADED` and continues design; ticket-state writes\n"
+            "> remain unavailable until the CLI is installed.")
         prerequisite += (
-            "> **Soot data path.** Resolve this installed pack from the deployment's\n"
-            "> `packs_dir` (relative to the deployment file), then use the absolute\n"
-            "> `<packs_dir>/2build/design-ui/data` directory as `--data` on every\n"
-            "> `bbs design suggest` and `bbs design ux-check` command below. Check\n"
-            "> that the named CSV files exist first; a missing asset is a blocker.\n"
-            "> Do not rely on the CLI's plugin/check-out data discovery: the Soot\n"
-            "> pack is the source of these tables, even with a standalone CLI.\n\n"
+            "> **Optional Soot design data.** If using `bbs design suggest` or\n"
+            "> `ux-check`, pass `--data <packs_dir>/2build/design-ui/data`, resolving\n"
+            "> `packs_dir` from the deployment file. These tables are optional aids,\n"
+            "> not prerequisites for designing or verifying the UI.\n\n"
         )
     return text[:at] + "\n" + prerequisite + text[at:]
 
@@ -305,7 +306,8 @@ def build(out, version, commit):
         "[release archive](https://github.com/2found/2build/blob/main/docs/install.md#release-archives-macos-or-linux).",
         "On Windows, run the Linux CLI inside WSL. A plugin-only install does not",
         "include the binary. Without `bbs`, packed skills report `BBS_DEGRADED`",
-        "and stop; `semantic-decision` can use its calling LLM fallback.",
+        "and stop; `semantic-decision` can use its calling LLM fallback, and",
+        "`design-ui` can continue design without ticket-state writes.",
         "",
         "## Quick start",
         "",

@@ -33,7 +33,8 @@ Without Homebrew, use a verified
 [release archive](https://github.com/2found/2build/blob/main/docs/install.md#release-archives-macos-or-linux).
 On Windows, run the Linux CLI inside WSL. A plugin-only install does not
 include the binary. Without `bbs`, packed skills report `BBS_DEGRADED`
-and stop; `semantic-decision` can use its calling LLM fallback.
+and stop; `semantic-decision` can use its calling LLM fallback, and
+`design-ui` can continue design without ticket-state writes.
 
 ## Quick start
 
@@ -80,7 +81,7 @@ for that workflow.
 | `autopilot` | 31140 | Deliver one ticket end-to-end from a requirement or accepted plan to a releasable, locally committed change. Own implementation, review fixes, QA, and evidence across resumes; use foreman for multi-ticket projects. |
 | `browse` | 8470 | Use the browser for focused web-app checks: open a URL, inspect state, click through a flow, capture screenshots, read console errors, or verify a frontend fix. Prefer this over a full QA workflow. |
 | `create-pr` | 4892 | Prepare and create a pull request from the current branch. Use when the user requests a PR or a workflow authorizes the PR handoff. |
-| `design-ui` | 7109 | Design a feature, page, or component and deliver a reviewable prototype before implementation. Use for UI/UX specs, style/color/typography selection, and early design feedback on frontend work. |
+| `design-ui` | 3794 | Design and iterate a reviewable UI using the project's design authority and existing screens. Use for UI design requests or a workflow's design/prototype handoff; a direct build request can use the working UI as its prototype. |
 | `fix-pr` | 3954 | Address unresolved review comments on an open pull request — fix on the PR head branch, reply in-thread, resolve threads, push. Use after a human or bot review leaves comments on a PR. |
 | `harness-audit` | 8651 | Audit AGENTS.md, CLAUDE.md and linked project instructions against repository code, scripts, CI and agent configuration. Use to find stale commands, broken references, conflicting rules or missing verification paths; setup-project owns initial 2build configuration. |
 | `implement` | 6153 | Implement a scoped code change from the user's request, an accepted plan.md, or ticket context. Use for feature work, bug fixes, endpoints, UI changes, integrations, and contained refactors. |
