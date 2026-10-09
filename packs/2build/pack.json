@@ -9,6 +9,7 @@
     "create-pr",
     "design-ui",
     "fix-pr",
+    "harness-audit",
     "implement",
     "investigate",
     "maintain",
@@ -85,6 +86,15 @@
           "name": "2build_fix-pr",
           "file": "fix-pr/skill.md",
           "description": "Address unresolved review comments on an open pull request — fix on the PR head branch, reply in-thread, resolve threads, push. Use after a human or bot review leaves comments on a PR."
+        }
+      ]
+    },
+    "harness-audit": {
+      "skills": [
+        {
+          "name": "2build_harness-audit",
+          "file": "harness-audit/skill.md",
+          "description": "Audit AGENTS.md, CLAUDE.md and linked project instructions against repository code, scripts, CI and agent configuration. Use to find stale commands, broken references, conflicting rules or missing verification paths; setup-project owns initial 2build configuration."
         }
       ]
     },
@@ -183,7 +193,7 @@
         {
           "name": "2build_setup-project",
           "file": "setup-project/skill.md",
-          "description": "Configure the current repo for babysit/autopilot. Use when the user asks to set up a project, initialize babysit config, or make autopilot understand branch and QA defaults."
+          "description": "Initialize or update a repo's 2build configuration, QA target and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files."
         }
       ]
     },

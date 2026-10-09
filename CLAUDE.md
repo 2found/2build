@@ -216,8 +216,8 @@ terminal or wrap them in an orchestrator that can relay `NEEDS_CONTEXT`.
 
 | Compatibility | Skills |
 |---------------|--------|
-| **`INVOKER`-agnostic** (safe to chain unattended) | `agent-first-docs`, `analytics-review`, `autopilot`, `browse`, `create-pr`, `design-ui`, `fix-pr`, `foreman`, `implement`, `investigate`, `maintain`, `phased-build`, `plan-draft`, `product-marketing-page`, `prototype`, `qa`, `recon`, `review-pr`, `semantic-decision`, `sweep`, `test`, `triage` |
-| **`developer`-only** (require a human at the keyboard) | `setup-project` |
+| **`INVOKER`-agnostic** (safe to chain unattended) | `agent-first-docs`, `analytics-review`, `autopilot`, `browse`, `create-pr`, `design-ui`, `fix-pr`, `foreman`, `harness-audit`, `implement`, `investigate`, `maintain`, `phased-build`, `plan-draft`, `product-marketing-page`, `prototype`, `qa`, `recon`, `review-pr`, `semantic-decision`, `setup-project`, `sweep`, `test`, `triage` |
+| **`developer`-only** (require a human at the keyboard) | None; unresolved setup policy uses the caller's `NEEDS_CONTEXT` channel. |
 
 Foreman reaches its parent human design checkpoint by default; unattended callers
 must explicitly pass `--auto` to delegate routine project design reviews. Child

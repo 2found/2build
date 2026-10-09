@@ -11,7 +11,7 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Builder | `autopilot`, `plan-draft`, `design-ui`, `implement`, `review-pr`, `test`, `qa`, `browse`, `create-pr`, `semantic-decision`, `agent-first-docs` |
 | Sweeper | `sweep`, `review-pr`, `qa` |
 | Grower | `product-marketing-page` |
-| Maintainer | `maintain`, `investigate`, `qa`, `analytics-review`, `triage` |
+| Maintainer | `maintain`, `investigate`, `qa`, `analytics-review`, `harness-audit`, `triage` |
 | Setup | `setup-project` |
 
 ## Archetype workflows
@@ -51,6 +51,7 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Create a pull request after human review | `/bbs:create-pr` |
 | UI design and prototype | `/bbs:design-ui` |
 | Configure repo | `/bbs:setup-project` |
+| Audit AGENTS.md, CLAUDE.md and related harness files | `/bbs:harness-audit` |
 | Evaluate external code | `/bbs:recon` |
 | Measurable growth workflow | `/bbs:autopilot grower` |
 | Agent-first onboarding docs and Markdown discovery | `/bbs:agent-first-docs` |

@@ -26,6 +26,9 @@ Survey deeply; write only what serves those purposes. Task-level file lists
 and coding steps belong to `implement`; cross-ticket dependencies, contract
 ownership and rollout order belong in the plan.
 
+Shared refs are filesystem paths beside this skill's directory, so read them
+by path, not as `skill://`.
+
 ## Flow
 1. Read the requirement and trace the affected flow through callers, services,
    modules, data stores and consumers, including relevant neighboring repos

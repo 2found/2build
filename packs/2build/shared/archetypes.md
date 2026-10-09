@@ -15,7 +15,7 @@ dependent child; autopilot never recursively expands its own scope.
 | 2 | **Builder** | Turn a prototype/idea into production-grade product and infra. | `builder` | `plan-draft`, `design-ui`, `implement`, `review-pr`, `qa`, `semantic-decision`, `agent-first-docs` |
 | 3 | **Sweeper** | Clean up the UI, simplify code and systems, unship, optimize. | `sweeper` | `sweep`, `review-pr`, `qa` |
 | 4 | **Grower** | Iterate on a shipped product to improve product-market fit. | `grower` | `product-marketing-page`, `plan-draft`, `implement`, `qa` |
-| 5 | **Maintainer** | Keep a mature system secure, reliable, fast, and efficient at scale. | `maintainer` | `maintain` (audit), `investigate` (fix), `qa` |
+| 5 | **Maintainer** | Keep a mature system secure, reliable, fast, and efficient at scale. | `maintainer` | `maintain` (audit), `harness-audit` (project instructions), `investigate` (fix), `qa` |
 `semantic-decision` is Builder-owned shared judgment infrastructure; all
 archetypes reuse its LLM-default step and optional Cloudflare provider.
 

@@ -1,153 +1,98 @@
 ---
 name: setup-project
-description: Configure the current repo for babysit/autopilot. Use when the user asks to set up a project, initialize babysit config, or make autopilot understand branch and QA defaults.
+description: Initialize or update a repo's 2build configuration, QA target and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files.
 ---
 # setup-project
-Set up only the config the repo needs. Re-running should be safe. Shared refs
-(`../references/*.md`) are filesystem paths beside this skill's directory, so
-read them by path, not as `skill://`.
-## Create Or Update
-- `.babysit/git-flow.yaml`: `profile` + `base_branch`; add `finish` only when
-  the human explicitly authorizes Foreman closeout. Everything else derives
-  (`../references/git-flow.md § Profiles`).
-- `.babysit/qa.yaml`: minimal local `url`, `start`, `check`, and `flows`.
-- `~/.babysit/config.yaml`: machine-local workspace registry and babysit settings.
-  Agent enablement and the default agent belong in Orca, not this file. When
-  this repo joins a workspace, register its git URL, local path, role, repo type,
-  and harness version under `workspaces`; never create `.babysit/config.yaml`.
-- `.babysit/.env`: gitignored machine-local secrets only.
-- `.gitignore`: include `.babysit/.env` if missing.
-- `AGENTS.md` or `CLAUDE.md`: add/update only a tiny Babysit pointer section.
-## Rules
-- Detect defaults from the repo before asking: remote, default branch, run
-  commands (package scripts, compose, Makefile), app URL hints.
-- Ask **one** question: **what does a mistake cost in this repo?** (see `../references/git-flow.md § Profiles`) — the answer is the profile; never ask about `mode`/`land`/`push`/rigor directly:
-  - A pet project — ship now, mistakes are cheap → `pet`: work lands on `base_branch`, no PR, smoke QA.
-  - Client or small-team work — release speed matters more than polish → `startup`: tickets off `develop`, a PR each, standard QA.
-  - A team or enterprise codebase — code quality outranks release speed → `enterprise`: the same shape plus a `staging` environment and strict QA, with code review on GitHub by someone else.
-  Unsure, hedging, or trying babysit for the first time → `startup`: nothing reaches the remote without a PR, and it's a one-line switch later. The profile buys a review venue and QA rigor — it never changes where you work: under every profile babysit works on the branch you are standing on, and worktrees happen only when `foreman` or an explicit `bbs ticket ensure --mode=worktree` asks for them.
-  Write `profile:` and `base_branch:` into `git-flow.yaml` and nothing else by
-  default — a knob written out by hand is a knob that stops tracking its
-  profile. When the human explicitly asks Foreman to close verified work, add
-  `finish: land` for `pet` or `finish: pr` for `startup`/`enterprise`. Add
-  `push:` only when the human asks for something the profile does not give
-  them; `mode:`/`land:` stay unwritten.
-- **`base_branch` follows the profile's branch topology** (`../references/git-flow.md § Profiles`): `pet` → `main`; `startup`/`enterprise` → `develop`, so *integrated* and *shipped* are two events and `main` stays releasable. Detect before asking — if `origin/develop` exists, write it and say nothing. Ask only when the profile is `startup`/`enterprise` **and** there is no `develop` on the remote: **does every merge to `main` deploy, or do you cut releases?**
-  - **Cut releases** (recommended) → have them create it first (`git switch -c develop main && git push -u origin develop`), then write `base_branch: develop`. Don't create the branch yourself — it changes the repo's shape and their host may need branch rules on it.
-  - **Every merge deploys** → write the detected default branch and say plainly that the local compose is now the last gate before release.
-  Never invent a `base_branch` that doesn't exist on the remote: the first `ensure` would find no `origin/<base>` and silently fork from local base instead.
-- There is no second git-flow question. Parallelism is requested per run, not configured: `foreman` gives a batch one worktree per ticket in any repo, whatever the profile — see `../references/worktrees.md`. Mention it only if the human asks about running several tickets at once.
-- Re-run on a configured repo = switch: read `profile:` and `base_branch:` from `git-flow.yaml`, ask the question with the current answer marked as current, and on change rewrite only the keys that changed. A `base_branch` change needs the new branch pushed to origin first. Leave `qa.yaml`, `.env`, and the landing doc untouched unless they're missing.
-- Prefer the simple top-level `qa.yaml` shape with a localhost `url`; hosted
-  URLs are secondary, never a substitute for local QA. If the project cannot
-  run locally, record the blocker and closest harness in the landing doc.
-- Do not invent credentials or hosted URLs; keep committed config free of
-  secrets (values go in ignored files or env vars).
-- Verify by parsing config and probing the local app target; not clean if QA
-  would only know a happy path.
-- Prefer `AGENTS.md` when both exist; otherwise update whichever exists, or
-  create `AGENTS.md`. Don't duplicate git-flow/QA rules there — link the
-  config files.
-- When the human asks about running several tickets at once, point them at
-  `/bbs:foreman`. Do not recommend, install, or write a specific IDE /
-  terminal multiplexer into committed config or the landing doc — that is a
-  machine preference, and `foreman` owns its own backend preflight.
-- Related repos (FE/BE counterpart, shared schemas) feed planning and API-contract checks. Register this repo and each related repo in the **workspace mapping inside `~/.babysit/config.yaml`** using `bbs config workspace add-repo`. The command records the running harness version. `RELATED_*_REPO` in `.babysit/.env` remains a fallback only for repos outside a workspace; when both sources name a role and disagree, babysit blocks. Meaning (what each repo is *for*) still goes in `AGENTS.md`.
-## QA Harness Notes
-Prefer this committed shape:
+Create the minimum configuration future runs need. Re-running preserves valid
+settings and fills gaps; it is not an implicit profile switch or repo-wide audit.
+
+Follow [preamble](../references/preamble.md) for bootstrap and telemetry, and
+[Auto-Decision Framework](../references/auto-decision-framework.md) for decisions.
+Shared refs are filesystem paths beside this skill's directory, so read them
+by path, not as `skill://`.
+
+## Discover before writing
+Read applicable `AGENTS.md` / `CLAUDE.md`, existing `.babysit` configuration,
+remote/default branches, package scripts, lockfiles, Makefile/compose and CI.
+Derive service working directories, runtime, local target and useful checks.
+Preserve explicit user choices, intentional overrides, named environments and
+credential variable names. Do not copy template ports or commands as facts.
+
+For an inspection-only request, use [harness-audit](../harness-audit/SKILL.md).
+Setup owns configuration writes; that skill owns the evidence checklist. Do
+not rewrite architecture docs or unrelated instructions during onboarding.
+
+## Configure only missing or requested settings
+- `.babysit/git-flow.yaml`: start with `profile` and a verified `base_branch`.
+  Read [git-flow](../references/git-flow.md) for profiles and derived behavior;
+  do not duplicate its policy in project docs. Existing profile or explicit
+  session choice wins. Only when neither exists, ask what a mistake costs in
+  this repo: cheap/personal → `pet`, small-team → `startup`, quality-first team
+  → `enterprise`. If the user is unsure, recommend `startup`; unanswered is
+  not consent. Continue independent setup while awaiting required input.
+- Prefer the profile's base convention (`main` for `pet`, `develop` otherwise)
+  only when that branch exists. Inspect remote refs; do not invent a remote
+  base from a local branch. If `develop` is absent, resolve whether the repo
+  releases from its existing default branch or needs a new integration branch.
+  Reuse an already stated release model. Creating/pushing a branch is separate
+  work requiring authorization; a local-only repo must record that limitation.
+- Do not add `mode`, `land`, `push` or `finish` just to spell out defaults.
+  Preserve existing explicit keys unless asked to change them. Add Foreman
+  `finish: land` (`pet`) or `finish: pr` (other profiles) only with explicit
+  closeout authorization; setup alone supplies none.
+- `.babysit/qa.yaml`: use the smallest supported local configuration. Preserve
+  service check maps and named environments when present. Record actual start
+  and check commands with their working directories, a health/page target,
+  and critical flows including a validation, error or empty-state case.
+  A hosted URL cannot substitute for a missing local target. For CLI/library
+  projects, document their real check commands; do not fabricate a web app.
+- `.gitignore`: ignore `.babysit/.env` and any machine-local
+  `.babysit/qa.local.yaml`. Verify they are also untracked; an ignore rule
+  does not remove an already tracked secret. Never print secret values.
+- If login is needed, keep credential **names** in QA config and values in
+  ignored files or environment variables. Preserve environment-specific names;
+  use `QA_USER` / `QA_PASS` only for a new single-target harness. Seed only
+  missing placeholders with `bbs secrets seed --repo-root <repo> <names...>`.
+  Never replace values or invent accounts. Multiple GitHub accounts may need
+  `GH_ACCOUNT`; use a known login, never guess one.
+- Add one concise 2build pointer section to the existing instruction entrypoint
+  (`AGENTS.md` preferred when both exist; create it if neither exists). Read
+  [project pointers](references/project-pointers.md) for the section and,
+  only when related repos are in scope, workspace registration. Update existing
+  sections in place and preserve imports/symlinks. Machine-local workspace
+  mappings belong in `~/.babysit/config.yaml`, never `.babysit/config.yaml`.
+
+For a new single-target app, adapt this shape to observed commands:
 ```yaml
-# .babysit/git-flow.yaml — see the skill pack's references/git-flow.md § Profiles
-profile: startup      # pet | startup | enterprise
-base_branch: develop  # pet → main; startup/enterprise → develop
-```
-Check what that derives before finishing: `bbs autopilot git-flow`. It must
-print `BBS_MODE='trunk'` (every profile works on the current branch) and
-`BBS_LAND='pr'` — `'none'` under `pet`. Anything else means a stray
-hand-written key.
-```yaml
-# .babysit/qa.yaml
 version: 1
 url: http://localhost:5173
 start: npm run dev
 check: npm test
-prepare: npm i && npm run db:migrate   # include only if QA needs install/migrate (idempotent)
-revert: npm run db:rollback            # include only if migrations must be undone after QA
-flows: login validation, empty state, error state, mobile layout
-credentials:            # include only if the app needs a login
-  username_env: QA_USER
-  password_env: QA_PASS
+flows: primary journey, validation error, empty state
+# credentials:              # only when login is required
+#   username_env: QA_USER
+#   password_env: QA_PASS
 ```
-Capture the minimum future agents need:
+Add `prepare` / `revert` only for an established, safe local lifecycle. Do not
+seed generic migrate/rollback commands: reversal is not necessarily safe.
 
-- local start command and expected port/URL
-- health check or page that proves the app booted
-- login credentials via the **standard** env-var names `QA_USER` / `QA_PASS`
-  (names only in `qa.yaml`; values seeded into `.babysit/.env`)
-- 3-5 critical flows, including validation/error/empty-state cases
-- commands for the narrowest useful test or lint check
-When the app has a login, seed the credential placeholders into the gitignored
-`.babysit/.env` (idempotent — never overwrites existing values):
-```bash
-bbs secrets seed --repo-root "$(git rev-parse --show-toplevel)" QA_USER QA_PASS
-```
-On machines with multiple GitHub accounts, also seed `GH_ACCOUNT=<login>` into
-`.babysit/.env` — `create-pr` and `fix-pr` run `gh auth switch -u "$GH_ACCOUNT"`
-before pushing, so the wrong active account can't fail the push.
-## Landing Doc Section
-Add or update exactly one concise section in `AGENTS.md` or `CLAUDE.md`:
-```md
-## Babysit
+## Verify and hand off
+Use [harness-audit](../harness-audit/SKILL.md)'s checks scoped to the files and
+services configured here; reuse the facts already gathered. Parse YAML and
+inspect `bbs autopilot git-flow` and `bbs secrets qa probe --env <local-name>`
+without executing their output. Compare derived values with the intended
+profile and deliberate overrides, rather than treating every override as wrong.
 
-This repo is configured for babysit autonomous runs.
+Inspect start/prepare commands before running them. Probe the local app when
+available; start only the intended local service when safe within this task.
+Report a missing service, credentials or infrastructure as unverified, not a
+passing QA run. Configuration validation does not prove application journeys;
+use `browse` / `qa` when actual UI verification is requested.
 
-- Git policy: `.babysit/git-flow.yaml`
-- QA harness: `.babysit/qa.yaml`
-- Browser: for any UI check — open a URL, click a flow, read console errors, screenshot — invoke `/bbs:browse` (or `/bbs:qa` for a full loop). These drive a real Chromium via `agent-browser`; there is no separate browser *tool* to look for, and `WebFetch` is not a substitute. One-time: `npm install -g agent-browser cloakbrowser`.
-- Default run: `/goal "STATUS: DONE or STATUS: BLOCKED appears" /bbs:autopilot "<task>"`
-
-QA must prove the local target or name the blocker, and must include at least one non-happy-path case before PASS.
-```
-If a `## Babysit` section already exists, replace only that section. Do not
-rewrite unrelated project instructions.
-When related repos exist or the user provides them, also add or update this
-section:
-```md
-## Related Repos
-
-Use these repos for investigation and planning when a task crosses FE/BE,
-API contracts, generated types, or shared schemas. Local paths are machine
-specific: they live in the workspace mapping in `~/.babysit/config.yaml`
-(`bbs config workspace show`), which is the authority. `$RELATED_*_REPO` in
-`.babysit/.env` is a fallback for repos outside a workspace.
-
-- Backend API: role `be`
-- Frontend app: role `fe`
-- Shared package: role `shared`
-```
-Include only repos that apply. If a `## Related Repos` section already exists,
-replace only that section. Do not commit absolute local paths to `AGENTS.md` or
-`CLAUDE.md`.
-Register each related repo the human names:
-```bash
-bbs config workspace add-repo <workspace> --git-url <this-origin> --path <this-repo> --role fe --repo-type polyrepo
-bbs config workspace add-repo <workspace> --git-url <related-origin> --path <related-repo> --role be
-```
-`add-repo` creates the workspace when needed and writes only
-`~/.babysit/config.yaml`. Do not create or commit `.babysit/config.yaml`.
-On a repo that is not joining a workspace, seed `.babysit/.env` instead, after
-ensuring it is gitignored:
-```bash
-# .babysit/.env  (gitignored) — fallback when there is no workspace entry
-RELATED_BACKEND_REPO=../api
-RELATED_FRONTEND_REPO=../web
-RELATED_SHARED_REPO=../shared
-```
-Don't seed both for the same role. Do not fail setup when a related repo path
-is absent — record where the path is expected to come from and leave it unset.
-## Output
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
-CONFIG: <files created/updated, including ~/.babysit/config.yaml workspace registration when applicable>
-VERIFY: <config parse + local app probe/check, or named blocker>
-NEXT: /bbs:autopilot "<feature>"
+CONFIG: <files/keys changed, or already configured; workspace registration if any>
+VERIFY: <config checks and local probe results; explicit unverified items>
+NEXT: <remaining prerequisite or /bbs:autopilot "<feature>">
 ```
+Do not branch, commit, push or deploy as part of this skill.
