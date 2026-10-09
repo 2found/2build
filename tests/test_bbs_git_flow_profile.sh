@@ -344,7 +344,7 @@ SK="$SCRIPT_DIR/.claude/skills"
 
   sp="$SK/setup-project/SKILL.md"
   grep -q 'profile' "$sp" || { echo "setup-project does not write a profile"; exit 1; }
-  grep -q 'never ask about `mode`/`land`/`push`/rigor directly' "$sp" \
+  grep -q 'Never ask about `mode`/`land`/`push`/rigor directly' "$sp" \
     || { echo "setup-project no longer asks exactly one question"; exit 1; }
 ) && ok "skills-consume-the-derived-policy" || fail "skills-consume-the-derived-policy"
 

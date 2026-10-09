@@ -27,11 +27,12 @@ not rewrite architecture docs or unrelated instructions during onboarding.
 ## Configure only missing or requested settings
 - `.babysit/git-flow.yaml`: start with `profile` and a verified `base_branch`.
   Read [git-flow](../references/git-flow.md) for profiles and derived behavior;
-  do not duplicate its policy in project docs. Existing profile or explicit
   session choice wins. Only when neither exists, ask what a mistake costs in
   this repo: cheap/personal → `pet`, small-team → `startup`, quality-first team
-  → `enterprise`. If the user is unsure, recommend `startup`; unanswered is
-  not consent. Continue independent setup while awaiting required input.
+  → `enterprise`. Never ask about `mode`/`land`/`push`/rigor directly — that
+  one question is the whole interview. If the user is unsure, recommend
+  `startup`; unanswered is not consent. Continue independent setup while
+  awaiting required input.
 - Prefer the profile's base convention (`main` for `pet`, `develop` otherwise)
   only when that branch exists. Inspect remote refs; do not invent a remote
   base from a local branch. If `develop` is absent, resolve whether the repo

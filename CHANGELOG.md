@@ -1,6 +1,54 @@
 # Changelog
 
-## Unreleased — bin/ removal
+## 1.96.0 — 2026-10-09
+
+### Added
+
+- **`test` skill** — behavioral test creation and suite optimization, with an
+  `optimize` reference for shrinking weak suites.
+- **`harness-audit` skill** — split out of `setup-project`: audits the coding
+  harness itself, while `setup-project` keeps configuring a repository for
+  babysit and points at project architecture and applicable design/deploy
+  links.
+
+### Removed
+
+- **`bbs design` and `internal/design`** — unused compiled CLI plus the bundled
+  design CSV/template guidance; `design-ui` now works from project context and
+  an iterating spec instead.
+- **`reason`, `social-content`, `office-hours`, `conversion-fix`,
+  `copy-rewrite` and `growth-experiment` skills** — generic shortcuts removed;
+  `triage` picks up the routing contracts that mattered.
+
+### Changed
+
+- **`plan-draft`, `implement` and `qa`** — reviewable plans are preserved and
+  each skill records acceptance evidence; workflow contracts tightened.
+- **Release pipeline** — the release workflow reuses the main test
+  verification once and publishes the verified tag with generated notes,
+  `DOWNLOADS.md`, `release.json` and checksum assets.
+
+### Fixed
+
+- **2build pack** — `design-ui` resolves its design data from the installed
+  Soot pack instead of a checkout-relative path.
+
+## 1.95.0 — 2026-10-08
+
+### Added
+
+- **Project starters** — `bbs starter` scaffolds a new project from the
+  starter catalog; onboarding docs point at the stable release.
+
+## 1.94.3 — 2026-10-08
+
+### Changed
+
+- **Rebranded to `2found/2build`** — repository moved under the 2found org;
+  READMEs rewritten around the 2build name in all five languages with the new
+  mascot.
+
+## 1.93.7 — 2026-09-29
 
 ### Changed
 
