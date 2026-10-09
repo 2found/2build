@@ -15,10 +15,15 @@ Exercise the application like a user and leave reproducible evidence.
 1. Load what to test — disk first, conversation as fallback. Resolve the
    ticket (`bbs ticket resolve`); when it resolves, read whichever exist:
    - `bbs ticket path requirement --read` — acceptance criteria
-   - `bbs ticket path plan --read` — especially its `**Verify:**` line
+   - `bbs ticket path plan --read` — intended behavior, accepted scope,
+     contracts/invariants, `**Unknowns:**`, `**Design:**` and `**Verify:**`
+   - For changed UI, the plan's design/prototype links or
+     `bbs ticket path design --read` — inspect the accepted prototype and
+     covered flows/states; presence of a path alone is not a comparison
    - `bbs ticket path handoff --skill implement --latest --read` — and its
      `## Deviations`: each deviation is where the plan diverged from reality,
-     the likeliest home of a wrong guess
+     the likeliest home of a wrong guess; also read findings/unknown outcomes
+     and prototype-comparison evidence, checking their relevance and freshness
    - `bbs ticket path verdict --skill review-pr --read` — unresolved
      `FINDINGS` go into the case matrix; `RISK_AREAS`/`FIXED` seed security
      and regression cases
@@ -77,6 +82,14 @@ Exercise the application like a user and leave reproducible evidence.
    prove.
 4. Size the matrix to the repo's rigor: `eval "$(bbs autopilot git-flow)"` →
    `$BBS_RIGOR` (see § Rigor tiers; unset or unreadable = `standard`).
+   Trace material plan findings/unknowns to acceptance cases or supporting
+   evidence, including resolved discoveries that changed an assumption. Reuse
+   evidence only when code state, environment and coverage still match; an
+   implementation claim alone is not proof.
+   Carry relevant open questions into checks with observable expected results;
+   non-runtime questions use the appropriate contract/code evidence. Record a
+   reason for items outside this change's acceptance, without reopening every
+   resolved discovery. Include accepted prototype flows/states for changed UI.
    Build a flow matrix from the acceptance criteria — not just the diff —
    covering happy path, validation, empty/error states, failure/retry, and
    responsive behavior. Derive the change's reach independently: for each
@@ -86,7 +99,8 @@ Exercise the application like a user and leave reproducible evidence.
    case anchored to its source ("criterion 2", "review-pr finding 1",
    "derived: shares session state"). Self-review: every criterion,
    BLAST_RADIUS entry, unresolved review finding, and implement deviation
-   has a case; each touched flow has ≥1 non-happy-path case; behavior the
+   has a case; material plan findings/unknowns have evidence or a named gap;
+   each touched flow has ≥1 non-happy-path case; behavior the
    code walk surfaced that the requirement never mentions gets a *derived
    criterion* case with the gap named in `SUMMARY`; an uncoverable criterion
    is named as a gap now, never silently dropped. Save the matrix:
@@ -101,7 +115,15 @@ Exercise the application like a user and leave reproducible evidence.
    engine — Read `../browse/skill.md` § Engine before the first browser
    command; its session-name export and setup are mandatory. Non-UI: a real
    call sequence (curl, CLI, the repo's e2e suite). Never "test" a flow by
-   reading code or unit tests alone. Off-script time around the changed
+   reading code or unit tests alone. For changed UI, compare the rendered
+   result with the accepted prototype at the relevant viewport and key states:
+   layout, interactions, content hierarchy and empty/error behavior. Link the
+   reference and actual screenshots; explain material differences against the
+   acceptance criteria, including accepted changes. Do not rewrite the baseline
+   to match the implementation. If the required reference is unavailable,
+   record the conformance gap instead of claiming a visual match. This is
+   acceptance verification, not pixel equality or a new design exercise.
+   Off-script time around the changed
    surface — findings feed back as derived cases — per the tier: `smoke`
    skips it, `standard` spends a few minutes, `strict` always spends it.
 6. Fix regressions owned by the current branch, then rerun the affected flow
@@ -113,6 +135,11 @@ Exercise the application like a user and leave reproducible evidence.
    `bbs ticket path evidence --skill qa --name <f>.png --write`; list the
    paths in `EVIDENCE:`. (Ad-hoc `browse` checks stay screenshot-light; the
    QA verdict's screenshots are the durable proof a human audits later.)
+   Summarize prototype conformance and material finding/unknown outcomes as
+   confirmed, corrected or open, linked to case/evidence and acceptance impact.
+   Surface discoveries that change the human's understanding; do not bury them
+   in logs. Required unknowns or conformance checks still unverified are coverage
+   gaps and prevent PASS; unrelated follow-ups may remain nonblocking concerns.
 8. Run the cleanup finalizer before persisting the verdict or returning any
    status, including `BLOCKED` and tool-error paths. The `browse` skill closes
    and verifies its exact browser session plus any simulator it booted. Stop
@@ -175,9 +202,10 @@ change can't touch is `N/A` **with a one-line reason** — never a silent skip.
 `PASS`/`FIXED` require **every applicable** dimension at B or better and
 freshness at A — **identical in all three rigor tiers**. Rigor decides which
 dimensions are legitimately `N/A` and how many cases feed a grade; it never
-lowers the bar a graded dimension has to clear. Any applicable dimension at C or D forces `VERDICT: FAIL`
-(→ `STATUS: BLOCKED`), or `DONE_WITH_CONCERNS` naming the blocker if a real
-blocker stopped coverage. Report the grade line for every dimension,
+lowers the bar a graded dimension has to clear. Any applicable dimension at C
+or D, missing required coverage or failed acceptance forces `VERDICT: FAIL`
+(→ `STATUS: BLOCKED`). `DONE_WITH_CONCERNS` is only for nonblocking residuals
+once all required acceptance and coverage pass. Report the grade line for every dimension,
 including `N/A: <reason>`.
 ## Rules
 - Keep test data reversible; no destructive production actions.
@@ -204,8 +232,8 @@ including `N/A: <reason>`.
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: PASS | FIXED(<N>) | FAIL
-SUMMARY: <rigor tier + local target/blocker + flow matrix + findings>
-SOURCES: <context read in step 1: requirement, plan, implement-handoff, review-pr — or conversation-only>
+SUMMARY: <rigor tier + local target/blocker + flow matrix + material findings/unknown outcomes + prototype conformance when applicable>
+SOURCES: <context read in step 1: requirement, plan, design/prototype, implement-handoff, review-pr — or conversation-only>
 RUBRIC: flow=<> boundary=<> regression=<> data=<> compat=<> security=<> a11y=<> perf=<> freshness=<>  (grade or N/A each)
 EVIDENCE: <last e2e run: tool + journey + result; screenshot + errors/report paths under evidence/qa/>
 CLEANUP: <owned resources stopped and verified; pre-existing/shared resources retained>
@@ -216,8 +244,8 @@ orchestrator sees after the fact. A `qa-evidence` audit re-checks the body on
 write and
 the PR/merge gate **denies** a PASS that contradicts its own rubric
 (freshness < A, any C/D dimension) or carries no e2e evidence. Record it even
-when full QA was impossible (`DONE_WITH_CONCERNS` with the named blocker; a
-concerns verdict with no named blocker is flagged `unexplained`):
+when full QA was impossible (`VERDICT: FAIL`, `STATUS: BLOCKED`, with the
+missing required coverage and blocker named):
 ```bash
 bbs ticket set-verdict --skill qa --body "$(cat <<'EOF'
 STATUS: ...

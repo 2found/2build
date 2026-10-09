@@ -12,13 +12,21 @@ description: Implement a scoped code change from the user's request, an accepted
 # implement
 Build the smallest correct change; this file only sets the babysit-specific
 guardrails.
-- Read the request, plan, and nearby code before editing. The plan is thin
-  by design — goal, approach, unknowns — so you own the detail: derive files,
-  task order, and steps from the code. If the work collapses to ≤3 trivial
-  doc/comment-only edits, downgrade `ticket_size` one tier using the
-  downgrade hook in `../shared/ticket-size-rubric.md` (it writes the
+- Read the request, plan, linked specs/manifest and nearby code before editing.
+  Preserve the plan's accepted scope, contracts, invariants and acceptance
+  checks; optional proposals are not work to implement. Derive files, task
+  order and coding steps from the code within those boundaries. If the work
+  collapses to ≤3 trivial doc/comment-only edits, downgrade `ticket_size` one
+  tier using the downgrade hook in `../shared/ticket-size-rubric.md` (it writes the
   audit-log line). Shared refs (`../shared/*.md`) are filesystem paths
   beside this skill's directory, so read them by path, not as `skill://`.
+- Read the plan's findings and unknowns as evidence to carry forward. Check
+  relevant open items before dependent work; retain each material item's outcome
+  and evidence in the handoff (confirmed, corrected, or still open with impact
+  and next check). Do not re-investigate resolved findings without conflicting
+  evidence. New discoveries follow `../shared/finding-unknowns.md`; preserve
+  them durably, and record changed assumptions/decisions in `## Deviations`.
+  An unresolved acceptance blocker prevents a completion claim.
 - The plan file is the Claude Code plan: derive the native task list
   (TaskCreate) from `plan.md` — you own task order, one task per verifiable
   unit — and keep it live: in_progress when started, completed only after its
@@ -31,22 +39,30 @@ guardrails.
 - UI: reuse the design system — components, tokens (`bbs design tokens`; if
   CLAUDE.md/AGENTS.md declares a design doc at a non-root path, pass
   `--design <path>` and treat it as authoritative), spacing, interaction
-  patterns. The prototype behind `pointers.design` is the accepted look —
-  build to it. No new one-off component, color, font size, or layout when the
+  patterns. Read the linked design spec and inspect its prototype (from the
+  plan or `pointers.design`); the accepted flows, states and appearance are the
+  baseline. Build to it. No new one-off component, color, font size, or layout when the
   project has one. New user-facing surface with no design spec
   (`pointers.design` empty, nothing in conversation) → invoke the `design-ui`
   skill via the Skill tool first; never improvise a layout the human first
   sees after implementation.
+- For changed UI, compare the rendered result and key flows/states against
+  that prototype using `browse` or `qa` as appropriate; retain screenshots/check
+  evidence and explain mismatches in the handoff. If comparison cannot run,
+  name the missing verification. Do not claim visual conformance from a build
+  alone or rewrite the accepted prototype to conceal implementation drift.
 - API surfaces follow best practice by default, even when the plan is silent
   — an unpaginated list endpoint is a bug, not a simplification.
 - Same at the DB layer: every new or changed query needs a bounded access
   path — check the declared indexes; cost should grow with rows returned,
   not table size. A query the schema can't serve is a bug — add the index,
   or log a denormalization/caching need as a deviation.
-- When an edge case forces a deviation from the plan: pick the conservative
-  option — smallest change, most reversible, preserves the plan's intent —
-  log it (see Ticket Mode), and keep going. Never block on a reversible
-  choice; never silently absorb a deviation.
+- When an edge case forces a deviation within the accepted direction: pick
+  the smallest reversible change preserving the plan's intent, log it (see
+  Ticket Mode), and keep going. If evidence invalidates a material design
+  decision, invariant or scope boundary, record it and route through
+  `../shared/auto-decision-framework.md` before dependent work; reversibility
+  alone does not authorize a new direction. Never silently absorb a deviation.
 - Never branch, commit, or push — leave the change in the working tree.
   Skills are infra-isolated; git belongs to the invoking workflow
   (autopilot) or the human.
