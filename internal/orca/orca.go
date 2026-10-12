@@ -253,6 +253,12 @@ func (c *Client) CapturePane(title string, lines int) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return c.ReadHandle(handle, lines)
+}
+
+// ReadHandle returns the last n lines of a terminal addressed by its handle;
+// worker terminals have no title of ours to resolve.
+func (c *Client) ReadHandle(handle string, lines int) (string, error) {
 	raw, err := c.run("terminal", "read", "--terminal", handle, "--limit", fmt.Sprint(lines))
 	if err != nil {
 		return "", err
@@ -266,6 +272,12 @@ func (c *Client) CapturePane(title string, lines int) (string, error) {
 		return "", fmt.Errorf("terminal read: %w", err)
 	}
 	return strings.Join(wrap.Terminal.Tail, "\n"), nil
+}
+
+// SendEnterHandle writes text into a terminal addressed by handle and submits it.
+func (c *Client) SendEnterHandle(handle, text string) error {
+	_, err := c.run("terminal", "send", "--terminal", handle, "--text", text, "--enter")
+	return err
 }
 
 // Close closes a terminal tab. Missing is not an error: closing something

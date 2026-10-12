@@ -83,25 +83,36 @@ Foreman dispatches repairs and rechecks affected gates before advancing.
 ### Batch dispatch: one wake per batch
 
 Every coordinator wake re-reads the whole Foreman context, so wakes, not worker
-count, dominate cost. Wake once per batch:
+count, dominate cost. The bbs watcher waits and supervises; Foreman wakes once
+per batch:
 
 1. A batch is every admitted ready phase up to `FOREMAN_MAX_WORKERS`
    ([topology](references/topology.md#resource-admission)), light profiles
    first. Prefer the same phase across tickets so members finish together; never
    hold back a ready phase only to align it.
-2. Launch every member, then block in the foreground on
-   `bbs foreman wait-batch --tasks <task,task,...>`. It waits in its own process
-   (default `--timeout 9m` fits a 10-minute tool cap). Do not `check --wait` per
-   worker, actively check terminals, checkpoints, git state, inbox, resource
-   status or project snapshots for progress, start a polling timer, invoke
-   `watch --once` or restart a live worker.
-3. `BATCH=timeout` only re-arms the same wait; silence does not imply failure.
-   `BATCH=attention` names an unread question/escalation (`messages:<n>`) or an
-   `exited:<task>` worker that can never settle: consume the Delivery, answer or
-   follow the recovery contract for that worker only, then re-arm with the
-   unsettled Tasks. `BATCH=settled` (failures included): consume with Orca
-   `check` (one Delivery carries up to 50 messages), process every message,
-   acknowledge, then verify, finish and plan the next batch in the same wake.
+2. Launch every member, run `bbs foreman batch "$FOREMAN_ID" --tasks
+   <task,task,...>`, then **end the turn**. Do not wait, `check --wait`,
+   actively check terminals, checkpoints, git state, inbox, resource status or
+   project snapshots for progress, start a polling timer, invoke `watch --once`
+   or restart a live worker. The detached `bbs foreman watch` nudges a worker
+   whose pane sits idle with its Dispatch open (bounded), holds Foreman's own
+   status/stall prompts while the batch is open, and wakes Foreman with an Orca
+   message plus a prompt naming the batch. To stop Orca typing a mail pointer
+   into Foreman per worker report, it keeps Foreman's Delivery unacknowledged
+   until that wake; an Orca mail pointer that still arrives mid-batch gets
+   `batch show` and, with no attention, the turn ends without consuming.
+3. On that prompt run `bbs foreman batch show "$FOREMAN_ID"`.
+   `BATCH_STATE=settled` (failures included): consume with Orca `check` until
+   it returns no messages (`check --ack <delivery>` returns the next Delivery
+   of up to 50), processing every message before each ack, then verify, finish
+   and hand the next batch over in the same wake.
+   Otherwise it names attention (`messages:<n>`, `exited:<task>`,
+   `stalled:<task>`): consume the Delivery, handle only that (answer, or follow
+   the recovery contract for that worker), re-run `bbs foreman batch` with every
+   Task still to watch, including repairs, and end the turn.
+4. The watcher compacts the session (`/compact`, where the agent has one)
+   before a settled wake, so every batch wake is a cold-resume boundary:
+   recover from durable state per [runtime](references/runtime.md).
 
 Process every message before acknowledging its Delivery. Judge each member from
 `bbs ticket verdict-status`, readiness JSON and the reported handoff paths; read

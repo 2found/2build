@@ -133,9 +133,9 @@ has_all "goal-compaction-and-days" \
   'never resume an ambiguous'
 
 has_all "batched-wake-reconciliation" \
-  'bbs foreman wait-batch --tasks' 'Wake once per batch' 'actively check terminals' \
-  '`BATCH=timeout` only re-arms the same wait' '`BATCH=attention`' '`BATCH=settled`' \
-  'start a polling timer' 'reconciliation' 'return to the blocking `wait-batch`'
+  'run `bbs foreman batch' 'then \*\*end the turn\*\*' 'actively check terminals' \
+  'bbs foreman batch show' '`BATCH_STATE=settled`' '`stalled:<task>`' \
+  'start a polling timer' 'cold-resume boundary' 'hand it to `bbs foreman batch` and end the turn'
 
 has_all "heavy-checks-deferred-and-merged" \
   'consolidated heavy QA' 'DEFERRED_HEAVY=' 'only when no light phase is ready' \

@@ -1,45 +1,139 @@
 package cmd
 
 import (
-	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/2found/2build/internal/agent"
+	"github.com/2found/2build/internal/foreman"
 	"github.com/2found/2build/internal/orca"
 )
 
-const foremanWaitBatchUsage = `Usage:
-  bbs foreman wait-batch --tasks <task,task,...> [--timeout <duration>] [--interval <duration>]
+const foremanBatchUsage = `Usage:
+  bbs foreman batch <foreman-id> --tasks <task,task,...>
+  bbs foreman batch show <foreman-id>
 
-Blocks until every listed Task's current Dispatch is terminal, then prints one
-summary. Returns early only when the batch cannot finish without the
-coordinator: an unread question/escalation, or a worker that exited without
-settling its Dispatch. Defaults: --timeout 9m (fits a 10-minute tool-call cap),
---interval 20s.
+Hands a dispatched batch to the detached watcher, after which the Foreman ends
+its turn. The watcher supervises the workers (nudging one whose pane sits idle
+with its Dispatch open) and wakes the Foreman, by Orca message plus a prompt in
+its terminal, only when the whole batch has settled or cannot settle without
+it: an unread question/escalation, an exited worker, or a worker that stayed
+idle through its nudges. A settled batch is compacted first when the agent
+supports it. Re-running batch replaces the watched set, keeping nudge state.
 `
 
-// The wait runs in this process so the coordinator model is woken once per
-// batch rather than once per worker_done: every coordinator wake re-reads its
-// whole context, which dominates token cost in a wide fan-out.
-var (
-	waitBatchSleep = time.Sleep
-	waitBatchNow   = time.Now
-)
+// Every coordinator wake re-reads its whole context, which dominates token
+// cost in a wide fan-out. The watcher therefore owns waiting and worker
+// liveness, and a batch costs the coordinator one wake, not one per worker or
+// per timeout.
 
-type batchTask struct {
-	task     string
-	dispatch string
-	status   string
-	run      string
+type foremanBatch struct {
+	ID        string        `json:"id"`
+	CreatedAt string        `json:"created_at"`
+	Tasks     []batchMember `json:"tasks"`
+	// Questions is the unread question/escalation count already reported.
+	Questions int `json:"questions,omitempty"`
+	// Reported holds the attention keys (exited:<task>, stalled:<task>)
+	// already reported, so each wakes the Foreman once.
+	Reported []string `json:"reported,omitempty"`
+	// CompactAt marks the compaction typed at settlement; the wake follows
+	// once the Foreman pane holds still. PaneFingerprint tracks that.
+	CompactAt       string `json:"compact_at,omitempty"`
+	PaneFingerprint string `json:"pane_fingerprint,omitempty"`
+	// WokeAt closes the batch: the settled wake was delivered.
+	WokeAt string `json:"woke_at,omitempty"`
 }
 
-func foremanWaitBatch(args []string) error {
-	_, kv, err := foremanFlags(args)
+type batchMember struct {
+	Task     string `json:"task"`
+	Dispatch string `json:"dispatch,omitempty"`
+	Status   string `json:"status,omitempty"`
+	Run      string `json:"run,omitempty"`
+	// Fingerprint/Since are the worker pane's idle clock; Pending marks a
+	// nudge whose own echo has not been seen, as in watchState.
+	Fingerprint string `json:"fingerprint,omitempty"`
+	Since       string `json:"since,omitempty"`
+	Nudges      int    `json:"nudges,omitempty"`
+	Pending     bool   `json:"pending,omitempty"`
+	Stalled     bool   `json:"stalled,omitempty"`
+}
+
+const batchCompactSettleMax = 10 * time.Minute
+
+func batchPath(id string) string { return filepath.Join(watchDir(), id+".batch.json") }
+
+func loadBatch(id string) (foremanBatch, bool) {
+	var b foremanBatch
+	data, err := os.ReadFile(batchPath(id))
+	if err != nil || json.Unmarshal(data, &b) != nil || b.ID == "" {
+		return foremanBatch{}, false
+	}
+	return b, true
+}
+
+func saveBatch(id string, b foremanBatch) error {
+	if err := os.MkdirAll(watchDir(), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(b, "", "  ")
 	if err != nil {
 		return err
+	}
+	tmp := batchPath(id) + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, batchPath(id))
+}
+
+func (b foremanBatch) open() bool { return b.WokeAt == "" }
+
+func (b foremanBatch) settled() int {
+	n := 0
+	for _, m := range b.Tasks {
+		if dispatchTerminal(m.Status) {
+			n++
+		}
+	}
+	return n
+}
+
+func (b foremanBatch) reported(key string) bool {
+	for _, k := range b.Reported {
+		if k == key {
+			return true
+		}
+	}
+	return false
+}
+
+func foremanBatchCommand(args []string) error {
+	if len(args) > 0 && args[0] == "show" {
+		if len(args) != 2 {
+			return fmt.Errorf("foreman batch show: needs a foreman id\n%s", foremanBatchUsage)
+		}
+		b, ok := loadBatch(args[1])
+		if !ok {
+			return fmt.Errorf("foreman batch show: no batch recorded for %s", args[1])
+		}
+		printBatchState(b)
+		return nil
+	}
+	id, kv, err := foremanFlags(args)
+	if err != nil {
+		return err
+	}
+	if id == "" {
+		return fmt.Errorf("foreman batch: needs a foreman id\n%s", foremanBatchUsage)
+	}
+	r, err := foreman.Load(id)
+	if err != nil {
+		return fmt.Errorf("foreman batch: %w", err)
 	}
 	var tasks []string
 	seen := map[string]bool{}
@@ -50,147 +144,313 @@ func foremanWaitBatch(args []string) error {
 		}
 	}
 	if len(tasks) == 0 {
-		return fmt.Errorf("foreman wait-batch: --tasks is required\n%s", foremanWaitBatchUsage)
+		return fmt.Errorf("foreman batch: --tasks is required\n%s", foremanBatchUsage)
 	}
-	timeout, err := waitBatchDuration(kv, "timeout", 9*time.Minute)
+	c, err := orca.Preflight()
 	if err != nil {
-		return err
-	}
-	interval, err := waitBatchDuration(kv, "interval", 20*time.Second)
-	if err != nil {
-		return err
-	}
-	// A deadline bounds each Orca call (see Client.run), so one hung probe
-	// cannot hold the wait past its timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), timeout+time.Minute)
-	defer cancel()
-	c, err := orca.PreflightContext(ctx)
-	if err != nil {
-		return fmt.Errorf("foreman wait-batch: %w", err)
+		return fmt.Errorf("foreman batch: %w", err)
 	}
 	if !c.Orchestration() {
-		return fmt.Errorf("foreman wait-batch: %w", orca.ErrNoOrchestration)
+		return fmt.Errorf("foreman batch: %w", orca.ErrNoOrchestration)
 	}
-
-	deadline := waitBatchNow().Add(timeout)
-	batch := make([]batchTask, len(tasks))
-	for i, task := range tasks {
-		batch[i].task = task
+	prev, _ := loadBatch(id)
+	carried := map[string]batchMember{}
+	if prev.open() {
+		for _, m := range prev.Tasks {
+			carried[m.Task] = m
+		}
 	}
-	for first := true; ; first = false {
-		var probeErr error
-		settled := 0
-		for i := range batch {
-			t := &batch[i]
-			if dispatchTerminal(t.status) {
-				settled++
-				continue
-			}
-			state, err := c.DispatchStateFor(t.task)
-			if err != nil {
-				probeErr = err
-				continue
-			}
-			if state.ID == "" {
-				if first {
-					return fmt.Errorf("foreman wait-batch: task %s has no Dispatch; launch it before waiting", t.task)
-				}
-				continue
-			}
-			t.dispatch, t.status, t.run = state.ID, state.Status, state.RunID
-			if dispatchTerminal(t.status) {
-				settled++
-			}
-		}
-		if settled == len(batch) {
-			printBatch("settled", batch, nil, probeErr)
-			return nil
-		}
-		var attention []string
-		if n, err := c.PendingMessages("question,escalation"); err != nil {
-			probeErr = err
-		} else if n > 0 {
-			attention = append(attention, fmt.Sprintf("messages:%d", n))
-		}
-		exited, err := exitedUnsettled(c, batch)
+	now := time.Now().UTC()
+	b := foremanBatch{ID: fmt.Sprintf("%s-%d", id, now.Unix()), CreatedAt: now.Format(time.RFC3339)}
+	for _, task := range tasks {
+		state, err := c.DispatchStateFor(task)
 		if err != nil {
-			probeErr = err
+			return fmt.Errorf("foreman batch: task %s: %w", task, err)
 		}
-		for _, task := range exited {
-			attention = append(attention, "exited:"+task)
+		if state.ID == "" {
+			return fmt.Errorf("foreman batch: task %s has no Dispatch; launch it before handing it over", task)
 		}
-		if len(attention) > 0 {
-			printBatch("attention", batch, attention, probeErr)
-			return nil
+		m := carried[task]
+		if m.Dispatch != state.ID {
+			m = batchMember{}
 		}
-		now := waitBatchNow()
-		if !now.Before(deadline) {
-			printBatch("timeout", batch, nil, probeErr)
-			return nil
-		}
-		waitBatchSleep(min(interval, deadline.Sub(now)))
+		m.Task, m.Dispatch, m.Status, m.Run = task, state.ID, state.Status, state.RunID
+		b.Tasks = append(b.Tasks, m)
 	}
+	if err := saveBatch(id, b); err != nil {
+		return fmt.Errorf("foreman batch: %w", err)
+	}
+	batchHold(c, r, b)
+	spawnWatcher()
+	fmt.Println("BATCH=" + b.ID)
+	fmt.Printf("BATCH_TASKS=%d\n", len(b.Tasks))
+	fmt.Println("NEXT=end this turn; bbs foreman watch wakes this Foreman when the batch settles or needs attention")
+	return nil
 }
 
-// exitedUnsettled names Tasks whose worker is proven gone while their Dispatch
-// is still open; that Dispatch can never settle, so the batch would not end.
-func exitedUnsettled(c *orca.Client, batch []batchTask) ([]string, error) {
-	runs := map[string]bool{}
-	for _, t := range batch {
-		if t.run != "" && t.dispatch != "" && !dispatchTerminal(t.status) {
-			runs[t.run] = true
-		}
+func printBatchState(b foremanBatch) {
+	state := "open"
+	switch {
+	case !b.open():
+		state = "settled"
+	case b.CompactAt != "":
+		state = "compacting"
 	}
-	var names []string
-	var probeErr error
-	for run := range runs {
-		exited, err := c.ExitedWorkers(run)
-		if err != nil {
-			probeErr = err
-			continue
-		}
-		for _, t := range batch {
-			if t.run == run && !dispatchTerminal(t.status) && exited[t.dispatch] {
-				names = append(names, t.task)
-			}
-		}
-	}
-	sort.Strings(names)
-	return names, probeErr
-}
-
-func printBatch(outcome string, batch []batchTask, attention []string, probeErr error) {
-	settled := 0
-	for _, t := range batch {
-		if dispatchTerminal(t.status) {
-			settled++
-		}
-	}
-	fmt.Println("BATCH=" + outcome)
-	fmt.Printf("BATCH_SETTLED=%d/%d\n", settled, len(batch))
-	for _, t := range batch {
-		status := t.status
+	fmt.Println("BATCH=" + b.ID)
+	fmt.Println("BATCH_STATE=" + state)
+	fmt.Printf("BATCH_SETTLED=%d/%d\n", b.settled(), len(b.Tasks))
+	for _, m := range b.Tasks {
+		status := m.Status
 		if status == "" {
 			status = "unknown"
 		}
-		fmt.Printf("TASK=%s DISPATCH=%s STATUS=%s\n", t.task, t.dispatch, status)
+		line := fmt.Sprintf("TASK=%s DISPATCH=%s STATUS=%s", m.Task, m.Dispatch, status)
+		if m.Nudges > 0 {
+			line += fmt.Sprintf(" NUDGES=%d", m.Nudges)
+		}
+		if m.Stalled {
+			line += " STALLED=1"
+		}
+		fmt.Println(line)
 	}
-	for _, a := range attention {
-		fmt.Println("ATTENTION=" + a)
+	for _, key := range b.Reported {
+		fmt.Println("ATTENTION=" + key)
 	}
-	if probeErr != nil {
-		fmt.Println("PROBE_ERROR=" + probeErr.Error())
+	if b.Questions > 0 {
+		fmt.Printf("ATTENTION=messages:%d\n", b.Questions)
 	}
 }
 
-func waitBatchDuration(kv map[string]string, key string, def time.Duration) (time.Duration, error) {
-	value := strings.TrimSpace(kv[key])
-	if value == "" {
-		return def, nil
+// batchTick is one watcher pass over a Foreman's open batch. It returns the
+// lines worth printing; a batch that is simply running prints nothing.
+func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOpts, now time.Time) []string {
+	if b.CompactAt != "" {
+		return batchAfterCompact(client, r, b, o, now)
 	}
-	d, err := time.ParseDuration(value)
-	if err != nil || d <= 0 {
-		return 0, errors.New("foreman wait-batch: --" + key + " needs a positive duration such as 9m or 20s")
+	for i := range b.Tasks {
+		m := &b.Tasks[i]
+		if dispatchTerminal(m.Status) {
+			continue
+		}
+		if state, err := client.DispatchStateFor(m.Task); err == nil && state.ID != "" {
+			m.Dispatch, m.Status, m.Run = state.ID, state.Status, state.RunID
+		}
 	}
-	return d, nil
+	if b.settled() == len(b.Tasks) {
+		return batchSettle(client, r, b, o, now)
+	}
+	batchHold(client, r, *b)
+
+	var lines, attention []string
+	if handle, err := client.Ref(r.WorkspaceTitle); err == nil {
+		if n, err := client.PendingMessagesFor(handle, "question,escalation"); err == nil {
+			if n > b.Questions {
+				attention = append(attention, fmt.Sprintf("messages:%d", n))
+			}
+			b.Questions = n
+		}
+	}
+	workers := map[string]orca.Worker{}
+	runs := map[string]bool{}
+	for _, m := range b.Tasks {
+		if !dispatchTerminal(m.Status) && m.Run != "" && !runs[m.Run] {
+			runs[m.Run] = true
+			list, err := client.Workers(m.Run)
+			if err != nil {
+				continue
+			}
+			for _, w := range list {
+				workers[w.Dispatch] = w
+			}
+		}
+	}
+	for i := range b.Tasks {
+		m := &b.Tasks[i]
+		if dispatchTerminal(m.Status) {
+			continue
+		}
+		w, ok := workers[m.Dispatch]
+		if !ok {
+			continue
+		}
+		if w.Exited {
+			if key := "exited:" + m.Task; !b.reported(key) {
+				attention = append(attention, key)
+			}
+			continue
+		}
+		if w.Handle == "" {
+			continue
+		}
+		if line, key := batchWatchWorker(client, m, w.Handle, o, now); line != "" || key != "" {
+			if line != "" {
+				lines = append(lines, line)
+			}
+			if key != "" && !b.reported(key) {
+				attention = append(attention, key)
+			}
+		}
+	}
+	if len(attention) > 0 {
+		sort.Strings(attention)
+		for _, key := range attention {
+			if !strings.HasPrefix(key, "messages:") {
+				b.Reported = append(b.Reported, key)
+			}
+		}
+		summary := fmt.Sprintf("batch %s needs you (%d/%d settled): %s", b.ID, b.settled(), len(b.Tasks), strings.Join(attention, ", "))
+		lines = append(lines, batchWake(client, r, *b, summary))
+	}
+	return lines
+}
+
+// batchWatchWorker advances one worker's idle clock. A pane unchanged for
+// --worker-idle with its Dispatch still open gets a continue/report nudge; once
+// the nudges are spent it is reported as stalled instead of poked forever.
+func batchWatchWorker(client *orca.Client, m *batchMember, handle string, o watchOpts, now time.Time) (line, attentionKey string) {
+	pane, err := client.ReadHandle(handle, o.lines)
+	if err != nil {
+		return "", ""
+	}
+	fp := paneFingerprint(pane)
+	stamp := now.UTC().Format(time.RFC3339)
+	if fp != m.Fingerprint {
+		if m.Pending {
+			// First change after a nudge is most likely its own echo.
+			m.Pending = false
+		} else {
+			m.Nudges, m.Stalled = 0, false
+		}
+		m.Fingerprint, m.Since = fp, stamp
+		return "", ""
+	}
+	since, err := time.Parse(time.RFC3339, m.Since)
+	if err != nil {
+		m.Since = stamp
+		return "", ""
+	}
+	if now.Sub(since) < o.workerIdle {
+		return "", ""
+	}
+	if m.Nudges >= o.workerNudges {
+		if m.Stalled {
+			return "", ""
+		}
+		m.Stalled = true
+		return "", "stalled:" + m.Task
+	}
+	nudge := fmt.Sprintf("Continue Dispatch %s. If its phase is complete, persist the evidence and send its worker_done now; if you are blocked, ask the coordinator with orca orchestration ask.", m.Dispatch)
+	if err := client.SendEnterHandle(handle, nudge); err != nil {
+		return fmt.Sprintf("WORKER-UNREACHABLE %s — %v", m.Task, err), ""
+	}
+	m.Nudges++
+	m.Pending = true
+	m.Since = stamp
+	return fmt.Sprintf("NUDGED-WORKER %s (%d/%d) after %s idle", m.Task, m.Nudges, o.workerNudges, roundMin(o.workerIdle)), ""
+}
+
+// batchSettle compacts the coordinator before the one wake a batch earns, so
+// the next batch starts from a small context; durable state is on disk by
+// design and compaction is already a cold-resume boundary for Foreman.
+func batchSettle(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOpts, now time.Time) []string {
+	prof, err := agent.ByName(batchAgent(r))
+	if err == nil && prof.Compact != "" {
+		focus := fmt.Sprintf("Foreman %s batch boundary: keep the foreman id, parent ticket, Orca Run and open decisions; everything else is durable on disk.", r.ID)
+		if err := client.SendEnter(r.WorkspaceTitle, prof.Compact+" "+focus); err == nil {
+			b.CompactAt = now.UTC().Format(time.RFC3339)
+			b.PaneFingerprint = ""
+			return []string{fmt.Sprintf("COMPACTING %s — batch %s settled", r.ID, b.ID)}
+		}
+	}
+	return []string{batchFinish(client, r, b, now)}
+}
+
+// batchAfterCompact waits until the Foreman pane holds still for one tick
+// (compaction finished) or the bound expires, then delivers the settled wake.
+func batchAfterCompact(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOpts, now time.Time) []string {
+	started, _ := time.Parse(time.RFC3339, b.CompactAt)
+	pane, err := client.CapturePane(r.WorkspaceTitle, o.lines)
+	if err == nil && now.Sub(started) < batchCompactSettleMax {
+		fp := paneFingerprint(pane)
+		if fp != b.PaneFingerprint {
+			b.PaneFingerprint = fp
+			return nil
+		}
+	}
+	return []string{batchFinish(client, r, b, now)}
+}
+
+func batchFinish(client *orca.Client, r foreman.Record, b *foremanBatch, now time.Time) string {
+	counts := map[string]int{}
+	for _, m := range b.Tasks {
+		counts[m.Status]++
+	}
+	var parts []string
+	for _, status := range []string{"completed", "failed", "circuit_broken"} {
+		if counts[status] > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", counts[status], status))
+		}
+	}
+	summary := fmt.Sprintf("batch %s settled (%s)", b.ID, strings.Join(parts, ", "))
+	line := batchWake(client, r, *b, summary)
+	if !strings.HasPrefix(line, "UNREACHABLE") {
+		b.WokeAt = now.UTC().Format(time.RFC3339)
+	}
+	return line
+}
+
+// batchWake delivers one notice: a durable Orca message (best effort; it is a
+// record in the Foreman's next Delivery) and the prompt that actually starts
+// its turn — the held mailbox mutes Orca's own pointer, so the prompt is the
+// only doorbell.
+func batchWake(client *orca.Client, r foreman.Record, b foremanBatch, summary string) string {
+	instruction := summary + ". Run `bbs foreman batch show " + r.ID + "`, then consume the Orca Delivery."
+	note := ""
+	if run := batchRun(b); run != "" {
+		if err := client.SendMessage("run:"+run, "bbs foreman batch", summary); err != nil {
+			note = " (orca message failed: " + err.Error() + ")"
+		}
+	}
+	if _, err := watchSend(client, r, instruction); err != nil {
+		return fmt.Sprintf("UNREACHABLE %s — %s", r.ID, err)
+	}
+	return fmt.Sprintf("WOKE %s — %s%s", r.ID, summary, note)
+}
+
+// batchRun is the Orca Run whose mailbox the Foreman consumes: the one its
+// batch members were dispatched in.
+func batchRun(b foremanBatch) string {
+	for _, m := range b.Tasks {
+		if m.Run != "" {
+			return m.Run
+		}
+	}
+	return ""
+}
+
+// batchHold keeps an unacknowledged Delivery open on the Foreman's mailbox for
+// as long as its batch runs, so worker reports queue without Orca typing a
+// pointer into the Foreman per message (orca.HoldMailbox). Delivery needs a
+// message, so an empty mailbox gets this batch's notice first. Best effort: a
+// failed hold only costs extra Orca wakes, never a lost message.
+func batchHold(client *orca.Client, r foreman.Record, b foremanBatch) {
+	run := batchRun(b)
+	handle, err := client.Ref(r.WorkspaceTitle)
+	if run == "" || err != nil {
+		return
+	}
+	if held, err := client.HoldMailbox(run, handle); err != nil || held {
+		return
+	}
+	notice := fmt.Sprintf("batch %s (%d tasks) is supervised by bbs foreman watch; it wakes you when the batch settles or needs you", b.ID, len(b.Tasks))
+	if client.SendMessage("run:"+run, "bbs foreman batch", notice) == nil {
+		_, _ = client.HoldMailbox(run, handle)
+	}
+}
+
+func batchAgent(r foreman.Record) string {
+	if r.Agent == "" {
+		return agent.Default
+	}
+	return r.Agent
 }

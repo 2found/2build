@@ -25,6 +25,8 @@ capability, Task ID and Dispatch ID; never reconstruct authority from env/ticket
   did/found/left summary. Use `--outcome succeeded` for DONE/DONE_WITH_CONCERNS,
   `--outcome failed` when ending as BLOCKED/NEEDS_CONTEXT. A pending ask is
   not a terminal report. `--files-modified` / `--report-path` name real artifacts.
+- A `Continue Dispatch <id>` prompt is the watcher's idle nudge: resume the
+  phase, or send its pending `worker_done` if the phase is already complete.
 - After delivery, end the dispatched turn and idle. Ordinary sessions without
   an injected Dispatch emit no lifecycle messages. The coordinator reads
   `bbs ticket verdict-status`; the message does not substitute for a verdict.

@@ -70,6 +70,38 @@ esac`)
 	}
 }
 
+// Rows as Orca 1.4.224 prints them: a native-terminal (context-only) Dispatch
+// is retained with a null resource while its agent works, so it keeps its
+// handle; a released or user-taken-over terminal is no longer ours to type into.
+func TestWorkersKeepHandleOfContextOnlyDispatch(t *testing.T) {
+	fakeOrca(t, `case "$1" in
+ status) echo '{"ok":true,"result":{"runtime":{"reachable":true,"capabilities":["orchestration.contract.v1"]}}}' ;;
+ orchestration) echo '{"ok":true,"result":{"workers":[
+  {"dispatchId":"ctx-native","dispatchStatus":"dispatched","terminalState":"retained","agentTerminalHandle":"term_n","resource":null},
+  {"dispatchId":"ctx-taken","dispatchStatus":"dispatched","terminalState":"retained","agentTerminalHandle":"term_t","resource":{"retainedReason":"user_takeover"}},
+  {"dispatchId":"ctx-gone","dispatchStatus":"completed","terminalState":"released","agentTerminalHandle":"term_g"},
+  {"dispatchId":"ctx-live","dispatchStatus":"dispatched","terminalState":"active","agentTerminalHandle":"term_l"}],"page":{"hasMore":false}}}' ;;
+esac`)
+	c, err := Preflight()
+	if err != nil {
+		t.Fatal(err)
+	}
+	workers, err := c.Workers("run-fm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, w := range workers {
+		got[w.Dispatch] = w.Handle
+	}
+	want := map[string]string{"ctx-native": "term_n", "ctx-taken": "", "ctx-gone": "", "ctx-live": "term_l"}
+	for d, h := range want {
+		if got[d] != h {
+			t.Fatalf("%s handle=%q want %q (all %v)", d, got[d], h, got)
+		}
+	}
+}
+
 func TestResourcePreflightDeadlineBoundsHungCLI(t *testing.T) {
 	fakeOrca(t, `exec sleep 30`)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)

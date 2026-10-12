@@ -73,14 +73,15 @@ func (c *Client) DispatchStateFor(taskID string) (DispatchState, error) {
 	return dispatch, nil
 }
 
-// PendingMessages counts the caller's unread messages of the given types
-// without consuming them: `check --peek` filters rows by type and never marks
-// them read, so the coordinator still receives them in its next Delivery.
-func (c *Client) PendingMessages(types string) (int, error) {
+// PendingMessagesFor counts unread messages of the given types addressed to
+// terminal without consuming them: `check --peek` filters rows by type and
+// never marks them read, so the recipient still receives them in its next
+// Delivery. The terminal is explicit because the caller is a watcher outside it.
+func (c *Client) PendingMessagesFor(terminal, types string) (int, error) {
 	if !c.Orchestration() {
 		return 0, ErrNoOrchestration
 	}
-	raw, err := c.run("orchestration", "check", "--peek", "--types", types)
+	raw, err := c.run("orchestration", "check", "--terminal", terminal, "--peek", "--types", types)
 	if err != nil {
 		return 0, err
 	}
@@ -95,4 +96,34 @@ func (c *Client) PendingMessages(types string) (int, error) {
 		return *result.Count, nil
 	}
 	return len(result.Messages), nil
+}
+
+// HoldMailbox opens (or replays) the coordinator's Delivery for run without
+// acknowledging it and reports whether one is outstanding. Orca types a
+// "You have N orchestration messages" pointer into an idle coordinator for
+// every arriving message unless that mailbox has an unacknowledged Delivery
+// (measured on Orca 1.4.224), so holding one is what keeps worker_done from
+// waking it per worker. The coordinator still receives the same messages:
+// its next `check` replays this Delivery, and its ack releases the hold.
+func (c *Client) HoldMailbox(run, terminal string) (bool, error) {
+	if !c.Orchestration() {
+		return false, ErrNoOrchestration
+	}
+	raw, err := c.run("orchestration", "check", "--run", run, "--terminal", terminal)
+	if err != nil {
+		return false, err
+	}
+	var result struct {
+		DeliveryID string `json:"deliveryId"`
+	}
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return false, fmt.Errorf("orca check: %w", err)
+	}
+	return result.DeliveryID != "", nil
+}
+
+// SendMessage enqueues a durable message for a terminal or Run address.
+func (c *Client) SendMessage(to, subject, body string) error {
+	_, err := c.run("orchestration", "send", "--to", to, "--subject", subject, "--body", body)
+	return err
 }

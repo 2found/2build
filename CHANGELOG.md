@@ -1,9 +1,21 @@
 # Changelog
 
-## Unreleased
+## 1.97.0 — 2026-10-12
 
 ### Added
 
+- **`bbs foreman batch`** — Foreman hands a batch of launched Dispatches to the
+  detached watcher and ends its turn instead of waiting. The watcher nudges a
+  worker whose pane sits idle with its Dispatch open (`--worker-idle`,
+  `--worker-nudges`), holds the Foreman's own status prompts, compacts the
+  session at the batch boundary, and wakes the Foreman once — Orca message plus
+  pane prompt — when every member settles, or early for a question, an exited
+  worker or a stall. `bbs foreman batch show <id>` prints the batch state.
+  While a batch runs it keeps the Foreman's Orca Delivery unacknowledged, which
+  stops Orca typing a mail pointer into the Foreman for every `worker_done`.
+- **`lite` model tier** — simple tasks in normal phases route to it; Claude
+  routing is now haiku (lite), sonnet (flash), opus (pro), opus at max effort
+  (max).
 - **`release-prd` skill** — per-repo production delivery from version/changelog
   and main sync through GitHub/package distribution, app deployment, hypercare
   and local CLI updates. `--local` runs the full delivery from the operator's
@@ -14,6 +26,13 @@
 
 ### Changed
 
+- **Foreman parallelism** — the default worker cap is `min(16, max(2, CPUs-2))`
+  (`parallel_max_workers: auto`), a standard worker costs one resource unit,
+  and simulator/local-ML checks are deferred and merged into one consolidated
+  heavy QA per profile so they never displace light parallel work.
+- **Batch supervision of native-terminal workers** — context-only Dispatches
+  (OMP) report a retained terminal while working; they are now nudged too,
+  while released or user-taken-over terminals are left alone.
 - **`setup-project` and `harness-audit`** — setup prepares and links a release
   profile from repository facts; audit checks release-stage coverage, command
   accuracy, local execution, workflow restoration and post-release evidence.

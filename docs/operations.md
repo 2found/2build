@@ -420,10 +420,20 @@ asked; a foreman whose record says `done` leaves the watch set even while its
 terminal stays open. The status interval defaults to the configured
 `foreman_status_interval` (3600 seconds). The idle threshold defaults to that
 same interval; `--status-interval` overrides it for that watcher and `--idle`
-can independently override the idle threshold. Foreman blocks awaiting worker
-reports between reminders. Empty `check --wait` timeouts only renew the wait;
-they do not trigger project audits. Worker reports trigger focused verification
-of affected tickets, while status reminders trigger full reconciliation.
+can independently override the idle threshold. Status reminders trigger full
+reconciliation.
+
+While a batch handed over with `bbs foreman batch <id> --tasks a,b` is open, the
+watcher holds those foreman prompts and supervises the batch instead: it types
+`Continue Dispatch <id>…` into a worker pane idle for `--worker-idle` with its
+Dispatch open, up to `--worker-nudges` times, then reports it stalled. It wakes
+the foreman (Orca message plus pane prompt) once when every Dispatch is terminal
+— after typing `/compact` and letting it finish, for agents that have one — or
+early for a question, an exited worker or a stall. Orca itself types a mail
+pointer into an idle coordinator for every arriving message unless its mailbox
+holds an unacknowledged Delivery, so the watcher keeps one open (seeding an
+empty mailbox with the batch notice) until the foreman's wake acknowledges it.
+`bbs foreman batch show <id>` prints the batch state the wake refers to.
 
 ```bash
 bbs foreman watch                       # every foreman with an open workspace
@@ -440,6 +450,8 @@ bbs foreman watch --once                # one pass, for cron
 | `--lines <n>` | 40 | how much of the pane forms the fingerprint |
 | `--nudge <text>` | `check status` | what gets typed in |
 | `--max-nudges <n>` | 3 | budget before it reports `STALLED` and stops |
+| `--worker-idle <sec>` | 600 | batch worker pane unchanged this long, Dispatch open → nudge |
+| `--worker-nudges <n>` | 2 | worker nudges before the batch reports it `stalled:<task>` |
 | `--once` | off | single pass then exit; prints a line per foreman |
 
 It is a foreground loop, not a daemon — but you rarely start it yourself:

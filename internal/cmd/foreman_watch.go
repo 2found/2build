@@ -92,6 +92,10 @@ type watchOpts struct {
 	nudge          string
 	maxNudges      int
 	once           bool
+	// workerIdle/workerNudges bound the watcher's nudges to batch workers
+	// whose pane sits idle while their Dispatch is open.
+	workerIdle   time.Duration
+	workerNudges int
 }
 
 func watchDir() string { return filepath.Join(identity.BabysitHome(), "watch") }
@@ -101,6 +105,7 @@ func watchDir() string { return filepath.Join(identity.BabysitHome(), "watch") }
 // later foreman reusing the id never inherits a stale clock.
 func watchClear(id string) {
 	_ = os.Remove(filepath.Join(watchDir(), id+".json"))
+	_ = os.Remove(batchPath(id))
 }
 
 func watchLoad(id string) watchState {
@@ -140,10 +145,12 @@ func paneFingerprint(pane string) string {
 
 func watchOptsFrom(kv map[string]string) (watchOpts, error) {
 	o := watchOpts{
-		interval:  60 * time.Second,
-		lines:     40,
-		nudge:     "check status",
-		maxNudges: 3,
+		interval:     60 * time.Second,
+		lines:        40,
+		nudge:        "check status",
+		maxNudges:    3,
+		workerIdle:   10 * time.Minute,
+		workerNudges: 2,
 	}
 	// The status clock's default is the shared configured reconciliation
 	// interval — the same value the Foreman skill uses for fallback audits
@@ -178,6 +185,9 @@ func watchOptsFrom(kv map[string]string) (watchOpts, error) {
 	if err := secs("status-interval", &o.statusInterval); err != nil {
 		return o, err
 	}
+	if err := secs("worker-idle", &o.workerIdle); err != nil {
+		return o, err
+	}
 	// Quiet worker waits are normal. Do not nudge sooner than the periodic
 	// reminder unless the caller explicitly chose a shorter idle threshold.
 	if _, ok := kv["idle"]; !ok {
@@ -196,6 +206,13 @@ func watchOptsFrom(kv map[string]string) (watchOpts, error) {
 			return o, fmt.Errorf("foreman watch: --max-nudges needs a non-negative number, got '%s'", v)
 		}
 		o.maxNudges = n
+	}
+	if v, ok := kv["worker-nudges"]; ok {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			return o, fmt.Errorf("foreman watch: --worker-nudges needs a non-negative number, got '%s'", v)
+		}
+		o.workerNudges = n
 	}
 	if v, ok := kv["nudge"]; ok {
 		if strings.TrimSpace(v) == "" {
@@ -358,6 +375,22 @@ func watchTick(client *orca.Client, r foreman.Record, o watchOpts, now time.Time
 		}
 		watchClear(r.ID)
 		return fmt.Sprintf("CLOSED %s — completed Foreman terminal %q", r.ID, r.WorkspaceTitle)
+	}
+
+	if b, ok := loadBatch(r.ID); ok && b.open() {
+		lines := batchTick(client, r, &b, o, now)
+		if err := saveBatch(r.ID, b); err != nil {
+			lines = append(lines, fmt.Sprintf("BATCH-STATE %s — %v", r.ID, err))
+		}
+		// A Foreman waiting on its batch is idle by design: hold its own
+		// stall and status clocks so neither prompts it mid-batch. They
+		// restart from the wake.
+		s := watchLoad(r.ID)
+		stamp := now.UTC().Format(time.RFC3339)
+		s.Since, s.StatusCheck, s.Fingerprint = stamp, stamp, ""
+		s.Nudges, s.Stalled, s.Pending, s.PendingStatus = 0, false, false, false
+		watchSave(r.ID, s)
+		return strings.Join(lines, "\n")
 	}
 
 	pane, err := client.CapturePane(r.WorkspaceTitle, o.lines)
