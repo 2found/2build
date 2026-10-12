@@ -99,7 +99,7 @@ Hypercare: sample release downloads/formula and local smoke at start and after
 2 minutes. Any missing/corrupt asset, wrong version, broken formula or CLI
 startup failure blocks completion. A public artifact error needs a new version;
 restore the local CLI to its recorded previous artifact if necessary.
-The 2found website consumes releases hourly; an explicit local release does
-not send the workflow's repository-dispatch notification. Inspect its consumer
-status and record pending hourly propagation as a concern; do not deploy the
-website unless that sibling target is explicitly selected.
+Releases never update the 2found website. Deploy it only when that sibling
+target is explicitly selected: sync docs/downloads and run `scripts/deploy.sh`
+from a local `2found.dev` checkout per its README; otherwise record the pending
+website refresh as a concern.
