@@ -106,19 +106,22 @@ policy = json.loads(Path(sys.argv[2]).read_text())
 
 
 assert policy["routing"] == {
-    "simple": {"normal": "flash", "critical": "flash"},
+    "simple": {"normal": "lite",  "critical": "flash"},
     "normal": {"normal": "flash", "critical": "pro"},
     "hard":   {"normal": "pro",   "critical": "max"},
 }, policy["routing"]
 assert policy["tiers"] == {
+    "lite":  {"codex": {"model": "gpt-6-luna", "effort": "high"},
+              "claude": {"model": "haiku"},
+              "omp": {"model": "@normal"}},
     "flash": {"codex": {"model": "gpt-6-luna", "effort": "high"},
-              "claude": {"model": "opus", "effort": "high"},
+              "claude": {"model": "sonnet", "effort": "high"},
               "omp": {"model": "@normal"}},
     "pro":   {"codex": {"model": "gpt-6.1-sol", "effort": "high"},
               "claude": {"model": "opus", "effort": "high"},
               "omp": {"model": "@slow"}},
     "max":   {"codex": {"model": "gpt-6-astra", "effort": "high"},
-              "claude": {"model": "opus", "effort": "high"},
+              "claude": {"model": "opus", "effort": "max"},
               "omp": {"model": "@plan"}},
 }, policy["tiers"]
 print("foreman model policy defaults: ok")

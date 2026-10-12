@@ -24,22 +24,20 @@ func TestForemanModelDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct{ complexity, phase, tier string }{
-		{"simple", "normal", "flash"}, {"simple", "critical", "flash"},
+		{"simple", "normal", "lite"}, {"simple", "critical", "flash"},
 		{"normal", "normal", "flash"}, {"normal", "critical", "pro"},
 		{"hard", "normal", "pro"}, {"hard", "critical", "max"},
 		{"critical", "critical", "max"},
 	} {
-		for agent, models := range map[string]map[string]string{
-			"codex":  {"flash": "gpt-6-luna", "pro": "gpt-6.1-sol", "max": "gpt-6-astra"},
-			"claude": {"flash": "opus", "pro": "opus", "max": "opus"},
-			"omp":    {"flash": "@normal", "pro": "@slow", "max": "@plan"},
+		for agent, bindings := range map[string]map[string]ModelBinding{
+			"codex": {"lite": {"gpt-6-luna", "high"}, "flash": {"gpt-6-luna", "high"},
+				"pro": {"gpt-6.1-sol", "high"}, "max": {"gpt-6-astra", "high"}},
+			"claude": {"lite": {"haiku", ""}, "flash": {"sonnet", "high"},
+				"pro": {"opus", "high"}, "max": {"opus", "max"}},
+			"omp": {"lite": {"@normal", ""}, "flash": {"@normal", ""}, "pro": {"@slow", ""}, "max": {"@plan", ""}},
 		} {
 			tier, binding, err := p.Select(agent, tc.complexity, tc.phase)
-			effort := "high"
-			if agent == "omp" {
-				effort = ""
-			}
-			if err != nil || tier != tc.tier || binding.Model != models[tier] || binding.Effort != effort {
+			if err != nil || tier != tc.tier || binding != bindings[tier] {
 				t.Fatalf("%s %+v: %s %+v, %v", agent, tc, tier, binding, err)
 			}
 		}
@@ -51,7 +49,7 @@ func TestForemanModelSettingsPrecedence(t *testing.T) {
 	t.Setenv("BABYSIT_STATE_DIR", global)
 	globalPath := filepath.Join(global, "settings.json")
 	repoPath := filepath.Join(repo, ".babysit", "settings.json")
-	globalJSON := `{"other":{"anything":true},"foreman":{"models":{"routing":{"simple":{"critical":"pro"},"normal":{"critical":"max"}},"tiers":{"flash":{"codex":{"model":"global-flash","effort":"low"}},"max":{"codex":{"model":"global-max"}}}}}}`
+	globalJSON := `{"other":{"anything":true},"foreman":{"models":{"routing":{"simple":{"critical":"pro","normal":"flash"},"normal":{"critical":"max"}},"tiers":{"flash":{"codex":{"model":"global-flash","effort":"low"}},"max":{"codex":{"model":"global-max"}}}}}}`
 	repoJSON := `{"foreman":{"models":{"routing":{"simple":{"critical":"max"},"normal":{"normal":"pro"}},"tiers":{"flash":{"codex":{"effort":""}},"max":{"codex":{"model":"repo-max"}},"pro":{"custom":{"model":"provider/custom"}}}}}}`
 	writeModelSettings(t, globalPath, globalJSON)
 	writeModelSettings(t, repoPath, repoJSON)

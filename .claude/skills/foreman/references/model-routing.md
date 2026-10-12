@@ -55,7 +55,7 @@ task complexity and selected agent. The CLI owns complexity-to-tier routing;
 settings can override it. `normal` names both a task complexity and a phase
 class; neither is a model tier.
 
-Routine work should stay in `flash`/`pro`; reserve `pro`/`max` for assignments
+Routine work should stay in `lite`/`flash`/`pro`; reserve `pro`/`max` for assignments
 with evidenced difficulty or importance. A `critical` phase alone does not imply
 `max`. Use `normal` for an unclassified phase; with no difficulty or importance
 signal, the built-in policy falls back to `flash`.
@@ -94,7 +94,7 @@ With `--agent`, omitted complexity and phase class each default to `normal`;
 `bbs foreman model --agent codex --json` therefore selects the configured
 `normal`/`normal` binding (`flash` in the built-in policy). Invalid explicit
 values still fail. `bbs foreman route --selected-tier` records the lookup's tier;
-it does not select or override a model. Only `flash`, `pro`, and `max` are valid;
+it does not select or override a model. Only `lite`, `flash`, `pro`, and `max` are valid;
 `ultra` is not a tier and is rejected. Pass the lookup's model/effort as well.
 
 Users override policy in `~/.babysit/settings.json` or
@@ -118,7 +118,7 @@ Precedence is repo > global > built-in defaults, merged per field. Example:
 }
 ```
 
-`routing` maps `simple|normal|hard` × `normal|critical` to `flash|pro|max`.
+`routing` maps `simple|normal|hard` × `normal|critical` to `lite|flash|pro|max`.
 `tiers` maps each tier and agent ID to `model` and optional `effort`. Omitted
 fields inherit; `"effort": ""` clears an inherited effort. Model IDs and effort
 values are opaque native identifiers, validated by the selected launch transport.

@@ -49,7 +49,7 @@ has_all "finish-cleans-worker-workspace" \
   'Git worktree for human inspection' 'keep the branch'
 
 has_all "bounded-worker-pool" \
-  'bbs config get parallel_max_workers' 'MAX_WORKERS=4' \
+  'FOREMAN_MAX_WORKERS' 'bbs foreman resource status' 'min(16, max(2, CPUs - 2))' \
   'positive integer' 'one writer per child worktree'
 
 has_all "global-weighted-admission" \
@@ -132,10 +132,14 @@ has_all "goal-compaction-and-days" \
   'persistent goal facility' 'Compaction is a cold-resume boundary' 'bbs foreman ensure <id>' \
   'never resume an ambiguous'
 
-has_all "event-driven-reconciliation" \
-  'block on Orca `check --wait`' 'Do not actively check terminals' \
-  'An empty timeout only re-arms the wait' 'Do not' 'start a polling timer' 'reconciliation' \
-  'return to the blocking wait'
+has_all "batched-wake-reconciliation" \
+  'bbs foreman wait-batch --tasks' 'Wake once per batch' 'actively check terminals' \
+  '`BATCH=timeout` only re-arms the same wait' '`BATCH=attention`' '`BATCH=settled`' \
+  'start a polling timer' 'reconciliation' 'return to the blocking `wait-batch`'
+
+has_all "heavy-checks-deferred-and-merged" \
+  'consolidated heavy QA' 'DEFERRED_HEAVY=' 'only when no light phase is ready' \
+  'never displaces light work' 'one simulator boot' 'BABYSIT_TICKET=<ticket>'
 has_all "eager-per-ticket-finish" \
   '## Eager per-ticket finish' 'settled workers need not wait' \
   'bbs ticket land <child>' 'create-pr' 'dependency order' \

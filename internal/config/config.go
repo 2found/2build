@@ -41,9 +41,10 @@ const configHeader = `# babysit configuration — edit freely, changes take effe
 #                           #   off   — no data recorded
 #                           #   local — JSONL to ~/.babysit/analytics/ (never leaves machine)
 # ─── Foreman ─────────────────────────────────────────────────────────
-# parallel_max_workers: 4         # hard ceiling for one Foreman; keeps enough
-#                                 # laptop headroom for the coordinator and OS.
-#                                 # Host safety is also enforced by the global
+# parallel_max_workers: auto      # batch size and hard ceiling for one Foreman.
+#                                 # auto = min(16, max(2, CPUs - 2)), leaving
+#                                 # headroom for the coordinator and OS. Host
+#                                 # safety is also enforced by the global
 #                                 # weighted pool.
 # parallel_global_units: auto     # machine-global weighted worker capacity
 #                                 # shared by every Foreman. auto derives a

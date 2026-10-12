@@ -48,7 +48,7 @@ preamble and live Orca guide, then recover durable state.
 
 The detached `bbs foreman watch` is the external missed-event/restart backup;
 adopt/spawn start it automatically. Foreman never schedules its own status timer
-or polls on empty waits. An external status/recovery reminder is a bounded wake,
+or polls on empty waits; its only wait is `bbs foreman wait-batch` (SKILL.md). An external status/recovery reminder is a bounded wake,
 not permission to start a new polling loop. `bbs foreman ensure <id>` can recover
 a missing terminal; never resume an ambiguous "last" conversation.
 
@@ -68,7 +68,7 @@ reminder, a concrete failure, or final completion:
 4. Refresh the parent `report.md` using the project contract. For a status request,
    show every project Task and supervised worker, delivery/QA/cleanup state,
    resource use and the DAG. Release settled orphans, dispatch newly ready work
-   and return to the blocking wait. Do not repeat heavy review or QA yourself.
+   as one batch and return to the blocking `wait-batch`. Do not repeat heavy review or QA yourself.
 
 Carry failure counts across retries/resumes. After three failed attempts at the
 same blocker, mark that ticket blocked and continue independent ready work.

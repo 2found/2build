@@ -99,7 +99,7 @@ Precedence is repo > global > built-in defaults, merged per field. Example:
 }
 ```
 
-`routing` maps `simple|normal|hard` × `normal|critical` to `flash|pro|max`.
+`routing` maps `simple|normal|hard` × `normal|critical` to `lite|flash|pro|max`.
 `tiers` maps each tier and agent ID to `model` and optional `effort`. Omitted
 fields inherit; `"effort": ""` clears an inherited effort. Model IDs and effort
 values are opaque native identifiers, validated by the selected launch transport.

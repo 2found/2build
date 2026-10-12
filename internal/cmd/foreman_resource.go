@@ -20,9 +20,8 @@ const foremanResourceUsage = `Usage:
   bbs foreman resource release <lease-id>
 
 Profiles: plan, standard, android-simulator, ios-simulator, local-ml
+status prints FOREMAN_MAX_WORKERS: parallel_max_workers, or min(16, max(2, CPUs-2)) when unset/auto.
 `
-
-const defaultForemanMaxWorkers = 4
 
 var newResourceBroker = foreman.DefaultResourceBroker
 
@@ -59,6 +58,10 @@ func foremanResourceStatus(args []string) error {
 	if err != nil {
 		return err
 	}
+	maxWorkers, err := configuredMaxWorkers(status.Host.CPUs)
+	if err != nil {
+		return err
+	}
 	// status is the reconcile entry point every foreman wake runs, so the
 	// cross-check lives here rather than in skill prose a caller can skip: a
 	// lease whose Dispatch Orca proves terminal is released on the spot.
@@ -73,6 +76,7 @@ func foremanResourceStatus(args []string) error {
 		}
 	}
 	printResourceStatus(status)
+	fmt.Printf("FOREMAN_MAX_WORKERS=%d\n", maxWorkers)
 	for _, id := range released {
 		fmt.Println("RELEASED_LEASE=" + id)
 	}
@@ -192,15 +196,12 @@ func foremanResourceReserve(args []string) error {
 	if err != nil {
 		return err
 	}
-	maxWorkers := defaultForemanMaxWorkers
-	if value, ok := config.Get("parallel_max_workers"); ok && strings.TrimSpace(value) != "" {
-		maxWorkers, err = strconv.Atoi(strings.TrimSpace(value))
-		if err != nil || maxWorkers <= 0 {
-			return fmt.Errorf("config parallel_max_workers needs a positive integer, got %q", value)
-		}
-	}
 	broker := newResourceBroker()
 	before, err := broker.Status(capUnits)
+	if err != nil {
+		return err
+	}
+	maxWorkers, err := configuredMaxWorkers(before.Host.CPUs)
 	if err != nil {
 		return err
 	}
@@ -309,6 +310,21 @@ func foremanResourceRelease(args []string) error {
 		fmt.Println("RELEASED=none")
 	}
 	return nil
+}
+
+// configuredMaxWorkers resolves parallel_max_workers: unset or auto derives
+// the bound from the host CPU count; a positive integer is used as given.
+func configuredMaxWorkers(cpus int) (int, error) {
+	value, ok := config.Get("parallel_max_workers")
+	value = strings.TrimSpace(value)
+	if !ok || value == "" || value == "auto" {
+		return foreman.DefaultMaxWorkers(cpus), nil
+	}
+	workers, err := strconv.Atoi(value)
+	if err != nil || workers <= 0 {
+		return 0, fmt.Errorf("config parallel_max_workers needs 'auto' or a positive integer, got %q", value)
+	}
+	return workers, nil
 }
 
 func configuredResourceCap() (int, error) {

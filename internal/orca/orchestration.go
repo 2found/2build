@@ -72,3 +72,27 @@ func (c *Client) DispatchStateFor(taskID string) (DispatchState, error) {
 	}
 	return dispatch, nil
 }
+
+// PendingMessages counts the caller's unread messages of the given types
+// without consuming them: `check --peek` filters rows by type and never marks
+// them read, so the coordinator still receives them in its next Delivery.
+func (c *Client) PendingMessages(types string) (int, error) {
+	if !c.Orchestration() {
+		return 0, ErrNoOrchestration
+	}
+	raw, err := c.run("orchestration", "check", "--peek", "--types", types)
+	if err != nil {
+		return 0, err
+	}
+	var result struct {
+		Count    *int              `json:"count"`
+		Messages []json.RawMessage `json:"messages"`
+	}
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return 0, fmt.Errorf("orca check --peek: %w", err)
+	}
+	if result.Count != nil {
+		return *result.Count, nil
+	}
+	return len(result.Messages), nil
+}

@@ -24,7 +24,7 @@ bbs foreman route --ticket "$TICKET" --task "$ORCA_TASK_ID" \
   [--pinned-model <phase-model>] [--pinned-effort <phase-effort>] \
   [--model <selected-model>] [--effort <selected-effort>] [--host <host-id>] \
   --complexity <simple|normal|hard> --phase-class <normal|critical> \
-  --selected-tier <flash|pro|max> [--override-provenance <source|none>] \
+  --selected-tier <lite|flash|pro|max> [--override-provenance <source|none>] \
   [--pinned-model-provenance <phase-pointer>] [--pinned-effort-provenance <phase-pointer>]
 ```
 

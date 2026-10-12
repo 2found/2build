@@ -58,9 +58,9 @@ type RouteEvidence struct {
 func ResolveRoute(req RouteRequest, discovery *orca.AgentDiscovery, discoveryErr error) (RouteEvidence, error) {
 	req.SelectedTier = strings.TrimSpace(req.SelectedTier)
 	switch req.SelectedTier {
-	case "", "flash", "pro", "max":
+	case "", "lite", "flash", "pro", "max":
 	default:
-		return RouteEvidence{}, fmt.Errorf("unknown selected-tier %q; use flash, pro or max", req.SelectedTier)
+		return RouteEvidence{}, fmt.Errorf("unknown selected-tier %q; use lite, flash, pro or max", req.SelectedTier)
 	}
 	if req.ExactSession && req.PinnedAgent == "" {
 		return RouteEvidence{}, fmt.Errorf("exact-session resume requires its recorded agent route")

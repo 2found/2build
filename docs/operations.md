@@ -10,7 +10,7 @@ bbs config set update_check true     # false silences upgrade notifications
 bbs config set auto_upgrade false    # true runs bbs update on session start
 bbs config set proactive true        # false = only run skills typed explicitly
 bbs config set foreman_status_interval 3600  # seconds between foreman reconciliation ticks
-bbs config set parallel_max_workers 4     # balanced laptop-safe ceiling
+bbs config set parallel_max_workers auto  # min(16, max(2, CPUs-2)) per Foreman
 bbs config set parallel_global_units auto  # global weighted Foreman capacity
 bbs config list                      # show saved YAML (not all effective defaults)
 ```
@@ -103,10 +103,11 @@ resource admission, artifact hashes and release gates do not need inference.
 
 ### Machine-global worker admission
 
-`parallel_max_workers` remains a per-Foreman ceiling. Its default of four keeps
-headroom for the coordinator and OS while still exposing useful parallelism.
-It cannot protect one machine running several Foremen: three coordinators with
-a ceiling of four could otherwise launch 12 workers. Every Foreman therefore
+`parallel_max_workers` is a per-Foreman ceiling and batch size. Its default,
+`auto`, is min(16, max(2, CPUs - 2)): two CPUs stay free for the coordinator and
+OS. `bbs foreman resource status` prints the effective value as
+`FOREMAN_MAX_WORKERS`. It cannot protect one machine running several Foremen:
+three coordinators with a ceiling of six could otherwise launch 18 workers. Every Foreman therefore
 also reserves from one atomic weighted pool under `~/.babysit/resources/`.
 
 With `parallel_global_units: auto`, the pool uses the smaller of the
@@ -119,7 +120,7 @@ preempted.
 | Profile | Units | Exclusive host resources |
 |---------|------:|--------------------------|
 | `plan` | 1 | — |
-| `standard` | 2 | — |
+| `standard` | 1 | — |
 | `android-simulator` | 4 | mobile simulator, GPU |
 | `ios-simulator` | 4 | mobile simulator, GPU |
 | `local-ml` | 4 | GPU |

@@ -29,6 +29,8 @@ const (
 // ResourceProfile is the host load a worker reserves before it starts. Units
 // account for CPU and memory together; exclusive resources prevent the laptop's
 // shared GPU and simulator stack from being multiplied by independent foremen.
+// A standard worker is one unit so the default worker bound (CPUs - 2) is
+// reachable on light work; heavy profiles cost four and queue behind it.
 type ResourceProfile struct {
 	Name      string
 	Units     int
@@ -37,7 +39,7 @@ type ResourceProfile struct {
 
 var resourceProfiles = map[string]ResourceProfile{
 	"plan":              {Name: "plan", Units: 1},
-	"standard":          {Name: "standard", Units: 2},
+	"standard":          {Name: "standard", Units: 1},
 	"android-simulator": {Name: "android-simulator", Units: 4, Exclusive: []string{"mobile-simulator", "gpu-heavy"}},
 	"ios-simulator":     {Name: "ios-simulator", Units: 4, Exclusive: []string{"mobile-simulator", "gpu-heavy"}},
 	"local-ml":          {Name: "local-ml", Units: 4, Exclusive: []string{"gpu-heavy"}},
@@ -112,6 +114,13 @@ func DefaultResourceBroker() *ResourceBroker {
 		Probe: ProbeHostResources,
 		Now:   time.Now,
 	}
+}
+
+// DefaultMaxWorkers is the per-Foreman worker bound when parallel_max_workers
+// is unset or auto: min(16, max(2, CPUs-2)), the same bound Claude Code uses
+// for concurrent workflow agents. Two CPUs stay free for the coordinator and OS.
+func DefaultMaxWorkers(cpus int) int {
+	return min(16, max(2, cpus-2))
 }
 
 func ResourceProfileNames() []string {

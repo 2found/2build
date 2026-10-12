@@ -62,14 +62,11 @@ production dispatch. Reuse current approved artifacts on resume.
 
 ## Resource admission
 
-Resolve the worker bound on every fresh invocation or resume:
-
-```bash
-MAX_WORKERS="$(bbs config get parallel_max_workers 2>/dev/null || true)"
-[ -n "$MAX_WORKERS" ] || MAX_WORKERS=4
-```
-
-`MAX_WORKERS` must be a positive integer or report `BLOCKED`. It is a per-Foreman
+Resolve the worker bound on every fresh invocation or resume: parse
+`FOREMAN_MAX_WORKERS` from `bbs foreman resource status` (never `eval`). It is
+`parallel_max_workers` when that is a positive integer, otherwise (unset or
+`auto`) min(16, max(2, CPUs - 2)); an invalid value fails the command, so
+report `BLOCKED`. It is the batch size and a per-Foreman
 ceiling; every Dispatch also reserves machine-global weighted capacity before
 `worker-start`. The broker serializes admission across foremen and derives the
 host CPU/RAM budget. `parallel_global_units` can lower that budget, never raise
@@ -87,7 +84,8 @@ Classify the Task from its requirement, plan, and acceptance commands:
 
 If workload evidence is ambiguous between `standard` and a heavy profile, use
 the heavy profile. Simulator profiles reserve the shared mobile stack and GPU;
-`local-ml` reserves the GPU. Before each new or reused Dispatch:
+`local-ml` reserves the GPU. `plan` and `standard` cost one unit, heavy
+profiles four; a heavy Task is normally the consolidated heavy QA from SKILL.md. Before each new or reused Dispatch:
 
 Resolve the agent route first with [worker routing](worker-routing.md), then
 pass its selected agent and destination host into quota admission:
@@ -112,7 +110,7 @@ resource backpressure is not a failed attempt. `reserved` means immediately
 persist the lease id as `pointers.resource_lease` on that ticket, then call
 `worker-start`. If worker creation fails or reports a rate limit, persist the
 launch result, release the lease before retrying, and re-read quota before a
-new admission. Keep one writer per child worktree; never exceed `MAX_WORKERS`
+new admission. Keep one writer per child worktree; never exceed `FOREMAN_MAX_WORKERS`
 even when global capacity remains. The broker also checks
 `parallel_max_workers` atomically, counting current reservations rather than
 historical worker rows.

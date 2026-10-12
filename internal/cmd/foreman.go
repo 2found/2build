@@ -54,12 +54,13 @@ const foremanUsage = `Usage:
                     [--pinned-model <id>] [--pinned-effort <level>]
                     [--host <host-id>] [--exact-session]
                     [--complexity <value>] [--phase-class <value>]
-                    [--selected-tier <flash|pro|max>] [--override-provenance <source>]
+                    [--selected-tier <lite|flash|pro|max>] [--override-provenance <source>]
                     [--pinned-model-provenance <source>] [--pinned-effort-provenance <source>]
   bbs foreman route verify --ticket <ticket> --task <task> --agent <id>
                            [--host <host-id>] [--model <id>] [--effort <level>] [--terminal <handle>]
                            [--receipt-file <json>] [--rate-limited]
   bbs foreman resource <status|reserve|release> ...
+  bbs foreman wait-batch --tasks <task,task,...> [--timeout <duration>] [--interval <duration>]
   bbs foreman watch [<id>] [--interval <sec>] [--idle <sec>] [--lines <n>]
                     [--status-interval <sec>] [--nudge <text>] [--max-nudges <n>] [--once]
                     (--status-interval defaults to config foreman_status_interval, 3600)
@@ -149,6 +150,8 @@ func dispatchForeman(args []string) error {
 		return foremanWorkerCommand(rest)
 	case "resource":
 		return foremanResource(rest)
+	case "wait-batch":
+		return foremanWaitBatch(rest)
 	case "route":
 		return foremanRoute(rest)
 	case "model":

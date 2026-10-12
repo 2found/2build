@@ -53,8 +53,8 @@ against the accepted parent design.
 ## 2. Execute the ticket DAG
 
 Read [topology](references/topology.md) to create/reuse child tickets, branches,
-worktrees and dependency edges, then dispatch the admitted ready wave within
-resource limits. Keep one writer per ticket worktree.
+worktrees and dependency edges, then dispatch the admitted ready wave as one
+batch within resource limits. Keep one writer per ticket worktree.
 Never force-push, overwrite user work or bypass readiness.
 
 For each ticket: **split phases → select model → launch worker → await report →
@@ -80,19 +80,53 @@ the worker is already spawned, executes immediately, and reports exactly one
 `worker_done`. Missing inputs come through Orca `ask`, not a local human prompt.
 Foreman dispatches repairs and rechecks affected gates before advancing.
 
-### Await reports; do not poll
+### Batch dispatch: one wake per batch
 
-After dispatch, block on Orca `check --wait`. Do not actively check terminals,
-checkpoints, git state, inbox, resource status or project snapshots for progress.
-An empty timeout only re-arms the wait; silence does not imply failure. Do not
-start a polling timer, invoke `watch --once`, or restart a live worker.
+Every coordinator wake re-reads the whole Foreman context, so wakes, not worker
+count, dominate cost. Wake once per batch:
 
-A worker report/question/escalation wakes the coordinator. Process every message
-before acknowledging its Delivery. Read controls/intake before new dispatch or
-finish; `paused` or `cancelled` prevents new work. Handle only the affected ticket
-and newly unblocked dependents, then return to waiting. A user/status request,
-external recovery reminder, cold resume or concrete failure uses the bounded
-reconciliation in [runtime](references/runtime.md), not a competing polling loop.
+1. A batch is every admitted ready phase up to `FOREMAN_MAX_WORKERS`
+   ([topology](references/topology.md#resource-admission)), light profiles
+   first. Prefer the same phase across tickets so members finish together; never
+   hold back a ready phase only to align it.
+2. Launch every member, then block in the foreground on
+   `bbs foreman wait-batch --tasks <task,task,...>`. It waits in its own process
+   (default `--timeout 9m` fits a 10-minute tool cap). Do not `check --wait` per
+   worker, actively check terminals, checkpoints, git state, inbox, resource
+   status or project snapshots for progress, start a polling timer, invoke
+   `watch --once` or restart a live worker.
+3. `BATCH=timeout` only re-arms the same wait; silence does not imply failure.
+   `BATCH=attention` names an unread question/escalation (`messages:<n>`) or an
+   `exited:<task>` worker that can never settle: consume the Delivery, answer or
+   follow the recovery contract for that worker only, then re-arm with the
+   unsettled Tasks. `BATCH=settled` (failures included): consume with Orca
+   `check` (one Delivery carries up to 50 messages), process every message,
+   acknowledge, then verify, finish and plan the next batch in the same wake.
+
+Process every message before acknowledging its Delivery. Judge each member from
+`bbs ticket verdict-status`, readiness JSON and the reported handoff paths; read
+worker transcripts only when those disagree. Read controls/intake before new
+dispatch or finish; `paused` or `cancelled` prevents new work. A user/status
+request, external recovery reminder, cold resume or concrete failure uses the
+bounded reconciliation in [runtime](references/runtime.md), not a competing
+polling loop.
+
+### Keep tickets light: defer and merge heavy checks
+
+Ticket phases run on `plan`/`standard` profiles. A check needing a heavy profile
+(`ios-simulator`, `android-simulator`, `local-ml`) is not run per ticket: the
+QA assignment names it deferred, the worker runs every other check, records
+`DEFERRED_HEAVY=<profile>: <checks>` in its handoff and leaves the `qa`
+verdict open. Foreman then dispatches one **consolidated heavy QA** per profile
+covering every ticket waiting on it:
+
+- dispatch it only when no light phase is ready, or when it is the last gate
+  before waiting tickets can finish; it never displaces light work;
+- one lease and one simulator boot: check each covered ticket on its exact
+  worktree head in dependency order and write that ticket's own `qa` verdict
+  and evidence with `BABYSIT_TICKET=<ticket>`;
+- a covered ticket is not finish-ready until its heavy checks pass; a failure
+  repairs only that ticket and its re-check joins the next consolidated run.
 
 ### Light verification and ticket finish
 

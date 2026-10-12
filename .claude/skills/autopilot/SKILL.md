@@ -273,7 +273,11 @@ running init or workflow steps outside that phase: Plan writes artifacts;
 Build implements, checks and commits; Review runs `review-pr medium --fix`
 (`low` when Foreman marked the ticket simple) and commits its repairs in the
 assigned worktree, reporting skipped and unfixable findings; QA verifies
-without code fixes. Review fixes change the captured gate subject: commit
+without code fixes. A QA assignment that names deferred heavy checks skips
+them, records `DEFERRED_HEAVY=<profile>: <checks>` in its handoff and leaves
+the `qa` verdict open; a consolidated heavy-QA assignment lists several
+tickets and writes each one's `qa` verdict with `BABYSIT_TICKET=<ticket>` on
+that ticket's assigned head, without code fixes. Review fixes change the captured gate subject: commit
 them and run a fresh review attempt inside the same phase, per
 `references/verification.md`. Foreman dispatches
 repairs the Review phase could not finish and the next phase.

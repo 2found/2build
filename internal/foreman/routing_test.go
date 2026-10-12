@@ -63,7 +63,7 @@ func TestResolveRouteCarriesDecisionProvenance(t *testing.T) {
 }
 
 func TestResolveRouteValidatesSelectedTierWithoutChangingModel(t *testing.T) {
-	for _, tier := range []string{"", "flash", "pro", "max", "ultra"} {
+	for _, tier := range []string{"", "lite", "flash", "pro", "max", "ultra"} {
 		got, err := ResolveRoute(RouteRequest{
 			ExplicitAgent: "codex", Model: "explicit-model", SelectedTier: tier,
 		}, nil, orca.ErrNoAgentDiscovery)

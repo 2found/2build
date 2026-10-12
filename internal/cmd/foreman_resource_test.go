@@ -65,7 +65,7 @@ func TestForemanResourceReserveStatusRelease(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	if !strings.Contains(out, "GLOBAL_USED=2\n") || !strings.Contains(out, "ACTIVE_LEASE="+lease) {
+	if !strings.Contains(out, "GLOBAL_USED=1\n") || !strings.Contains(out, "ACTIVE_LEASE="+lease) {
 		t.Fatalf("status output: %q", out)
 	}
 
@@ -148,7 +148,7 @@ esac
 		}
 	}
 	// GLOBAL_USED counts only the two held leases now.
-	if !strings.Contains(out, "GLOBAL_USED=4\n") {
+	if !strings.Contains(out, "GLOBAL_USED=2\n") {
 		t.Fatalf("status output: %q", out)
 	}
 }
@@ -321,7 +321,8 @@ func TestResourceReserveEnforcesConfiguredWorkerLimit(t *testing.T) {
 	}
 }
 
-func TestResourceReserveDefaultsToFourWorkers(t *testing.T) {
+// The fixture host has 8 CPUs, so the auto bound is min(16, max(2, 8-2)) = 6.
+func TestResourceReserveDefaultsToCPUDerivedWorkers(t *testing.T) {
 	resourceCLIFixture(t)
 	reserve := func(task string) string {
 		return captureStdout(t, func() {
@@ -330,14 +331,37 @@ func TestResourceReserveDefaultsToFourWorkers(t *testing.T) {
 			}
 		})
 	}
-	for _, task := range []string{"one", "two", "three", "four"} {
+	for _, task := range []string{"one", "two", "three", "four", "five", "six"} {
 		if out := reserve(task); !strings.Contains(out, "ADMISSION=reserved\n") {
 			t.Fatalf("%s: %s", task, out)
 		}
 	}
-	if out := reserve("five"); !strings.Contains(out, "ADMISSION=queued\n") ||
-		!strings.Contains(out, "foreman worker limit reached: 4 of 4") {
+	if out := reserve("seven"); !strings.Contains(out, "ADMISSION=queued\n") ||
+		!strings.Contains(out, "foreman worker limit reached: 6 of 6") {
 		t.Fatalf("default worker limit not enforced: %s", out)
+	}
+	out := captureStdout(t, func() {
+		if err := foremanResource([]string{"status"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(out, "FOREMAN_MAX_WORKERS=6\n") {
+		t.Fatalf("status omitted effective worker bound: %q", out)
+	}
+	if err := config.Set("parallel_max_workers", "auto"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := configuredMaxWorkers(32); err != nil || got != 16 {
+		t.Fatalf("auto on 32 CPUs = %d, %v", got, err)
+	}
+	if got, err := configuredMaxWorkers(2); err != nil || got != 2 {
+		t.Fatalf("auto on 2 CPUs = %d, %v", got, err)
+	}
+	if err := config.Set("parallel_max_workers", "zero"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := configuredMaxWorkers(8); err == nil {
+		t.Fatal("invalid parallel_max_workers accepted")
 	}
 }
 

@@ -42,12 +42,10 @@ func TestResourceBudgetUsesCPUAndRAM(t *testing.T) {
 
 func TestResourceReservationsAreGlobalAcrossForemen(t *testing.T) {
 	broker := testResourceBroker(t, healthyHost(8, 16)) // eight global units
-	requests := []ResourceRequest{
-		{ForemanID: "fm-a", Ticket: "bs-a", Task: "task-a", Profile: "standard"},
-		{ForemanID: "fm-b", Ticket: "bs-b", Task: "task-b", Profile: "standard"},
-		{ForemanID: "fm-c", Ticket: "bs-c", Task: "task-c", Profile: "standard"},
-		{ForemanID: "fm-d", Ticket: "bs-d", Task: "task-d", Profile: "standard"},
-		{ForemanID: "fm-e", Ticket: "bs-e", Task: "task-e", Profile: "standard"},
+	// Nine one-unit standard workers from nine foremen: eight fit, one queues.
+	var requests []ResourceRequest
+	for _, id := range "abcdefghi" {
+		requests = append(requests, ResourceRequest{ForemanID: "fm-" + string(id), Ticket: "bs-" + string(id), Task: "task-" + string(id), Profile: "standard"})
 	}
 
 	results := make([]ResourceStatus, len(requests))
@@ -76,15 +74,23 @@ func TestResourceReservationsAreGlobalAcrossForemen(t *testing.T) {
 			t.Fatalf("reserve %d admission = %q", i, result.Admission)
 		}
 	}
-	if reserved != 4 || queued != 1 {
-		t.Fatalf("reserved=%d queued=%d, want 4/1", reserved, queued)
+	if reserved != 8 || queued != 1 {
+		t.Fatalf("reserved=%d queued=%d, want 8/1", reserved, queued)
 	}
 	status, err := broker.Status(0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if status.Used != 8 || len(status.Leases) != 4 {
-		t.Fatalf("used=%d leases=%d, want 8/4", status.Used, len(status.Leases))
+	if status.Used != 8 || len(status.Leases) != 8 {
+		t.Fatalf("used=%d leases=%d, want 8/8", status.Used, len(status.Leases))
+	}
+}
+
+func TestDefaultMaxWorkersLeavesTwoCPUsAndCapsAtSixteen(t *testing.T) {
+	for cpus, want := range map[int]int{1: 2, 2: 2, 4: 2, 8: 6, 16: 14, 18: 16, 64: 16} {
+		if got := DefaultMaxWorkers(cpus); got != want {
+			t.Fatalf("DefaultMaxWorkers(%d) = %d, want %d", cpus, got, want)
+		}
 	}
 }
 

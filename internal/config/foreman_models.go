@@ -23,14 +23,17 @@ type ModelBinding struct {
 func defaultForemanModels() ForemanModels {
 	return ForemanModels{
 		Routing: map[string]map[string]string{
-			"simple": {"normal": "flash", "critical": "flash"},
+			"simple": {"normal": "lite", "critical": "flash"},
 			"normal": {"normal": "flash", "critical": "pro"},
 			"hard":   {"normal": "pro", "critical": "max"},
 		},
+		// Claude spans four distinct tiers: haiku, sonnet, opus, opus at max
+		// effort. Agents without a cheaper model bind lite to their flash model.
 		Tiers: map[string]map[string]ModelBinding{
-			"flash": {"codex": {"gpt-6-luna", "high"}, "claude": {"opus", "high"}, "omp": {"@normal", ""}},
+			"lite":  {"codex": {"gpt-6-luna", "high"}, "claude": {"haiku", ""}, "omp": {"@normal", ""}},
+			"flash": {"codex": {"gpt-6-luna", "high"}, "claude": {"sonnet", "high"}, "omp": {"@normal", ""}},
 			"pro":   {"codex": {"gpt-6.1-sol", "high"}, "claude": {"opus", "high"}, "omp": {"@slow", ""}},
-			"max":   {"codex": {"gpt-6-astra", "high"}, "claude": {"opus", "high"}, "omp": {"@plan", ""}},
+			"max":   {"codex": {"gpt-6-astra", "high"}, "claude": {"opus", "max"}, "omp": {"@plan", ""}},
 		},
 	}
 }
@@ -97,7 +100,7 @@ func (p *ForemanModels) overlay(data []byte) error {
 				for phase, raw := range values {
 					var tier string
 					if err := json.Unmarshal(raw, &tier); err != nil || p.Tiers[tier] == nil {
-						return fmt.Errorf("routing.%s.%s needs flash, pro or max", key, phase)
+						return fmt.Errorf("routing.%s.%s needs lite, flash, pro or max", key, phase)
 					}
 					if _, ok := phases[phase]; !ok {
 						return fmt.Errorf("unknown phase class %q", phase)
