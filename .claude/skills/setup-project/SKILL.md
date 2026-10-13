@@ -53,6 +53,12 @@ not rewrite architecture docs or unrelated instructions during onboarding.
 - `.gitignore`: ignore `.babysit/.env` and any machine-local
   `.babysit/qa.local.yaml`. Verify they are also untracked; an ignore rule
   does not remove an already tracked secret. Never print secret values.
+- `.claude/settings.json` (project, committed), when Claude Code is a harness:
+  merge `env.CLAUDE_CODE_SUBAGENT_MODEL: "sonnet"` and
+  `subagentPromptCacheTtl: "1h"` if absent, so subagents run on Sonnet and keep
+  their prompt cache warm across long tool waits. Keep every other key; an
+  existing value is a deliberate choice. Never write `settings.local.json` or
+  `~/.claude/`.
 - If login is needed, keep credential **names** in QA config and values in
   ignored files or environment variables. Preserve environment-specific names;
   use `QA_USER` / `QA_PASS` only for a new single-target harness. Seed only
