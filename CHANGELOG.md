@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.98.0 — 2026-10-13
+
+### Added
+
+- **`setup-project` seeds Claude Code subagent defaults** — when Claude Code is
+  a harness, setup merges `env.CLAUDE_CODE_SUBAGENT_MODEL: "sonnet"` and
+  `subagentPromptCacheTtl: "1h"` into the project's committed
+  `.claude/settings.json` if absent, so subagents run on Sonnet and keep their
+  prompt cache warm across long tool waits. Existing values and every other key
+  are preserved; `settings.local.json` and `~/.claude/` are never written.
+- **Search rule in the 2build pointer section** — the `## 2build` template that
+  setup writes into `AGENTS.md`/`CLAUDE.md` now tells agents to use `rg` instead
+  of `grep`, with `rg -uu` to include gitignored and hidden files.
+
+### Changed
+
+- **Release no longer notifies the 2found website** — `release.yml` drops the
+  repository-dispatch step; the website is synced and deployed explicitly from
+  a local `2found.dev` checkout. `RELEASE.md` and `docs/install.md` updated.
+
 ## 1.97.0 — 2026-10-12
 
 ### Added
