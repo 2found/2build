@@ -134,7 +134,7 @@ func runEnsure(args []string) {
 	ticketID := ""
 	branch := ""
 	baseBranch := ""
-	ensureWorktree := ""
+	ensureWorktree, ensureCanonical := "", "."
 
 	if gfMode == "trunk" {
 		ticketID = newTicket
@@ -182,6 +182,7 @@ func runEnsure(args []string) {
 			ensTop, _ = os.Getwd()
 		}
 		ensureWorktree = filepath.Join(ensTop, ".babysit", "worktrees", newTicket+"_"+newSlug)
+		ensureCanonical = ensTop
 		if _, err := os.Lstat(ensureWorktree); err == nil {
 			fmt.Fprintf(os.Stderr, "ensure: worktree path %s already exists — remove it or resume the ticket there.\n", ensureWorktree)
 			os.Exit(2)
@@ -236,7 +237,7 @@ func runEnsure(args []string) {
 		repos := []ticket.Repo{{
 			Name:      orDefault(stEnv.Slug, "repo"),
 			Branch:    branch,
-			Canonical: ".",
+			Canonical: ensureCanonical, // absolute for a worktree: seal and integrate resolve the repo from it
 			Worktree:  orDefault(ensureWorktree, "."),
 			Base:      orDefault(baseBranch, "main"),
 			Pushed:    "false",

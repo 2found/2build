@@ -1,9 +1,9 @@
 // Package slug ports the retired bbs-slug script's derivation: project slug, sanitized
 // branch, and derived ticket id, computed from the git remote + branch.
 //
-// It deliberately hardcodes $HOME/.babysit (NOT BABYSIT_STATE_DIR): the bash
-// script never honored that override for the slug cache or project home, and
-// this port must match byte-for-byte.
+// The slug cache and project home live under $BABYSIT_HOME (default
+// $HOME/.babysit), NOT BABYSIT_STATE_DIR: the bash script never honored that
+// override.
 package slug
 
 import (
@@ -63,8 +63,14 @@ func Resolve() (*Info, error) { return ResolveIn("") }
 // one the process is standing in. dir == "" means the process cwd, which is what
 // Resolve passes.
 func ResolveIn(dir string) (*Info, error) {
-	home, _ := os.UserHomeDir()
-	cacheDir := filepath.Join(home, ".babysit", "slug-cache")
+	// Rooted where foremen and sessions are, so a sandboxed BABYSIT_HOME
+	// never splits tickets from them.
+	root := os.Getenv("BABYSIT_HOME")
+	if root == "" {
+		home, _ := os.UserHomeDir()
+		root = filepath.Join(home, ".babysit")
+	}
+	cacheDir := filepath.Join(root, "slug-cache")
 
 	// Key the cache by the repo's PRIMARY worktree, not the cwd. bbs-slug
 	// distinguishes two outcomes here and so must we: git failing means we are
@@ -132,7 +138,7 @@ func ResolveIn(dir string) (*Info, error) {
 
 	projectHome := os.Getenv("BABYSIT_PROJECT_HOME")
 	if projectHome == "" {
-		projectHome = filepath.Join(home, ".babysit", "projects", slug)
+		projectHome = filepath.Join(root, "projects", slug)
 	}
 
 	return &Info{Slug: slug, Branch: branch, Ticket: ticket, ProjectHome: projectHome}, nil

@@ -424,7 +424,14 @@ func projectPhaseReasons(s projectSnapshot, action, phase string) []string {
 		}
 	case "integrate", "verify":
 		if !p.Sealed {
-			reasons = append(reasons, "phase "+p.ID+": "+strings.Join(p.Problems, "; "))
+			// Only the seal problems block here; evidence comes after integrate.
+			var unsealed []string
+			for _, problem := range p.Problems {
+				if strings.HasPrefix(problem, "child ") || strings.HasPrefix(problem, "no child bound") {
+					unsealed = append(unsealed, problem)
+				}
+			}
+			reasons = append(reasons, "phase "+p.ID+": "+strings.Join(unsealed, "; "))
 		}
 		if action == "verify" && p.Candidate == nil && !s.Contract.ArtifactsOnly {
 			reasons = append(reasons, "phase "+p.ID+": no current phase commit (bbs foreman integrate)")

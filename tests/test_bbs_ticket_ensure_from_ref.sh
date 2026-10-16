@@ -8,6 +8,8 @@
 #   default-cuts-local-base    the locally landed commit is in the worktree
 #   from-ref-cuts-named-commit --from-ref main~1 leaves it out
 #   bad-ref-refused            a ref that is not a commit exits 2, cuts nothing
+#   manifest-canonical-absolute the manifest names the checkout it was cut from,
+#                              absolutely, so `bbs foreman seal` can resolve it
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -38,6 +40,11 @@ out="$("$BBS" ticket ensure --mode=worktree --slug-hint plain --type feat 2>/dev
 wt="$(worktree_of "$out")"
 if [ -n "$wt" ] && [ -e "$wt/landed.txt" ]; then ok default-cuts-local-base
 else fail default-cuts-local-base "worktree=$wt out=$out"; fi
+
+manifest="$(sed -n 's|^TICKET_HOME=||p' <<<"$out")/manifest.yaml"
+canonical="$(sed -n 's|^ *canonical: ||p' "$manifest")"
+if [ "$canonical" = "$(git rev-parse --show-toplevel)" ]; then ok manifest-canonical-absolute
+else fail manifest-canonical-absolute "canonical=$canonical manifest=$manifest"; fi
 
 out="$("$BBS" ticket ensure --mode=worktree --slug-hint older --type feat --from-ref main~1 2>/dev/null)"
 wt="$(worktree_of "$out")"
