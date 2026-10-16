@@ -125,14 +125,14 @@ trigger is satisfied.
    worktree (a foreman put you here), that is fine: work in place; the `qa`
    skill owns the shared-surface protocol. When seeding `requirement.md`
    from free text, list open decisions explicitly instead of papering over
-   them ([references/finding-unknowns.md](../references/finding-unknowns.md)).
+   them ([finding-unknowns](../references/finding-unknowns.md)).
    Before edits, record the starting HEAD, integration base, and pre-existing
    working changes in the checkpoint/handoff. Preserve that baseline on resume
    so the full ticket remains reviewable after its milestone commits.
    Stop here on `--stop-after=requirement`.
 3. A parent carrying `manifest.md` is a multi-ticket project: stop init and
    hand it to `foreman`; never dispatch or merge its children here. Otherwise
-   pick the archetype workflow ([references/archetypes.md](../references/archetypes.md)):
+   pick the archetype workflow ([archetypes](../references/archetypes.md)):
    named one wins; else use `../semantic-decision/SKILL.md` kind
    `skill-route` with the requirement and archetype mandates to route by shape;
    ambiguous or ordinary production work → `builder`. Several *independent* requirements in one

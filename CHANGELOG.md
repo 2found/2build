@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.98.1 — 2026-10-16
+
+### Fixed
+
+- **Fix misleading shared-reference links in `autopilot`** — link labels
+  in `autopilot/SKILL.md` for `finding-unknowns` and `archetypes` no longer
+  prefix the label with `references/`, preventing models from attempting to
+  read non-existent skill-local files under `autopilot/references/`.
+
 ## 1.98.0 — 2026-10-13
 
 ### Added
