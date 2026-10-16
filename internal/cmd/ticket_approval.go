@@ -55,8 +55,8 @@ func approvalPublish(st *ticket.Store, kind, note, actor string) (conflict strin
 			"state": "pending", "kind": kind, "note": note,
 			"requested_by": actor, "at": time.Now().UTC().Format(time.RFC3339),
 		}
-		if kind == "project-plan" {
-			revision, err := projectApprovalRevision(st, doc)
+		if kind == "project-plan" || kind == "release" {
+			revision, err := approvalArtifactRevision(st, doc, kind)
 			if err != nil {
 				return err
 			}
@@ -180,7 +180,7 @@ func approvalResolve(st *ticket.Store, action, note, actor string) (state string
 			return nil
 		}
 		if action == "approve" && !projectApprovalCurrent(st, doc) {
-			return fmt.Errorf("project-plan artifacts changed; publish and review the current revision before approving")
+			return fmt.Errorf("%s artifacts changed; publish and review the current revision before approving", doc.Get("approval.kind"))
 		}
 		// A redirect the foreman cannot act on is worse than no answer: it ends
 		// the wait and says nothing. Inline comments are that same information in
@@ -199,6 +199,11 @@ func approvalResolve(st *ticket.Store, action, note, actor string) (state string
 		if err := doc.SetObj("approval.resolved", string(resolved)); err != nil {
 			return err
 		}
+		if action == "approve" && doc.Get("approval.kind") == "project-plan" {
+			if err := projectRaiseReleaseFloor(st); err != nil {
+				return err
+			}
+		}
 		if err := ticket.WriteDoc(st.IndexPath(), doc); err != nil {
 			return err
 		}
@@ -214,7 +219,7 @@ func approvalResolve(st *ticket.Store, action, note, actor string) (state string
 func approvalRead(st *ticket.Store) (state, outcome, note string) {
 	doc := ticket.ReadDoc(st.IndexPath())
 	if (doc.Get("approval.state") == "pending" || doc.Get("approval.state") == "approved") && !projectApprovalCurrent(st, doc) {
-		return "stale", "stale", "project-plan artifacts changed; publish and review the current revision"
+		return "stale", "stale", doc.Get("approval.kind") + " artifacts changed; publish and review the current revision"
 	}
 	return doc.Get("approval.state"), doc.Get("approval.resolved.outcome"), doc.Get("approval.resolved.note")
 }

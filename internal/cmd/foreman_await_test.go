@@ -2,9 +2,14 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/2found/2build/internal/identity"
+	"github.com/2found/2build/internal/orca"
 )
 
 // scriptedProbe returns each prerequisite's states in order, repeating the
@@ -37,16 +42,18 @@ func TestAwaitReturnsHeadsOnceEveryPrerequisiteSettles(t *testing.T) {
 		},
 	})
 	var out bytes.Buffer
-	code := awaitPrereqs([]prereq{{"bs-a", "task-a"}, {"bs-b", "task-b"}}, probe, time.Hour, 20*time.Second, sleep, now, &out)
+	var adopted []string
+	adopt := func(heads []string) ([]string, error) { adopted = heads; return nil, nil }
+	code := awaitPrereqs([]prereq{{"bs-a", "task-a"}, {"bs-b", "task-b"}}, probe, adopt, time.Hour, 20*time.Second, sleep, now, &out)
 	if code != 0 {
 		t.Fatalf("code = %d, want 0\n%s", code, out.String())
 	}
 	got := out.String()
 	for _, want := range []string{
-		"PREREQ=bs-a TASK=task-a STATE=ready HEAD=aaa",
-		"PREREQ=bs-b TASK=task-b STATE=light-ready HEAD=bbb",
+		"PREREQ=bs-a TASK=task-a STATE=ready SNAPSHOT=aaa",
+		"PREREQ=bs-b TASK=task-b STATE=light-ready SNAPSHOT=bbb",
 		"AWAIT=ready",
-		"NEXT=merge each HEAD in the order listed",
+		"NEXT=the prerequisites' work is now in this worktree as uncommitted changes",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("output missing %q:\n%s", want, got)
@@ -59,9 +66,22 @@ func TestAwaitReturnsHeadsOnceEveryPrerequisiteSettles(t *testing.T) {
 	if n := strings.Count(got, "bs-b waiting"); n != 1 {
 		t.Fatalf("bs-b waiting printed %d times:\n%s", n, got)
 	}
-	// Order is the order given, so the worker merges prerequisites in DAG order.
-	if strings.Index(got, "PREREQ=bs-a") > strings.Index(got, "PREREQ=bs-b") {
-		t.Fatalf("prerequisites out of order:\n%s", got)
+	// Order is the order given, so prerequisites are adopted in DAG order.
+	if strings.Index(got, "PREREQ=bs-a") > strings.Index(got, "PREREQ=bs-b") || strings.Join(adopted, ",") != "aaa,bbb" {
+		t.Fatalf("prerequisites out of order (adopted %v):\n%s", adopted, got)
+	}
+}
+
+func TestAwaitReportsConflictsLeftByAdoption(t *testing.T) {
+	probe, sleep, now, _ := scriptedProbe(map[string][]prereqState{
+		"bs-a": {{State: "ready", Head: "aaa"}},
+	})
+	var out bytes.Buffer
+	adopt := func([]string) ([]string, error) { return []string{"src/shared.go"}, nil }
+	code := awaitPrereqs([]prereq{{"bs-a", "task-a"}}, probe, adopt, time.Hour, 20*time.Second, sleep, now, &out)
+	got := out.String()
+	if code != 5 || !strings.Contains(got, "CONFLICT=src/shared.go") || !strings.Contains(got, "AWAIT=conflict") {
+		t.Fatalf("code=%d, conflict outcome missing:\n%s", code, got)
 	}
 }
 
@@ -71,7 +91,8 @@ func TestAwaitStopsAtTheFirstPrerequisiteThatSettlesWithoutPassing(t *testing.T)
 		"bs-b": {{State: "not-ready", Reason: "qa:missing"}},
 	})
 	var out bytes.Buffer
-	code := awaitPrereqs([]prereq{{"bs-a", "task-a"}, {"bs-b", "task-b"}}, probe, time.Hour, 20*time.Second, sleep, now, &out)
+	adopt := func([]string) ([]string, error) { t.Fatal("a not-ready wait must adopt nothing"); return nil, nil }
+	code := awaitPrereqs([]prereq{{"bs-a", "task-a"}, {"bs-b", "task-b"}}, probe, adopt, time.Hour, 20*time.Second, sleep, now, &out)
 	if code != 3 {
 		t.Fatalf("code = %d, want 3\n%s", code, out.String())
 	}
@@ -79,8 +100,8 @@ func TestAwaitStopsAtTheFirstPrerequisiteThatSettlesWithoutPassing(t *testing.T)
 	if !strings.Contains(got, `PREREQ=bs-b TASK=task-b STATE=not-ready REASON="qa:missing"`) || !strings.Contains(got, "AWAIT=not-ready") {
 		t.Fatalf("not-ready outcome missing:\n%s", got)
 	}
-	if strings.Contains(got, "HEAD=") {
-		t.Fatalf("a not-ready wait must not hand out heads to merge:\n%s", got)
+	if strings.Contains(got, "SNAPSHOT=") {
+		t.Fatalf("a not-ready wait must not hand out snapshots:\n%s", got)
 	}
 }
 
@@ -89,7 +110,7 @@ func TestAwaitTimesOutWithinItsBound(t *testing.T) {
 		"bs-a": {{State: "waiting", Reason: "dispatch dispatched"}},
 	})
 	var out bytes.Buffer
-	code := awaitPrereqs([]prereq{{"bs-a", "task-a"}}, probe, 60*time.Second, 20*time.Second, sleep, now, &out)
+	code := awaitPrereqs([]prereq{{"bs-a", "task-a"}}, probe, nil, 60*time.Second, 20*time.Second, sleep, now, &out)
 	if code != 4 {
 		t.Fatalf("code = %d, want 4\n%s", code, out.String())
 	}
@@ -114,5 +135,32 @@ func TestParsePrereqs(t *testing.T) {
 		if _, err := parsePrereqs(bad); err == nil {
 			t.Fatalf("parsePrereqs(%q) accepted", bad)
 		}
+	}
+}
+
+// Orca restarting under a waiting dependent is a wait, not a failed
+// prerequisite: the phase must not report BLOCKED for the runtime's hiccup.
+func TestLiveProbeWaitsWhileOrcaIsUnreachable(t *testing.T) {
+	probe := liveProbe(func() (*orca.Client, error) { return nil, errors.New("orca is not responding") }, t.TempDir(), identity.Env{})
+	if s := probe(prereq{"bs-a", "task-a"}); s.State != "waiting" || !strings.Contains(s.Reason, "orca unreachable") {
+		t.Fatalf("state = %+v", s)
+	}
+}
+
+// A completed prerequisite whose readiness cannot be read is retried before
+// it is declared not-ready; a later good read resets the count.
+func TestLiveProbeRetriesAFailingReadinessRead(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.world.Dispatch["task-a"] = "completed"
+	f.save(t)
+	connect := func() (*orca.Client, error) { return f.client, nil }
+	probe := liveProbe(connect, filepath.Join(t.TempDir(), "missing"), identity.Env{})
+	for i := 1; i < awaitReadinessAttempts; i++ {
+		if s := probe(prereq{"bs-a", "task-a"}); s.State != "waiting" || !strings.Contains(s.Reason, "readiness") {
+			t.Fatalf("attempt %d = %+v", i, s)
+		}
+	}
+	if s := probe(prereq{"bs-a", "task-a"}); s.State != "not-ready" {
+		t.Fatalf("final attempt = %+v", s)
 	}
 }

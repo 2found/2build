@@ -92,6 +92,9 @@ type watchOpts struct {
 	nudge          string
 	maxNudges      int
 	once           bool
+	// supervised is the launchd/systemd form: stand by behind a held lock
+	// instead of exiting, and exit 0 (no restart) once no batch is open.
+	supervised bool
 	// workerIdle/workerNudges bound the watcher's nudges to batch workers
 	// whose pane sits idle while their Dispatch is open.
 	workerIdle   time.Duration
@@ -221,6 +224,10 @@ func watchOptsFrom(kv map[string]string) (watchOpts, error) {
 		o.nudge = v
 	}
 	o.once = kv["once"] == "1"
+	o.supervised = kv["supervised"] == "1"
+	if o.once && o.supervised {
+		return o, errors.New("foreman watch: --once and --supervised are exclusive")
+	}
 	return o, nil
 }
 
@@ -239,7 +246,7 @@ func spawnWatcher() {
 	}
 }
 
-func foremanWatch(args []string) error {
+func foremanWatch(args []string) (err error) {
 	id, kv, err := foremanFlags(args)
 	if err != nil {
 		return err
@@ -253,23 +260,55 @@ func foremanWatch(args []string) error {
 			return err
 		}
 	}
-	var release func()
-	if !o.once {
-		release, err = acquireWatchLock(id)
-		if err != nil {
-			if errors.Is(err, errWatchRunning) {
-				fmt.Println("watch: another watcher is already running")
-				return nil
+	if o.supervised {
+		// The supervisor restarts on a non-zero exit. That is right while a
+		// batch still owes its wake and wrong after: a persistent failure
+		// with nothing open must end, not loop every minute forever.
+		defer func() {
+			if err != nil && !anyOpenBatch(id) {
+				fmt.Printf("watch: %s — no open batch, not restarting\n", firstLineOf(err.Error()))
+				err = nil
 			}
+		}()
+	}
+	var release func()
+	for !o.once {
+		release, err = acquireWatchLock(id)
+		if err == nil {
+			defer release()
+			break
+		}
+		if !errors.Is(err, errWatchRunning) {
 			return err
 		}
-		defer release()
+		if !o.supervised {
+			fmt.Println("watch: another watcher is already running")
+			return nil
+		}
+		// Standby: take over the moment the running watcher dies, for as
+		// long as a batch is open.
+		if !anyOpenBatch(id) {
+			return nil
+		}
+		time.Sleep(o.interval)
 	}
-	client, err := orca.Preflight()
-	if err != nil {
-		return err
-	}
+	var client *orca.Client
 	for {
+		if client == nil {
+			c, err := orca.Preflight()
+			if err != nil {
+				// An open batch has workers running and a Foreman waiting on
+				// this process for its one wake: outlive an Orca restart
+				// instead of exiting and leaving both unsupervised.
+				if o.once || !anyOpenBatch(id) {
+					return err
+				}
+				fmt.Printf("ORCA-DOWN %s — retrying in %s\n", firstLineOf(err.Error()), roundMin(o.interval))
+				time.Sleep(o.interval)
+				continue
+			}
+			client = c.WithCallTimeout(watchCallTimeout)
+		}
 		// Recover global capacity before selecting targets: a vanished owner
 		// must not be required to run its own cleanup.
 		broker := newResourceBroker()
@@ -294,7 +333,7 @@ func foremanWatch(args []string) error {
 			return nil
 		}
 		for _, r := range targets {
-			if line := watchTick(client, r, o, time.Now()); line != "" {
+			if line := safeWatchTick(client, r, o, time.Now()); line != "" {
 				fmt.Println(line)
 			}
 		}
@@ -303,6 +342,55 @@ func foremanWatch(args []string) error {
 		}
 		time.Sleep(o.interval)
 	}
+}
+
+// watchCallTimeout bounds every Orca command the watcher runs. It sends,
+// reads and lists; none of them is a deliberate wait.
+const watchCallTimeout = 60 * time.Second
+
+// safeWatchTick isolates one foreman's tick: a panic on one record's odd
+// state must not kill the process every other batch depends on for its wake.
+func safeWatchTick(client *orca.Client, r foreman.Record, o watchOpts, now time.Time) (line string) {
+	defer func() {
+		if p := recover(); p != nil {
+			line = fmt.Sprintf("TICK-FAILED %s — %v", r.ID, p)
+		}
+	}()
+	return watchTick(client, r, o, now)
+}
+
+// anyOpenBatch reports whether a Foreman (id, or any when empty) has handed a
+// batch to the watcher that has not yet delivered its settled wake.
+func anyOpenBatch(id string) bool {
+	if id != "" {
+		b, ok := loadBatch(id)
+		return ok && b.open()
+	}
+	paths, _ := filepath.Glob(filepath.Join(watchDir(), "*.batch.json"))
+	for _, p := range paths {
+		if b, ok := loadBatch(strings.TrimSuffix(filepath.Base(p), ".batch.json")); ok && b.open() {
+			return true
+		}
+	}
+	return false
+}
+
+// ensureWatcher is the worker-side check-in: any bbs process that runs while
+// a batch is open restarts a watcher that died (crash, reboot, Orca restart
+// outliving its retries), so a Foreman's one wake never depends on the
+// process that was alive when the batch was handed over. A held lock means
+// one is running; the spawned child re-takes the lock, so racing check-ins
+// cannot stack watchers.
+func ensureWatcher() {
+	if !anyOpenBatch("") {
+		return
+	}
+	release, err := acquireWatchLock("")
+	if err != nil {
+		return
+	}
+	release()
+	spawnWatcher()
 }
 
 // watchTargets is the set to poll: one named foreman, or every registered one

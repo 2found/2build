@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # tests/test_autopilot_readiness_gate.sh — policy/readiness consumer boundary.
 #
-# The v2 packet makes policy observation read-only. An unconfigured repository
-# uses the resolver's pet defaults; a workflow must not manufacture a startup
-# git-flow file while it is executing. Snapshot must be non-mutating and the
-# builder must consume it without writing policy.
+# The v2 packet makes policy observation read-only: there is no git policy file
+# to manufacture. Snapshot must be non-mutating and the builder must consume it
+# without writing policy.
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -36,7 +35,7 @@ rm -rf "$T"
 # ── builder-uses-read-only-policy ───────────────────────────────────
 (
   grep -q 'snapshot --json' "$BUILDER_MD" || { echo "builder does not capability-check snapshot"; exit 1; }
-  grep -q 'never create or rewrite' "$BUILDER_MD" || { echo "builder can still write policy"; exit 1; }
+  ! grep -q 'git-flow.yaml' "$BUILDER_MD" || { echo "builder still reads a git policy file"; exit 1; }
   grep -q '\$bbs:setup-project' "$BUILDER_MD" || { echo "no setup-project recommendation"; exit 1; }
 ) && ok "builder-uses-read-only-policy" || fail "builder-uses-read-only-policy"
 

@@ -36,11 +36,10 @@ Address a PR's unresolved review threads; leave disagreements for the reviewer. 
    Shared refs are filesystem paths beside this skill's directory, so read
    them by path, not as `skill://`.
    Work on the PR's verified head branch. Use its ticket worktree when one
-   exists; otherwise the matching current checkout is valid. Do not edit a
-   shared composed QA surface. Same discipline as `review-pr --fix`: apply what's right, skip with a stated reason what isn't (wrong, out of scope, or a genuine disagreement — those go back to the reviewer as a reply, not a silent skip).
+   exists; otherwise the matching current checkout is valid. Same discipline as `review-pr --fix`: apply what's right, skip with a stated reason what isn't (wrong, out of scope, or a genuine disagreement — those go back to the reviewer as a reply, not a silent skip).
 4. Re-verify fixes before push using `implement`'s checks and `qa` when user
-   flows change. Let `qa` own shared-surface preparation and cleanup when in
-   a ticket worktree; do not run a second lease/compose protocol here.
+   flows change. Let `qa` own any surface lease; do not take a second one
+   here.
 5. Commit only the intended fixes and push the verified PR head branch.
 6. Close the loop per thread: reply in-thread via REST, resolve via GraphQL (resolution is GraphQL-only):
    ```bash

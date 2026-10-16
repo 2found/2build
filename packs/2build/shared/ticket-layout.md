@@ -34,8 +34,9 @@ verdicts): `triage` → `backlog` → `planned` / `decomposed` → `in_progress`
 `reconcile` advances the rung from *facts* — files on disk, a pushed flag, a
 merge in git — and only ever forward: `requirement.md` → `backlog`, `plan.md`
 → `planned`, `manifest.md` → `decomposed`, a pushed manifest or a
-`pointers.pr` → `in_review`, and a branch base merged (`bbs ticket land`, or a
-merge commit pulled from a PR) → `done`. `in_progress` is nobody's derivation —
+`pointers.pr` → `in_review`, and a ticket branch's own commits merged into base
+(a PR a human merged and pulled) → `done`. A Foreman ticket's scratch branch
+never gains a commit, so Foreman sets `done` when its phase lands. `in_progress` is nobody's derivation —
 nothing on disk distinguishes it. Verdicts stay out on purpose: a ticket with
 `qa` and `review-pr` both DONE that nobody closed out is *not* finished, and
 deriving `done` from the verdicts would hide precisely that gap. A
@@ -92,16 +93,9 @@ Slow-path: generates `bs-<8hex>`, seeds `requirement.md`, prints `CREATED=1`
 explicit `--mode` — that is all it does: no branch is cut and the
 `TICKET=<id>` line carries the identity (prefix later commands with
 `BABYSIT_TICKET`). Autopilot always runs it this way — `--no-branch` —
-because it works on the checkout it was started in. Only a foreman dispatch
-or an explicit human `--mode=branch|worktree` cuts `feat/<id>_<slug>`
-through the **safe-cut gate** (in place only from a clean base checkout;
-otherwise diverts to a worktree and prints `WORKTREE=<path>` — cd there;
-see [git-flow.md](git-flow.md)).
-**Exit 3 = `NEEDS_CONFIRM`** — in developer mode the slow-path never cuts a
-branch in place silently: without `--cut-branch` it exits 3. Render one
-`AskUserQuestion` (cut the branch vs stay + `BABYSIT_TICKET`) and re-run with
-`--cut-branch` or `--no-branch`. Worktree diverts proceed without asking;
-autonomous roles never see exit 3.
+because it works on the checkout it was started in. Only a Foreman dispatch
+or an explicit human `--mode=worktree` cuts a worktree from local base and
+prints `WORKTREE=<path>` — cd there; see [git-flow.md](git-flow.md).
 ## Accessing ticket files
 **Construct paths via `bbs ticket path` / `bbs ticket list` — never by
 concatenating `$TH/`, `$TICKET_HOME/`, etc.** The broker resolves canonical →

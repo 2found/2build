@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -22,12 +21,11 @@ import (
 )
 
 type projectDelivery struct {
-	Ticket string `json:"ticket"`
-	Policy string `json:"policy"`
-	State  string `json:"state"`
-	Head   string `json:"head"`
-	URL    string `json:"url,omitempty"`
-	Reason string `json:"reason,omitempty"`
+	Phase  string `json:"phase"`
+	Repo   string `json:"repo"`
+	Base   string `json:"base"`
+	Commit string `json:"commit"`
+	State  string `json:"state"` // LANDED | PENDING
 }
 
 type projectCompletion struct {
@@ -41,9 +39,10 @@ type projectCompletion struct {
 
 func projectEvidenceProblems(st *ticket.Store, s projectSnapshot, ev projectEvidence, checkedOut bool) []string {
 	problems := []string{}
-	if ev.Version != 1 || ev.Subject != s.Subject || ev.Producer == "" || (ev.Kind != "integration" && ev.Kind != "product" && ev.Kind != "journey") {
+	if ev.Version != 1 || ev.Subject != projectEvidenceSubject(s, ev) || ev.Producer == "" || (ev.Kind != "integration" && ev.Kind != "product" && ev.Kind != "journey") {
 		return []string{"invalid or stale subject"}
 	}
+	children := projectPhaseChildren(s, ev.Phase)
 	if _, err := parseProjectTime(ev.Started); err != nil {
 		problems = append(problems, "missing start time")
 	}
@@ -55,71 +54,57 @@ func projectEvidenceProblems(st *ticket.Store, s projectSnapshot, ev projectEvid
 		}
 	}
 	if ev.Kind == "product" {
-		for _, child := range s.Children {
+		for _, child := range children {
 			var seal projectSeal
 			if readProjectJSON(filepath.Join(storeForTicket(st.Env, child.ID).Home(), "project-seal.json"), &seal) == nil && slices.Contains(seal.Owners, ev.Producer) {
 				problems = append(problems, "product evaluator also produced child evidence: "+child.ID)
 			}
 		}
 	}
-	seen := map[string]bool{}
-	for _, surface := range ev.Surfaces {
-		if !filepath.IsAbs(surface.Dir) || surface.Ref == "" || !fullSHARe.MatchString(surface.Head) || !fullSHARe.MatchString(surface.BaseHead) {
-			problems = append(problems, "invalid surface")
-			continue
-		}
-		if seen[surface.Dir] {
-			problems = append(problems, "duplicate surface")
-		}
-		seen[surface.Dir] = true
-		if gitOutIn(surface.Dir, "rev-parse", "--verify", surface.Ref+"^{commit}") != surface.Head {
-			problems = append(problems, "surface revision changed: "+surface.Ref)
-		}
-		if gitOutIn(surface.Dir, "rev-parse", "--verify", surface.BaseRef+"^{commit}") != surface.BaseHead {
-			problems = append(problems, "source base changed: "+surface.BaseRef)
-		}
-		if checkedOut {
-			head, err := gitOutputStrict(surface.Dir, "rev-parse", "HEAD")
-			status, statusErr := gitOutputStrict(surface.Dir, "status", "--porcelain", "--untracked-files=all")
-			if err != nil || statusErr != nil || head != surface.Head || status != "" {
-				problems = append(problems, "tested surface not clean at recorded HEAD")
-			}
-		}
+	k := projectPhaseIndex(s, ev.Phase)
+	if k < 0 {
+		return append(problems, "unknown phase")
 	}
-	for _, child := range s.Children {
-		for _, repo := range child.Repos {
+	cand := s.Phases[k].Candidate
+	if cand == nil && (s.Contract == nil || !s.Contract.ArtifactsOnly) {
+		return append(problems, "phase commit missing or stale: run bbs foreman integrate")
+	}
+	if cand != nil {
+		// The tested surface is the phase commit itself, in the phase's own
+		// worktree; nothing else counts as phase QA.
+		if len(ev.Surfaces) != len(cand.Repos) {
+			problems = append(problems, "surfaces do not match the phase commit")
+		}
+		for _, r := range cand.Repos {
 			found := false
 			for _, surface := range ev.Surfaces {
-				if surface.Dir != repo.Canonical {
-					continue
-				}
-				found = true
-				if !gitOKIn(repo.Canonical, "merge-base", "--is-ancestor", repo.Head, surface.Head) {
-					problems = append(problems, "surface omits "+child.ID)
-				}
-				if ev.Kind != "journey" {
-					if repo.Finish == "land" && (surface.Ref != repo.Base || surface.BaseRef != repo.Base) {
-						problems = append(problems, "land must test delivered base")
-					}
-					if repo.Finish != "land" && (!strings.HasPrefix(surface.Ref, "qa/"+st.Env.Ticket) || surface.Ref == repo.Base) {
-						problems = append(problems, "review/pr must retain a project QA branch")
-					}
-					base := repo.Base
-					if repo.Finish == "pr" {
-						base = "origin/" + base
-					}
-					if surface.BaseRef != base {
-						problems = append(problems, "incorrect integration source base")
-					}
+				if surface.Dir == r.Worktree && surface.Head == r.Commit && surface.BaseHead == r.BaseHead {
+					found = true
 				}
 			}
 			if !found {
-				problems = append(problems, "missing repository surface for "+child.ID)
+				problems = append(problems, "surface is not phase commit "+short(r.Commit)+" in "+r.Worktree)
+				continue
+			}
+			if checkedOut {
+				head, err := gitOutputStrict(r.Worktree, "rev-parse", "HEAD")
+				status, statusErr := gitOutputStrict(r.Worktree, "status", "--porcelain", "--untracked-files=all")
+				if err != nil || statusErr != nil || head != r.Commit || status != "" {
+					problems = append(problems, "tested worktree not clean at the phase commit: "+r.Worktree)
+				}
+			}
+			// Phase QA is cumulative: the commit must sit on every earlier
+			// phase's commit for the same repository.
+			for j := 0; j < k; j++ {
+				if prev := s.Phases[j].Candidate; prev != nil {
+					for _, pr := range prev.Repos {
+						if pr.Canonical == r.Canonical && !gitOKIn(r.Canonical, "merge-base", "--is-ancestor", pr.Commit, r.Commit) {
+							problems = append(problems, "phase commit omits phase "+prev.Phase)
+						}
+					}
+				}
 			}
 		}
-	}
-	if len(ev.Surfaces) == 0 && (s.Contract == nil || !s.Contract.ArtifactsOnly) {
-		problems = append(problems, "no verified surfaces")
 	}
 	for _, check := range ev.Checks {
 		if check.ExitCode == nil || *check.ExitCode != 0 || len(check.Command) == 0 {
@@ -174,24 +159,30 @@ func projectEvidenceCommand(st *ticket.Store, kv map[string]string) error {
 		}
 		if kv["begin"] == "1" {
 			var spec struct {
-				Kind     string           `json:"kind"`
-				Producer string           `json:"producer"`
-				Surfaces []projectSurface `json:"surfaces"`
+				Kind     string `json:"kind"`
+				Producer string `json:"producer"`
+				Phase    string `json:"phase"`
 			}
 			if err := readProjectJSON(kv["file"], &spec); err != nil {
 				return err
 			}
-			ev := projectEvidence{Version: 1, ID: newInvocationID(), Kind: spec.Kind, Producer: spec.Producer, Subject: s.Subject, Started: time.Now().UTC().Format(time.RFC3339Nano), Surfaces: spec.Surfaces, Checks: []projectCheck{}, Findings: []projectFinding{}}
-			for i := range ev.Surfaces {
-				r := &ev.Surfaces[i]
-				r.Dir, err = filepath.Abs(r.Dir)
-				if err != nil {
-					return err
+			if spec.Phase == "" && kv["phase"] != "" {
+				spec.Phase = kv["phase"]
+			}
+			ev := projectEvidence{Version: 1, ID: newInvocationID(), Kind: spec.Kind, Producer: spec.Producer, Phase: spec.Phase, Started: time.Now().UTC().Format(time.RFC3339Nano), Surfaces: []projectSurface{}, Checks: []projectCheck{}, Findings: []projectFinding{}}
+			ev.Subject = projectEvidenceSubject(s, ev)
+			k := projectPhaseIndex(s, ev.Phase)
+			if k < 0 {
+				return fmt.Errorf("evidence needs the phase it verifies")
+			}
+			if ev.Kind != "journey" {
+				if reasons := projectPhaseReasons(s, "verify", ev.Phase); len(reasons) > 0 {
+					return fmt.Errorf("phase not ready to verify: %v", reasons)
 				}
-				r.Head = gitOutIn(r.Dir, "rev-parse", "--verify", r.Ref+"^{commit}")
-				r.BaseHead = gitOutIn(r.Dir, "rev-parse", "--verify", r.BaseRef+"^{commit}")
-				if r.RestoreRef == "" || !fullSHARe.MatchString(r.RestoreHead) || gitOutIn(r.Dir, "rev-parse", "--verify", r.RestoreRef+"^{commit}") != r.RestoreHead {
-					return fmt.Errorf("surface needs original restore_ref and restore_head (delivered base for land)")
+			}
+			if c := s.Phases[k].Candidate; c != nil {
+				for _, r := range c.Repos {
+					ev.Surfaces = append(ev.Surfaces, projectSurface{Dir: r.Worktree, Ref: phaseCandidateRef(st.Env.Ticket, ev.Phase), Head: r.Commit, BaseRef: r.Base, BaseHead: r.BaseHead})
 				}
 			}
 			if p := projectEvidenceProblems(st, s, ev, true); len(p) > 0 {
@@ -315,71 +306,24 @@ func writeProjectImmutable(path string, body []byte) error {
 	return nil
 }
 
-func projectObserveDelivery(s projectSnapshot) []projectDelivery {
-	rows := []projectDelivery{}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	for _, child := range s.Children {
-		if s.Contract != nil && s.Contract.ArtifactsOnly {
-			state := "ARTIFACTS_READY"
-			reason := ""
-			if len(child.Problems) > 0 {
-				state = "UNKNOWN"
-				reason = "artifact evidence missing or changed"
-			}
-			rows = append(rows, projectDelivery{Ticket: child.ID, Policy: "artifacts", State: state, Reason: reason})
-			continue
-		}
-		for _, r := range child.Repos {
-			d := projectDelivery{Ticket: child.ID, Policy: r.Finish, State: "UNKNOWN", Head: r.Head}
-			switch r.Finish {
-			case "land":
-				if gitOKIn(r.Canonical, "merge-base", "--is-ancestor", r.Head, r.Base) {
-					d.State = "LANDED_LOCAL"
-				} else {
-					d.Reason = "verified head absent from local base"
-				}
-			case "review":
-				if gitOutIn(r.Canonical, "rev-parse", "--verify", r.Branch+"^{commit}") == r.Head {
-					d.State = "REVIEW_READY"
-				} else {
-					d.Reason = "verified branch not retained"
-				}
-			case "pr":
-				cmd := exec.CommandContext(ctx, "gh", "pr", "view", r.Branch, "--json", "url,state,headRefOid")
-				cmd.Dir = r.Canonical
-				b, err := cmd.Output()
-				var pr struct {
-					URL   string `json:"url"`
-					State string `json:"state"`
-					Head  string `json:"headRefOid"`
-				}
-				if err == nil && json.Unmarshal(b, &pr) == nil && pr.Head == r.Head && (pr.State == "OPEN" || pr.State == "MERGED") {
-					d.URL = pr.URL
-					d.State = "PR_READY"
-					if pr.State == "MERGED" {
-						d.State = "MERGED_REMOTE"
-					}
-				} else {
-					d.Reason = "current PR head/state unavailable or mismatched"
-				}
-			}
-			rows = append(rows, d)
-		}
-	}
-	return rows
-}
-
 func projectCompletionSubject(s projectSnapshot) string {
 	var receipts []projectEvidence
 	for _, ev := range s.Evidence {
-		if ev.Subject == s.Subject && (ev.Kind == "integration" || ev.Kind == "product") {
+		if ev.Subject == projectEvidenceSubject(s, ev) && (ev.Kind == "integration" || ev.Kind == "product") {
 			ev.State = ""
 			ev.Problems = nil
 			receipts = append(receipts, ev)
 		}
 	}
-	return digestJSON(map[string]interface{}{"subject": s.Subject, "evidence": receipts, "delivery": s.Delivery})
+	body := map[string]interface{}{"subject": s.Subject, "evidence": receipts, "delivery": s.Delivery}
+	if len(s.Phases) > 0 {
+		var releases []projectRelease
+		for _, p := range s.Phases {
+			releases = append(releases, p.Releases...)
+		}
+		body["releases"] = releases
+	}
+	return digestJSON(body)
 }
 
 func projectCleanupProblems(st *ticket.Store, s projectSnapshot) []string {
@@ -424,33 +368,18 @@ func projectCleanupProblems(st *ticket.Store, s projectSnapshot) []string {
 			problems = append(problems, "cleanup: resource lease still held: "+lease.ID)
 		}
 	}
-	latest := projectEvidence{}
-	for _, ev := range s.Evidence {
-		if ev.Subject == s.Subject && ev.Kind == "integration" && projectTimeAfter(ev.Finished, latest.Finished) {
-			latest = ev
-		}
-	}
-	for _, ev := range []projectEvidence{latest} {
-		if ev.Subject != s.Subject || ev.Kind != "integration" {
+	for _, p := range s.Phases {
+		if p.Candidate == nil {
 			continue
 		}
-		for _, surface := range ev.Surfaces {
-			if surface.RestoreRef == "" || gitOutIn(surface.Dir, "branch", "--show-current") != surface.RestoreRef || gitOutIn(surface.Dir, "rev-parse", "HEAD") != surface.RestoreHead {
-				problems = append(problems, "cleanup: restore recorded checkout in "+surface.Dir)
+		for _, r := range p.Candidate.Repos {
+			if _, err := os.Stat(r.Worktree); err == nil {
+				problems = append(problems, "cleanup: phase worktree remains: "+r.Worktree)
 			}
-			status, err := gitOutputStrict(surface.Dir, "status", "--porcelain", "--untracked-files=all")
-			if err != nil || status != "" {
-				problems = append(problems, "cleanup: checkout dirty or unavailable")
-			}
-			gitdir := gitOutIn(surface.Dir, "rev-parse", "--absolute-git-dir")
-			if gitdir == "" {
-				problems = append(problems, "cleanup: git directory unavailable")
-				continue
-			}
-			if _, err := os.Stat(leaseDirOf(gitdir)); err == nil {
-				problems = append(problems, "cleanup: surface lease still held")
-			} else if !os.IsNotExist(err) {
-				problems = append(problems, "cleanup: surface lease unreadable")
+			if gitdir := gitOutIn(r.Canonical, "rev-parse", "--absolute-git-dir"); gitdir != "" {
+				if _, err := os.Stat(leaseDirOf(gitdir)); err == nil {
+					problems = append(problems, "cleanup: surface lease still held in "+r.Canonical)
+				}
 			}
 		}
 	}
@@ -500,13 +429,7 @@ func projectComplete(st *ticket.Store, id string) error {
 		if err != nil {
 			return err
 		}
-		status := "done"
-		for _, delivery := range s.Delivery {
-			if delivery.State == "REVIEW_READY" || delivery.State == "PR_READY" {
-				status = "in_review"
-			}
-		}
-		doc.Set("status", status)
+		doc.Set("status", "done")
 		if err := ticket.WriteDoc(st.IndexPath(), doc); err != nil {
 			return err
 		}

@@ -259,10 +259,12 @@ func TestGateV2Readiness(t *testing.T) {
 		t.Fatalf("v2 ready = %v, want pass", d)
 	}
 
-	// A commit after the evidence was accepted makes it stale → deny.
-	runGit(t, repo, "commit", "--allow-empty", "-m", "new revision")
-	if d := evaluateGate(gatePayload("gh pr create --fill", repo)); d.action != "deny" || !strings.Contains(d.reason, "head_sha") {
-		t.Fatalf("v2 stale = %v, want deny/head_sha", d)
+	// An edit after the evidence was accepted makes it stale → deny.
+	if err := os.WriteFile(filepath.Join(repo, "edited.txt"), []byte("after the gate\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if d := evaluateGate(gatePayload("gh pr create --fill", repo)); d.action != "deny" || !strings.Contains(d.reason, "tree_digest") {
+		t.Fatalf("v2 stale = %v, want deny/tree_digest", d)
 	}
 }
 

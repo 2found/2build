@@ -44,7 +44,7 @@ and point at their actual check commands if no `qa.yaml` exists:
 
 This repo is configured for 2build autonomous runs.
 
-- Git policy: `.babysit/git-flow.yaml`
+- Git: autopilot leaves work uncommitted; Foreman commits once per phase and lands it on the base branch
 - QA harness: `.babysit/qa.yaml`
 - Production release: read [RELEASE.md](RELEASE.md), then use `/bbs:release-prd`; `--local` runs delivery from this machine when CI is unavailable. Setting up this profile does not execute a release.
 - Browser: for any UI check — open a URL, click a flow, read console errors, screenshot — invoke `/bbs:browse` (or `/bbs:qa` for a full loop). These drive a real Chromium via `agent-browser`; there is no separate browser *tool* to look for, and `WebFetch` is not a substitute. One-time: `npm install -g agent-browser cloakbrowser`.

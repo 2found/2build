@@ -113,7 +113,7 @@ Xem [danh mục skill](docs/skills.md) để chọn skill riêng và ví dụ wo
 
 ## Dự án lớn hơn: Foreman
 
-Với nhiều ticket phụ thuộc nhau, [Foreman](docs/foreman.md) dùng [Orca](https://www.onorca.dev) để lên kế hoạch tổng thể, tách ticket con vào worktree, giao việc đã sẵn sàng và QA toàn dự án. Mặc định bạn duyệt kế hoạch/thiết kế trước khi giao việc triển khai; `--auto` giao bước duyệt đó cho worker. Chính sách finish đã cấu hình quyết định cách bàn giao.
+Với nhiều ticket phụ thuộc nhau, [Foreman](docs/foreman.md) dùng [Orca](https://www.onorca.dev) để lên kế hoạch tổng thể, tách ticket con vào worktree, giao việc đã sẵn sàng và QA toàn dự án. Mặc định bạn duyệt kế hoạch/thiết kế trước khi giao việc triển khai; `--auto` giao bước duyệt đó cho worker. Worker không bao giờ commit; mỗi phase vào base thành đúng một commit sau phase QA.
 
 <details>
 <summary>Chi tiết CLI và cấu hình</summary>
@@ -134,7 +134,7 @@ bbs autopilot recover --json
 
 `snapshot` đọc trạng thái chuẩn của ticket và bằng chứng của các gate; `recover` bổ sung các trích đoạn tài liệu có giới hạn để tiếp tục công việc.
 
-Chạy `bbs <subcommand> --help` để xem cách dùng. Chi tiết: [CLI hỗ trợ](docs/companion-cli.md), [profile](docs/profiles.md) và [vận hành](docs/operations.md).
+Chạy `bbs <subcommand> --help` để xem cách dùng. Chi tiết: [CLI hỗ trợ](docs/companion-cli.md), [git flow](.claude/skills/references/git-flow.md) và [vận hành](docs/operations.md).
 
 </details>
 

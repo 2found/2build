@@ -36,9 +36,11 @@ a precise ask.
      repair to `investigate`/`implement` through the workflow; triage does not
      edit code. A fresh dispatch from the checkpoint addresses these. A
      `clean-handoff-audit clean:false` is a symptom requiring ownership checks:
-     `uncommitted changes` → distinguish this run's work from user/other-run
-     edits before resuming its normal verify/commit path; never commit all dirt.
-     `checkpoint predates the last commit` → verify ticket/head identity, then
+     `uncommitted changes` is the normal handoff (workers never commit), but
+     distinguish this run's work from user/other-run edits before resuming;
+     never adopt all dirt. `checkpoint predates the last commit` → a commit
+     landed under the run ([git flow](../shared/git-flow.md)): verify
+     ticket/head identity, then
      run `bbs autopilot checkpoint --refresh` if appropriate and inspect the
      audit again; refreshing metadata does not prove the work passed.
    - **Needs-human** — missing input only the human has (credentials, an

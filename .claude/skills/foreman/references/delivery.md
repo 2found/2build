@@ -1,54 +1,41 @@
-## Eager per-ticket finish
+## Ticket close-out and phase landing
 
-A child whose finish prerequisites pass finishes when its worker report is handled.
-PR/review-ready tickets and settled workers need not wait for final project
-QA. Local lands wait for the last per-ticket surface mutation and pre-land
-integration gate, because those operations can reset base.
+A ticket is never delivered alone. Its worker leaves the work uncommitted;
+Foreman seals it (`bbs foreman seal`), and it reaches base only inside its
+phase's single commit ([phases](phases.md)). **A ticket that was committed,
+pushed or PR'd on its own is unfinished work**, not a shortcut: treat it as a
+`repair` (the session discards nothing; the next seal snapshots the tree).
 
-An evidence-only child is eligible when its workflow verdict, acceptance
-evidence, lifecycle signal, and clean worktree are current. Archive its
-artifacts, run `BABYSIT_TICKET="$CHILD" bbs ticket set-status done`, release and
-close its worker surfaces, and remove the verified-clean non-primary worktree;
-keep the branch.
-If any code changed, use the code-bearing path instead.
-
-A code-bearing child is eligible when all of these hold:
+A ticket is sealable when:
 
 - current `review-pr` + `qa` verdicts are DONE or DONE_WITH_CONCERNS;
-- `bbs ticket readiness --action <land|pr|review> --json` allows that exact
-  action — under `review` it still guards a dirty tree, an active attempt,
-  and stale evidence, even though Foreman performs no merge or remote write;
-- every prerequisite child has itself finished (landed, PRed, or — under
-  `review` — gates passed); dependency order is preserved, never reordered;
-- under `land`, every required code-bearing child has settled per-ticket
-  review/QA, no worker can still compose the primary, and any Pre-land
-  integration QA Task passed. `surface compose` resets local base to
-  `origin/<base>` and would discard an early merge. Final Integration QA
-  depends on these lands, so it must not be a prerequisite of the land handler.
+- `bbs ticket readiness --action review --json` reports `data.ready: true`
+  (it checks content-bound evidence, an active attempt, and staleness);
+- every prerequisite it adopted is itself sealed at that snapshot.
 
-Run `land`/`pr` handlers one child at a time in dependency order, as a
-`deliver` follow-up on the phase's own session when it is reusable — the agent
-that built the phase writes its PR — otherwise as a fresh normal-route delivery
-worker. Name the policy, exact child/head, destination, lease and required
-receipt; verify it before cleanup or the next handler. A `deliver` assignment
-runs only the named handler: it is Foreman's finish policy executing in that
-session, never autopilot close-out. `review` status and worker release stay
-with Foreman:
+An evidence-only child is sealable when its workflow verdict, acceptance
+evidence and lifecycle signal are current and its worktree holds no code
+change; seal its artifacts (`bbs foreman seal "$CHILD" --file`). If any code
+changed, use the code-bearing path instead.
 
-- `land` — `bbs ticket land <child>` from the primary checkout. Revert any
-   scratch composition first (`bbs ticket surface revert`); `land` BLOCKs on
-   a nonempty `bbs-serving` marker. It merges locally and never pushes. After
-   the finish receipt is persisted and the landed head is verified on base,
-   run `BABYSIT_TICKET="$CHILD" bbs ticket set-status done`.
-- `pr` — invoke the real `create-pr` skill for that child as soon as its
-   gates pass; a PR does not mutate base, so final integration QA does not
-   hold PR creation, but it still gates project completion. Read back the
-   child's `pointers.pr` and `in_review` status persisted
-   by `create-pr`; do not repeat those writes. It becomes `done`
-   only after the PR is observed merged.
-- `review` — no merge is authorized. Run Orca worktree close-out and keep the
-   clean branch and Git worktree for human inspection. Run
-   `BABYSIT_TICKET="$CHILD" bbs ticket set-status in_review`.
+Keep the ticket's worker session until its phase lands: a phase QA failure or
+a phase that does not compose comes back to that session as a `repair`.
+
+### When the phase lands
+
+`bbs foreman land "$PARENT" --phase "$K"` fast-forwards base and removes the
+phase's integration worktree and every ticket worktree whose content still
+equals its sealed snapshot (the snapshot ref keeps that work). Before it runs,
+close what the phase's workers own in those worktrees, then:
+
+```bash
+bbs foreman land "$PARENT" --phase "$K" --json   # removed_worktrees / kept_worktrees
+BABYSIT_TICKET="$CHILD" bbs ticket set-status done   # each ticket of the phase
+```
+
+A `kept_worktrees` entry holds edits made after its seal: report it; never
+delete it. Remove one that is only held open by a stale handle with
+`bbs ticket worktree-remove <path>` (bounded NTFS open-handle retries).
 
 Archive settled output, `worker-release` the worker, release its resource lease,
 then close the ticket's Orca surfaces. `worker-release` closes only the agent
@@ -65,22 +52,15 @@ orca emulator list --worktree path:<worktreePath> --json   # then per row:
 orca emulator kill --emulator <id> --json
 orca terminal list --worktree path:<worktreePath> --json   # verify: zero rows
 orca worktree set --worktree path:<worktreePath> \
-  --workspace-status <in-review|completed> --json          # in-review under
-                                                          #   review/pr, completed under land
-orca automations list --json                               # land/pr only: rows whose
+  --workspace-status completed --json
+orca automations list --json                               # rows whose
                                                           #   runContext.path matches
 orca automations edit <id> --disabled --json               #   disable, keep history
-bbs ticket worktree-remove <worktreePath>                 # land/pr only; last —
-                                                          # retries transient NTFS
-                                                          # open-handle failures
 ```
 
-Bulk terminal close is mandatory even under `review`. Under `land`/`pr`, remove
-only the verified-clean non-primary Git worktree using `bbs ticket worktree-remove`
-(git worktree remove with bounded NTFS open-handle retries); keep the branch.
-Failures/holds retain a recoverable checkout. `selector_not_found` means Orca
-tracks nothing there. Never substitute `orca worktree rm`: it deletes the branch
-as well; a stale Orca card after safe Git worktree removal is expected.
+`selector_not_found` means Orca tracks nothing there. Never substitute
+`orca worktree rm`; a stale Orca card after the Git worktree is removed is
+expected.
 
 ## Failure and resume
 
@@ -89,25 +69,13 @@ Failure routing — never blind-retry an unchanged state or schedule retry ticks
 | Reported condition | Next action |
 |---|---|
 | Surface lease held | Queue until release/resource notification or bounded recovery |
-| Stale evidence / `ready:false` | Re-run affected gates before delivery |
-| Merge conflict | Supervised repair Dispatch — a `repair` follow-up on the phase session, else a fresh phase worker — merges `origin/<base>` (never local base) into the child; await settlement |
-| Other land BLOCK (dirty/off-base/scratch) | Report blocker; wait for the primary state to change |
-| A later composition discarded a land | Re-land after surface work settles; recreate a removed worktree from its branch first |
-| `create-pr` failed | Recover actual handler state, retry once if recoverable; otherwise block with evidence |
+| Stale evidence / `ready:false` | Re-run affected gates, then reseal |
+| `integrate`: phase does not compose | `repair` on the later ticket named: `bbs ticket adopt <earlier>`, resolve, re-run its gates, reseal; then integrate again |
+| `land`: base moved since the build | `bbs foreman integrate` again, re-run phase QA on the new commit, land |
+| `land`: local changes in a checkout of base overlap the phase | Report the files and the checkout; its owner commits or moves them. Never stash, reset or overwrite them |
+| `land`: worktree kept | Report it; keep the work |
 
-On resume, recognize a finish receipt before evaluating worktree-bound
-readiness. Persist each successful handler's action, verified branch/head and
-dependency SHAs, gate evidence paths, and PR URL or landed revision in the
-child handoff before removing its worktree. A `pointers.pr` link or
-`git merge-base --is-ancestor` result is a recovery lead, not proof of current
-acceptance. Verify the receipt still matches current scope and revisions; for
-`pr`, read the PR's state and head (an open or merged PR's head must match the
-verified revision; later unverified commits and closed-unmerged PRs are not a
-successful finish). For `land`, verify the
-recorded head remains in base. Reuse valid evidence without recreating a
-worktree just to run readiness; missing/stale proof requires reconstruction
-from the recorded branch and re-verification. For a changed PR head, first
-fetch and inspect that actual head; do not re-verify an obsolete local branch
-and call the remote change covered. Preserve any divergent local work and
-dispatch reconciliation without force-pushing. Recover a lost receipt from
-actual handler state and existing gate evidence, never by assuming success.
+On resume, read `bbs foreman snapshot` first: a phase whose commit is on base
+is landed whatever the worktrees look like; a sealed ticket's work lives on
+`refs/bbs/tickets/<id>` even after its worktree is gone. Never assume success
+from a log line — the snapshot is the record.

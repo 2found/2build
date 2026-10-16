@@ -24,6 +24,9 @@ type projectContract struct {
 	ProductReview bool               `json:"product_review"`
 	ArtifactsOnly bool               `json:"artifacts_only,omitempty"`
 	Deadline      string             `json:"deadline,omitempty"`
+	// Phases split delivery into ordered release increments. Absent keeps the
+	// single integrate-and-deliver-at-the-end project.
+	Phases []projectPhase `json:"phases,omitempty"`
 }
 
 type projectCriterion struct {
@@ -39,8 +42,6 @@ type projectRepo struct {
 	Head      string `json:"head"`
 	Base      string `json:"base"`
 	BaseHead  string `json:"base_head"`
-	Finish    string `json:"finish"`
-	Policy    string `json:"policy"`
 }
 
 type projectSeal struct {
@@ -64,16 +65,14 @@ type projectChild struct {
 	Progress  *projectProgress `json:"progress,omitempty"`
 }
 
-// A surface is captured while checked out for verification, then compared by
-// retained ref. Restoring the primary checkout never invalidates the receipt.
+// A surface is the phase commit as checked out in its integration worktree
+// when verification began; the receipt binds that exact commit.
 type projectSurface struct {
-	Dir         string `json:"dir"`
-	Ref         string `json:"ref"`
-	Head        string `json:"head"`
-	BaseRef     string `json:"base_ref"`
-	BaseHead    string `json:"base_head"`
-	RestoreRef  string `json:"restore_ref"`
-	RestoreHead string `json:"restore_head"`
+	Dir      string `json:"dir"`
+	Ref      string `json:"ref"`
+	Head     string `json:"head"`
+	BaseRef  string `json:"base_ref"`
+	BaseHead string `json:"base_head"`
 }
 
 type projectCheck struct {
@@ -107,6 +106,8 @@ type projectEvidence struct {
 	// A preview is only published with a recorded revision probe in Checks.
 	Preview string `json:"preview,omitempty"`
 	Runtime string `json:"runtime,omitempty"`
+	// Phase scopes the receipt to one release increment of a phased project.
+	Phase string `json:"phase,omitempty"`
 }
 
 type projectCoverage struct {
@@ -116,22 +117,23 @@ type projectCoverage struct {
 }
 
 type projectSnapshot struct {
-	Version     int               `json:"version"`
-	Ticket      string            `json:"ticket"`
-	Observed    string            `json:"observed_at"`
-	Subject     string            `json:"subject"`
-	Contract    *projectContract  `json:"contract"`
-	Approval    string            `json:"approval"`
-	Children    []projectChild    `json:"children"`
-	Coverage    []projectCoverage `json:"coverage"`
-	Evidence    []projectEvidence `json:"evidence"`
-	Dispatch    []string          `json:"dispatch_blockers"`
-	Blockers    []string          `json:"blockers"`
-	Ready       bool              `json:"ready"`
-	Completion  string            `json:"completion"`
-	Coordinator map[string]string `json:"coordinator"`
-	Delivery    []projectDelivery `json:"delivery"`
-	Usage       skillUsage        `json:"provider_usage"`
+	Version     int                 `json:"version"`
+	Ticket      string              `json:"ticket"`
+	Observed    string              `json:"observed_at"`
+	Subject     string              `json:"subject"`
+	Contract    *projectContract    `json:"contract"`
+	Approval    string              `json:"approval"`
+	Children    []projectChild      `json:"children"`
+	Coverage    []projectCoverage   `json:"coverage"`
+	Evidence    []projectEvidence   `json:"evidence"`
+	Dispatch    []string            `json:"dispatch_blockers"`
+	Blockers    []string            `json:"blockers"`
+	Ready       bool                `json:"ready"`
+	Completion  string              `json:"completion"`
+	Coordinator map[string]string   `json:"coordinator"`
+	Delivery    []projectDelivery   `json:"delivery"`
+	Phases      []projectPhaseState `json:"phases,omitempty"`
+	Usage       skillUsage          `json:"provider_usage"`
 }
 
 func readProjectJSON(path string, into interface{}) error {
@@ -184,7 +186,7 @@ func validateProjectContract(c projectContract) error {
 			return err
 		}
 	}
-	return nil
+	return validateProjectPhases(c)
 }
 
 func projectChildInputs(st *ticket.Store) (string, []string, error) {

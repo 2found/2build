@@ -135,12 +135,10 @@ for args in "checkpoint --ticket t" "checkpoint --ticket t --workflow w --step s
   cmp_case "err: '${args:-<none>}'" "$e" "$g" "$ec_e" "$ec_g"
 done
 
-# ── git-flow base_branch resolution ──────────────────────────────────
-mkdir -p "$REPO/.babysit"; printf 'base_branch: develop\n' > "$REPO/.babysit/git-flow.yaml"
-e="$(BABYSIT_PROJECT_HOME="$WORK/ph-b" bash "$ORACLE" base-branch 2>/dev/null)"; ec_e=$?
-g="$(BABYSIT_PROJECT_HOME="$WORK/ph-g" "$GO"        base-branch 2>/dev/null)"; ec_g=$?
-cmp_case "base-branch (git-flow develop)" "$e" "$g" "$ec_e" "$ec_g"
-rm -f "$REPO/.babysit/git-flow.yaml"
+# ── base_branch resolution ───────────────────────────────────────────
+e="$(BBS_BASE_BRANCH=develop BABYSIT_PROJECT_HOME="$WORK/ph-b" bash "$ORACLE" base-branch 2>/dev/null)"; ec_e=$?
+g="$(BBS_BASE_BRANCH=develop BABYSIT_PROJECT_HOME="$WORK/ph-g" "$GO"        base-branch 2>/dev/null)"; ec_g=$?
+cmp_case "base-branch (BBS_BASE_BRANCH develop)" "$e" "$g" "$ec_e" "$ec_g"
 
 echo
 if [ "$FAIL" -eq 0 ]; then echo "ALL PASS ($PASS)"; else echo "$FAIL FAILED / $((PASS+FAIL))"; exit 1; fi

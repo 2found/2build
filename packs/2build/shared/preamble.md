@@ -98,7 +98,7 @@ the skill where possible.
 4. `bbs ticket get status` is authoritative for ticket existence/status.
 
 No ticket is valid: skip ticket-state writes with a one-line note and use
-conversation requirements/plans. Never invent an ID. Branch shape and git-flow
+conversation requirements/plans. Never invent an ID. Branch shape and git
 prerequisites belong to workflows.
 
 ### Handling update-check output

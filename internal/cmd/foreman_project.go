@@ -75,6 +75,7 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 		s.Dispatch = append(s.Dispatch, "graph: dependency cycle")
 	}
 	bindings := map[string]string{}
+	phaseNodes, leafParents, external := map[string]string{}, map[string]string{}, map[string]bool{}
 	// Only material, stable inputs enter the subject. Status, progress and
 	// worktree removal must not rewrite an accepted product revision.
 	inputs := map[string]interface{}{"contract": c, "approval": doc.Get("approval.artifact_revision"), "approval_state": s.Approval, "run": doc.Get("pointers.orca_run")}
@@ -104,6 +105,7 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 				}
 			}
 			inputs[node.ID] = refs
+			external[node.ID] = true
 			continue
 		}
 		if control := cd.Get("control.state"); control != "" {
@@ -112,10 +114,24 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 		if node.Status == "cancelled" || node.Status == "duplicate" {
 			s.Blockers = append(s.Blockers, "child "+node.ID+": required scope was "+node.Status)
 		}
+		// A phase ticket groups one release increment's tickets and carries
+		// its release approval; it is never a leaf, even before it has children.
+		if phase := cd.Get("origin.project_phase"); phase != "" {
+			if prior := phaseNodes[phase]; prior != "" {
+				s.Blockers = append(s.Blockers, "phase "+phase+": also bound to "+prior)
+			}
+			if node.Parent != st.Env.Ticket {
+				s.Blockers = append(s.Blockers, "phase "+phase+": ticket "+node.ID+" must be a direct child of "+st.Env.Ticket)
+			}
+			phaseNodes[phase] = node.ID
+			inputs[node.ID] = node.Children
+			continue
+		}
 		if len(node.Children) != 0 {
 			inputs[node.ID] = node.Children
 			continue
 		}
+		leafParents[node.ID] = node.Parent
 		child := projectChild{ID: node.ID, Title: cd.Get("title"), Seed: cd.Get("origin.project_seed"), State: node.State, BlockedBy: node.BlockedBy, Repos: []projectRepo{}, Problems: []string{}}
 		if child.Seed == "" || !slices.Contains(c.Seeds, child.Seed) {
 			child.Problems = append(child.Problems, "scope: seed is not in approved contract")
@@ -167,6 +183,9 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 		}
 	}
 	s.Subject = digestJSON(inputs)
+	if s.Contract != nil {
+		projectPhaseSetup(st, &s, inputs, phaseNodes, leafParents, external)
+	}
 	// Evidence is immutable; only current receipts contribute coverage. Failed
 	// attempts remain visible, but a later current pass may repair them.
 	paths, err := filepath.Glob(filepath.Join(st.Home(), "project-evidence", "*.json"))
@@ -184,63 +203,15 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 		if len(ev.Problems) > 0 {
 			ev.State = "failed"
 		}
-		if ev.Subject != s.Subject {
+		if ev.Subject != projectEvidenceSubject(s, ev) {
 			ev.State = "stale"
 		}
 		s.Evidence = append(s.Evidence, ev)
 	}
-	latest := map[string]projectEvidence{}
-	for _, ev := range s.Evidence {
-		if ev.Subject == s.Subject && projectTimeAfter(ev.Finished, latest[ev.Kind].Finished) {
-			latest[ev.Kind] = ev
-		}
+	if s.Contract != nil {
+		projectPhaseProgress(st, &s)
 	}
-	integration, product := latest["integration"], latest["product"]
-	if integration.State != "passed" {
-		integration = projectEvidence{}
-	}
-	if product.State != "passed" {
-		product = projectEvidence{}
-	}
-	for _, kind := range []string{"integration", "product"} {
-		if kind == "product" && !c.ProductReview {
-			continue
-		}
-		ev, ok := latest[kind]
-		if !ok {
-			s.Blockers = append(s.Blockers, kind+": current evidence required")
-			continue
-		}
-		for _, p := range ev.Problems {
-			s.Blockers = append(s.Blockers, kind+": "+p)
-		}
-	}
-	for _, ac := range c.Criteria {
-		row := projectCoverage{projectCriterion: ac, State: "pending", Evidence: []string{}}
-		covered := true
-		for _, kind := range ac.Checks {
-			if projectCheckPassed(integration, ac.ID, kind) {
-				row.Evidence = append(row.Evidence, integration.ID+":"+kind)
-			} else {
-				covered = false
-			}
-		}
-		if c.ProductReview && !projectCheckPassed(product, ac.ID, "product") {
-			covered = false
-		}
-		if covered {
-			row.State = "proven"
-		} else {
-			s.Blockers = append(s.Blockers, "criterion "+ac.ID+": missing required checks")
-		}
-		s.Coverage = append(s.Coverage, row)
-	}
-	s.Delivery = projectObserveDelivery(s)
-	for _, delivery := range s.Delivery {
-		if delivery.State == "UNKNOWN" {
-			s.Blockers = append(s.Blockers, "delivery "+delivery.Ticket+": "+delivery.Reason)
-		}
-	}
+	s.Delivery = projectObserveDelivery(st, s)
 	// An expired work budget prevents new starts, never acceptance of already
 	// verified work. All other dispatch prerequisites also gate completion.
 	for _, p := range s.Dispatch {
@@ -288,19 +259,16 @@ func validateProjectSeal(st *ticket.Store, seal projectSeal) []string {
 			problems = append(problems, "manifest changed")
 			continue
 		}
-		p, err := snapshotGitFlow(r.Canonical)
-		if err != nil || p.Digest != r.Policy {
-			problems = append(problems, "policy changed or unavailable")
+		if gitOutIn(r.Canonical, "rev-parse", "--verify", "-q", ticketSnapshotRef(st.Env.Ticket)+"^{commit}") != r.Head {
+			problems = append(problems, "snapshot changed or unavailable: "+ticketSnapshotRef(st.Env.Ticket))
 		}
-		head := gitOutIn(r.Canonical, "rev-parse", "--verify", r.Branch+"^{commit}")
-		landed := r.Finish == "land" && gitOKIn(r.Canonical, "merge-base", "--is-ancestor", r.Head, r.Base)
-		if head != r.Head && !(head == "" && landed) {
-			problems = append(problems, "branch revision changed or unavailable: "+r.Branch)
-		}
+		// Work edited after the seal is unverified. Once the checkout moved
+		// off the commit it was cut from (its phase landed into it) or was
+		// removed, the snapshot is the record.
 		if mr.Worktree != "" {
-			if fi, err := os.Stat(mr.Worktree); err == nil && fi.IsDir() {
-				if gitOutIn(mr.Worktree, "branch", "--show-current") == r.Branch && gitOutIn(mr.Worktree, "status", "--porcelain", "--untracked-files=all") != "" {
-					problems = append(problems, "worktree dirty: "+r.Branch)
+			if fi, err := os.Stat(mr.Worktree); err == nil && fi.IsDir() && gitOutIn(mr.Worktree, "rev-parse", "--verify", "-q", "HEAD^{commit}") == r.BaseHead {
+				if tree, err := worktreeTree(mr.Worktree); err != nil || tree != treeOf(r.Canonical, r.Head) {
+					problems = append(problems, "worktree changed since seal: "+mr.Worktree)
 				}
 			}
 		}
@@ -346,15 +314,17 @@ func projectSealChild(st *ticket.Store) error {
 			if !ready.Enforced || !ready.Ready {
 				return fmt.Errorf("child not verified: %v", ready.ReasonCodes)
 			}
-			p, err := snapshotGitFlow(r.Canonical)
+			cut := gitOutIn(r.Worktree, "rev-parse", "--verify", "-q", "HEAD^{commit}")
+			if cut == "" || gitOutIn(r.Worktree, "branch", "--show-current") != r.Branch {
+				return fmt.Errorf("worktree is not on the declared ticket branch")
+			}
+			// The worker's uncommitted tree is the verified work; the seal
+			// pins it as a snapshot the phase composes from.
+			head, err := sealTicketSnapshot(r.Worktree, st.Env.Ticket, readAdopted(st.Home()))
 			if err != nil {
 				return err
 			}
-			head := gitOutIn(r.Worktree, "rev-parse", "HEAD")
-			if head == "" || head != gitOutIn(r.Canonical, "rev-parse", "--verify", r.Branch+"^{commit}") || gitOutIn(r.Worktree, "branch", "--show-current") != r.Branch {
-				return fmt.Errorf("worktree is not on the declared child revision")
-			}
-			seal.Repos = append(seal.Repos, projectRepo{Canonical: r.Canonical, Branch: r.Branch, Head: head, Base: p.Effective["base_branch"], BaseHead: stringValue(ready.CurrentSubject["base_sha"]), Finish: p.Effective["finish"], Policy: p.Digest})
+			seal.Repos = append(seal.Repos, projectRepo{Canonical: r.Canonical, Branch: r.Branch, Head: head, Base: baseBranchIn(r.Canonical), BaseHead: cut})
 		}
 		if err := writeJSONAtomic(filepath.Join(st.Home(), "project-seal.json"), seal); err != nil {
 			return err
@@ -402,7 +372,7 @@ func foremanProjectCommand(verb string, args []string) error {
 		})
 	case "bind":
 		if !idRe.MatchString(kv["child"]) {
-			return fmt.Errorf("bind needs --child and --seed")
+			return fmt.Errorf("bind needs --child and --seed (or --phase)")
 		}
 		s, err := projectRead(st)
 		if err != nil {
@@ -410,6 +380,9 @@ func foremanProjectCommand(verb string, args []string) error {
 		}
 		if len(s.Dispatch) > 0 {
 			return fmt.Errorf("project not approved: %v", s.Dispatch)
+		}
+		if kv["phase"] != "" {
+			return projectBindPhase(st, s, kv["phase"], kv["child"])
 		}
 		if !slices.Contains(s.Contract.Seeds, kv["seed"]) {
 			return fmt.Errorf("seed is outside approved scope")
@@ -446,6 +419,12 @@ func foremanProjectCommand(verb string, args []string) error {
 		return projectProgressCommand(st, kv)
 	case "complete":
 		return projectComplete(st, kv["foreman"])
+	case "release":
+		return projectReleaseCommand(st, kv)
+	case "integrate":
+		return projectIntegrateCommand(st, kv)
+	case "land":
+		return projectLandCommand(st, kv)
 	case "snapshot", "readiness":
 		s, err := projectRead(st)
 		if err != nil {
@@ -453,18 +432,53 @@ func foremanProjectCommand(verb string, args []string) error {
 		}
 		if verb == "readiness" {
 			action := kv["action"]
-			if action != "dispatch" && action != "finish" {
-				return fmt.Errorf("readiness requires --action dispatch|finish")
-			}
 			reasons := s.Blockers
-			if action == "dispatch" {
+			switch {
+			case action == "finish":
+			case kv["phase"] != "" && (action == "dispatch" || action == "integrate" || action == "land" || action == "release"):
+				reasons = projectPhaseReasons(s, action, kv["phase"])
+			case action == "dispatch":
 				reasons = s.Dispatch
+			default:
+				return fmt.Errorf("readiness requires --action finish, dispatch [--phase <id>], or integrate|land|release --phase <id>")
 			}
-			printV2Envelope(map[string]interface{}{"action": action, "ready": len(reasons) == 0, "reason_codes": reasons, "subject": s.Subject})
+			out := map[string]interface{}{"action": action, "ready": len(reasons) == 0, "reason_codes": reasons, "subject": s.Subject}
+			if k := projectPhaseIndex(s, kv["phase"]); k >= 0 {
+				out["phase"] = s.Phases[k]
+			}
+			printV2Envelope(out)
 		} else {
 			printV2Envelope(s)
 		}
 		return nil
 	}
 	return fmt.Errorf("unknown project command")
+}
+
+// projectBindPhase marks a direct child of the parent as one phase's ticket:
+// the parent of that phase's tickets and the holder of its release approval.
+func projectBindPhase(st *ticket.Store, s projectSnapshot, phase, child string) error {
+	if projectPhaseIndex(s, phase) < 0 {
+		return fmt.Errorf("phase is not in the approved contract")
+	}
+	for _, p := range s.Phases {
+		if p.ID == phase && p.Ticket != "" && p.Ticket != child {
+			return fmt.Errorf("phase already bound to %s", p.Ticket)
+		}
+	}
+	cs := storeForTicket(st.Env, child)
+	return withLock(cs, func() error {
+		doc, err := ticket.ReadDocStrict(cs.IndexPath())
+		if err != nil {
+			return err
+		}
+		if doc.Get("parent") != st.Env.Ticket {
+			return fmt.Errorf("phase ticket must be a direct child of %s", st.Env.Ticket)
+		}
+		if seed := doc.Get("origin.project_seed"); seed != "" {
+			return fmt.Errorf("ticket is already bound to seed %s", seed)
+		}
+		doc.Set("origin.project_phase", phase)
+		return ticket.WriteDoc(cs.IndexPath(), doc)
+	})
 }

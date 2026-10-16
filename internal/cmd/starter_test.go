@@ -65,9 +65,8 @@ func TestBootstrapLocalSourceVerifiesAndReturnsCleanJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &result); err != nil || result.Directory != target || !result.Verified || result.Starter.Release != "0.1.0" || !strings.Contains(log, "go version") {
 		t.Fatalf("bad JSON handoff: %s log=%s err=%v", out, log, err)
 	}
-	policy, _ := os.ReadFile(filepath.Join(target, ".babysit/git-flow.yaml"))
-	if string(policy) != "profile: startup\n" {
-		t.Fatalf("default policy: %s", policy)
+	if _, err := os.Stat(filepath.Join(target, ".babysit/git-flow.yaml")); !os.IsNotExist(err) {
+		t.Fatal("bootstrap copied a retired git-flow profile")
 	}
 	_, _, err = runStarterCommand(t, "bootstrap", target, "--source", source, "--no-verify")
 	if err == nil {
@@ -143,7 +142,7 @@ func TestStarterNoticeIsAdvisoryAndSkipsNonStarterProjects(t *testing.T) {
 		t.Fatal("ordinary repo incurred a starter network check")
 	}
 	source, target := commandStarterFixture(t), filepath.Join(dir, "my-api")
-	if _, err := starter.Generate(source, target, "hono-bun", "pet", "", nil); err != nil {
+	if _, err := starter.Generate(source, target, "hono-bun", "", nil); err != nil {
 		t.Fatal(err)
 	}
 	starterNotice(target, &out, check)
@@ -169,7 +168,7 @@ func TestStarterPreambleReportsCachedUpdatesAndHonorsUserConfig(t *testing.T) {
 	bin := buildTestBBS(t)
 	source := commandStarterFixture(t)
 	project := filepath.Join(t.TempDir(), "my-api")
-	if _, err := starter.Generate(source, project, "hono-bun", "pet", "", nil); err != nil {
+	if _, err := starter.Generate(source, project, "hono-bun", "", nil); err != nil {
 		t.Fatal(err)
 	}
 	state := t.TempDir()

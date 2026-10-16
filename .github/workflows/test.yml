@@ -5,7 +5,7 @@ name: Test
 # differential suites stayed red for weeks without anyone noticing: nothing on
 # the push path executed them.
 #
-# No paths filter, deliberately. The shell suites cover git-flow moves, hooks,
+# No paths filter, deliberately. The shell suites cover git moves, hooks,
 # and workspace layout, so a change to the Go sources, hooks/, or tests/ can break them
 # without touching a single .go file.
 on:

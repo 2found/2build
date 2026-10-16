@@ -822,8 +822,9 @@ Examples:
 
 // landed reports whether the ticket's work is already merged into its base in
 // every repo the manifest names — the top rung of the ladder, and the signal
-// that a run actually crossed its finish handler (`bbs ticket land`, or a merge
-// commit the human pulled) rather than stopping at QA-ready.
+// that the work actually landed (a merge commit the human pulled) rather than
+// stopping at QA-ready. Foreman tickets never gain a commit of their own; Foreman
+// sets them done when their phase lands.
 //
 // Every unknown answers false. No manifest, a repo whose checkout is gone, a
 // git that failed: reconcile only advances, so a missed landing costs one tick

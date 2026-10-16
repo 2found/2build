@@ -13,11 +13,8 @@ import (
 
 // Generate builds in a sibling temporary directory and refuses existing targets.
 // Verification runs before publication; failed generation leaves no project behind.
-func Generate(root, target, id, profile, revision string, verify func(string, Template) error) (Lock, error) {
+func Generate(root, target, id, revision string, verify func(string, Template) error) (Lock, error) {
 	var lock Lock
-	if profile != "pet" && profile != "startup" && profile != "enterprise" {
-		return lock, fmt.Errorf("profile must be pet, startup, or enterprise")
-	}
 	target, err := filepath.Abs(target)
 	if err != nil {
 		return lock, err
@@ -92,6 +89,10 @@ func Generate(root, target, id, profile, revision string, verify func(string, Te
 			if !entry.Type().IsRegular() {
 				return fmt.Errorf("starter source contains non-regular file: %s", path)
 			}
+			// Older starter releases ship a git-flow profile 2build no longer reads.
+			if rel == filepath.Join(".babysit", "git-flow.yaml") {
+				return nil
+			}
 			if (entry.Name() == ".env" || strings.HasPrefix(entry.Name(), ".env.") && entry.Name() != ".env.example") || rel == filepath.FromSlash(LockPath) {
 				return fmt.Errorf("starter contains reserved file: %s", rel)
 			}
@@ -101,7 +102,7 @@ func Generate(root, target, id, profile, revision string, verify func(string, Te
 			}
 			fmt.Fprintf(digest, "%s/%s\x00%d\x00", folder, filepath.ToSlash(rel), len(b))
 			digest.Write(b)
-			b = []byte(strings.ReplaceAll(strings.ReplaceAll(string(b), "__PROJECT_NAME__", name), "__GIT_PROFILE__", profile))
+			b = []byte(strings.ReplaceAll(string(b), "__PROJECT_NAME__", name))
 			f, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 			if err != nil {
 				return fmt.Errorf("starter file collision: %s: %w", rel, err)

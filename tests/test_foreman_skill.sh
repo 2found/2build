@@ -28,11 +28,11 @@ has_all() {
 }
 
 has_all "autonomous-project-scope" \
-  'Autonomous Orca orchestrator' 'multiple tickets or dependent features' \
-  'owns the phase DAG'
+  'Autonomous Orca orchestrator' 'release phases for one human review' \
+  'production release increment'
 
-has_all "repository-autonomy-profiles" \
-  'bbs autopilot git-flow' 'profile sets review/QA breadth' 'launch the DAG as one batch' \
+has_all "one-git-flow" \
+  '../references/git-flow.md' 'Committing a single ticket is an unfinished job' 'launch a phase' \
   'task complexity, model tier'
 
 has_all "live-orchestration-contract" \
@@ -40,13 +40,13 @@ has_all "live-orchestration-contract" \
   'worker-start' 'check --wait' 'worker-release' 'request recovery'
 
 has_all "foreman-owns-topology" \
-  'bbs ticket ensure --mode=worktree' 'git worktree list' 'git worktree remove' 'apply' \
-  'in dependency order'
+  'bbs ticket ensure --mode=worktree' 'bbs foreman seal' 'bbs foreman integrate' \
+  'bbs foreman land' 'apply' 'in dependency order'
 
 has_all "finish-cleans-worker-workspace" \
-  'terminal its Dispatch owns' 'verified-clean non-primary Git' \
-  'terminal close --worktree path:<worktreePath> --all' 'mandatory even under `review`' \
-  'Git worktree for human inspection' 'keep the branch'
+  'terminal its Dispatch owns' 'kept_worktrees' \
+  'terminal close --worktree path:<worktreePath> --all' 'never substitute' \
+  'the snapshot ref keeps that work'
 
 has_all "bounded-worker-pool" \
   'FOREMAN_MAX_WORKERS' 'bbs foreman resource status' 'min(16, max(2, CPUs - 2))' \
@@ -57,12 +57,12 @@ has_all "global-weighted-admission" \
   'never expires' 'resource backpressure'
 
 
-has_all "phase-slice-sizing" \
-  'independent, testable, releasable unit' \
+has_all "ticket-slice-sizing" \
+  'independent, testable unit' \
   'Never split' 'coherent change across siblings' \
   'sub-ticket needing its own worktree' 'returns' \
-  'one worker' 'up to `L`' 'prefer fewer, larger phases' \
-  'split inside a worker' 'first usable journey lands' 'first'
+  'one worker' 'up to `L`' 'prefer fewer, larger tickets' \
+  'split inside a worker' 'Phase 1 is a walking skeleton' '2–5 tickets per phase'
 
 has_all "autopilot-worker-execution-envelope" \
   '`AGENT_ROLE=orca`' 'already spawned' \
@@ -77,28 +77,32 @@ else
   fail "autopilot-accepts-orca-dispatch-envelope"
 fi
 
-has_all "phase-runs-whole-loop-in-one-session" \
-  'One phase is one worker session' 'select its route once' \
-  'every follow-up' 'without stopping between steps' 'Merge prerequisites' \
-  'post-merge HEAD' 'no separate' 'approval self-resolve'
+has_all "ticket-runs-whole-loop-in-one-session" \
+  'One ticket is one worker session' 'select its route once' \
+  'every follow-up' 'without stopping between steps' 'Adopt prerequisites' \
+  'CONFLICT=' 'no separate' 'approval self-resolve'
 
-has_all "phase-session-ownership" \
-  '### Phase session ownership' 'Reuse' 'Retain' 'Release' \
+has_all "ticket-session-ownership" \
+  '### Ticket session ownership' 'Reuse' 'Retain' 'Release' \
   '`worker-retain`' 'retained idle' 'never send a follow-up to a session whose Dispatch is' \
   '`repair`' '`refresh`' '`redirect`' '`deliver`' \
-  '### Reuse a phase session' '--terminal "$PHASE_TERMINAL"' '`transport-matched`' \
-  'Never reuse one phase' 'holds no lease'
+  '### Reuse a ticket session' '--terminal "$TICKET_TERMINAL"' '`transport-matched`' \
+  'Never reuse one ticket' 'holds no lease'
 
-has_all "plan-approval-by-phase-size" \
-  '### Plan approval by phase size' 'Phase plan checkpoints run inside the phase session' \
+has_all "plan-approval-by-ticket-size" \
+  '### Plan approval by ticket size' 'Ticket plan checkpoints run inside the ticket session' \
   'the worker self-approves as' 'Foreman reviews and approves' 'Foreman approves' \
   'Exit 4 (rubric)' 'Exit 3 (floor) or 5 (hold/grant)' 'parks the' \
   'Never implement on an unapproved plan record' 'after two redirects'
 
-has_all "whole-dag-one-wake" \
-  'one wake per project' 'Dependent phases therefore launch' \
+has_all "whole-phase-one-wake" \
+  'one wake per phase' 'Dependent tickets therefore launch' \
   'bbs foreman await --prereqs' 'AWAIT=not-ready' 'Foreman stays light' \
   'dependent never displaces runnable work' '`messages:<n>` (an `L` plan review'
+
+has_all "watcher-self-heals-lost-workers" \
+  '`lost:<task>`' 'fence it with `worker-stop`/`worker-abandon`' \
+  'follows a retried Task to its new Dispatch' 'never babysit it'
 
 if grep -q -- '--unblocks\|settled:<task>' "$F"; then
   fail "no-per-wave-wake"
@@ -113,21 +117,21 @@ has_all "fresh-eyes-only-after-retry-budget" \
 has_all "lifecycle-aware-dispatch" \
   'pointers.workflow' 'default to `builder` only' 'LIFECYCLE' 'TRIGGER' 'evidence-only'
 
-has_all "project-qa-gate" \
-  'Integration QA Task' 'bbs ticket surface compose' 'surface lease' 'read-only QA worker' \
-  'parent scope and cross-phase flows'
+has_all "phase-qa-gate" \
+  '## Phase integration QA' 'bbs foreman integrate' 'one integration worker session' \
+  'every criterion of' 'cross-ticket transitions' 'that exact commit'
 
 has_all "durable-resume-and-finish" \
   'pointers.orca_run' 'Terminal handles are routing metadata' \
-  'bbs ticket readiness --action <review|land|pr> --json' 'BBS_FINISH=review | land | pr'
+  'bbs ticket readiness --action review --json' 'bbs foreman snapshot'
 
 has_all "ensure-before-init-ordering" \
   'ensure --mode=worktree' '--from-input-file "$SEED_PATH"' \
   'never pre-create' 'fast-path no-op' 'origin-type sub_ticket' \
-  'from inside its own worktree'
+  'from inside' 'landed on' 'env -u BABYSIT_TICKET bbs ticket ensure --no-branch'
 
-has_all "revert-before-land" \
-  'surface revert' 'bbs-serving' 'BLOCKs' 'dependency order'
+has_all "land-never-stashes" \
+  'Never stash, reset or overwrite them' 'integrate` again' 'base moved since the build'
 
 has_all "native-task-list-init" \
   'Initialize the native task list' 'parent, children' \
@@ -169,24 +173,29 @@ has_all "batched-wake-reconciliation" \
   'start a polling timer' 'cold-resume boundary' 'hand it to `bbs foreman batch` and end the turn'
 
 has_all "heavy-checks-deferred-and-merged" \
-  'consolidated heavy QA' 'DEFERRED_HEAVY=' 'only when no light phase is ready' \
+  'consolidated heavy QA' 'DEFERRED_HEAVY=' 'only when no light ticket is ready' \
   'never displaces light work' 'one simulator boot' 'BABYSIT_TICKET=<ticket>'
-has_all "eager-per-ticket-finish" \
-  '## Eager per-ticket finish' 'settled workers need not wait' \
-  'bbs ticket land <child>' 'create-pr' 'dependency order' \
-  'Final Integration QA' 'resets local base' \
-  'pointers.pr' 'merge-base --is-ancestor' \
-  'Supervised repair Dispatch' 'never blind-retry' \
-  'under `land`' 'final integration QA does not' '`review`'
+has_all "ticket-closeout-inside-phase" \
+  '## Ticket close-out and phase landing' 'unfinished work' \
+  'bbs foreman land "$PARENT" --phase "$K"' 'every prerequisite it adopted' \
+  'never blind-retry' 'phase that does not compose'
 
-has_all "parent-design-gates-child-topology" \
-  'Before step 2, pass' 'Project design checkpoint' \
-  'Append `--auto` only when explicitly requested' 'recorded `auto`' 'accepted parent design' \
-  'all'
+has_all "basic-design-gates-phase-topology" \
+  'Before any phase opens, pass' 'Project design checkpoint' \
+  'Append `--auto` only when explicitly requested' 'recorded `auto`' 'accepted design' \
+  'one prototype of the whole product' 'in \*\*one batch\*\*, now'
 
-has_all "final-qa-after-finish-before-done" \
-  'exact delivered base' 'retained QA/wave' 'final project QA' 'Only then run' 'No missing gate' \
-  'before the Foreman `done` heartbeat'
+has_all "final-qa-is-last-phase-qa" \
+  "last phase's cumulative QA is the project's final QA" 'Only then run' \
+  'unreleased phase, missing gate' 'before the Foreman `done` heartbeat'
+
+has_all "phase-release-control" \
+  '## Human control points' 'human only\*\*, under every posture' \
+  'bbs foreman release "$PARENT" --phase "$K" --request' \
+  'bbs foreman release "$PARENT" --phase "$K" --file receipt.json' \
+  'refuses kind `release`' '\*\*stops the line\*\*' 'Pipeline one phase deep' \
+  'cannot integrate until `k` is released' '`--auto` never grants a release' \
+  'lowers a phase' 'bbs foreman readiness "$PARENT" --action release --phase "$K" --json'
 
 PROJECT_CONTRACT="$ROOT/.claude/skills/foreman/references/project-contract.md"
 if python3 - "$PROJECT_CONTRACT" "$ROOT/.claude/skills/qa/SKILL.md" <<'PY'
@@ -199,15 +208,14 @@ for required in (
     '`--auto` delegates the human design reviews',
     'auto: true', 'approval self-resolve',
     'bbs foreman report <parent>', 'atomically\nreplace parent `report.md`',
-    'PR_READY', 'LANDED_LOCAL', 'MERGED_REMOTE', 'UNKNOWN',
-    'Never move `<base>`', 'No `-B`, force update or deletion',
-    'Do not use\n   `surface revert` as restoration',
-    'Changed inputs mean STALE',
+    '`LANDED`', '`RELEASED`', 'UNKNOWN',
+    'bbs foreman integrate', 'bbs foreman land',
+    'STALE and a rerun',
 ):
     assert required in contract, required
-assert 'Foreman final integration mode' in qa
-assert "coordinator's lease" in qa
-assert 'This explicit mode takes precedence' in qa
+assert 'Foreman integration mode' in qa
+assert 'tests that exact commit read-only' in qa
+assert 'Do not edit code, commit' in qa
 PY
 then
   ok "project-approval-report-and-final-surface-contract"
@@ -216,8 +224,7 @@ else
 fi
 
 has_all "ticket-status-closeout" \
-  'bbs ticket set-status done' 'bbs ticket set-status in_review' \
-  'only after the PR is observed merged' 'parent becomes `done`' 'remains `in_review`'
+  'bbs ticket set-status done' 'parent becomes `done`' 'every phase landed'
 
 if grep -q 'bbs ticket set-status in_review' "$C" \
    && grep -q 'status becomes `done` only after the PR is observed merged' "$C"; then
@@ -235,7 +242,7 @@ has_all "terminal-done-heartbeat" \
   'bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"' \
   'A `done` heartbeat alone is not completion' \
   'watcher closes only the adopted Foreman terminal' \
-  'blocked required phase or unfinished cleanup'
+  'blocked ticket or unfinished cleanup'
 
 if ! grep -q 'bbs foreman mailbox' "$F" "$ROOT/.claude/skills/references/preamble.md" \
    && ! grep -q 'sleep 20' "$F" \

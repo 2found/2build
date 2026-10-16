@@ -1,32 +1,16 @@
 #!/usr/bin/env bash
-# tests/test_bbs_parallel_tickets.sh — git-flow + qa flow with several tickets
-# in flight at once. foreman dispatches a batch of workers against one primary
-# checkout, so "two runs hit the same surface at the same moment" is the
-# designed usage rather than an edge case; this suite covers the interactions
-# no single-ticket test can see.
+# tests/test_bbs_parallel_tickets.sh — several tickets in flight at once.
+# Foreman cuts a batch of worktrees against one primary checkout and their
+# workers share one surface lease, so "two runs hit the same thing at the same
+# moment" is the designed usage rather than an edge case; this suite covers
+# the interactions no single-ticket test can see.
 #
 # Scenarios:
 #   ensure-race-distinct-tickets    N concurrent ensure → N distinct ids/worktrees
 #   ensure-serializes-worktree-add  the cut waits on the add-lock rather than
 #                                   running `git worktree add` alongside it
-#   compose-race-serving-truth      N worktrees compose at once → ops serialize,
-#                                   serving names exactly the last finisher
-#   compose-while-a-peer-composes   a peer mid-merge does not read as the
-#                                   operator's own uncommitted work
-#   compose-vs-revert               composing races a revert → serving never
-#                                   claims a ticket whose commit is not in HEAD
-#   compose-lease-held-throughout   the merge lock is never free between a
-#                                   compose's reset and its merge landing
-#   lease-blocks-parallel-ops       lease held → a burst of surface-movers all
-#                                   BLOCK and the primary does not move
-#   lease-not-granted-mid-merge     acquire cannot take the lease while a merge is
-#                                   already in flight (see the note on the test)
 #   force-release-vs-acquire        release --force racing acquire → at most one
 #                                   owner, never a lease dir without an owner file
-#   no-lock-leaked                  no code path leaves a lock dir behind (one
-#                                   leak wedges every surface op for good)
-#   mixed-op-stress                 randomized concurrent traffic → all of the
-#                                   above invariants hold together
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -36,7 +20,7 @@ PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m  %s\n' "$1"; [ $# -gt 1 ] && printf '        %s\n' "$2"; }
 
-# Bare origin + clone on mode: worktree, main pushed.
+# Bare origin + clone, main pushed.
 build_repo() {
   local t="$1"
   git init -q --bare "$t/remote.git"
@@ -46,32 +30,26 @@ build_repo() {
     git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init
     git branch -M main
     git remote add origin "$t/remote.git"
-    mkdir -p .babysit
-    echo "mode: worktree" > .babysit/git-flow.yaml
-    git add .babysit/git-flow.yaml
-    git -c user.email=t@t -c user.name=t commit -q -m "git-flow config"
     git push -q origin main
   )
 }
 
 # build_tickets <tmpdir> <n> — n worktree tickets, each with one distinct
-# committed file f<i>.txt so they never conflict with each other. Fills TKS/WTS.
+# uncommitted file f<i>.txt. Fills TKS/WTS.
 build_tickets() {
   local t="$1" n="$2" i out
   TKS=(); WTS=()
   cd "$t/repo"
   for i in $(seq 1 "$n"); do
-    out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint "tick-$i" --type feat 2>/dev/null)" || return 1
+    out="$("$BBS_TICKET_BIN" ticket ensure --mode=worktree --slug-hint "tick-$i" --type feat 2>/dev/null)" || return 1
     TKS+=("$(printf '%s\n' "$out" | sed -n 's|^TICKET=||p')")
     WTS+=("$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')")
   done
   for i in $(seq 1 "$n"); do
-    ( cd "${WTS[$((i-1))]}" && echo "work $i" > "f$i.txt" && git add "f$i.txt" \
-        && git -c user.email=t@t -c user.name=t commit -q -m "ticket $i" ) || return 1
+    echo "work $i" > "${WTS[$((i-1))]}/f$i.txt" || return 1
   done
 }
 
-serving_of() { tr -d '\n' < "$1/.git/bbs-serving" 2>/dev/null; }
 
 # ── ensure-race-distinct-tickets ──────────────────────────────────────
 T="$(mktemp -d)"
@@ -87,7 +65,7 @@ T="$(mktemp -d)"
   rm -f "$T/go"
   for i in $(seq 1 16); do
     ( while [ ! -f "$T/go" ]; do :; done      # start barrier: collide, don't queue
-      "$BBS_TICKET_BIN" ticket ensure --slug-hint "para-$i" --type feat >"$T/e$i" 2>&1 ) &
+      "$BBS_TICKET_BIN" ticket ensure --mode=worktree --slug-hint "para-$i" --type feat >"$T/e$i" 2>&1 ) &
   done
   : > "$T/go"; wait
 
@@ -114,7 +92,7 @@ T="$(mktemp -d)"
   build_repo "$T"; cd "$T/repo"
 
   mkdir "$T/repo/.git/bbs-worktree-add.lock"      # stand in for an add in flight
-  "$BBS_TICKET_BIN" ticket ensure --slug-hint held --type feat >"$T/out" 2>&1 &
+  "$BBS_TICKET_BIN" ticket ensure --mode=worktree --slug-hint held --type feat >"$T/out" 2>&1 &
   pid=$!
   sleep 2
   kill -0 "$pid" 2>/dev/null || { echo "ensure finished while the add-lock was held"; exit 1; }
@@ -129,257 +107,6 @@ T="$(mktemp -d)"
   [ -d "$T/repo/.git/bbs-worktree-add.lock" ] && { echo "add-lock left behind"; exit 1; }
   :
 ) && ok "ensure-serializes-worktree-add" || fail "ensure-serializes-worktree-add"
-rm -rf "$T"
-
-# ── compose-race-serving-truth ────────────────────────────────────────
-# A batch finishing together composes on the one primary; the surface lease
-# has to serialize them or a merge reads a tree another merge is still
-# writing. Compose is exact — serving names exactly the last finisher's
-# ticket, and only that ticket's file is on the surface.
-T="$(mktemp -d)"
-(
-  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
-  export AGENT_ROLE=mayor
-  build_repo "$T"; build_tickets "$T" 5 || { echo "fixture failed"; exit 1; }
-
-  rm -f "$T/go"
-  for i in 1 2 3 4 5; do
-    ( while [ ! -f "$T/go" ]; do :; done
-      cd "${WTS[$((i-1))]}" && "$BBS_TICKET_BIN" ticket surface compose >"$T/m$i" 2>&1 ) &
-  done
-  : > "$T/go"; wait
-
-  for i in 1 2 3 4 5; do
-    grep -q "^SERVING=${TKS[$((i-1))]}\$" "$T/m$i" \
-      || { echo "ticket $i compose did not succeed: $(cat "$T/m$i")"; exit 1; }
-  done
-  sv="$(serving_of "$T/repo")"
-  n=0; last=""
-  for i in 1 2 3 4 5; do
-    case ",$sv," in *",${TKS[$((i-1))]},"*) n=$((n+1)); last="$i" ;; esac
-  done
-  [ "$n" -eq 1 ] || { echo "serving names $n tickets, want exactly 1: '$sv'"; exit 1; }
-  [ -f "$T/repo/f$last.txt" ] || { echo "f$last.txt missing though serving claims it"; exit 1; }
-) && ok "compose-race-serving-truth" || fail "compose-race-serving-truth"
-rm -rf "$T"
-
-# ── compose-while-a-peer-composes ─────────────────────────────────────
-# The state checks (base branch, clean tree) have to run under the surface
-# lease. A peer's merge leaves the primary mid-write for as long as it runs,
-# and a check outside the lease reads that as the operator's own uncommitted
-# work: the ticket does not land and the operator is told to stash changes
-# that are not theirs. This is the flake behind an intermittent compose-race
-# failure, so the hook makes the peer's merge slow enough to hit it every
-# time.
-T="$(mktemp -d)"
-(
-  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
-  export AGENT_ROLE=mayor
-  build_repo "$T"; build_tickets "$T" 2 || { echo "fixture failed"; exit 1; }
-  cd "$T/repo"; echo trunk > trunk.txt; git add trunk.txt   # non-FF: hooks run
-  git -c user.email=t@t -c user.name=t commit -q -m "trunk moves"
-  git push -q origin main   # compose reverts to origin first — keep it safe
-
-  cat > "$T/repo/.git/hooks/prepare-commit-msg" <<EOF
-#!/bin/sh
-touch "$T/in_merge"
-sleep 3
-exit 0
-EOF
-  chmod +x "$T/repo/.git/hooks/prepare-commit-msg"
-
-  ( cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose >"$T/m1" 2>&1 ) &
-  for _ in $(seq 1 400); do [ -f "$T/in_merge" ] && break; sleep 0.05; done
-  [ -f "$T/in_merge" ] || { echo "setup: the peer merge never started: $(cat "$T/m1")"; exit 1; }
-
-  ( cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface compose >"$T/m2" 2>&1 )
-  wait
-  grep -q "^SERVING=${TKS[1]}\$" "$T/m2" \
-    || { echo "composing during a peer's merge was refused:"; cat "$T/m2"; exit 1; }
-  grep -q "^SERVING=${TKS[0]}\$" "$T/m1" || { echo "the peer compose itself failed: $(cat "$T/m1")"; exit 1; }
-  # The second compose is exact: it reverted the first, so only f2 survives.
-  [ -f "$T/repo/f2.txt" ] || { echo "f2.txt missing from the primary"; exit 1; }
-  [ ! -f "$T/repo/f1.txt" ] || { echo "f1.txt survived the second compose's revert"; exit 1; }
-) && ok "compose-while-a-peer-composes" || fail "compose-while-a-peer-composes"
-rm -rf "$T"
-
-# ── compose-vs-revert ─────────────────────────────────────────────────
-# One worker composes while another reverts the surface. Either order is
-# legal — the invariant is that serving never claims a ticket whose commit is
-# not in HEAD, because a QA run reads serving to know what it is testing.
-T="$(mktemp -d)"
-(
-  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
-  export AGENT_ROLE=mayor
-  build_repo "$T"; build_tickets "$T" 2 || { echo "fixture failed"; exit 1; }
-
-  for trial in 1 2 3 4 5 6; do
-    (cd "$T/repo" && git reset -q --hard origin/main && rm -f .git/bbs-serving)
-    rm -f "$T/go"
-    ( while [ ! -f "$T/go" ]; do :; done
-      cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose >"$T/mb" 2>&1 ) &
-    ( while [ ! -f "$T/go" ]; do :; done
-      cd "$T/repo" && "$BBS_TICKET_BIN" ticket surface revert >"$T/rb" 2>&1 ) &
-    : > "$T/go"; wait
-
-    sv="$(serving_of "$T/repo")"
-    has_f1=no; [ -f "$T/repo/f1.txt" ] && has_f1=yes
-    case ",$sv," in *",${TKS[0]},"*) claims=yes ;; *) claims=no ;; esac
-    [ "$claims" = "$has_f1" ] || {
-      echo "trial $trial: serving='$sv' claims=$claims but f1.txt present=$has_f1"
-      echo "  compose: $(cat "$T/mb")"; echo "  revert: $(cat "$T/rb")"; exit 1; }
-  done
-) && ok "compose-vs-revert" || fail "compose-vs-revert"
-rm -rf "$T"
-
-# ── compose-lease-held-throughout ─────────────────────────────────────
-# compose reverts the base and then merges. Those must be one step under one
-# lock: with two acquisitions, a second compose resets in between and its
-# merge lands on a tree still carrying the first ticket, while serving names
-# only its own — QA then measures another ticket's code without knowing it.
-#
-# Racing two composes and checking the outcome is a poor test for it: the
-# window is the few milliseconds between the two acquisitions, and a rival
-# that polls every 100ms lands in it about 5% of trials idle (56% on a loaded
-# machine) — a trial count tuned on one machine passes by luck on another.
-# So test the property that causes it instead: the lease is never free between
-# the reset and the merge landing. A reference-transaction hook parks the
-# compose inside its `git reset --hard`, and a thief spinning flat-out on the
-# lease dir takes it the instant it is free. Whenever the thief gets in, the
-# surface must already be finished — reset undone and the ticket merged. A
-# build that drops the lease mid-compose lets the thief in while the tree is
-# bare.
-T="$(mktemp -d)"
-(
-  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
-  export AGENT_ROLE=mayor
-  build_repo "$T"; build_tickets "$T" 1 || { echo "fixture failed"; exit 1; }
-
-  # Put main behind origin/main so the reset actually moves the ref — a no-op
-  # reset opens no ref transaction and the hook below would never fire.
-  ( cd "$T/repo" && echo x > ahead.txt && git add ahead.txt \
-      && git -c user.email=t@t -c user.name=t commit -q -m ahead \
-      && git push -q origin main && git reset -q --hard HEAD~1 )
-
-  # Fires on every ref update; only the reset of main while `hold` exists parks.
-  # The merge updates main too, so `hold` is gone by the time it runs.
-  cat > "$T/repo/.git/hooks/reference-transaction" <<HOOK
-#!/bin/sh
-[ "\$1" = prepared ] || exit 0
-read -r old new ref || exit 0
-[ "\$ref" = refs/heads/main ] || exit 0
-[ -f "$T/hold" ] || exit 0
-: > "$T/parked"
-while [ -f "$T/hold" ]; do sleep 0.1; done
-HOOK
-  chmod +x "$T/repo/.git/hooks/reference-transaction"
-
-  LOCK="$T/repo/.git/bbs-qa-lease"
-  : > "$T/hold"
-  ( cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose "${TKS[0]}" >"$T/w1" 2>&1 ) &
-  for _ in $(seq 1 200); do [ -f "$T/parked" ] && break; sleep 0.05; done
-  [ -f "$T/parked" ] || { echo "compose never reached its reset"; exit 1; }
-  [ -d "$LOCK" ] || { echo "compose is resetting without holding the surface lease"; exit 1; }
-
-  # Steal the lease the moment it opens, and photograph the surface right then.
-  # mkdir is the same window the real publish races for: it can only win once
-  # the holder has removed the directory.
-  ( while ! mkdir "$LOCK" 2>/dev/null; do :; done
-    { [ -f "$T/repo/f1.txt" ] && echo "merged=yes" || echo "merged=no"
-      echo "serving=$(serving_of "$T/repo")"; } > "$T/stolen"
-    rmdir "$LOCK" ) &
-  thief=$!
-  sleep 1                       # the thief is provably spinning by now
-  rm -f "$T/hold"
-  wait "$thief"; wait
-
-  grep -q '^merged=yes' "$T/stolen" || {
-    echo "surface lease went free mid-compose — surface at that moment: $(tr '\n' ' ' < "$T/stolen")"
-    echo "  w1: $(cat "$T/w1")"; exit 1; }
-  sv="$(serving_of "$T/repo")"
-  [ "$sv" = "${TKS[0]}" ] || { echo "serving='$sv' want '${TKS[0]}'"; exit 1; }
-  [ -f "$T/repo/f1.txt" ] || { echo "ticket file missing from the surface"; exit 1; }
-) && ok "compose-lease-held-throughout" || fail "compose-lease-held-throughout"
-rm -rf "$T"
-
-# ── lease-blocks-parallel-ops ─────────────────────────────────────────
-T="$(mktemp -d)"
-(
-  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
-  export AGENT_ROLE=mayor
-  build_repo "$T"; build_tickets "$T" 4 || { echo "fixture failed"; exit 1; }
-
-  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface acquire >/dev/null 2>&1) || { echo "acquire failed"; exit 1; }
-  head_before="$(cd "$T/repo" && git rev-parse HEAD)"
-
-  rm -f "$T/go"
-  for i in 2 3 4; do
-    ( while [ ! -f "$T/go" ]; do :; done
-      cd "${WTS[$((i-1))]}" && "$BBS_TICKET_BIN" ticket surface compose >"$T/q$i" 2>&1 ) &
-  done
-  ( while [ ! -f "$T/go" ]; do :; done
-    cd "$T/repo" && "$BBS_TICKET_BIN" ticket surface revert >"$T/qr" 2>&1 ) &
-  : > "$T/go"; wait
-
-  for i in 2 3 4; do
-    grep -q 'STATUS: BLOCKED' "$T/q$i" || { echo "compose $i ran under a held lease: $(cat "$T/q$i")"; exit 1; }
-    [ ! -f "$T/repo/f$i.txt" ] || { echo "f$i.txt landed under a held lease"; exit 1; }
-  done
-  grep -q 'STATUS: BLOCKED' "$T/qr" || { echo "revert ran under a held lease: $(cat "$T/qr")"; exit 1; }
-  [ "$head_before" = "$(cd "$T/repo" && git rev-parse HEAD)" ] \
-    || { echo "primary HEAD moved under a held lease"; exit 1; }
-) && ok "lease-blocks-parallel-ops" || fail "lease-blocks-parallel-ops"
-rm -rf "$T"
-
-# ── lease-not-granted-mid-merge ───────────────────────────────────────
-# A surface op checks the lease before it takes the merge lock, so there is a
-# window where a lease published in between covers a surface that is already
-# moving — QA would measure a tree that changes under it.
-#
-# Racing the two processes and hoping for that interleaving is worthless: the
-# acquire is a far shorter codepath and wins every time (measured 30/30), so
-# the test passes without ever reaching the window. Force the order instead —
-# a merge hook holds the merge open, and the lease is requested while it is
-# demonstrably in flight. The lease may only be granted once the merge lands.
-T="$(mktemp -d)"
-(
-  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
-  export AGENT_ROLE=mayor
-  build_repo "$T"; build_tickets "$T" 2 || { echo "fixture failed"; exit 1; }
-  # Put a commit on main the ticket branch lacks, so landing it is a real merge
-  # commit — a fast-forward runs no hooks and gives us nothing to hold open.
-  cd "$T/repo"; echo trunk > trunk.txt; git add trunk.txt
-  git -c user.email=t@t -c user.name=t commit -q -m "trunk moves"
-  git push -q origin main   # compose reverts to origin first — keep it safe
-
-  cat > "$T/repo/.git/hooks/prepare-commit-msg" <<EOF
-#!/bin/sh
-touch "$T/merge_start"
-sleep 2
-touch "$T/merge_end"
-exit 0
-EOF
-  chmod +x "$T/repo/.git/hooks/prepare-commit-msg"
-
-  ( cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose >"$T/mb" 2>&1 ) &
-  mb_pid=$!
-  # Generous: a loaded CI runner takes its time getting through the git calls
-  # that precede the merge, and a short wait here would read as a failure.
-  for _ in $(seq 1 400); do [ -f "$T/merge_start" ] && break; sleep 0.05; done
-  [ -f "$T/merge_start" ] || { echo "setup: merge never reached the hook: $(cat "$T/mb")"; exit 1; }
-
-  out="$(cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface acquire 2>&1)"
-  landed=no; [ -f "$T/merge_end" ] && landed=yes
-  wait $mb_pid 2>/dev/null
-
-  if printf '%s' "$out" | grep -q 'ACQUIRED=1' && [ "$landed" = no ]; then
-    echo "lease granted while the merge was still in flight:"; printf '%s\n' "$out"; exit 1
-  fi
-  # And the wait must resolve, not fail: once the merge lands the lease is takeable.
-  grep -q "^SERVING=${TKS[0]}\$" "$T/mb" || { echo "compose did not land: $(cat "$T/mb")"; exit 1; }
-  printf '%s' "$out" | grep -q 'ACQUIRED=1' \
-    || { echo "acquire never got the lease after the merge landed: $out"; exit 1; }
-) && ok "lease-not-granted-mid-merge" || fail "lease-not-granted-mid-merge"
 rm -rf "$T"
 
 # ── force-release-vs-acquire ──────────────────────────────────────────
@@ -417,92 +144,6 @@ T="$(mktemp -d)"
     fi
   done
 ) && ok "force-release-vs-acquire" || fail "force-release-vs-acquire"
-rm -rf "$T"
-
-# ── no-lock-leaked ────────────────────────────────────────────────────
-# A leak is worse than the races above: a lease left standing blocks every
-# surface op until its ttl runs out. The short lease a surface op takes must
-# never outlive the op — only a QA session's long lease stays up between ops.
-T="$(mktemp -d)"
-(
-  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
-  export AGENT_ROLE=mayor
-  build_repo "$T"; build_tickets "$T" 2 || { echo "fixture failed"; exit 1; }
-  R="$T/repo"
-  no_locks() {
-    [ ! -d "$R/.git/bbs-qa-lease.steal" ] || { echo "$1: bbs-qa-lease.steal left behind"; exit 1; }
-    [ ! -d "$R/.git/bbs-worktree-add.lock" ] || { echo "$1: bbs-worktree-add.lock left behind"; exit 1; }
-    [ -z "$(find "$R/.git" -maxdepth 1 -name 'bbs-qa-lease.tmp-*' 2>/dev/null)" ] \
-      || { echo "$1: orphaned lease temp dir"; exit 1; }
-    ! grep -qs '^kind=short' "$R/.git/bbs-qa-lease/owner" \
-      || { echo "$1: a surface op left its lease standing"; exit 1; }
-  }
-  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface acquire >/dev/null 2>&1); no_locks "acquire"
-  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface acquire >/dev/null 2>&1); no_locks "reentrant refresh"
-  (cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface acquire >/dev/null 2>&1); no_locks "blocked acquire"
-  (cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>&1);       no_locks "lease-blocked compose"
-  (cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface release >/dev/null 2>&1); no_locks "refused release"
-  # stale steal: the one path that nests the steal lock inside the merge lock
-  ownerf="$R/.git/bbs-qa-lease/owner"; aged=$(( $(date +%s) - 3900 ))
-  sed "s/^since_epoch=.*/since_epoch=$aged/" "$ownerf" > "$ownerf.t" && mv "$ownerf.t" "$ownerf"
-  out="$(cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface acquire 2>&1)"
-  printf '%s' "$out" | grep -q 'STOLE_FROM=' || { echo "expected a steal, got: $out"; exit 1; }
-  no_locks "stale steal"
-  (cd "$R" && "$BBS_TICKET_BIN" ticket surface release --force >/dev/null 2>&1); no_locks "forced release"
-  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>&1);        no_locks "successful compose"
-  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose "${TKS[0]}" >/dev/null 2>&1); no_locks "successful explicit compose"
-  # and the surface is still usable — a wedged lock only shows up on the next op
-  (cd "${WTS[1]}" && "$BBS_TICKET_BIN" ticket surface compose 2>&1) | grep -q '^SERVING=' \
-    || { echo "compose wedged after the lease/compose cycle"; exit 1; }
-) && ok "no-lock-leaked" || fail "no-lock-leaked"
-rm -rf "$T"
-
-# ── mixed-op-stress ───────────────────────────────────────────────────
-# Randomized concurrent traffic of the shape a foreman batch produces. Holds
-# the invariants together: one lease owner at most, no leaked locks, serving
-# never claims a ticket absent from HEAD, repo still usable at the end.
-T="$(mktemp -d)"
-(
-  export PATH="$SCRIPT_DIR:$PATH"; export HOME="$T/home"; mkdir -p "$HOME"
-  export AGENT_ROLE=mayor
-  build_repo "$T"; build_tickets "$T" 5 || { echo "fixture failed"; exit 1; }
-  R="$T/repo"
-
-  for round in $(seq 1 10); do
-    rm -f "$T/go"
-    for i in 1 2 3 4 5; do
-      wt="${WTS[$((i-1))]}"; tk="${TKS[$((i-1))]}"
-      case $(( (round + i) % 4 )) in
-        0) op=(surface compose) ;;
-        1) op=(surface acquire) ;;
-        2) op=(surface compose "$tk") ;;
-        3) op=(surface release) ;;
-      esac
-      ( while [ ! -f "$T/go" ]; do :; done
-        cd "$wt" && "$BBS_TICKET_BIN" ticket "${op[@]}" >"$T/o$i" 2>&1 ) &
-    done
-    ( while [ ! -f "$T/go" ]; do :; done
-      cd "$R" && "$BBS_TICKET_BIN" ticket surface revert >"$T/o6" 2>&1 ) &
-    : > "$T/go"; wait
-
-    [ ! -d "$R/.git/bbs-qa-lease.steal" ] || { echo "round $round: steal lock leaked"; exit 1; }
-    ! grep -qs '^kind=short' "$R/.git/bbs-qa-lease/owner" \
-      || { echo "round $round: a surface op left its lease standing"; exit 1; }
-    n_owner=$(grep -l 'ACQUIRED=1' "$T"/o[1-5] 2>/dev/null | wc -l | tr -d ' ')
-    [ "$n_owner" -le 1 ] || { echo "round $round: $n_owner lease owners: $(cat "$T"/o[1-5])"; exit 1; }
-    sv=""; [ -f "$R/.git/bbs-serving" ] && sv="$(tr -d '\n' < "$R/.git/bbs-serving")"
-    for i in 1 2 3 4 5; do
-      case ",$sv," in *",${TKS[$((i-1))]},"*)
-        [ -f "$R/f$i.txt" ] \
-          || { echo "round $round: serving='$sv' claims ${TKS[$((i-1))]} but f$i.txt is absent"; exit 1; } ;;
-      esac
-    done
-  done
-  (cd "$R" && "$BBS_TICKET_BIN" ticket surface release --force >/dev/null 2>&1)
-  (cd "$R" && "$BBS_TICKET_BIN" ticket surface revert >/dev/null 2>&1) || { echo "revert wedged at the end"; exit 1; }
-  (cd "${WTS[0]}" && "$BBS_TICKET_BIN" ticket surface compose 2>&1) | grep -q '^SERVING=' \
-    || { echo "compose wedged at the end"; exit 1; }
-) && ok "mixed-op-stress" || fail "mixed-op-stress"
 rm -rf "$T"
 
 echo

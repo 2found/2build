@@ -251,7 +251,7 @@ on its own.
   within the same shell invocation). Downstream commands read it via the
   ladder's env-first rung.
 - **Explicit-ticket commands** — `get-manifest <ticket>`,
-  `set-branch <ticket> …`, `surface compose <ticket>…`, `land <ticket>…`,
+  `set-branch <ticket> …`, `adopt <ticket>…`,
   `surface acquire|release --ticket`, `reconcile --ticket|--all` — resolve project scope
   only (`ticket.ResolveProject`): an unrelated manifest ambiguity in the
   cwd must not reject a fully explicit command. The env-conflict abort

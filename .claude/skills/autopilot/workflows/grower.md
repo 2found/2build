@@ -29,11 +29,11 @@ reversible experiment per run.
    then `qa` under its gate policy. Persist and read back both verdicts, apply the
    **Repair until the final change passes** loop, and require
    `bbs ticket readiness --action review --json` to report `data.ready=true`
-   for the final committed tree. Use `bbs ticket set-verdict --skill review-pr`
+   for the final tree. Use `bbs ticket set-verdict --skill review-pr`
    and `bbs ticket set-verdict --skill qa`; completion prose is not evidence.
-5. Commit any scaffolded variant locally. Autopilot never pushes, lands, or
-   opens a PR — close-out is the human's `create-pr` (or the dispatching
-   foreman's).
+5. Leave any scaffolded variant uncommitted. Autopilot never commits, pushes,
+   or opens a PR — that is the human's (`create-pr`) or Foreman's phase
+   landing.
 6. Write a handoff: metric, winning experiment + constraining assumption, and
    what shipped behind which flag. When a signal warrants, name the forward
    lifecycle edge after `create-pr`: load, cost, or reliability pressure seen

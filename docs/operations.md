@@ -41,7 +41,7 @@ keys below and the configuration examples above.
 | Semantic credentials | Edit `$BBS_CONFIG_DIR/.env` with `nano`; set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` | Environment wins, then user `.env`; project `.env` is ignored |
 | Project inference limits | Edit `<repo>/.babysit/semantic-decision.yaml` | Optional; can restrict external inference, not enable it or select provider/model |
 | Foreman model/effort routes | `bbs foreman model --json`; edit `~/.babysit/settings.json` or `<repo>/.babysit/settings.json` | Built-in policy, then user, then repo overrides; [schema](../.claude/skills/foreman/references/model-routing.md#model-tiers) |
-| Finish, rigor and repo profile | `bbs autopilot git-flow`; edit `<repo>/.babysit/git-flow.yaml` | [Profile policy](profiles.md); separate from semantic provider configuration |
+| Base branch | `bbs autopilot base-branch`; `BBS_BASE_BRANCH` or `bbs config set base_branch <name>` | `origin/HEAD`, then `main`; the only git setting ([git flow](../.claude/skills/references/git-flow.md)) |
 
 The semantic-decision step always exists. Selecting Cloudflare is the explicit
 user opt-in to external inference; credentials alone do not select it. Switch
@@ -84,9 +84,11 @@ as default. This coverage audit separates judgments from enforced policy:
 | Recoverable blocker or missing human input | Triage / `recovery` | Retry budget, ownership and dispatch authority |
 
 Foreman's parent plan requires human review unless explicit, persisted `--auto`
-delegates it. Phase plans are approved by size within the accepted parent plan
-and current bounds: `S`/`M` by the phase worker as Foreman's delegate, `L` by
-Foreman itself; one that neither may approve parks that phase only. Semantic judgment evaluates the rubric; `approval
+delegates it. Ticket plans are approved by size within the accepted parent plan
+and current bounds: `S`/`M` by the ticket worker as Foreman's delegate, `L` by
+Foreman itself; one that neither may approve parks that ticket only. A phase's
+production release go is never delegated: `approval self-resolve` refuses kind
+`release` under every posture and grant. Semantic judgment evaluates the rubric; `approval
 self-resolve` still enforces floor → rubric → authority → approval. A model's
 `proceed` answer is not an approval record.
 
@@ -166,12 +168,37 @@ other admitted work and retries the queued Task on its next reconcile tick.
 
 ### Project review and delivery evidence
 
-Foreman prepares one parent plan, design/prototype and proposed ticket map
-before creating child worktrees or dispatching production work. Review that
-project checkpoint once; phase plans are approved against it — `S`/`M` by
-their own worker, `L` by Foreman — without stopping the phase session. Product
-scope/design changes return to the parent checkpoint. Approval is bound to
-the artifact revision, so changed documents require a new review.
+Foreman clarifies the requirement, then has one worker prepare the basic
+design — architecture, whole-product prototype, plan, ticket manifest and the
+release-phase plan in `project.json` — before creating any phase ticket or
+dispatching production work. Review that project checkpoint once; ticket plans
+are approved against it — `S`/`M` by their own worker, `L` by Foreman — without
+stopping the ticket session. Product scope/design changes return to the parent
+checkpoint. Approval is bound to the artifact revision, so changed documents
+require a new review.
+
+The phase plan names, per phase, its seeds and a release mode: `ask` (a human
+gives the go), `auto` (the approved design is the go) or `none` (ships with the
+next phase). The CLI enforces the order:
+
+```bash
+bbs foreman readiness <parent> --action dispatch|integrate|land|release --phase <id> --json
+bbs foreman integrate <parent> --phase <id>     # one phase commit, detached worktree
+bbs foreman land <parent> --phase <id>          # after phase QA: fast-forward base
+bbs foreman bind <parent> --phase <id> --child <phase-ticket>
+bbs foreman release <parent> --phase <id> --request --note "<what ships>"   # ask: human go
+bbs foreman release <parent> --phase <id> --file receipt.json              # release-prd verdict
+```
+
+Phase `k` opens once phase `k-1` has landed, so it builds
+while `k-1` waits on its release; it integrates only after every earlier phase
+is released. A `ROLLED_BACK` or `PARTIAL` receipt stops the line until the
+phase is fixed forward and released; from the second failure every phase needs
+a human go. To give an `ask` go, approve the release record on the phase
+ticket like any approval (`BABYSIT_TICKET=<phase-ticket> bbs ticket approval
+resolve --action approve`, or the dashboard). An approved contract records each
+seed's release mode as a floor; a revised contract that lowers one needs human
+approval even under `--auto`.
 
 To delegate the human design reviews too, explicitly pass `--auto`:
 
@@ -184,26 +211,27 @@ Codex        $bbs:foreman --auto <large project>
 `bbs foreman spawn fm-project --auto` and direct adoption with `--auto` persist
 the choice on that Foreman record across resumes. It still creates and
 reviews the artifacts; hold/grant bounds, non-delegable decisions, code review,
-QA, and `finish:` authorization remain in force. Existing records without
-`auto: true` use human project review; phase plan approval is unchanged.
+QA, and release modes remain in force. Existing records without
+`auto: true` use human project review; ticket plan approval is unchanged.
+`--auto` never gives a release go.
 
 `bbs foreman report <parent-ticket>` reads the last durable `report.md`, even
 after Orca closes. Each reconciliation writes the observation time, meaningful
-ticket titles, worker/phase, branch/head, gate evidence, PR/merge state and
-cleanup/blockers. It is explicitly a saved snapshot; ask the running Foreman
-to check status for a fresh reconciliation. Execution, delivery and cleanup
-are separate: PR_READY does not mean merged, and LANDED_LOCAL does not mean
-pushed. Missing evidence stays UNKNOWN.
+ticket titles, each phase's state and release, worker/loop step, sealed
+snapshot, gate evidence, phase commit and cleanup/blockers. It is explicitly a
+saved snapshot; ask the running Foreman to check status for a fresh
+reconciliation. Execution, delivery and cleanup are separate: LANDED does not
+mean pushed or released. Missing evidence stays UNKNOWN.
 
-Final project integration QA runs after finish handlers and before Foreman
-reports done: on the actual landed `<base>` for `finish: land`, or a retained
-`qa/<parent>` branch composed from verified heads for `pr`/`review`. It records
-the tested branch/SHA and acceptance evidence on the parent. Independent
-code-bearing tickets still require this final check. QA branch preparation
-and restoration never reset local base; `surface compose/revert` are only
-for the earlier scratch/per-ticket lifecycle. Failures return to child repair
-and verification. The full protocol is in
-[the Foreman project contract](../.claude/skills/foreman/references/project-contract.md).
+Workers never commit. Each phase becomes **one commit** on local base
+(`bbs foreman integrate`), built from the tickets' sealed snapshots in a
+detached integration worktree, and one integration QA runs on exactly that
+commit. It tests every criterion of that phase and all earlier ones, so the
+last phase's run is the project's final QA. `bbs foreman land` then
+fast-forwards local base to the tested commit; nothing is ever stashed or
+reset. Failures return to ticket repair, reseal and a fresh phase commit. The full protocol is in
+[the Foreman project contract](../.claude/skills/foreman/references/project-contract.md)
+and [phases](../.claude/skills/foreman/references/phases.md).
 
 ### Which coding agent runs the work
 
@@ -321,7 +349,7 @@ worktree.
 ### Provider, model and effort
 
 Orca owns enabled-agent and default-agent selection for new workers. Foreman
-applies the phase/tier routing table and destination-host discovery. Explicit
+applies the ticket/tier routing table and destination-host discovery. Explicit
 per-dispatch `--agent`, `--model`, and `--effort` requests remain available
 through route and worker-command; managed `spawn` also accepts explicit fields
 for a new Foreman. Provider selection belongs in the agent's native
@@ -353,10 +381,10 @@ destination host's Orca facts and persists the selected route. Receipt
 verification reads `dispatchId` and `launch.effective.agent`, and requires
 ready/accepted input. For a native OMP terminal, `route verify --terminal <handle>`
 returns `transport-matched`; null effective settings stay null. Verify the
-worker's actual session settings separately before accepting phase work.
-A follow-up for the same phase reuses that worker's terminal and must verify
+worker's actual session settings separately before accepting ticket work.
+A follow-up for the same ticket reuses that worker's terminal and must verify
 `transport-matched` again. After settlement, release the worker (or retain it
-while the phase awaits heavy QA, integration QA or its land turn) and close a
+while the ticket awaits heavy QA or its phase's integration QA) and close a
 native terminal only if this Foreman created it. Direct `worker-command` uses the same route policy.
 See [model routing](../.claude/skills/foreman/references/model-routing.md) and the
 [worker launch reference](../.claude/skills/foreman/references/worker-routing.md).
@@ -436,21 +464,46 @@ watcher holds those foreman prompts and supervises the batch instead: it types
 Dispatch open, up to `--worker-nudges` times, then reports it stalled. It wakes
 the foreman (Orca message plus pane prompt) once when every Dispatch is terminal
 — after typing `/compact` and letting it finish, for agents that have one — or
-early for a question, an exited worker or a stall. Orca itself types a mail
+early for a new question (tracked by message id, so a second question after
+the first was read still wakes), an exited worker, a stall, or a lost worker —
+an open Dispatch with no worker row or live terminal for the whole stall
+budget. A wake that cannot be delivered stays owed and is retried each tick;
+a failed member the foreman retries is followed to its new Dispatch, so the
+batch does not settle under a running retry. Orca itself types a mail
 pointer into an idle coordinator for every arriving message unless its mailbox
 holds an unacknowledged Delivery, so the watcher keeps one open (seeding an
 empty mailbox with the batch notice) until the foreman's wake acknowledges it.
 `bbs foreman batch show <id>` prints the batch state the wake refers to.
 
-A batch normally holds the whole phase DAG: a dependent phase's worker waits for
+The watcher is built to outlive what goes wrong around it: every Orca call is
+bounded (60 s), a failing tick is logged as `TICK-FAILED` rather than ending
+the process, and while any batch is open an unreachable Orca is retried
+(`ORCA-DOWN`) instead of exiting. If the process dies anyway, the next `bbs`
+session-writer hook (at most once a minute per working agent) or `bbs foreman
+await` call restarts it; the watch lock keeps that to one watcher.
+
+While a batch is open, `bbs foreman batch` also installs an OS supervisor for
+the watcher — a launchd agent on macOS
+(`~/Library/LaunchAgents/dev.2found.bbs.foreman-watch.<hash>.plist`) or a
+systemd user unit on Linux (`bbs-foreman-watch-<hash>.service`), one per
+`BABYSIT_HOME`. It runs `bbs foreman watch --supervised`, which stands by
+behind the live watcher's lock and takes over if that process dies, exits 0
+when no batch is open (so the OS never restart-loops it), and restarts at most
+once a minute after a crash. It carries only `PATH`, `HOME`, `BABYSIT_HOME` and
+the Orca CLI variables it was installed with. Inspect or manage it with `bbs foreman supervisor
+status|install|uninstall`; set `BBS_WATCH_SUPERVISOR=off` to never install one.
+Windows has no supervisor; the hook restart above still applies.
+
+A batch normally holds every ticket of the open phases: a dependent ticket's worker waits for
 its prerequisites inside its own session with `bbs foreman await --prereqs
-<ticket>:<task>,...`, and an `L` phase waits for Foreman's plan approval through
+<ticket>:<task>,...`, and an `L` ticket waits for Foreman's plan approval through
 `orca orchestration ask`. Both run as foreground commands bounded below the
 default 10-minute `--worker-idle` (540 s per call, then repeated), so a waiting
 worker is neither nudged nor reported stalled. `await` exits 0 with the verified
 heads to merge, 3 when a prerequisite settled without passing readiness (the
 dependent reports `BLOCKED` and Foreman later sends it a `refresh`), and 4 on
-timeout.
+timeout. An unreachable Orca is still waiting, and a readiness read that fails
+is retried twice before it counts as not-ready.
 
 ```bash
 bbs foreman watch                       # every foreman with an open workspace

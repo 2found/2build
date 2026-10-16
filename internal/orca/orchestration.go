@@ -73,29 +73,40 @@ func (c *Client) DispatchStateFor(taskID string) (DispatchState, error) {
 	return dispatch, nil
 }
 
-// PendingMessagesFor counts unread messages of the given types addressed to
+// PendingMessagesFor lists unread messages of the given types addressed to
 // terminal without consuming them: `check --peek` filters rows by type and
 // never marks them read, so the recipient still receives them in its next
 // Delivery. The terminal is explicit because the caller is a watcher outside it.
-func (c *Client) PendingMessagesFor(terminal, types string) (int, error) {
+// It returns the unread count and the ids of the rows it saw; ids is nil when
+// the runtime reports only a count.
+func (c *Client) PendingMessagesFor(terminal, types string) (int, []string, error) {
 	if !c.Orchestration() {
-		return 0, ErrNoOrchestration
+		return 0, nil, ErrNoOrchestration
 	}
 	raw, err := c.run("orchestration", "check", "--terminal", terminal, "--peek", "--types", types)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 	var result struct {
-		Count    *int              `json:"count"`
-		Messages []json.RawMessage `json:"messages"`
+		Count    *int `json:"count"`
+		Messages []struct {
+			ID string `json:"id"`
+		} `json:"messages"`
 	}
 	if err := json.Unmarshal(raw, &result); err != nil {
-		return 0, fmt.Errorf("orca check --peek: %w", err)
+		return 0, nil, fmt.Errorf("orca check --peek: %w", err)
 	}
+	var ids []string
+	for _, m := range result.Messages {
+		if m.ID != "" {
+			ids = append(ids, m.ID)
+		}
+	}
+	n := len(result.Messages)
 	if result.Count != nil {
-		return *result.Count, nil
+		n = *result.Count
 	}
-	return len(result.Messages), nil
+	return n, ids, nil
 }
 
 // HoldMailbox opens (or replays) the coordinator's Delivery for run without

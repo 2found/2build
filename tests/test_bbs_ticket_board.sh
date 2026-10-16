@@ -2,22 +2,21 @@
 # tests/test_bbs_ticket_board.sh — coverage for `bbs ticket` § board.
 #
 # board = read-only aggregated view: every ticket joined with its verdicts,
-# branch, session, PR pointer, and siblings, plus a surface-lease + serving footer.
+# branch, session, PR pointer, and siblings, plus a surface-lease footer.
 # Zero mutation — running board must never change any state.
 #
 # Scenarios:
 #   board-rows-and-verdicts   both tickets listed; A's qa verdict DONE, B none;
-#                             branch column from manifest; footer FREE/(base only)
-#   board-lease-and-serving   lease held by A + compose A → footer shows owner
-#                             and SERVING=A; compose B → SERVING=B;
-#                             compose B A → SERVING=B,A
+#                             branch column from manifest; footer FREE
+#   board-lease               lease held by A → footer shows owner; released →
+#                             FREE
 #   board-status-filter       done ticket hidden by default, shown with --all
 #   board-sibling-unresolved  sibling with unset RELATED_* env → "path
 #                             unresolved" sub-row, main row intact, rc 0
 #   board-base-drift          BASE line: matches origin after push; ahead after
-#                             compose lands a ticket on local base, with the
-#                             "cut from origin" sub-line; "no origin ref" when
-#                             the repo has no remote
+#                             a phase lands on local base, with the "awaiting a
+#                             release push" sub-line; "no origin ref" when the
+#                             repo has no remote
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -27,8 +26,8 @@ PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m  %s\n' "$1"; [ $# -gt 1 ] && printf '        %s\n' "$2"; }
 
-# Fixture: bare origin + clone with mode: worktree committed and pushed, then
-# two worktree tickets A and B, each with one committed file. Sets globals
+# Fixture: bare origin + clone, then two worktree tickets A and B, each with
+# one uncommitted file. Sets globals
 # WT_A/WT_B (worktree paths) and TK_A/TK_B (ticket ids). Runs in $1/repo.
 build_two_tickets() {
   local t="$1"
@@ -39,25 +38,19 @@ build_two_tickets() {
     git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init
     git branch -M main
     git remote add origin "$t/remote.git"
-    mkdir -p .babysit
-    echo "mode: worktree" > .babysit/git-flow.yaml
-    git add .babysit/git-flow.yaml
-    git -c user.email=t@t -c user.name=t commit -q -m "git-flow config"
     git push -q origin main
   )
   cd "$t/repo"
   local out
-  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint tick-a --type feat 2>/dev/null)" || return 1
+  out="$("$BBS_TICKET_BIN" ticket ensure --mode=worktree --slug-hint tick-a --type feat 2>/dev/null)" || return 1
   TK_A="$(printf '%s\n' "$out" | sed -n 's|^TICKET=||p')"
   WT_A="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
-  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint tick-b --type feat 2>/dev/null)" || return 1
+  out="$("$BBS_TICKET_BIN" ticket ensure --mode=worktree --slug-hint tick-b --type feat 2>/dev/null)" || return 1
   TK_B="$(printf '%s\n' "$out" | sed -n 's|^TICKET=||p')"
   WT_B="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
   [ -n "$WT_A" ] && [ -n "$WT_B" ] || return 1
-  ( cd "$WT_A" && echo "work a" > a.txt && git add a.txt \
-      && git -c user.email=t@t -c user.name=t commit -q -m "ticket a" ) || return 1
-  ( cd "$WT_B" && echo "work b" > b.txt && git add b.txt \
-      && git -c user.email=t@t -c user.name=t commit -q -m "ticket b" ) || return 1
+  echo "work a" > "$WT_A/a.txt"
+  echo "work b" > "$WT_B/b.txt"
 }
 
 # ── board-rows-and-verdicts ───────────────────────────────────────────
@@ -80,11 +73,12 @@ T="$(mktemp -d)"
   [ "$(printf '%s' "$row_a" | awk '{print $5}')" = "False" ] \
     || { echo "A's PUSHED column should be False: $row_a"; exit 1; }
   printf '%s\n' "$out" | grep -q "^QA-LEASE: FREE$" || { echo "expected free lease: $out"; exit 1; }
-  printf '%s\n' "$out" | grep -q "^SERVING: (base only)$" || { echo "expected base-only serving: $out"; exit 1; }
+  printf '%s\n' "$out" | grep -q "^SERVING:" && { echo "board still reports a served composition: $out"; exit 1; }
+  true
 ) && ok "board-rows-and-verdicts" || fail "board-rows-and-verdicts"
 rm -rf "$T"
 
-# ── board-lease-and-serving ───────────────────────────────────────────
+# ── board-lease ───────────────────────────────────────────────────────
 T="$(mktemp -d)"
 (
   export PATH="$SCRIPT_DIR:$PATH"
@@ -93,22 +87,12 @@ T="$(mktemp -d)"
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
 
   "$BBS_TICKET_BIN" ticket surface acquire --ticket "$TK_A" >/dev/null 2>&1 || { echo "acquire failed"; exit 1; }
-  BABYSIT_TICKET="$TK_A" "$BBS_TICKET_BIN" ticket surface compose "$TK_A" >/dev/null 2>&1 || { echo "compose A failed"; exit 1; }
   out="$("$BBS_TICKET_BIN" ticket board)"
   printf '%s\n' "$out" | grep -q "^QA-LEASE: $TK_A " || { echo "lease owner not shown: $out"; exit 1; }
-  printf '%s\n' "$out" | grep -q "^SERVING: $TK_A$" || { echo "expected SERVING: $TK_A: $out"; exit 1; }
-
-  # compose is set-semantics: B replaces A.
   BABYSIT_TICKET="$TK_A" "$BBS_TICKET_BIN" ticket surface release >/dev/null 2>&1
-  "$BBS_TICKET_BIN" ticket surface compose "$TK_B" >/dev/null 2>&1 || { echo "compose B failed"; exit 1; }
-  "$BBS_TICKET_BIN" ticket board | grep -q "^SERVING: $TK_B$" \
-    || { echo "expected SERVING: $TK_B after compose B"; exit 1; }
-
-  # A multi-ticket compose names the whole set.
-  "$BBS_TICKET_BIN" ticket surface compose "$TK_B" "$TK_A" >/dev/null 2>&1 || { echo "compose B A failed"; exit 1; }
-  "$BBS_TICKET_BIN" ticket board | grep -q "^SERVING: $TK_B,$TK_A$" \
-    || { echo "expected SERVING: $TK_B,$TK_A after compose B A"; exit 1; }
-) && ok "board-lease-and-serving" || fail "board-lease-and-serving"
+  "$BBS_TICKET_BIN" ticket board | grep -q "^QA-LEASE: FREE$" \
+    || { echo "expected a free lease after release"; exit 1; }
+) && ok "board-lease" || fail "board-lease"
 rm -rf "$T"
 
 # ── board-status-filter ───────────────────────────────────────────────
@@ -159,33 +143,21 @@ T="$(mktemp -d)"
   "$BBS_TICKET_BIN" ticket board | grep -q "^BASE: main — matches origin/main" \
     || { echo "expected in-sync BASE line: $("$BBS_TICKET_BIN" ticket board)"; exit 1; }
 
-  # compose lands A on local main only — exactly the drift a ticket cut
-  # from origin/main would miss.
-  ( cd "$WT_A" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>&1 ) || { echo "compose A failed"; exit 1; }
+  # A landed phase sits on local main until its release pushes it.
+  echo "phase" > phase.txt && git add phase.txt \
+    && git -c user.email=t@t -c user.name=t commit -q -m "phase 1"
   out="$("$BBS_TICKET_BIN" ticket board)"
   printf '%s\n' "$out" | grep -qE "^BASE: main — [1-9][0-9]* ahead / 0 behind origin/main" \
     || { echo "expected ahead BASE line: $out"; exit 1; }
-  printf '%s\n' "$out" | grep -q "exist only on local 'main'" \
-    || { echo "expected the cut-from-origin sub-line: $out"; exit 1; }
-
-  # mode: trunk cuts no branch, so the ahead line must NOT claim new tickets
-  # will miss the work — under trunk they are built on top of it.
-  printf 'profile: pet\nbase_branch: main\n' > .babysit/git-flow.yaml
-  out="$("$BBS_TICKET_BIN" ticket board)"
-  printf '%s\n' "$out" | grep -q "mode: trunk cuts no branch" \
-    || { echo "expected the trunk-worded ahead line: $out"; exit 1; }
-  printf '%s\n' "$out" | grep -q "new ones will not have them" \
-    && { echo "branch-cutting wording leaked into trunk mode: $out"; exit 1; }
-  printf 'mode: worktree\nbase_branch: main\n' > .babysit/git-flow.yaml
+  printf '%s\n' "$out" | grep -q "landed phases awaiting a release push" \
+    || { echo "expected the awaiting-release sub-line: $out"; exit 1; }
 
   # base_branch names a branch that exists on origin but not locally: the line
   # must say so rather than vanishing (the one case that used to print nothing).
   git push -q origin main:develop
   git fetch -q origin
-  printf 'profile: startup\nbase_branch: develop\n' > .babysit/git-flow.yaml
-  "$BBS_TICKET_BIN" ticket board | grep -q "^BASE: develop — no local 'develop' branch" \
-    || { echo "expected the missing-local-base line: $("$BBS_TICKET_BIN" ticket board)"; exit 1; }
-  printf 'mode: worktree\nbase_branch: main\n' > .babysit/git-flow.yaml
+  BBS_BASE_BRANCH=develop "$BBS_TICKET_BIN" ticket board | grep -q "^BASE: develop — no local 'develop' branch" \
+    || { echo "expected the missing-local-base line: $(BBS_BASE_BRANCH=develop "$BBS_TICKET_BIN" ticket board)"; exit 1; }
 
   # A repo with no remote must say so rather than printing a bogus count.
   git init -q "$T/solo"

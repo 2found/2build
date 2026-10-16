@@ -50,8 +50,8 @@ Only recognized push / PR-create / PR-merge shell commands pay the cost of
 ticket resolution. Other commands return silently. This is a workflow check,
 not a shell security sandbox: aliases, scripts, dynamically constructed
 commands, and tools outside the host's hook coverage can bypass classification.
-Run releases through 2build's workflows; `bbs ticket land` independently
-checks its persisted verdicts.
+Run releases through 2build's workflows; `bbs foreman land` independently
+checks phase QA evidence.
 
 - No ticket: no objection.
 - Ticket identity conflict or unavailable companion binary: deny with a reason.

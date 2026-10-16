@@ -3,8 +3,9 @@
 # (internal/cmd/ticket_ensure.go) must behave identically to the frozen bash
 # oracle.
 #
-# Covers: ensure (trunk mode = no cut, worktree divert, safe-cut NEEDS_CONFIRM
-# gate) over a real git repo. The surface-verb scenarios that used to live
+# Covers: ensure in trunk mode (no cut) over a real git repo. Branch mode and
+# its safe-cut gate are gone; worktree cuts are covered directly by
+# test_bbs_ticket_ensure_from_ref.sh. The surface-verb scenarios that used to live
 # here moved out with the command cutover: the Go side speaks `surface`, the
 # oracle still speaks `qa-lease`, so there is nothing left to diff — the
 # direct surface tests cover that lifecycle now.
@@ -85,8 +86,8 @@ newrepo() {
 }
 
 # ── Scenario 1: ensure — trunk mode (no cut) ─────────────────────────
-# git-flow.yaml mode: trunk → ensure creates ticket state without cutting a
-# branch. Random ticket id masked.
+# Default trunk mode → ensure creates ticket state without cutting a branch.
+# (The reference still reads a leftover git-flow.yaml; Go ignores it.) Random ticket id masked.
 ensure_trunk_scenario() {
   local impl="$1"; local wd="$ROOT/$impl-trunk"
   newrepo "$wd"
@@ -106,32 +107,6 @@ if diff -u <(mask "$ROOT/bash-trunk" < "$ROOT/bash.trunk") \
   ok "ensure trunk-mode (no cut) identical"
 else
   fail "ensure trunk-mode diverged" "$(cat "$ROOT/trunk.diff")"
-fi
-
-# ── Scenario 2: ensure — safe-cut NEEDS_CONFIRM gate ─────────────────
-# branch mode + developer role + dirty tree (unsafe base) → the safe-cut gate
-# must refuse in place with STATUS: NEEDS_CONFIRM (exit 3) rather than divert.
-ensure_safecut_scenario() {
-  local impl="$1"; local wd="$ROOT/$impl-safe"
-  newrepo "$wd"
-  mkdir -p "$wd/.babysit"
-  printf 'mode: branch\n' > "$wd/.babysit/git-flow.yaml"
-  printf 'dirty\n' > "$wd/uncommitted.txt"   # dirty tree = unsafe base checkout
-  export BABYSIT_PROJECT_HOME="$ROOT/$impl-safe-home"
-  export AGENT_ROLE=developer SAFE_CUT=1
-  local out err rc
-  out="$( cd "$wd" && "$ROOT/$impl-cmd" ensure --from-input "Risky change here" 2>"$ROOT/.e" )"; rc=$?
-  err="$(cat "$ROOT/.e")"
-  { printf 'RC=%s\nOUT=%s\nERR=%s\n' "$rc" "$out" "$err"; } >> "$ROOT/$impl.safe"
-  unset AGENT_ROLE SAFE_CUT
-}
-ensure_safecut_scenario bash
-ensure_safecut_scenario go
-if diff -u <(mask "$ROOT/bash-safe" < "$ROOT/bash.safe") \
-           <(mask "$ROOT/go-safe"   < "$ROOT/go.safe") > "$ROOT/safe.diff"; then
-  ok "ensure safe-cut NEEDS_CONFIRM gate identical"
-else
-  fail "ensure safe-cut gate diverged" "$(cat "$ROOT/safe.diff")"
 fi
 
 echo

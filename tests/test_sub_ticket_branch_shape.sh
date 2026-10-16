@@ -19,15 +19,14 @@ else
 fi
 
 if grep -q 'origin.type=sub_ticket' "$BUILDER" \
-   && grep -q 'branch/worktree foreman prepared' "$BUILDER"; then
+   && grep -q 'worktree foreman prepared' "$BUILDER"; then
   ok "builder-consumes-prepared-child-worktree"
 else
   fail "builder-consumes-prepared-child-worktree"
 fi
 
 if grep -rq 'bbs ticket ensure --mode=worktree' "$FOREMAN_DIR" \
-   && grep -rq 'git worktree list' "$FOREMAN_DIR" \
-   && grep -rq 'git worktree remove' "$FOREMAN_DIR"; then
+   && grep -rq 'bbs foreman land' "$FOREMAN_DIR"; then
   ok "foreman-owns-worktree-lifecycle"
 else
   fail "foreman-owns-worktree-lifecycle"

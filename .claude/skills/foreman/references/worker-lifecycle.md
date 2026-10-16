@@ -7,7 +7,7 @@ skill, including on resume or failure.
 
 Declare `SPAWNED=true` and `AGENT_ROLE=orca` in the assignment. An authenticated
 current Dispatch overrides a stale developer/unspawned shell echo. Supply the
-blocking escalation channel and phase/stop boundary before invoking the skill.
+blocking escalation channel and ticket/stop boundary before invoking the skill.
 
 ## Worker lifecycle
 Read `~/.claude/skills/orchestration/SKILL.md` and its version-matched guide.
@@ -27,7 +27,7 @@ capability, Task ID and Dispatch ID; never reconstruct authority from env/ticket
   not a terminal report. `--files-modified` / `--report-path` name real artifacts.
 - A `Continue Dispatch <id>` prompt is the watcher's idle nudge: resume the
   assignment, or send its pending `worker_done` if it is already complete.
-- A phase session can receive a follow-up Dispatch (`repair`, `refresh`,
+- A ticket session can receive a follow-up Dispatch (`repair`, `refresh`,
   `redirect`, `deliver`) after its `worker_done`. Its new injected preamble
   carries new Task and Dispatch IDs: apply this lifecycle to it afresh, keep
   the context you already hold, re-read the durable state the follow-up

@@ -74,7 +74,8 @@ func evaluateReadinessIn(env identity.Env, action, dir string) (readinessResult,
 	}
 	result.Enforced = result.ContractVersion == 2
 	needed := []string{"review-pr"}
-	if action != "push" {
+	// light: review only, for a prerequisite whose heavy checks are deferred.
+	if action != "push" && action != "light" {
 		needed = append(needed, "qa")
 	}
 
@@ -95,7 +96,10 @@ func evaluateReadinessIn(env identity.Env, action, dir string) (readinessResult,
 			result.ReasonCodes = append(result.ReasonCodes, "control:"+stringValue(control["state"]))
 		}
 	}
-	if s.Git.Dirty {
+	// Workers never commit: gates verify the working tree by content
+	// (tree_digest), so uncommitted work is the normal verified state. Only a
+	// push sends commits, and uncommitted changes would not be in them.
+	if s.Git.Dirty && (action == "push" || action == "pr") {
 		result.ReasonCodes = append(result.ReasonCodes, "git:dirty")
 	}
 	if s.ActiveAttempt != nil {
@@ -213,7 +217,9 @@ func evidenceReadinessReasons(ev map[string]interface{}, gate string, current ma
 		reasons = append(reasons, "material_findings")
 	}
 	subject, _ := ev["subject"].(map[string]interface{})
-	for _, key := range []string{"repo_id", "base_sha", "head_sha", "tree_digest", "requirement_digest", "plan_digest", "policy_digest"} {
+	// head_sha is recorded but not compared: tree_digest is the work itself,
+	// whichever commit (if any) it sits on.
+	for _, key := range []string{"repo_id", "base_sha", "tree_digest", "requirement_digest", "plan_digest", "policy_digest"} {
 		if stringValue(subject[key]) != stringValue(current[key]) {
 			reasons = append(reasons, "stale_"+key)
 		}

@@ -490,6 +490,9 @@ func runSessionWriter(payload []byte) {
 	}
 
 	writeSessionRecord(sessDir, sessionPrefix(body)+"-"+sid, cwd, deriveSessionTicket(cwd))
+	// Same once-a-minute cadence: every working agent doubles as the
+	// watcher's check-in while a Foreman batch is open.
+	ensureWatcher()
 }
 
 // writeSessionRecord also serves skill bootstrap, which refreshes without throttling.

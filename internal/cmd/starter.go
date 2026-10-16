@@ -17,7 +17,7 @@ import (
 )
 
 func newBootstrapCmd() *cobra.Command {
-	var template, profile, source, release string
+	var template, source, release string
 	var noVerify, asJSON bool
 	cmd := &cobra.Command{
 		Use:   "bootstrap <directory>",
@@ -30,9 +30,6 @@ func newBootstrapCmd() *cobra.Command {
 			}
 			if !starter.ValidName(filepath.Base(target)) {
 				return fmt.Errorf("project name must be lowercase kebab-case (max 64 characters)")
-			}
-			if profile != "pet" && profile != "startup" && profile != "enterprise" {
-				return fmt.Errorf("profile must be pet, startup, or enterprise")
 			}
 			if _, err := os.Lstat(target); !os.IsNotExist(err) {
 				return fmt.Errorf("target already exists or cannot be accessed: %s", target)
@@ -84,7 +81,7 @@ func newBootstrapCmd() *cobra.Command {
 			if noVerify {
 				verify = nil
 			}
-			lock, err := starter.Generate(source, target, template, profile, revision, verify)
+			lock, err := starter.Generate(source, target, template, revision, verify)
 			if err != nil {
 				return err
 			}
@@ -103,7 +100,6 @@ func newBootstrapCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&template, "template", "hono-bun", "Starter template ID")
-	cmd.Flags().StringVar(&profile, "profile", "startup", "Git policy: pet, startup, or enterprise")
 	cmd.Flags().StringVar(&source, "source", "", "Local starter catalog directory (development/offline generation)")
 	cmd.Flags().StringVar(&release, "version", "", "Stable starter release X.Y.Z (default: latest published release)")
 	cmd.Flags().BoolVar(&noVerify, "no-verify", false, "Generate files without installing dependencies or running checks")

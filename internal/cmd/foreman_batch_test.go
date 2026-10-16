@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +21,12 @@ import (
 type batchWorld struct {
 	Dispatch  map[string]string `json:"dispatch"`
 	Questions int               `json:"questions"`
+	Asked     []string          `json:"asked"`
+	Missing   []string          `json:"missing"`
+	Released  []string          `json:"released"`
+	Broken    []string          `json:"broken"`
+	PaneDown  bool              `json:"pane_down"`
+	Attempts  map[string]string `json:"attempts,omitempty"`
 	Mail      int               `json:"mail"`
 	Exited    []string          `json:"exited"`
 	Panes     map[string]string `json:"panes"`
@@ -37,7 +44,7 @@ func newBatchFixture(t *testing.T, agentName string) *batchFixture {
 	t.Helper()
 	dir := t.TempDir()
 	f := &batchFixture{state: filepath.Join(dir, "state.json"), log: filepath.Join(dir, "calls.log")}
-	f.world = batchWorld{Dispatch: map[string]string{}, Exited: []string{}, Panes: map[string]string{"term_0": "foreman: idle"}}
+	f.world = batchWorld{Dispatch: map[string]string{}, Exited: []string{}, Asked: []string{}, Missing: []string{}, Released: []string{}, Broken: []string{}, Panes: map[string]string{"term_0": "foreman: idle"}}
 	f.save(t)
 	script := `#!/usr/bin/python3
 import json, sys
@@ -49,12 +56,19 @@ def arg(name):
 def out(result):
     print(json.dumps({"ok": True, "result": result}))
 def ctx(task):
-    return "ctx-" + task
+    return w.get("attempts", {}).get(task, "ctx-" + task)
+def fail(msg):
+    print(json.dumps({"ok": False, "error": {"code": "runtime_error", "message": msg}}))
+    sys.exit(1)
 cmd = args[:2]
+if args[:1] != ["status"] and arg("--task") in w["broken"]:
+    fail("dispatch-show unavailable")
 if args[0] == "status":
     out({"runtime": {"reachable": True, "capabilities": ["orchestration.contract.v1"]}})
 elif cmd == ["terminal", "list"]:
     out({"terminals": [{"handle": "term_0", "title": "bbs foreman", "connected": True, "worktreePath": "/repo"}]})
+elif cmd == ["terminal", "send"] and w["pane_down"] and arg("--terminal") == "term_0":
+    fail("terminal not connected")
 elif cmd == ["terminal", "read"]:
     out({"terminal": {"tail": w["panes"].get(arg("--terminal"), "").splitlines()}})
 elif cmd == ["orchestration", "dispatch-show"]:
@@ -62,7 +76,10 @@ elif cmd == ["orchestration", "dispatch-show"]:
     status = w["dispatch"].get(task)
     out({"dispatch": {"id": ctx(task), "status": status, "run_id": "run-1"} if status else None})
 elif cmd == ["orchestration", "check"] and "--peek" in args:
-    out({"messages": [], "count": w["questions"]})
+    if w["asked"]:
+        out({"messages": [{"id": i, "type": "question"} for i in w["asked"]], "count": len(w["asked"])})
+    else:
+        out({"messages": [], "count": w["questions"]})
 elif cmd == ["orchestration", "check"]:
     out({"deliveryId": "delivery-1", "count": w["mail"]} if w["mail"] else {"count": 0})
 elif cmd == ["orchestration", "send"]:
@@ -70,10 +87,11 @@ elif cmd == ["orchestration", "send"]:
     json.dump(w, open(` + pyQuote(f.state) + `, "w"))
     out({"message": {"id": "msg-%d" % w["mail"]}})
 elif cmd == ["orchestration", "worker-list"]:
-    rows = [{"dispatchId": ctx(t), "dispatchStatus": s, "terminalState": "active",
+    rows = [{"dispatchId": ctx(t), "dispatchStatus": s,
+             "terminalState": "released" if t in w["released"] else "active",
              "agentTerminalHandle": "term_w_" + t,
              "projection": {"liveness": {"verdict": "exited" if ctx(t) in w["exited"] else "live"}}}
-            for t, s in w["dispatch"].items()]
+            for t, s in w["dispatch"].items() if t not in w["missing"]]
     out({"workers": rows, "page": {"hasMore": False}})
 else:
     out({})
@@ -367,5 +385,226 @@ func TestBatchHoldsTheForemanMailboxOpen(t *testing.T) {
 	data, _ = os.ReadFile(f.log)
 	if strings.Contains(string(data), "orchestration send") || strings.Count(string(data), "orchestration check --run run-1 --terminal term_0 --json") != 3 {
 		t.Fatalf("held mailbox should be re-asserted once per tick without new mail:\n%s", data)
+	}
+}
+
+// wakes returns the Foreman wake prompts typed since the last sends() call.
+func (f *batchFixture) wakes(t *testing.T) []string {
+	t.Helper()
+	var out []string
+	for _, s := range f.sends(t) {
+		if strings.HasPrefix(s, "terminal send") && strings.Contains(s, "--terminal term_0") {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// A dry run of one Foreman project: phase A, phase B waiting on A inside its
+// own session, and an L phase C asking for plan review — all handed over as
+// one batch. Orca hiccups, a worker row vanishing for a while and an
+// unreachable Foreman pane at settlement must not cost an extra wake or lose
+// the one owed: Foreman hears each plan question and the settled batch, and
+// nothing else.
+func TestBatchDryRunWakesOnlyForQuestionsAndTheSettledBatch(t *testing.T) {
+	f := newBatchFixture(t, "grok")
+	f.start(t, "phase-a", "phase-b", "phase-c")
+	now := time.Now()
+	at := func(min int) time.Time { return now.Add(time.Duration(min) * time.Minute) }
+	var wakes []string
+	tick := func(min int) string {
+		t.Helper()
+		line := f.tick(t, at(min))
+		wakes = append(wakes, f.wakes(t)...)
+		return line
+	}
+	busy := func(task string, min int) {
+		f.world.Panes["term_w_"+task] = fmt.Sprintf("%s: working (%dm)", task, min)
+	}
+
+	// Two hours of work. B sits in `bbs foreman await` (its spinner moves);
+	// C asks for its L plan review, is answered, then asks again.
+	for min := 0; min <= 120; min += 5 {
+		busy("phase-a", min)
+		busy("phase-b", min)
+		busy("phase-c", min)
+		switch min {
+		case 10:
+			f.world.Asked = []string{"msg-c1"}
+		case 20:
+			// Foreman answered c1 and C's next question landed within one
+			// watcher interval: the unread count never moved.
+			f.world.Asked = []string{"msg-c2"}
+		case 25:
+			f.world.Asked = []string{}
+		case 30, 35:
+			f.world.Broken = []string{"phase-a"} // dispatch-show failing
+		case 40:
+			f.world.Broken = []string{}
+			f.world.Missing = []string{"phase-b"} // Orca restarted: no row yet
+		case 55:
+			f.world.Missing = []string{}
+		case 60:
+			f.world.Dispatch["phase-a"] = "completed"
+		case 90:
+			f.world.Dispatch["phase-c"] = "completed"
+		}
+		f.save(t)
+		if line := tick(min); strings.Contains(line, "WOKE") && min != 10 && min != 20 {
+			t.Fatalf("unexpected wake at %dm: %q", min, line)
+		}
+	}
+	if len(wakes) != 2 || !strings.Contains(wakes[0], "messages:1") || !strings.Contains(wakes[1], "messages:1") {
+		t.Fatalf("question wakes = %v", wakes)
+	}
+
+	// B settles while the Foreman pane cannot take input: the wake is owed,
+	// not dropped, and delivered once the pane answers.
+	f.world.Dispatch["phase-b"] = "completed"
+	f.world.PaneDown = true
+	f.save(t)
+	if line := f.tick(t, at(125)); !strings.Contains(line, "UNREACHABLE fm-batch") {
+		t.Fatalf("settle with pane down = %q", line)
+	}
+	f.sends(t) // the refused attempt reached nobody
+	if b, _ := loadBatch(f.record.ID); !b.open() {
+		t.Fatal("undelivered settle closed the batch")
+	}
+	f.world.PaneDown = false
+	f.save(t)
+	if line := tick(126); !strings.Contains(line, "WOKE fm-batch") || !strings.Contains(line, "3 completed") {
+		t.Fatalf("settled wake = %q", line)
+	}
+	if line := tick(127); strings.Contains(line, "WOKE") {
+		t.Fatalf("second settled wake: %q", line)
+	}
+	if len(wakes) != 3 {
+		t.Fatalf("Foreman woke %d times, want 3: %v", len(wakes), wakes)
+	}
+}
+
+// An open Dispatch whose worker never shows up (or vanished for good) would
+// hold the batch open forever; after the stall budget it is reported lost,
+// once.
+func TestBatchReportsALostWorkerAfterTheStallBudget(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.start(t, "task-a", "task-b")
+	f.world.Missing = []string{"task-a"}
+	f.save(t)
+	now := time.Now()
+	for _, min := range []int{0, 10, 20, 29} {
+		f.world.Panes["term_w_task-b"] = fmt.Sprintf("task-b: %d", min)
+		f.save(t)
+		if line := f.tick(t, now.Add(time.Duration(min)*time.Minute)); line != "" {
+			t.Fatalf("lost reported early at %dm: %q", min, line)
+		}
+	}
+	line := f.tick(t, now.Add(30*time.Minute))
+	if !strings.Contains(line, "lost:task-a") || strings.Contains(line, "task-b") {
+		t.Fatalf("lost wake = %q", line)
+	}
+	if line := f.tick(t, now.Add(31*time.Minute)); strings.Contains(line, "lost:task-a") {
+		t.Fatalf("lost reported twice: %q", line)
+	}
+	out := captureStdout(t, func() { _ = foremanBatchCommand([]string{"show", f.record.ID}) })
+	if !strings.Contains(out, "ATTENTION=lost:task-a") || !strings.Contains(out, "UNSEEN_SINCE=") {
+		t.Fatalf("show = %q", out)
+	}
+}
+
+// A released terminal (or a user takeover) under a Dispatch that never
+// reported is the same dead end as a missing row.
+func TestBatchTreatsAReleasedTerminalUnderAnOpenDispatchAsLost(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.start(t, "task-a")
+	f.world.Released = []string{"task-a"}
+	f.save(t)
+	now := time.Now()
+	f.tick(t, now)
+	if line := f.tick(t, now.Add(30*time.Minute)); !strings.Contains(line, "lost:task-a") {
+		t.Fatalf("released open dispatch = %q", line)
+	}
+}
+
+// Attention whose wake could not be delivered stays owed.
+func TestBatchRetriesAnUndeliveredAttentionWake(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.start(t, "task-a", "task-b")
+	f.world.Exited = []string{"ctx-task-a"}
+	f.world.PaneDown = true
+	f.save(t)
+	now := time.Now()
+	if line := f.tick(t, now); !strings.Contains(line, "UNREACHABLE") {
+		t.Fatalf("pane down = %q", line)
+	}
+	f.world.PaneDown = false
+	f.save(t)
+	if line := f.tick(t, now.Add(time.Minute)); !strings.Contains(line, "WOKE fm-batch") || !strings.Contains(line, "exited:task-a") {
+		t.Fatalf("retried wake = %q", line)
+	}
+}
+
+// The Foreman retries a failed phase in an early wake without re-arming the
+// batch: the new attempt reopens the member, so the batch does not settle
+// (and the Foreman is not woken) while the retry still runs, and the retry
+// owes its own exited wake.
+func TestBatchFollowsARetriedDispatch(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.start(t, "task-a", "task-b")
+	now := time.Now()
+	f.world.Dispatch["task-a"] = "failed"
+	f.world.Exited = []string{"ctx-task-a"}
+	f.save(t)
+	f.tick(t, now)
+	f.sends(t)
+
+	f.world.Attempts = map[string]string{"task-a": "ctx-task-a-2"}
+	f.world.Dispatch["task-a"] = "dispatched"
+	f.world.Dispatch["task-b"] = "completed"
+	f.world.Panes["term_w_task-a"] = "task-a: retrying"
+	f.save(t)
+	if line := f.tick(t, now.Add(time.Minute)); line != "" {
+		t.Fatalf("retry in flight produced output: %q", line)
+	}
+	b, _ := loadBatch(f.record.ID)
+	if !b.open() || b.Tasks[0].Dispatch != "ctx-task-a-2" || b.Tasks[0].Status != "dispatched" {
+		t.Fatalf("retried member = %+v", b.Tasks[0])
+	}
+
+	f.world.Exited = []string{"ctx-task-a-2"}
+	f.save(t)
+	if line := f.tick(t, now.Add(2*time.Minute)); !strings.Contains(line, "exited:task-a") {
+		t.Fatalf("retried attempt's exit = %q", line)
+	}
+}
+
+// A runtime that reports only a count still wakes when it grows.
+func TestBatchQuestionCountFallback(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.start(t, "task-a")
+	if !batchNewQuestion(&foremanBatch{Questions: 1}, 2, nil) || batchNewQuestion(&foremanBatch{Questions: 1}, 1, nil) {
+		t.Fatal("count fallback")
+	}
+	if !batchNewQuestion(&foremanBatch{Questions: 1, QuestionIDs: []string{"a"}}, 1, []string{"b"}) {
+		t.Fatal("a new id with the same count must wake")
+	}
+}
+
+// The worker-side check-in only revives a watcher while some batch still owes
+// its Foreman a wake.
+func TestAnyOpenBatchTracksTheOwedWake(t *testing.T) {
+	f := newBatchFixture(t, "grok")
+	if anyOpenBatch("") {
+		t.Fatal("no batch yet")
+	}
+	f.start(t, "task-a")
+	if !anyOpenBatch("") || !anyOpenBatch(f.record.ID) || anyOpenBatch("fm-other") {
+		t.Fatal("open batch not seen")
+	}
+	f.world.Dispatch["task-a"] = "completed"
+	f.save(t)
+	f.tick(t, time.Now())
+	if anyOpenBatch("") {
+		t.Fatal("settled batch still owes a wake")
 	}
 }

@@ -87,19 +87,3 @@ func TestRelatedRepoPathAgreementIsNotAConflict(t *testing.T) {
 		t.Fatalf("agreement should resolve cleanly: got %q ok=%v err=%v", got, ok, err)
 	}
 }
-
-func TestSiblingSourceNameStaysAccurate(t *testing.T) {
-	// The serve message names whichever authority was actually consulted.
-	workspace.TestHome(t)
-	unreg := repoWith(t, "")
-	if got := siblingSourceName(workspace.NewResolver(unreg, "")); !strings.Contains(got, "config.yaml") {
-		t.Fatalf("unregistered repo should say so, got %q", got)
-	}
-	top := repoWith(t, "")
-	if err := workspace.AddRepo("acme", workspace.Repo{GitURL: "web.git", Path: top}); err != nil {
-		t.Fatal(err)
-	}
-	if got := siblingSourceName(workspace.NewResolver(top, "")); got != "workspace acme" {
-		t.Fatalf("registered repo should name its workspace, got %q", got)
-	}
-}

@@ -36,8 +36,7 @@ error rather than an arbitrary choice.
 
 Local paths are machine-specific, so the unified file is not committed. Agent
 enablement and defaults are configured in Orca, not the babysit config.
-Repository policy and QA remain committed separately in
-`.babysit/git-flow.yaml` and `.babysit/qa.yaml`; secrets remain in the ignored
+QA config remains committed separately in `.babysit/qa.yaml`; secrets remain in the ignored
 `.babysit/.env`.
 
 ## Three things are called "workspace"
@@ -65,7 +64,7 @@ value keep fan-out enabled.
 
 ## Sibling paths
 
-`bbs ticket serve` resolves a related role from:
+`bbs ticket board` resolves a related role from:
 
 1. the current repo's matched workspace entry — authoritative
 2. `RELATED_*_REPO` in `<repo>/.babysit/.env` — fallback

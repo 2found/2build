@@ -32,10 +32,8 @@ This is operational detail for the four-step Foreman flow, not a second loop.
    a hard fence: remain read-only and report the owner. Different parents may
    run concurrently; one parent has one mutating Foreman.
 6. Create or bind one Orca Run and persist `pointers.orca_run`. Save Task,
-   Dispatch, branch/worktree and lease ids immediately after successful mutations.
-   Terminal handles are routing metadata, never recovery identity. Resolve
-   `bbs autopilot git-flow` for `BBS_FINISH=review | land | pr` and profile-derived
-   review/QA breadth. Initialize the native task list from parent, children and
+   Dispatch, worktree and lease ids immediately after successful mutations.
+   Terminal handles are routing metadata, never recovery identity. Initialize the native task list from parent, children and
    DAG; rebuild it from ticket + Orca state on cold resume.
 
 ## Persistent run and bounded reconciliation
@@ -63,13 +61,13 @@ reminder, a concrete failure, or final completion:
    heartbeat never proves worker exit; retry only proven failed/stopped attempts.
    Never synthesize `worker_done` or a PASS to repair inconsistent state.
 3. Read parent approval/artifact revision, relations, manifests, checkpoints and
-   verdicts. Check finish receipts before accessing removed worktrees. Preserve
-   live writers; recreate only missing safe topology from recorded branches.
+   verdicts. Check `bbs foreman snapshot` delivery rows before accessing removed
+   worktrees. Preserve live writers; recreate only missing safe topology.
    A stale approval returns to the project checkpoint before new production work.
 4. Refresh the parent `report.md` using the project contract. For a status request,
    show every project Task and supervised worker, delivery/QA/cleanup state,
    resource use and the DAG. Release settled orphans, launch every unlaunched
-   phase (dependents included) as one batch, hand it to `bbs foreman batch` and end the turn. Do not repeat heavy review or QA yourself.
+   ticket (dependents included) as one batch, hand it to `bbs foreman batch` and end the turn. Do not repeat heavy review or QA yourself.
 
 Carry failure counts across retries/resumes. After three failed attempts at the
 same blocker, mark that ticket blocked and continue independent ready work.
@@ -97,7 +95,6 @@ never writes ticket state. See topology.md for the bidirectional relations.
 
 Use project-contract.md for the durable report and execution.md for typed evidence
 and the final completion receipt. A `done` heartbeat alone is not completion.
-Under local land, the parent becomes `done`; under retained review or open PRs it
-remains `in_review` while the coordinator can complete. Never infer remote merge
-from a local ancestor test. After successful `bbs foreman complete`, the external
+The parent becomes `done` once every phase landed (and released, where its mode
+asks). After successful `bbs foreman complete`, the external
 watcher closes only the adopted Foreman terminal after its delivery grace.

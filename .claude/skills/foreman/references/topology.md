@@ -1,22 +1,23 @@
 ## Decompose and prepare topology
 
-Before step 2, pass **Project design checkpoint** in the project contract.
-Step 1 drafts seeds and interfaces; it does not authorize child worktrees or
-production dispatch. Reuse current approved artifacts on resume.
+Before any phase opens, pass **Project design checkpoint** in the project
+contract. Basic design drafts phases, seeds and interfaces; it does not
+authorize worktrees or production dispatch. Reuse current approved artifacts
+on resume. Tickets are created per phase, when [the phase opens](phases.md#1-open-the-phase),
+under that phase's ticket.
 
-1. Use the approved parent plan/manifest from the planning worker. Each
-   **phase** is one child ticket: an **independent, testable, releasable unit**
-   with its own branch, verdicts and revert, run end to end by **one worker
-   session**, which can work for hours or days. Any size on the
+1. Use the approved manifest from the basic-design worker. Each **ticket** is
+   an **independent, testable unit** of one phase, with its own worktree,
+   verdicts and revert, run end to end by **one worker session**, which can
+   work for hours or days. Any size on the
    [size rubric](../references/ticket-size-rubric.md) up to `L` is a valid
-   phase; every phase boundary costs a cold session, a merge and a full
-   review/QA cycle, so **prefer fewer, larger phases**. Split only along a real
-   seam: a dependency another phase needs first, work that genuinely runs in
+   ticket; every ticket boundary costs a cold session, a seal and a full
+   review/QA cycle, so **prefer fewer, larger tickets**. Split only along a real
+   seam: a dependency another ticket needs first, work that genuinely runs in
    parallel, a separately verifiable and revertible outcome, or scope one
    coherent plan cannot hold (unrelated journeys or subsystems). Never split
    one coherent change across siblings merely to widen the DAG, and never
-   split inside a worker. Order phases so the first usable journey lands
-   first. A worker that finds its phase beyond one coherent plan, or a
+   split inside a worker. A worker that finds its ticket beyond one coherent plan, or a
    sub-ticket needing its own worktree, returns the proposed split to Foreman
    for approval against accepted scope, bidirectional linkage and DAG
    admission; workers never own topology.
@@ -28,21 +29,24 @@ production dispatch. Reuse current approved artifacts on resume.
    default to `builder` only for ordinary production work. Lifecycle promotion
    needs the prerequisite handoff's `LIFECYCLE` and `TRIGGER` evidence; never
    pre-admit speculative growth/maintenance work before its signal exists.
-2. For each accepted seed, run `bbs ticket ensure --mode=worktree
+2. For each seed of the opening phase, run `bbs ticket ensure --mode=worktree
    --from-input-file "$SEED_PATH" --reason foreman-decompose` from the
-   canonical repo/base. `ensure` owns the ticket id, branch naming, and
+   canonical repo, so the ticket starts from the local base the previous phase
+   landed on. `ensure` owns the ticket id, scratch branch naming, and
    initial checkout — it only cuts on its slow path, so never pre-create the
    ticket id: a resolved `BABYSIT_TICKET` forces the fast-path no-op and no
    worktree is made. Parse and persist its `TICKET`/`BRANCH`/`WORKTREE`
    output; never `eval` it. Existing child → read `manifest.yaml` and reuse
    its exact branch/worktree instead of calling `ensure` again.
-3. Initialize each child as a sub-ticket from inside its own worktree:
-   `bbs ticket init --parent <parent> --origin-type sub_ticket --seed <seed
+3. Initialize each child as a sub-ticket of its **phase ticket** from inside
+   its own worktree: `bbs ticket init --parent <phase-ticket> --origin-type sub_ticket --seed <seed
    path> --plan <parent plan> --position <n> --worktree <path>`. Running it
    from the worktree records the ticket branch in `pointers.branch`; from
    the primary it would record `main`. `init --parent` sets only the child's
    parent field, so add the parent-side membership after initialization:
-   `BABYSIT_TICKET="$PARENT" bbs ticket add-child "$CHILD"`.
+   `BABYSIT_TICKET="$PHASE_TICKET" bbs ticket add-child "$CHILD"`. Dependency
+   edges stay inside one phase; a later phase already starts from an earlier
+   one's code.
    For each dependency, add `blocked_by` on the dependent and `blocks` on the
    prerequisite with `BABYSIT_TICKET="$DEPENDENT" bbs ticket add-relation
    blocked_by "$PREREQUISITE"` and
@@ -58,26 +62,27 @@ production dispatch. Reuse current approved artifacts on resume.
    execution.md, and include their parent acceptance IDs in the Task.
    The moment both sides of every relation are linked, emit the DAG with the
    dispatch plan — see [runtime](references/runtime.md), **Intake and DAG**.
-4. Validate the primary checkout, `git worktree list`, every recorded path,
-   branch head, and configured base before dispatch. Recreate a missing clean
-   worktree only from its recorded branch. A dirty or divergent worktree is a
-   recovery case, not permission to replace it.
+4. Validate every recorded worktree path and the base before dispatch. A
+   missing worktree of a sealed ticket is recreated by `bbs ticket ensure` and
+   `bbs ticket adopt` of its own snapshot; one that was never sealed is
+   re-dispatched. A worktree with unexpected changes is a recovery case, not
+   permission to replace it.
 5. Dependents launch with their prerequisites. The dependent's assignment
    names each prerequisite as `<ticket>:<orca-task>`; after its plan is
-   approved, its phase worker runs `bbs foreman await --prereqs
+   approved, its ticket worker runs `bbs foreman await --prereqs
    <ticket>:<task>,...`, which blocks until each prerequisite's Dispatch has
    completed and its ticket passes readiness (review, or push when
-   `pointers.deferred_heavy` defers its QA) and prints the verified heads. The
-   worker merges exactly those heads in the order printed, resolves conflicts
-   in the same session against the accepted shared interfaces, records the
-   merged SHAs, and uses the post-merge HEAD as its review base — no separate
+   `pointers.deferred_heavy` defers its QA) and is sealed, then **adopts** each
+   sealed snapshot into the worktree as uncommitted changes (`SNAPSHOT=` per
+   prerequisite). `CONFLICT=` files (`AWAIT=conflict`, exit 5) are resolved in
+   the same session against the accepted shared interfaces — no separate
    integration worker. `AWAIT=not-ready` (a prerequisite settled without
-   passing) ends that Dispatch without merging; once the prerequisite passes,
+   passing) ends that Dispatch without adopting; once the prerequisite passes,
    send the dependent a `refresh`. A later prerequisite repair invalidates
-   affected dependent gates and parent integration evidence: send each
-   affected dependent a `refresh` in dependency order, only at settled
-   boundaries. Never merge into a live writer's tree or accept gates for
-   untested revisions.
+   affected dependent gates and phase evidence: send each affected dependent a
+   `refresh` (it runs `bbs ticket adopt <prerequisite>` and re-verifies) in
+   dependency order, only at settled boundaries. Never adopt into a live
+   writer's tree or accept gates for untested content.
 
 ## Resource admission
 
@@ -104,11 +109,11 @@ Classify the Task from its requirement, plan, and acceptance commands:
 If workload evidence is ambiguous between `standard` and a heavy profile, use
 the heavy profile. Simulator profiles reserve the shared mobile stack and GPU;
 `local-ml` reserves the GPU. `plan` and `standard` cost one unit, heavy
-profiles four; a phase worker is `standard` (`plan` for an evidence-only
-phase), and a heavy Task is normally the consolidated heavy QA from SKILL.md.
-Admit runnable phases before dependents that would only wait: a waiting
+profiles four; a ticket worker is `standard` (`plan` for an evidence-only
+ticket), and a heavy Task is normally the consolidated heavy QA from SKILL.md.
+Admit runnable tickets before dependents that would only wait: a waiting
 dependent holds its slot and lease, so it gets one only after every ready
-phase has its own. Before each new or reused Dispatch:
+ticket has its own. Before each new or reused Dispatch:
 
 Resolve the agent route first with [worker routing](worker-routing.md), then
 pass its selected agent and destination host into quota admission:
@@ -153,7 +158,7 @@ Retry proven stopped Tasks through their failed Dispatch, preserving worktrees
 and checkpoints. Release settled leases with
 `bbs foreman resource release "$RESOURCE_LEASE"`, clear `pointers.resource_lease`,
 and reserve the next Task's profile before reusing a worker. A retained idle
-phase session holds no lease.
+ticket session holds no lease.
 
 ## Worker envelope
 
@@ -163,9 +168,9 @@ ticket work: this is a supervised Orca Dispatch, its effective
 `--auto`, so the worker sets its own goal where its agent can and otherwise
 works the loop directly; Foreman never types `/goal` or any prompt into a
 worker pane. It also names the resource
-profile Foreman reserved for this Task, and whether it is a phase assignment
+profile Foreman reserved for this Task, and whether it is a ticket assignment
 or a follow-up (`repair`, `refresh`, `redirect`, `deliver`) on an existing
-phase session, with the trigger evidence and the gates it invalidates. The worker invokes the installed skill
+ticket session, with the trigger evidence and the gates it invalidates. The worker invokes the installed skill
 directly in that turn, skips any developer `/goal` copy/paste handoff, uses
 Orca `ask` for a genuine User Challenge, and follows the injected lifecycle
 through exactly one `worker_done`. This statement in the Task spec is

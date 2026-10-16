@@ -100,7 +100,7 @@ func runBoard(args []string) {
 				c.State, c.Actor, status, undoVerb(c.State))
 		}
 		if merged {
-			fmt.Printf(retarget("  ↳ PR merged — next: bbs-ticket surface revert; BABYSIT_TICKET=%s bbs-ticket set-status done\n"), tid)
+			fmt.Printf(retarget("  ↳ PR merged — next: BABYSIT_TICKET=%s bbs-ticket set-status done\n"), tid)
 		}
 
 		for _, sib := range idx.Siblings {
@@ -124,7 +124,7 @@ func printSiblingRow(sib ticket.Sibling, primary string) {
 		// The board is the screen a human reads to find out why something is
 		// stuck, so a conflict has to read as a conflict here — "unresolved"
 		// would send them to add the entry that already exists.
-		fmt.Printf("  └─ %s:%s (%s) — path conflicts: workspace and .babysit/.env disagree (run `bbs ticket serve` for both paths)\n", sib.Role, sib.Ticket, sib.Repo)
+		fmt.Printf("  └─ %s:%s (%s) — path conflicts: workspace and .babysit/.env disagree (fix the workspace entry or RELATED_*_REPO)\n", sib.Role, sib.Ticket, sib.Repo)
 		return
 	}
 	if !ok {
@@ -166,21 +166,11 @@ func printFooter(gitdir string, now int64) {
 	} else {
 		fmt.Println("QA-LEASE: FREE")
 	}
-
-	serving := strings.TrimRight(readFile(filepath.Join(gitdir, "bbs-serving")), "\n")
-	if serving == "" {
-		serving = "(base only)"
-	}
-	fmt.Printf("SERVING: %s\n", serving)
 }
 
 // printBaseLine reports how the primary checkout's local base compares to
-// origin/<base>. Under the branch-cutting modes every ticket branch is cut from
-// origin/<base>, never local, so commits sitting only on local base are
-// invisible to every ticket cut afterwards and nothing else on the board says
-// so. Under `mode: trunk` no branch is cut at all, which inverts what the same
-// count means — the ahead line is worded per mode rather than asserting the
-// branch-cutting consequence at a pet repo it does not apply to.
+// origin/<base>. Phases land on local base and reach origin only when a
+// release pushes them, so "ahead" is landed work awaiting a release.
 //
 // Read-only and offline — board never fetches, so the comparison is against the
 // last-known remote ref. The fetch age is printed alongside it so a stale
@@ -196,10 +186,10 @@ func printBaseLine(primary, gitdir string, now int64) {
 	if !gitCOK(primary, "show-ref", "--verify", "--quiet", "refs/heads/"+base) {
 		// No local base means no local drift, but staying silent here would be
 		// the one case with no line at all — and it is usually a misconfigured
-		// base_branch, which breaks composing too. Say so only when origin has
+		// base_branch, which breaks cutting worktrees too. Say so only when origin has
 		// the branch; when neither side does, the repo is simply new.
 		if haveOrigin {
-			fmt.Printf(retarget("BASE: %s — no local '%s' branch (origin/%s exists) — bbs-ticket serve and surface compose need one\n"), base, base, base)
+			fmt.Printf(retarget("BASE: %s — no local '%s' branch (origin/%s exists) — worktrees and phase commits are cut from it\n"), base, base, base)
 		}
 		return
 	}
@@ -228,21 +218,10 @@ func printBaseLine(primary, gitdir string, now int64) {
 	}
 	fmt.Printf("BASE: %s — %s ahead / %s behind origin/%s%s\n", base, ahead, behind, base, age)
 	if ahead != "0" {
-		// A resolve error (invalid profile/mode) leaves the policy unknown, so
-		// fall back to what every profile now resolves to: trunk. The
-		// branch-cutting wording only applies to a repo that asked for it.
-		mode := "trunk"
-		if p, err := resolveGitFlow(primary); err == nil {
-			mode = p.Mode
-		}
-		if mode == "trunk" {
-			fmt.Printf("  ↑ %s commit(s) on local '%s' are not on origin/%s — mode: trunk cuts no branch, so tickets build on them; they are only unpushed\n", ahead, base, base)
-		} else {
-			fmt.Printf("  ↑ %s commit(s) exist only on local '%s' — tickets are cut from origin/%s, so new ones will not have them\n", ahead, base, base)
-		}
+		fmt.Printf("  ↑ %s commit(s) on local '%s' are not on origin/%s — landed phases awaiting a release push\n", ahead, base, base)
 	}
 	if behind != "0" {
-		fmt.Printf(retarget("  ↓ origin/%s moved on — bbs-ticket refresh (in a ticket) or bbs-ticket surface revert (on the primary)\n"), base)
+		fmt.Printf("  ↓ origin/%s moved on — pull it into '%s' before the next phase is cut\n", base, base)
 	}
 }
 

@@ -112,7 +112,7 @@ Autopilot은 작업을 제품 팀의 다섯 역할 중 하나로 배정합니다
 
 ## 더 큰 프로젝트: Foreman
 
-여러 ticket에 의존성이 있다면 [Foreman](docs/foreman.md)을 사용하세요. [Orca](https://www.onorca.dev)로 전체 계획을 세우고, 자식 ticket을 worktree로 분리하고, 준비된 작업을 dispatch하며 프로젝트 전체 QA를 수행합니다. 기본적으로 프로덕션 작업을 dispatch하기 전에 부모 계획과 설계를 검토합니다. 명시적인 `--auto`는 해당 검토를 worker에 위임합니다. 설정된 finish policy가 전달 방식을 결정합니다.
+여러 ticket에 의존성이 있다면 [Foreman](docs/foreman.md)을 사용하세요. [Orca](https://www.onorca.dev)로 전체 계획을 세우고, 자식 ticket을 worktree로 분리하고, 준비된 작업을 dispatch하며 프로젝트 전체 QA를 수행합니다. 기본적으로 프로덕션 작업을 dispatch하기 전에 부모 계획과 설계를 검토합니다. 명시적인 `--auto`는 해당 검토를 worker에 위임합니다. worker는 커밋하지 않으며, 각 phase는 phase QA 후 하나의 커밋으로 반영됩니다.
 
 <details>
 <summary>CLI 및 설정 세부 정보</summary>
@@ -133,7 +133,7 @@ bbs autopilot recover --json
 
 `snapshot`은 ticket의 기준 상태와 gate 증거를 읽습니다. `recover`는 작업을 재개할 수 있도록 분량이 제한된 산출물 발췌를 추가합니다.
 
-사용법은 `bbs <subcommand> --help`로 확인하세요. 자세한 내용은 [지원 CLI](docs/companion-cli.md), [profile](docs/profiles.md), [운영](docs/operations.md)을 참고하세요.
+사용법은 `bbs <subcommand> --help`로 확인하세요. 자세한 내용은 [지원 CLI](docs/companion-cli.md), [git flow](.claude/skills/references/git-flow.md), [운영](docs/operations.md)을 참고하세요.
 
 </details>
 

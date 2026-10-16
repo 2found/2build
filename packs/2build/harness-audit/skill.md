@@ -64,13 +64,13 @@ Then inspect the following where relevant or present:
 | Instruction entrypoints and linked docs | Actual paths, link anchors, imports/symlink targets and service ownership | Broken links, circular imports, unreachable required guidance or instructions applying to the wrong service |
 | Run/build/test commands | Package scripts, lockfiles, Makefile targets, compose, runner config and CI; resolve working directory and prerequisites | Command missing, wrong runtime/port/cwd, suites excluded from documented checks, required infrastructure omitted |
 | Architecture and operational rules | Representative implementation and current configuration at the named path | Guidance contradicts reality, duplicates have drifted, ownership or exceptions are ambiguous |
-| `.babysit/git-flow.yaml` | [git-flow](../shared/git-flow.md), actual refs and effective `bbs autopilot git-flow` output | Nonexistent base, conflicting release policy or unexplained override; intentional overrides are valid |
+| Base branch | [git flow](../shared/git-flow.md) resolution against actual refs | Resolves to a branch the repo does not release from; a leftover `.babysit/git-flow.yaml` is ignored (note, not defect) |
 | `.babysit/qa.yaml` and local overrides | Effective local environment, service commands, credential variable names and meaningful flows | Wrong/missing target, hosted-only QA, no failure/empty/validation case, override changes target or credential source unexpectedly |
 | Release profile (`RELEASE.md`, `.babysit/release.md` or linked inline owner) | Version/mirror/lockfile sources, tags/changelog, CI/script stage ownership, package registries, current deploy/rollback runbook, observation rules and CLI installation paths | Wrong repo/component/version identity, stale commands, missing required stage or unjustified N/A, ambiguous artifact/SHA, unverifiable hypercare bounds, missing local update verification or profile unreachable from entrypoints |
 | Ignore rules and examples | Tracked filenames, `.gitignore`, `.env.example`, configuration references | Secret-bearing local files tracked or not ignored, committed credential literals, names pointing at the wrong environment |
 | Related repo/workspace pointers | Only relevant entries in `~/.babysit/config.yaml`, named local paths and `RELATED_*_REPO` fallback | Referenced repo unavailable, roles disagree, machine paths committed, project-local `.babysit/config.yaml` mistaken for the registry |
 
-Read [git-flow](../shared/git-flow.md) only for 2build git-policy checks.
+Read [git flow](../shared/git-flow.md) only for 2build git checks.
 Missing `.babysit` files or workspace registration in a repo that does not use
 those features is not a finding. For CLI/library repos, validate their actual
 check path instead of requiring a browser URL. An unavailable submodule or
@@ -98,7 +98,6 @@ Check file existence, anchors and script/target definitions first. Parse YAML
 with an available parser; CLI output is additional evidence, not a complete
 schema validator. Inspect these read-only resolvers when 2build is configured:
 ```sh
-bbs autopilot git-flow
 bbs secrets qa default-env
 bbs secrets qa probe --env <local-name>
 ```
@@ -130,7 +129,7 @@ unverified claims. Do not invent a numerical harness score.
 If fixes are authorized, patch the owning file, preserve unrelated user edits
 and existing policy, then recheck affected links/config/commands. Reuse
 [setup-project](../setup-project/skill.md) when the requested fix is missing
-2build configuration. Do not silently switch profile, release model, credential
+2build configuration. Do not silently switch release model, credential
 names or command semantics as a documentation cleanup.
 
 Return the report directly unless the caller requests a file or supplies a

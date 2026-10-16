@@ -41,7 +41,7 @@ Exercise the application like a user and leave reproducible evidence.
 2. Boot or probe the local target first; hosted URLs only when local run is
    impossible and the reason is recorded. **QA the current checkout as-is** —
    normally the branch the user is already on, whose dev server is the one
-   running: nothing to land, lease or compose. If the local target is down
+   running: nothing to land or compose. If the local target is down
    and can't be started here, that's the recorded blocker. Server prep: when
    `QA_ENV_PREPARE` is set (qa.yaml `prepare:`, idempotent install +
    migrate), run it before probing. Before trusting any surface, confirm it
@@ -55,22 +55,20 @@ Exercise the application like a user and leave reproducible evidence.
    UDID, Appium or other driver). Prefer supervised process handles over
    detached shell jobs. Ownership, not process name, decides what cleanup may
    stop.
-   **Foreman final integration mode:** a Task explicitly assigned a prepared
-   primary branch/HEAD plus parent acceptance and child/base revision manifest
-   tests that exact surface read-only. Verify its identity before and after
-   testing. Do not compose, revert/reset, switch branches, edit code, or release
-   the coordinator's lease. Report findings to Foreman for child repairs;
-   persist evidence/verdict on the parent. Foreman owns environment cleanup
-   and restoration under its lease. This explicit mode takes precedence over
-   the worktree protocol and surface-ownership rules below.
-   Running inside a ticket worktree (a foreman batch) is the other exception: the
-   dev server lives in the repo's **primary checkout only** (one heavy tree
-   per repo — never npm-install or boot a server in a worktree), so this
-   skill runs the surface protocol itself — `surface acquire`, `surface
-   compose`, and `QA_ENV_REVERT` before `surface release` — see
-   `../references/worktrees.md § QA loop`. Shared refs (`../references/*.md`)
-   are filesystem paths beside this skill's directory, so read them by path,
-   not as `skill://`.
+   **Foreman integration mode:** a Task explicitly assigned a phase's
+   integration worktree (detached at the phase commit `bbs foreman integrate`
+   built) plus the cumulative acceptance (every criterion of this phase and
+   earlier ones) tests that exact commit read-only. Verify the worktree is
+   clean at that commit before and after testing. Do not edit code, commit,
+   switch revisions or touch other checkouts. Report findings to Foreman for
+   ticket repairs; persist evidence/verdict on the parent.
+   Inside a ticket worktree, install and serve from that worktree with the
+   ports, databases and secrets `qa.yaml` names. When the run uses a resource
+   only one ticket can hold at a time, take `bbs ticket surface acquire`
+   first, run `QA_ENV_REVERT` after, and `surface release` on every outcome —
+   see `../references/worktrees.md`. Shared refs (`../references/*.md`) are
+   filesystem paths beside this skill's directory, so read them by path, not
+   as `skill://`.
 3. Code-level checks (tests, typecheck, lint) first — they gate, they don't
    prove user journeys. Read [test](../test/SKILL.md) for affected-test
    selection and failure investigation. Use the implementation handoff as
@@ -81,8 +79,7 @@ Exercise the application like a user and leave reproducible evidence.
    affected lanes and required checks. Never weaken or skip a failing test
    to obtain green; follow `test`'s investigation and authorization rules.
    Whole-suite `audit` and `optimize` are not routine QA steps.
-4. Size the matrix to the repo's rigor: `eval "$(bbs autopilot git-flow)"` →
-   `$BBS_RIGOR` (see § Rigor tiers; unset or unreadable = `standard`).
+4. Size the matrix per § Case count.
    Trace material plan findings/unknowns to acceptance cases or supporting
    evidence, including resolved discoveries that changed an assumption. Reuse
    evidence only when code state, environment and coverage still match; an
@@ -127,8 +124,8 @@ Exercise the application like a user and leave reproducible evidence.
    record the conformance gap instead of claiming a visual match. This is
    acceptance verification, not pixel equality or a new design exercise.
    Off-script time around the changed
-   surface — findings feed back as derived cases — per the tier: `smoke`
-   skips it, `standard` spends a few minutes, `strict` always spends it.
+   surface — findings feed back as derived cases — a few minutes, more when
+   § Case count makes it mandatory.
 6. Fix regressions owned by the current branch. Use `test`'s scoped `create`
    workflow to decide whether the fix needs a regression test; existing
    meaningful coverage may suffice. Rerun the original reproducer, affected
@@ -150,10 +147,8 @@ Exercise the application like a user and leave reproducible evidence.
    and verifies its exact browser session plus any simulator it booted. Stop
    every server, driver, recorder, proxy, or watcher this QA attempt started,
    and wait for exit; leave pre-existing targets and coordinator-owned shared
-   surfaces untouched. In ticket-worktree mode, also run the required
-   `QA_ENV_REVERT` and release the surface lease. In Foreman final integration
-   mode, close this attempt's clients but leave environment restoration to
-   Foreman under its lease.
+   surfaces untouched. When this attempt took the surface lease, also run the
+   required `QA_ENV_REVERT` and release it.
 
    Compare the final process state with the ownership ledger. Never use broad
    `pkill`/`killall`, `agent-browser close --all`, or simulator-wide shutdown
@@ -168,29 +163,17 @@ One case = user journey + expected observable + evidence — *as a user, do
 journey** delivers the feature's core value end-to-end; it carries the
 verdict and runs last. Tie every failure to the criterion it violates, with
 reproduction steps.
-## Rigor tiers
-`$BBS_RIGOR` scales **breadth** — how many cases, how much off-script time,
-which dimensions may be `N/A`. It never scales the honesty floor below: a
-`PASS` means the same thing in all three tiers, and a pet project runs fewer
-cases, not zero.
+## Case count
+5–10 cases: the full matrix from the acceptance criteria plus
+adjacent-regression cases. When the diff touches auth, money or data paths,
+`security`, `a11y` and `compat` must carry a real grade — an `N/A` there needs
+a reason that would survive review — off-script exploration is mandatory, and
+`security-review` runs too.
 
-- **smoke** — 3–5 cases: the primary journey e2e plus ≥1 non-happy case. No
-  extra viewport/browser sweep unless the change is UI-visible. No off-script
-  budget. `compat`/`security`/`a11y`/`perf` may be `N/A` on a change that
-  doesn't obviously touch them (still with a reason).
-- **standard** (default) — 5–10 cases: the full matrix from the acceptance
-  criteria plus adjacent-regression cases.
-- **strict** — 8–12 cases; `security`, `a11y` and `compat` must carry a real
-  grade — an `N/A` there needs a reason that would survive review, not "the
-  change looks unrelated". Off-script exploration is mandatory. When the diff
-  touches auth, money, or data paths, also run `security-review`.
-
-Do not leave a process running solely for human review. Under every rigor tier,
-the screenshots and evidence are the handoff: stop a target this QA attempt
-started, but preserve and name a target that was already running. In a ticket
-worktree always revert and release the shared surface lease. Foreman final
-integration mode still leaves coordinator-owned environment restoration to
-Foreman, while this QA attempt closes every browser/client it created.
+Do not leave a process running solely for human review. The screenshots and
+evidence are the handoff: stop a target this QA attempt started, but preserve
+and name a target that was already running. Always revert and release a
+surface lease this attempt took.
 ## Coverage rubric
 Grade every dimension A–D against the change's risk surface; a dimension the
 change can't touch is `N/A` **with a one-line reason** — never a silent skip.
@@ -205,9 +188,7 @@ change can't touch is `N/A` **with a one-line reason** — never a silent skip.
 - **perf**: A = responsive under realistic data volume · B = no obvious lag on happy path · C = not observed · D = timeout/jank seen
 - **freshness** (always applies): A = final full e2e pass on the *final* code state · B = e2e passed but code changed after · C = partial/stale e2e · D = unit/curl/code-read only
 `PASS`/`FIXED` require **every applicable** dimension at B or better and
-freshness at A — **identical in all three rigor tiers**. Rigor decides which
-dimensions are legitimately `N/A` and how many cases feed a grade; it never
-lowers the bar a graded dimension has to clear. Any applicable dimension at C
+freshness at A. Any applicable dimension at C
 or D, missing required coverage or failed acceptance forces `VERDICT: FAIL`
 (→ `STATUS: BLOCKED`). `DONE_WITH_CONCERNS` is only for nonblocking residuals
 once all required acceptance and coverage pass. Report the grade line for every dimension,
@@ -224,7 +205,7 @@ including `N/A: <reason>`.
   evidence — tool, journey steps, observed result — and the app proven
   running locally (or the local-run blocker named). Happy-path-only is not a
   PASS.
-- Prefer deep checks over many vague clicks; `$BBS_RIGOR` sets how many.
+- Prefer deep checks over many vague clicks.
 - Every QA summary names the local target or blocker, the case matrix, and
   at least one non-happy-path result.
 - `VERDICT: FAIL` always pairs with `STATUS: BLOCKED` — never `DONE*`. The
@@ -237,7 +218,7 @@ including `N/A: <reason>`.
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: PASS | FIXED(<N>) | FAIL
-SUMMARY: <rigor tier + local target/blocker + flow matrix + material findings/unknown outcomes + prototype conformance when applicable>
+SUMMARY: <local target/blocker + flow matrix + material findings/unknown outcomes + prototype conformance when applicable>
 SOURCES: <context read in step 1: requirement, plan, design/prototype, implement-handoff, review-pr — or conversation-only>
 RUBRIC: flow=<> boundary=<> regression=<> data=<> compat=<> security=<> a11y=<> perf=<> freshness=<>  (grade or N/A each)
 EVIDENCE: <last e2e run: tool + journey + result; screenshot + errors/report paths under evidence/qa/>

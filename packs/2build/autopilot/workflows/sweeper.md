@@ -22,10 +22,10 @@ should get smaller or faster without changing behavior.
    confirm behavior matches the recorded baseline. Persist and read back the
    QA verdict with `bbs ticket set-verdict --skill qa` and `verdict-status`.
 5. Apply autopilot's **Repair until the final change passes** loop. Both gates
-   must cover the same final committed tree, and
+   must cover the same final tree, and
    `bbs ticket readiness --action review --json` must report `data.ready=true`.
-6. Commit the result locally. Autopilot never pushes, lands, or opens a PR —
-   close-out is the human's `create-pr` (or the dispatching foreman's).
+6. Leave the result uncommitted. Autopilot never commits, pushes, or opens a
+   PR — that is the human's (`create-pr`) or Foreman's phase landing.
 7. Write a handoff: what shrank, net line delta, and baseline-still-green proof.
    When a signal warrants, name the forward lifecycle edge after `create-pr`:
    surface shipped and measurable → `grower`; scale/security/cost signal

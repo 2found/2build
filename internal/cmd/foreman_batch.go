@@ -22,9 +22,11 @@ Hands a dispatched batch to the detached watcher, after which the Foreman ends
 its turn. The watcher supervises the workers (nudging one whose pane sits idle
 with its Dispatch open) and wakes the Foreman, by Orca message plus a prompt in
 its terminal, only when the whole batch has settled or cannot settle without
-it: an unread question/escalation, an exited worker, or a worker that stayed
-idle through its nudges. A settled batch is compacted first when the agent
-supports it. Re-running batch replaces the watched set, keeping nudge state.
+it: an unread question/escalation, an exited worker, a worker that stayed
+idle through its nudges, or an open Dispatch with no live worker for as long
+(lost). A failed member the Foreman retries reopens on its new Dispatch. A
+settled batch is compacted first when the agent supports it. Re-running batch
+replaces the watched set, keeping nudge state.
 `
 
 // Every coordinator wake re-reads its whole context, which dominates token
@@ -36,10 +38,14 @@ type foremanBatch struct {
 	ID        string        `json:"id"`
 	CreatedAt string        `json:"created_at"`
 	Tasks     []batchMember `json:"tasks"`
-	// Questions is the unread question/escalation count already reported.
-	Questions int `json:"questions,omitempty"`
-	// Reported holds the attention keys (exited:<task>, stalled:<task>)
-	// already reported, so each wakes the Foreman once.
+	// Questions is the unread question/escalation count last seen, and
+	// QuestionIDs those rows' ids: a wake is owed for an id not seen before,
+	// so a second question arriving after the first was read still wakes.
+	Questions   int      `json:"questions,omitempty"`
+	QuestionIDs []string `json:"question_ids,omitempty"`
+	// Reported holds the attention keys (exited:<task>, stalled:<task>,
+	// lost:<task>) already delivered, so each wakes the Foreman once per
+	// Dispatch attempt.
 	Reported []string `json:"reported,omitempty"`
 	// CompactAt marks the compaction typed at settlement; the wake follows
 	// once the Foreman pane holds still. PaneFingerprint tracks that.
@@ -61,6 +67,11 @@ type batchMember struct {
 	Nudges      int    `json:"nudges,omitempty"`
 	Pending     bool   `json:"pending,omitempty"`
 	Stalled     bool   `json:"stalled,omitempty"`
+	// Unseen is when the watcher last lost sight of this open Dispatch: its
+	// state unreadable, or no live worker terminal for it. A member unseen
+	// for the whole stall budget is reported lost instead of waited on
+	// forever — nothing else would ever settle it.
+	Unseen string `json:"unseen,omitempty"`
 }
 
 const batchCompactSettleMax = 10 * time.Minute
@@ -110,6 +121,29 @@ func (b foremanBatch) reported(key string) bool {
 		}
 	}
 	return false
+}
+
+// forget drops a task's delivered attention when it gets a new Dispatch: the
+// retried attempt owes its own exited/stalled/lost wake.
+func (b *foremanBatch) forget(task string) {
+	kept := b.Reported[:0]
+	for _, k := range b.Reported {
+		if _, t, _ := strings.Cut(k, ":"); t != task {
+			kept = append(kept, k)
+		}
+	}
+	b.Reported = kept
+}
+
+// batchFinal is a Dispatch no retry reopens. A failed attempt is settled for
+// the batch, but it is still re-read: when the Foreman retries the task, the
+// new attempt reopens the member instead of leaving it unsupervised.
+func batchFinal(status string) bool { return status == "completed" || status == "circuit_broken" }
+
+// batchLostAfter is how long an open Dispatch may go unobserved: the same
+// budget a silent worker gets (idle clock plus every nudge).
+func batchLostAfter(o watchOpts) time.Duration {
+	return o.workerIdle * time.Duration(o.workerNudges+1)
 }
 
 func foremanBatchCommand(args []string) error {
@@ -182,6 +216,7 @@ func foremanBatchCommand(args []string) error {
 	}
 	batchHold(c, r, b)
 	spawnWatcher()
+	ensureWatchSupervisor()
 	fmt.Println("BATCH=" + b.ID)
 	fmt.Printf("BATCH_TASKS=%d\n", len(b.Tasks))
 	fmt.Println("NEXT=end this turn; bbs foreman watch wakes this Foreman when the batch settles or needs attention")
@@ -211,6 +246,9 @@ func printBatchState(b foremanBatch) {
 		if m.Stalled {
 			line += " STALLED=1"
 		}
+		if m.Unseen != "" {
+			line += " UNSEEN_SINCE=" + m.Unseen
+		}
 		fmt.Println(line)
 	}
 	for _, key := range b.Reported {
@@ -227,14 +265,24 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 	if b.CompactAt != "" {
 		return batchAfterCompact(client, r, b, o, now)
 	}
+	stamp := now.UTC().Format(time.RFC3339)
 	for i := range b.Tasks {
 		m := &b.Tasks[i]
-		if dispatchTerminal(m.Status) {
+		if batchFinal(m.Status) {
 			continue
 		}
-		if state, err := client.DispatchStateFor(m.Task); err == nil && state.ID != "" {
-			m.Dispatch, m.Status, m.Run = state.ID, state.Status, state.RunID
+		state, err := client.DispatchStateFor(m.Task)
+		if err != nil || state.ID == "" {
+			if !dispatchTerminal(m.Status) && m.Unseen == "" {
+				m.Unseen = stamp
+			}
+			continue
 		}
+		if state.ID != m.Dispatch {
+			b.forget(m.Task)
+			*m = batchMember{Task: m.Task}
+		}
+		m.Dispatch, m.Status, m.Run = state.ID, state.Status, state.RunID
 	}
 	if b.settled() == len(b.Tasks) {
 		return batchSettle(client, r, b, o, now)
@@ -242,12 +290,13 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 	batchHold(client, r, *b)
 
 	var lines, attention []string
+	questions, questionIDs, questionsRead := b.Questions, b.QuestionIDs, false
 	if handle, err := client.Ref(r.WorkspaceTitle); err == nil {
-		if n, err := client.PendingMessagesFor(handle, "question,escalation"); err == nil {
-			if n > b.Questions {
+		if n, ids, err := client.PendingMessagesFor(handle, "question,escalation"); err == nil {
+			if batchNewQuestion(b, n, ids) {
 				attention = append(attention, fmt.Sprintf("messages:%d", n))
 			}
-			b.Questions = n
+			questions, questionIDs, questionsRead = n, ids, true
 		}
 	}
 	workers := map[string]orca.Worker{}
@@ -267,19 +316,29 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 	for i := range b.Tasks {
 		m := &b.Tasks[i]
 		if dispatchTerminal(m.Status) {
+			m.Unseen = ""
 			continue
 		}
 		w, ok := workers[m.Dispatch]
-		if !ok {
+		if !ok || (w.Handle == "" && !w.Exited) {
+			// No worker row (Orca restarted, the worker never started, the
+			// list is failing) or a released/taken-over terminal: nothing
+			// here can settle this Dispatch, so bound the wait.
+			if m.Unseen == "" {
+				m.Unseen = stamp
+			}
+			if since, err := time.Parse(time.RFC3339, m.Unseen); err == nil && now.Sub(since) >= batchLostAfter(o) {
+				if key := "lost:" + m.Task; !b.reported(key) {
+					attention = append(attention, key)
+				}
+			}
 			continue
 		}
+		m.Unseen = ""
 		if w.Exited {
 			if key := "exited:" + m.Task; !b.reported(key) {
 				attention = append(attention, key)
 			}
-			continue
-		}
-		if w.Handle == "" {
 			continue
 		}
 		if line, key := batchWatchWorker(client, m, w.Handle, o, now); line != "" || key != "" {
@@ -293,15 +352,43 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 	}
 	if len(attention) > 0 {
 		sort.Strings(attention)
+		summary := fmt.Sprintf("batch %s needs you (%d/%d settled): %s", b.ID, b.settled(), len(b.Tasks), strings.Join(attention, ", "))
+		line := batchWake(client, r, *b, summary)
+		lines = append(lines, line)
+		if strings.HasPrefix(line, "UNREACHABLE") {
+			// Undelivered: keep every key owed, so the next tick retries the
+			// same wake rather than dropping it.
+			return lines
+		}
 		for _, key := range attention {
 			if !strings.HasPrefix(key, "messages:") {
 				b.Reported = append(b.Reported, key)
 			}
 		}
-		summary := fmt.Sprintf("batch %s needs you (%d/%d settled): %s", b.ID, b.settled(), len(b.Tasks), strings.Join(attention, ", "))
-		lines = append(lines, batchWake(client, r, *b, summary))
+	}
+	if questionsRead {
+		b.Questions, b.QuestionIDs = questions, questionIDs
 	}
 	return lines
+}
+
+// batchNewQuestion reports whether the unread question/escalation set holds a
+// message the Foreman has not been woken for. Ids make this exact; a runtime
+// that reports only a count falls back to "the count grew".
+func batchNewQuestion(b *foremanBatch, n int, ids []string) bool {
+	if len(ids) == 0 {
+		return n > b.Questions
+	}
+	seen := map[string]bool{}
+	for _, id := range b.QuestionIDs {
+		seen[id] = true
+	}
+	for _, id := range ids {
+		if !seen[id] {
+			return true
+		}
+	}
+	return false
 }
 
 // batchWatchWorker advances one worker's idle clock. A pane unchanged for

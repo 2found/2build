@@ -42,10 +42,25 @@ func projectApprovalRevision(st *ticket.Store, doc ticket.Doc) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
+// approvalArtifactRevision fingerprints what a project-plan or release
+// approval is about; a release go covers one exact release request.
+func approvalArtifactRevision(st *ticket.Store, doc ticket.Doc, kind string) (string, error) {
+	if kind == "release" {
+		path := projectReleaseRequestPath(st)
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf("release request: %w", err)
+		}
+		return fmt.Sprintf("%x", sha256.Sum256(body)), nil
+	}
+	return projectApprovalRevision(st, doc)
+}
+
 func projectApprovalCurrent(st *ticket.Store, doc ticket.Doc) bool {
-	if doc.Get("approval.kind") != "project-plan" {
+	kind := doc.Get("approval.kind")
+	if kind != "project-plan" && kind != "release" {
 		return true
 	}
-	revision, err := projectApprovalRevision(st, doc)
+	revision, err := approvalArtifactRevision(st, doc, kind)
 	return err == nil && revision == doc.Get("approval.artifact_revision")
 }

@@ -46,15 +46,15 @@ forbid 'OMP launch rule' "$SKILL"
 forbid 'automatic QA subagent' "$SKILL"
 forbid '../references/model-routing.md' "$SKILL"
 require 'Autopilot does not select a model tier or reroute the session' "$SKILL"
-require 'Foreman owns phase decomposition, task classification and model selection before' "$SKILL"
-require '### Foreman phase assignment' "$SKILL"
+require 'Foreman owns ticket decomposition, task classification and model selection before' "$SKILL"
+require '### Foreman ticket assignment' "$SKILL"
 require 'only integration' "$SKILL"
 require 'Never implement on an unapproved plan record' "$SKILL"
-require 'Plan approval, by phase size' "$SKILL"
+require 'Plan approval, by ticket size' "$SKILL"
 require 'bbs foreman await --prereqs' "$SKILL"
 require 'AWAIT=not-ready' "$SKILL"
 require 'set-pointer deferred_heavy' "$SKILL"
-require 'the only push/land/PR authority this skill ever' "$SKILL"
+require 'Never commit, push or open a PR' "$SKILL"
 forbid 'may explicitly assign only' "$SKILL"
 require 'report the mismatch to Foreman before work' "$SKILL"
 require 'human chooses the replacement session; Autopilot does not select another model' "$SKILL"
@@ -67,9 +67,9 @@ for f in "$WORKFLOWS"/*.md; do
   forbid 'automatic QA path' "$f"
 done
 
-# --- foreman selects one route per phase before opening its worker --------
+# --- foreman selects one route per ticket before opening its worker -------
 require '`autopilot` does not select models' "$REF"
-require 'Foreman splits a project into phases and selects one route per phase' "$REF"
+require 'Foreman splits each release phase into tickets and selects one route per ticket' "$REF"
 forbid '`autopilot` routes its planner' "$REF"
 require 'bbs agent detect --json' "$REF"
 require 'bbs agent list --json' "$REF"
@@ -84,10 +84,10 @@ require 'came back short' "$REF"
 require 'an obvious local docs/config edit' "$REF"
 require 'security, auth, money' "$REF"
 require 'complexity `critical` to `hard`' "$REF"
-require 'explicit phase-specific user selection first, then a valid persisted' "$REF"
+require 'explicit ticket-specific user selection first, then a valid persisted' "$REF"
 require 'config changes alone do not change it' "$REF"
 require 'Legacy strong/normal routes lacking the' "$REF"
-require 'An unmapped agent needs an explicit phase route' "$REF"
+require 'An unmapped agent needs an explicit ticket route' "$REF"
 require 'unknown binding needs `NEEDS_CONTEXT`' "$REF"
 require '`BLOCKED` before dispatch' "$REF"
 require 'Never replace a live writer' "$REF"
@@ -140,12 +140,14 @@ rows = [[cell.strip().strip('`') for cell in line.strip('|').split('|')]
         for line in text.splitlines() if line.startswith('|')]
 phases = {r[0]: r[1] for r in rows if len(r) == 2 and r[1] in ('critical', 'normal')}
 assert phases == {
-    'Parent planning, decomposition, design, design review': 'critical',
-    "Phase worker: one session for the phase's whole loop and every follow-up on it": 'critical',
-    "Diagnosis of a phase's repeated failure": 'critical',
+    'Basic design: architecture, prototype, release-phase plan, design review': 'critical',
+    "Ticket worker: one session for the ticket's whole loop and every follow-up on it": 'critical',
+    "Diagnosis of a ticket's repeated failure": 'critical',
     'Mechanical re-verification of recorded checks on unchanged code': 'normal',
-    'Consolidated heavy QA, integration QA and product acceptance checks': 'normal',
-    'Finish audits, merges, composition, delivery, restoration and cleanup in a fresh session': 'normal',
+    'Phase integration: QA of the phase commit, cumulative criteria, then land': 'normal',
+    'Consolidated heavy QA and product acceptance checks': 'normal',
+    'Phase release: `release-prd` and its hypercare': 'normal',
+    'Finish audits, restoration and cleanup in a fresh session': 'normal',
 }, phases
 PY
 

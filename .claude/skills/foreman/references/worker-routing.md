@@ -1,34 +1,34 @@
 # Worker launch and route persistence
 
 Read the canonical contract in [model routing](references/model-routing.md)
-for task/phase classification, tiers, phase overrides and OMP role bindings.
+for task/phase classification, tiers, ticket overrides and OMP role bindings.
 For Orca-supervised Foreman Dispatches, this reference owns worker agent
-selection and resume. New routes use explicit intent, a compatible phase pin,
+selection and resume. New routes use explicit intent, a compatible ticket pin,
 then the destination-host Orca default; BBS preferences do not select an agent.
 
 ## Resolve and launch
 
 Classify task complexity and phase class using the canonical contract. Select
-an agent from explicit intent, a compatible phase pin, or destination-host Orca
+an agent from explicit intent, a compatible ticket pin, or destination-host Orca
 discovery, then obtain model/effort and tier with
 `bbs foreman model --dir "$REPO" --agent <selected-agent> --complexity <simple|normal|hard> --phase-class <normal|critical> --json`.
 Use the assignment repo/worktree, not the coordinator repo in a multi-repo run.
-Explicit phase overrides and valid persisted resume routes take precedence;
+Explicit ticket overrides and valid persisted resume routes take precedence;
 skip the policy lookup when resuming an exact recorded session. Pass the
 resulting model, effort and selected tier into route validation before resource
 admission:
 
 ```bash
 bbs foreman route --ticket "$TICKET" --task "$ORCA_TASK_ID" \
-  [--agent <explicit-agent>] [--pinned-agent <phase-agent>] \
-  [--pinned-model <phase-model>] [--pinned-effort <phase-effort>] \
+  [--agent <explicit-agent>] [--pinned-agent <ticket-agent>] \
+  [--pinned-model <ticket-model>] [--pinned-effort <ticket-effort>] \
   [--model <selected-model>] [--effort <selected-effort>] [--host <host-id>] \
   --complexity <simple|normal|hard> --phase-class <normal|critical> \
   --selected-tier <lite|flash|pro|max> [--override-provenance <source|none>] \
-  [--pinned-model-provenance <phase-pointer>] [--pinned-effort-provenance <phase-pointer>]
+  [--pinned-model-provenance <ticket-pointer>] [--pinned-effort-provenance <ticket-pointer>]
 ```
 
-The route order is explicit intent, compatible phase pin, then the
+The route order is explicit intent, compatible ticket pin, then the
 destination-host `agentDiscovery.effectiveDefaultAgent`. The command validates
 enabled/runnable state when discovery is available and persists the requested
 route and pin provenance. It also returns `launchMode`: `worker-start` validates
@@ -39,7 +39,7 @@ is unavailable, explicit and pinned routes remain usable; a new unpinned route
 must stop with its actionable Orca upgrade/configuration error.
 
 Pass the selected complexity, phase class and tier on every route. Use
-`none` when no phase-specific model/effort override was chosen; otherwise name
+`none` when no ticket-specific model/effort override was chosen; otherwise name
 the override source. Pin provenance identifies the pointer that supplied each
 pin, such as `worker_model` or `reviewer_effort`.
 
@@ -67,7 +67,7 @@ and matching effective agent and every requested override.
 
 Resolve the selected alias on the execution host before launch, using its live
 OMP role binding. Put the expected resolved provider/model/effort in the Task
-spec. Require the worker to compare actual session metadata before phase work;
+spec. Require the worker to compare actual session metadata before ticket work;
 unknown or conflicting settings must be reported, never repaired by switching
 the live model. An omitted effort uses the selected role's native binding.
 
@@ -108,28 +108,28 @@ when this Foreman created it and the Dispatch is settled. Never close a
 preexisting user's terminal or an uncertain live worker. Apply the same ownership
 rule after a failed launch, then release the resource lease.
 
-### Reuse a phase session
+### Reuse a ticket session
 
-Every follow-up on a phase (`repair`, `refresh`, `redirect`, `deliver`) goes to
-that phase's existing session when Orca proves it reusable; it inherits the
-phase route, so skip model lookup and route resolution. Reuse only when the
+Every follow-up on a ticket (`repair`, `refresh`, `redirect`, `deliver`) goes to
+that ticket's existing session when Orca proves it reusable; it inherits the
+ticket route, so skip model lookup and route resolution. Reuse only when the
 previous Dispatch on that terminal settled with an accepted report, the handle
-is the exact one recorded for this phase, and `worker-list` shows it `live`:
+is the exact one recorded for this ticket, and `worker-list` shows it `live`:
 
 ```bash
 orca orchestration worker-show --dispatch "$LAST_DISPATCH" --json
 orca orchestration task-create --spec "<follow-up assignment>" --json
-# reserve the phase's resource profile for the new Task first (topology.md)
+# reserve the ticket's resource profile for the new Task first (topology.md)
 orca orchestration worker-start --task "$FOLLOWUP_TASK" \
-  --terminal "$PHASE_TERMINAL" --json
+  --terminal "$TICKET_TERMINAL" --json
 
 bbs foreman route verify --ticket "$TICKET" --task "$FOLLOWUP_TASK" \
-  --agent <phase-agent> --terminal "$PHASE_TERMINAL" --receipt-file "$WORKER_START_RECEIPT"
+  --agent <ticket-agent> --terminal "$TICKET_TERMINAL" --receipt-file "$WORKER_START_RECEIPT"
 ```
 
-`--terminal` takes no model or effort: the live session keeps the phase route.
+`--terminal` takes no model or effort: the live session keeps the ticket route.
 Require `transport-matched`. A refused reuse, a non-live or unverifiable
-session, or a phase whose route must change starts a fresh worker in the phase
+session, or a ticket whose route must change starts a fresh worker in the ticket
 worktree on the recorded route instead; never type a follow-up into a pane by
 hand. The reused terminal's cleanup ownership moves to the new Dispatch.
 
@@ -148,21 +148,21 @@ and separately observed session settings in the corresponding Orca Task/Dispatch
 handoff, including planning, finish audits, integration and delivery.
 `route verify` also writes a numbered ticket handoff.
 
-A phase has one route, persisted on its ticket under the `worker_` prefix with
+A ticket has one route, persisted on it under the `worker_` prefix with
 `bbs ticket set-pointer`: `worker_agent`, `worker_provider`, `worker_model`,
 `worker_effort`, for example
 `BABYSIT_TICKET="$TICKET" bbs ticket set-pointer worker_model "<model-or-role>"`.
-Pass these pins to `bbs foreman route` for a fresh phase worker; provider is not
+Pass these pins to `bbs foreman route` for a fresh ticket worker; provider is not
 a `worker-start` selector unless Orca explicitly advertises support. Legacy
 `planner_`, `reviewer_` and `qa_` pointers from split-step tickets are read only
-to resume their exact recorded sessions. Persist other assignments (project
-planning, heavy/integration QA, diagnosis, fresh delivery) in their Task/Dispatch
-handoffs rather than overwriting a phase route.
+to resume their exact recorded sessions. Persist other assignments (basic
+design, phase integration, heavy QA, release, diagnosis, fresh delivery) in their Task/Dispatch
+handoffs rather than overwriting a ticket route.
 
 Apply the canonical resume policy before the next launch: exact native-session
 resume requires the recorded agent and settings plus `--exact-session`; never
 route a recorded session through today's effective default. For a new Dispatch,
-reuse a compatible phase pin; otherwise resolve the destination-host default.
+reuse a compatible ticket pin; otherwise resolve the destination-host default.
 Never change a live worker's model. Every Dispatch, including a follow-up on a
 reused session, reserves its own lease and releases it at settlement; whether
 the session is then reused, retained or released is the ownership decision in

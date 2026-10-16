@@ -375,8 +375,17 @@ func selfResolveGate(st *ticket.Store, env identity.Env, rec foreman.Record, rub
 	}
 
 	// 3. Allows — human hold, or a grant bound that does not cover this.
+	//    A production release go is the human's under every posture.
+	if ticket.ReadDoc(st.IndexPath()).Get("approval.kind") == "release" {
+		return exitGrant, nil, "a production release go/no-go is a human decision; relay it, never self-resolve it"
+	}
 	if ticket.ReadDoc(st.IndexPath()).Get("approval.kind") == "project-plan" && !rec.Auto {
 		return exitGrant, nil, "project design review requires a human; explicit --auto delegates this checkpoint"
+	}
+	if ticket.ReadDoc(st.IndexPath()).Get("approval.kind") == "project-plan" {
+		if lowered := projectReleaseLowered(st); len(lowered) > 0 {
+			return exitGrant, nil, "the contract lowers an approved release mode (" + strings.Join(lowered, ", ") + "); a human must approve that"
+		}
 	}
 	if ok, why := rec.Allows(env.Ticket, time.Now()); !ok {
 		return exitGrant, nil, why

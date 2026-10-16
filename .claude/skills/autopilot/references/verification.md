@@ -4,7 +4,8 @@ Use for managed v2 children and explicitly migrated v2 tickets. Standalone v1
 skills keep their existing invocation and verdict behavior. Do not silently
 convert old evidence. Run the real review-pr and qa skills in the current session.
 
-Commit implementation before a gate. Capture its subject **before** verification:
+Never commit for a gate: the subject is the working tree's content, untracked
+files included. Capture it **before** verification:
 
 ```sh
 BABYSIT_TICKET="$TICKET" bbs autopilot verification begin --gate review-pr \
@@ -40,7 +41,7 @@ It records failures as failures. A successful `record` command means persisted,
 not passed: re-read `bbs ticket readiness --action review --json` and require
 `data.ready: true` after both gates.
 
-If review/QA repairs changed the captured tree, commit them and begin fresh gates.
+If review/QA repairs changed the captured tree, begin fresh gates on the repaired tree.
 The stale attempt becomes failed; it cannot bless a changed revision. A crash
 after attempt completion can retry `record` with the same ID: the durable pending
 envelope is reused. Neither worker nor coordinator reconstructs old evidence as

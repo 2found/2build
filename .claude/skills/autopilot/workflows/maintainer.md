@@ -18,7 +18,7 @@ production system safe as it scales. Two modes, chosen from the invocation:
 1. Pick the mode. For **audit**, resolve the lens (security, dependencies,
    reliability, scale/performance — schema/indexes/partitioning, caching,
    batching, async background processing — or architecture for change/scale
-   pressure). For **fix**, ensure a fix ticket/branch exists.
+   pressure). For **fix**, ensure a fix ticket exists.
 2. **audit:** run `maintain` — audit through the lens with the repo's tooling,
    then fix the top finding with the smallest safe change. A pure audit (no safe
    fix) is a valid run. **fix:** run `investigate` to root-cause, then apply the
@@ -27,12 +27,12 @@ production system safe as it scales. Two modes, chosen from the invocation:
    then `qa` under its gate policy. Persist and read back both verdicts, apply the
    **Repair until the final change passes** loop, and require
    `bbs ticket readiness --action review --json` to report `data.ready=true`
-   for the final committed tree. Persist with
+   for the final tree. Persist with
    `bbs ticket set-verdict --skill review-pr` and
    `bbs ticket set-verdict --skill qa`. A pure audit records its commands and
    evidence but does not manufacture code gates.
-4. Commit any fix locally. Autopilot never pushes, lands, or opens a PR —
-   close-out is the human's `create-pr` (or the dispatching foreman's).
+4. Leave the fix uncommitted. Autopilot never commits, pushes, or opens a PR —
+   that is the human's (`create-pr`) or Foreman's phase landing.
 5. Write a handoff: mode + lens/root-cause, fix, verification, and the remaining
    prioritized backlog. When the audit surfaced structural cruft (not a scale
    fix), name a `sweeper` pass as the follow-up — don't fold it into this run.

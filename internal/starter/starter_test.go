@@ -49,7 +49,7 @@ func TestGenerateComposesPortableHarnessAndProvenance(t *testing.T) {
 	writeFile(t, filepath.Join(root, "templates/hono-bun/dist/unused"), "build output")
 	target := filepath.Join(t.TempDir(), "my-api")
 	verified := false
-	lock, err := Generate(root, target, "hono-bun", "startup", "", func(stage string, template Template) error {
+	lock, err := Generate(root, target, "hono-bun", "", func(stage string, template Template) error {
 		verified = true
 		if _, err := os.Stat(target); !os.IsNotExist(err) {
 			t.Fatal("target published before verification")
@@ -70,7 +70,10 @@ func TestGenerateComposesPortableHarnessAndProvenance(t *testing.T) {
 	if err != nil || stored != lock {
 		t.Fatalf("lock did not round trip: %+v, %v", stored, err)
 	}
-	for path, expected := range map[string]string{"AGENTS.md": "# my-api\n", ".babysit/git-flow.yaml": "profile: startup\n"} {
+	if _, err := os.Stat(filepath.Join(target, ".babysit/git-flow.yaml")); !os.IsNotExist(err) {
+		t.Fatal("a retired git-flow profile was copied into the project")
+	}
+	for path, expected := range map[string]string{"AGENTS.md": "# my-api\n"} {
 		b, err := os.ReadFile(filepath.Join(target, path))
 		if err != nil || string(b) != expected {
 			t.Fatalf("%s: %q %v", path, b, err)
@@ -85,7 +88,7 @@ func TestGenerateComposesPortableHarnessAndProvenance(t *testing.T) {
 	if err != nil || project != target {
 		t.Fatalf("nested provenance lookup failed: %s %v", project, err)
 	}
-	_, err = Generate(root, target, "hono-bun", "pet", "", nil)
+	_, err = Generate(root, target, "hono-bun", "", nil)
 	if err == nil {
 		t.Fatal("overwrote an existing project")
 	}
@@ -93,17 +96,17 @@ func TestGenerateComposesPortableHarnessAndProvenance(t *testing.T) {
 	if unchanged != lock {
 		t.Fatal("rejected generation changed project")
 	}
-	second, err := Generate(root, filepath.Join(t.TempDir(), "second-api"), "hono-bun", "pet", "", nil)
+	second, err := Generate(root, filepath.Join(t.TempDir(), "second-api"), "hono-bun", "", nil)
 	if err != nil || second.Revision != lock.Revision {
 		t.Fatalf("local snapshot digest is not reproducible: %v", err)
 	}
 }
 
 func TestGenerateFailuresLeaveNoTargetOrStagingFiles(t *testing.T) {
-	for _, scenario := range []string{"check fails", "collision", "symlink", "template ancestor symlink", "secret", "unknown template", "invalid profile", "invalid name", "target race"} {
+	for _, scenario := range []string{"check fails", "collision", "symlink", "template ancestor symlink", "secret", "unknown template", "invalid name", "target race"} {
 		t.Run(scenario, func(t *testing.T) {
 			root, parent := sourceFixture(t), t.TempDir()
-			target, id, profile := filepath.Join(parent, "my-api"), "hono-bun", "pet"
+			target, id := filepath.Join(parent, "my-api"), "hono-bun"
 			var verify func(string, Template) error
 			switch scenario {
 			case "check fails":
@@ -126,14 +129,12 @@ func TestGenerateFailuresLeaveNoTargetOrStagingFiles(t *testing.T) {
 				writeFile(t, filepath.Join(root, "common/.babysit/.env"), "DO_NOT_SHIP=placeholder")
 			case "unknown template":
 				id = "missing"
-			case "invalid profile":
-				profile = "unknown"
 			case "invalid name":
 				target = filepath.Join(parent, "bad name")
 			case "target race":
 				verify = func(string, Template) error { writeFile(t, filepath.Join(target, "sentinel"), "preserve"); return nil }
 			}
-			if _, err := Generate(root, target, id, profile, "", verify); err == nil {
+			if _, err := Generate(root, target, id, "", verify); err == nil {
 				t.Fatal("expected generation rejection")
 			}
 			entries, err := os.ReadDir(parent)
@@ -205,7 +206,7 @@ func TestRelevantUpdatesAndVersionOrdering(t *testing.T) {
 func TestReleaseCheckCachesAndFallsBackWithoutChangingProject(t *testing.T) {
 	root := sourceFixture(t)
 	project := filepath.Join(t.TempDir(), "my-api")
-	lock, err := Generate(root, project, "hono-bun", "pet", "", nil)
+	lock, err := Generate(root, project, "hono-bun", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -112,7 +112,7 @@ Autopilot 将任务路由到产品团队的五种角色之一。也可指定 wor
 
 ## 更大的项目：Foreman
 
-对于存在依赖的多个 ticket，[Foreman](docs/foreman.md) 通过 [Orca](https://www.onorca.dev) 规划项目、用 worktree 隔离子 ticket、调度就绪任务并执行项目级 QA。默认先由你审阅父项目计划/设计，再派发生产工作；显式 `--auto` 将该审阅委托给 worker。配置的 finish policy 控制交付。
+对于存在依赖的多个 ticket，[Foreman](docs/foreman.md) 通过 [Orca](https://www.onorca.dev) 规划项目、用 worktree 隔离子 ticket、调度就绪任务并执行项目级 QA。默认先由你审阅父项目计划/设计，再派发生产工作；显式 `--auto` 将该审阅委托给 worker。worker 从不提交；每个 phase 在 phase QA 通过后作为一个提交落地。
 
 <details>
 <summary>CLI 与配置详情</summary>
@@ -133,7 +133,7 @@ bbs autopilot recover --json
 
 `snapshot` 读取 ticket 的权威状态和 gate 证据；`recover` 额外提供长度受限的产物摘录，以便恢复工作。
 
-运行 `bbs <subcommand> --help` 查看用法。更多详情：[配套 CLI](docs/companion-cli.md)、[profile](docs/profiles.md) 和[运维](docs/operations.md)。
+运行 `bbs <subcommand> --help` 查看用法。更多详情：[配套 CLI](docs/companion-cli.md)、[git flow](.claude/skills/references/git-flow.md) 和[运维](docs/operations.md)。
 
 </details>
 

@@ -38,8 +38,8 @@ func (a *apState) verificationCommand(args []string) error {
 		if err != nil {
 			return err
 		}
-		if s.Run == nil || s.Run.Contract != 2 || s.Git.Dirty {
-			return fmt.Errorf("verification needs a v2 ticket and a clean committed checkout")
+		if s.Run == nil || s.Run.Contract != 2 {
+			return fmt.Errorf("verification needs a v2 ticket")
 		}
 		rec, err := prepareAttempt(a, a.ticket, map[string]interface{}{
 			"gate": gate, "owner": owner, "idempotency_key": newInvocationID(), "run_id": s.Run.ID, "expected_state_revision": s.StateRevision,
@@ -89,7 +89,7 @@ func (a *apState) verificationCommand(args []string) error {
 			if err != nil {
 				return err
 			}
-			if s.Git.Dirty || containsStaleReason(evidenceReadinessReasons(ev, rec.Gate, currentEvidenceSubject(s))) {
+			if containsStaleReason(evidenceReadinessReasons(ev, rec.Gate, currentEvidenceSubject(s))) {
 				return fmt.Errorf("pending verification is stale; recover the failed attempt before retry")
 			}
 			_, err = mutateAttempt(a, a.ticket, id, rec.Revision, map[string]interface{}{"state": "completed", "result": map[string]interface{}{"evidence": pendingPath}})
@@ -120,9 +120,9 @@ func (a *apState) verificationCommand(args []string) error {
 		if err != nil {
 			return err
 		}
-		if s.Git.Dirty || digestJSON(rec.Assignment["subject"]) != digestJSON(currentEvidenceSubject(s)) {
+		if digestJSON(rec.Assignment["subject"]) != digestJSON(currentEvidenceSubject(s)) {
 			_, _ = mutateAttempt(a, a.ticket, id, rec.Revision, map[string]interface{}{"state": "failed", "failure": map[string]interface{}{"reason": "verification subject changed"}})
-			return fmt.Errorf("verification subject changed; commit repairs and begin a new gate")
+			return fmt.Errorf("verification subject changed; begin a new gate on the repaired tree")
 		}
 		checks := []interface{}{}
 		passed := len(result.Limitations) == 0 && !hasMaterialFindings(result.Findings)

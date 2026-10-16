@@ -154,8 +154,8 @@ func TestV2ReadinessRejectsCodeBaseAndPolicyChanges(t *testing.T) {
 			runGit(t, repo, "commit", "--allow-empty", "-m", "new base")
 		}},
 		{"policy", "qa:stale_policy_digest", func(t *testing.T, repo string) {
-			mustMkdirAll(t, filepath.Join(repo, ".babysit"))
-			mustWrite(t, filepath.Join(repo, ".babysit", "git-flow.yaml"), "profile: startup\n")
+			runGit(t, repo, "branch", "develop")
+			t.Setenv("BBS_BASE_BRANCH", "develop")
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

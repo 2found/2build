@@ -25,8 +25,8 @@ var ensureTypeOK = map[string]bool{"feat": true, "fix": true, "chore": true, "bu
 
 func runEnsure(args []string) {
 	fromInput, slugHint, typ, promptReason := "", "", "feat", ""
-	forceCut, forceNoBranch := false, false
-	modeFlag := ""
+	forceNoBranch := false
+	modeFlag, fromRef := "", ""
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--from-input":
@@ -51,12 +51,12 @@ func runEnsure(args []string) {
 			typ, i = valueAt(args, i), i+1
 		case "--reason":
 			promptReason, i = valueAt(args, i), i+1
-		case "--cut-branch":
-			forceCut = true
 		case "--no-branch":
 			forceNoBranch = true
 		case "--mode":
 			modeFlag, i = valueAt(args, i), i+1
+		case "--from-ref":
+			fromRef, i = valueAt(args, i), i+1
 		default:
 			if strings.HasPrefix(args[i], "--mode=") {
 				modeFlag = strings.TrimPrefix(args[i], "--mode=")
@@ -69,9 +69,9 @@ func runEnsure(args []string) {
 		os.Exit(2)
 	}
 	switch modeFlag {
-	case "", "trunk", "branch", "worktree":
+	case "", "trunk", "worktree":
 	default:
-		fmt.Fprintf(os.Stderr, "ensure: invalid --mode '%s' (trunk|branch|worktree)\n", modeFlag)
+		fmt.Fprintf(os.Stderr, "ensure: invalid --mode '%s' (trunk|worktree)\n", modeFlag)
 		os.Exit(2)
 	}
 
@@ -121,29 +121,16 @@ func runEnsure(args []string) {
 		os.Exit(2)
 	}
 
-	// Git-flow mode: --mode > the repo's policy. Both are already enum-checked
-	// — modeFlag above, policy.Mode inside gitFlowFrom (whose error exits here)
-	// — so there is nothing left to validate.
-	policy, gfErr := resolveGitFlow("")
-	if gfErr != nil {
-		fmt.Fprintf(os.Stderr, "ensure: %v\n", gfErr)
-		os.Exit(2)
-	}
+	// trunk (default): the ticket rides the current checkout. worktree: a
+	// dedicated linked worktree on a scratch branch cut from local base (or
+	// --from-ref). Workers never commit, so the branch never moves; the
+	// ticket's work is its worktree's uncommitted tree.
 	gfMode := modeFlag
-	if gfMode == "" {
-		gfMode = policy.Mode
-	}
-	if forceNoBranch {
+	if gfMode == "" || forceNoBranch {
 		gfMode = "trunk"
-	}
-	if forceCut && !forceNoBranch && gfMode == "trunk" {
-		gfMode = "branch"
 	}
 
 	newTicket := newTicketID()
-
-	// These are re-derived after a git op moves us onto the new branch. In the
-	// worktree/trunk paths the cwd doesn't move, so we set them explicitly.
 	ticketID := ""
 	branch := ""
 	baseBranch := ""
@@ -170,121 +157,57 @@ func runEnsure(args []string) {
 			newSlug = deriveSlug(fromInput)
 		}
 		if newSlug == "" {
-			fmt.Fprintln(os.Stderr, "ensure: refusing to cut a branch with no slug — pass --from-input or --slug-hint")
-			fmt.Fprintf(os.Stderr, "ensure: (an empty call would have produced branch '%s/%s_untitled')\n", typ, newTicket)
+			fmt.Fprintln(os.Stderr, "ensure: refusing to cut a worktree with no slug — pass --from-input or --slug-hint")
 			os.Exit(2)
 		}
 		newBranch := fmt.Sprintf("%s/%s_%s", typ, newTicket, newSlug)
-
-		curBranch := gitOut("branch", "--show-current")
-		baseBranch = policy.BaseBranch
-		if gitOK("remote", "get-url", "origin") {
-			if !gitOK("fetch", "origin", baseBranch) {
-				fmt.Fprintf(os.Stderr, "ensure: warning — fetch failed, using the last-known origin/%s\n", baseBranch)
-			}
-		}
-		srcRef := ""
-		if gitOK("show-ref", "--verify", "--quiet", "refs/remotes/origin/"+baseBranch) {
-			srcRef = "origin/" + baseBranch
-		}
-		if srcRef == "" && gitOK("show-ref", "--verify", "--quiet", "refs/heads/"+baseBranch) {
-			srcRef = baseBranch
-		}
-		safeCut := gfMode != "worktree" && curBranch == baseBranch && gitOut("status", "--porcelain") == ""
-
-		if safeCut {
-			if actorRole() == "developer" && !forceCut {
-				fmt.Fprintln(os.Stderr, "STATUS: NEEDS_CONFIRM")
-				fmt.Fprintf(os.Stderr, "REASON: creating this ticket cuts a new branch '%s' off '%s' and checks it out.\n", newBranch, srcRef)
-				fmt.Fprintln(os.Stderr, "OPTIONS: re-run with --cut-branch to cut the branch,")
-				fmt.Fprintf(os.Stderr, "         or --no-branch to stay on '%s' (identity carried by BABYSIT_TICKET).\n", curBranch)
-				os.Exit(3)
-			}
-			if !gitOK("checkout", "--no-track", "-b", newBranch, srcRef) {
-				fmt.Fprintf(os.Stderr, "ensure: git checkout -b '%s' '%s' failed\n", newBranch, srcRef)
-				os.Exit(2)
-			}
-			// Re-derive identity now that we're on the new branch.
-			re := resolveEnv()
-			ticketID = re.Ticket
-			if ticketID == "" {
-				ticketID = newTicket
-			}
-			branch = re.Branch
-			if branch == "" || branch == "unknown" {
-				branch = newBranch
-			}
-			env = re
-		} else {
-			if gfMode == "worktree" {
-				fmt.Fprintf(os.Stderr, "ensure: mode=worktree — cutting into a worktree (primary checkout stays on '%s')\n", curBranch)
-			} else {
-				if curBranch != baseBranch {
-					fmt.Fprintf(os.Stderr, "ensure: on '%s' (base is '%s') — diverting the cut to a worktree\n", curBranch, baseBranch)
-				} else {
-					fmt.Fprintf(os.Stderr, "ensure: '%s' has uncommitted changes — diverting the cut to a worktree\n", curBranch)
-				}
-				divertWarning(curBranch, baseBranch)
-			}
-			if srcRef == "" {
-				fmt.Fprintf(os.Stderr, "ensure: base branch '%s' not found (local or origin) — cannot cut safely from '%s'.\n", baseBranch, curBranch)
-				fmt.Fprintf(os.Stderr, "  Fix: fetch/create '%s', or re-run with --no-branch to ride the current branch.\n", baseBranch)
-				os.Exit(2)
-			}
-			ensTop := gitOut("rev-parse", "--show-toplevel")
-			if ensTop == "" {
-				ensTop, _ = os.Getwd()
-			}
-			ensureWorktree = filepath.Join(ensTop, ".babysit", "worktrees", newTicket+"_"+newSlug)
-			if _, err := os.Lstat(ensureWorktree); err == nil {
-				fmt.Fprintf(os.Stderr, "ensure: worktree path %s already exists — remove it or resume the ticket there.\n", ensureWorktree)
-				os.Exit(2)
-			}
-			// Exclude the worktree locally so it never shows as untracked.
-			if excl := gitOut("rev-parse", "--git-path", "info/exclude"); excl != "" {
-				needAdd := true
-				if b, err := os.ReadFile(excl); err == nil {
-					for _, ln := range strings.Split(string(b), "\n") {
-						// TrimRight "\r": core.autocrlf=true checkouts carry CRLF.
-						if strings.TrimRight(ln, "\r") == ".babysit/worktrees/" {
-							needAdd = false
-							break
-						}
-					}
-				}
-				if needAdd {
-					_ = os.MkdirAll(filepath.Dir(excl), 0o755)
-					f, err := os.OpenFile(excl, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-					if err == nil {
-						_, _ = f.WriteString(".babysit/worktrees/\n")
-						f.Close()
-					}
+		baseBranch = baseBranchIn("")
+		// Local base: a phase's tickets start from what the previous phase
+		// landed, which origin lacks until a release pushes it.
+		srcRef := fromRef
+		if srcRef == "" {
+			for _, ref := range []string{"refs/heads/" + baseBranch, "refs/remotes/origin/" + baseBranch} {
+				if gitOK("rev-parse", "--verify", "--quiet", ref+"^{commit}") {
+					srcRef = ref
+					break
 				}
 			}
-			_ = os.MkdirAll(filepath.Dir(ensureWorktree), 0o755)
-			// `git worktree add` is not safe to run concurrently in one repo:
-			// two of them race on .git/worktrees/<name>/commondir and one dies
-			// reading the other's half-built directory. A foreman dispatching a
-			// batch is exactly that shape, and the ticket that lost the race got
-			// no worktree at all, so serialize the add on its own lock.
-			// Fail open on timeout: a leaked lock dir would otherwise block
-			// every new ticket in the repo for good, and the unlocked add is
-			// only as bad as it was before this lock existed.
-			wtLock := filepath.Join(gitCommonDir(), "bbs-worktree-add.lock")
-			locked := lockAcquire(wtLock, 300)
-			addOK := gitOK("worktree", "add", "--no-track", "-b", newBranch, "--", ensureWorktree, srcRef)
-			if locked {
-				lockRelease(wtLock) // os.Exit skips defers — release by hand
-			}
-			if !addOK {
-				fmt.Fprintf(os.Stderr, "ensure: git worktree add failed (%s → %s)\n", srcRef, ensureWorktree)
-				os.Exit(2)
-			}
-			ticketID = newTicket
-			branch = newBranch
-			fmt.Fprintf(os.Stderr, "ensure: worktree ready at %s (branch %s off %s)\n", ensureWorktree, newBranch, srcRef)
-			fmt.Fprintln(os.Stderr, "ensure: current checkout untouched — cd into the worktree before doing any work")
 		}
+		if srcRef == "" || !gitOK("rev-parse", "--verify", "--quiet", srcRef+"^{commit}") {
+			fmt.Fprintf(os.Stderr, "ensure: cannot cut from '%s' — not a commit (base branch '%s')\n", orDefault(srcRef, baseBranch), baseBranch)
+			os.Exit(2)
+		}
+		ensTop := gitOut("rev-parse", "--show-toplevel")
+		if ensTop == "" {
+			ensTop, _ = os.Getwd()
+		}
+		ensureWorktree = filepath.Join(ensTop, ".babysit", "worktrees", newTicket+"_"+newSlug)
+		if _, err := os.Lstat(ensureWorktree); err == nil {
+			fmt.Fprintf(os.Stderr, "ensure: worktree path %s already exists — remove it or resume the ticket there.\n", ensureWorktree)
+			os.Exit(2)
+		}
+		excludeWorktreesIn(ensTop)
+		_ = os.MkdirAll(filepath.Dir(ensureWorktree), 0o755)
+		// `git worktree add` is not safe to run concurrently in one repo:
+		// two of them race on .git/worktrees/<name>/commondir and one dies
+		// reading the other's half-built directory. A foreman dispatching a
+		// batch is exactly that shape, so serialize the add on its own lock.
+		// Fail open on timeout: a leaked lock dir would otherwise block every
+		// new ticket in the repo for good.
+		wtLock := filepath.Join(gitCommonDir(), "bbs-worktree-add.lock")
+		locked := lockAcquire(wtLock, 300)
+		addOK := gitOK("worktree", "add", "--no-track", "-b", newBranch, "--", ensureWorktree, srcRef)
+		if locked {
+			lockRelease(wtLock) // os.Exit skips defers — release by hand
+		}
+		if !addOK {
+			fmt.Fprintf(os.Stderr, "ensure: git worktree add failed (%s → %s)\n", srcRef, ensureWorktree)
+			os.Exit(2)
+		}
+		ticketID = newTicket
+		branch = newBranch
+		fmt.Fprintf(os.Stderr, "ensure: worktree ready at %s (scratch branch %s at %s)\n", ensureWorktree, newBranch, srcRef)
+		fmt.Fprintln(os.Stderr, "ensure: current checkout untouched — cd into the worktree before doing any work")
 	}
 
 	// Init the ticket under one lock.
@@ -415,16 +338,24 @@ func deriveSlug(raw string) string {
 	return strings.TrimRight(joined, "-")
 }
 
-// divertWarning is printed when a `branch`-mode cut is forced into a worktree.
-// The divert is not free: the worktree inner loop costs a commit +
-// `surface compose` per test iteration, where cutting in place costs nothing.
-// A dev who never chose that tax should be told how to get back to the fast
-// loop rather than silently dropped into the slow one.
-func divertWarning(curBranch, baseBranch string) {
-	fmt.Fprintln(os.Stderr, "ensure: WARNING — the worktree loop costs a commit + 'bbs ticket surface compose' per test iteration.")
-	if curBranch != baseBranch {
-		fmt.Fprintf(os.Stderr, "ensure: to keep the 0-step loop: check out '%s' with a clean tree and re-run.\n", baseBranch)
-	} else {
-		fmt.Fprintf(os.Stderr, "ensure: to keep the 0-step loop: commit or stash on '%s' and re-run.\n", curBranch)
+// excludeWorktreesIn excludes .babysit/worktrees/ locally in dir's repository
+// so worktrees nested there never show as untracked work.
+func excludeWorktreesIn(dir string) {
+	excl := gitOutIn(dir, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude")
+	if excl == "" {
+		return
+	}
+	if b, err := os.ReadFile(excl); err == nil {
+		for _, ln := range strings.Split(string(b), "\n") {
+			// TrimRight "\r": core.autocrlf=true checkouts carry CRLF.
+			if strings.TrimRight(ln, "\r") == ".babysit/worktrees/" {
+				return
+			}
+		}
+	}
+	_ = os.MkdirAll(filepath.Dir(excl), 0o755)
+	if f, err := os.OpenFile(excl, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+		_, _ = f.WriteString(".babysit/worktrees/\n")
+		f.Close()
 	}
 }

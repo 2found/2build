@@ -113,7 +113,7 @@ Browse the [skill index](docs/skills.md) for individual skills and workflow exam
 
 ## Larger projects: Foreman
 
-For dependent tickets and supervised workers, [Foreman](docs/foreman.md) uses [Orca](https://www.onorca.dev) to plan a project, isolate child tickets in worktrees, dispatch ready work and run project-wide QA. It presents the parent plan/design for review before production dispatch; explicit `--auto` delegates that review. The configured finish policy controls delivery.
+For dependent tickets and supervised workers, [Foreman](docs/foreman.md) uses [Orca](https://www.onorca.dev) to plan a project, isolate child tickets in worktrees, dispatch ready work and run project-wide QA. It presents the parent plan/design for review before production dispatch; explicit `--auto` delegates that review. Workers never commit; each phase lands as one commit after phase QA.
 
 <details>
 <summary>CLI and configuration details</summary>
@@ -134,7 +134,7 @@ bbs autopilot recover --json
 
 `snapshot` reads canonical ticket state and gate evidence; `recover` adds bounded artifact excerpts for resuming work.
 
-Run `bbs <subcommand> --help` for usage. More detail: [companion CLI](docs/companion-cli.md), [profiles](docs/profiles.md), and [operations](docs/operations.md).
+Run `bbs <subcommand> --help` for usage. More detail: [companion CLI](docs/companion-cli.md), [git flow](.claude/skills/references/git-flow.md), and [operations](docs/operations.md).
 
 ## Semantic decisions
 

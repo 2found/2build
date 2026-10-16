@@ -29,8 +29,14 @@ const foremanUsage = `Usage:
   bbs foreman report <parent-ticket>     read the last durable project report
   bbs foreman contract <parent> --file project.json
   bbs foreman bind <parent> --seed <key> --child <ticket>
+  bbs foreman bind <parent> --phase <id> --child <phase-ticket>
   bbs foreman snapshot <parent> --json
   bbs foreman readiness <parent> --action dispatch|finish --json
+  bbs foreman readiness <parent> --action dispatch|integrate|release --phase <id> --json
+  bbs foreman release <parent> --phase <id> --request [--note <text>]
+                                         (publish the phase's human release approval)
+  bbs foreman release <parent> --phase <id> --file receipt.json
+                                         (record a release-prd verdict for the phase)
   bbs foreman seal <child>               preserve verified v2 inputs before delivery
   bbs foreman evidence <parent> --begin --file spec.json
   bbs foreman evidence <parent> --attempt <id> --file results.json
@@ -66,8 +72,11 @@ const foremanUsage = `Usage:
                     (phase worker: wait in-session for prerequisite phases to settle)
   bbs foreman watch [<id>] [--interval <sec>] [--idle <sec>] [--lines <n>]
                     [--status-interval <sec>] [--nudge <text>] [--max-nudges <n>] [--once]
-                    [--worker-idle <sec>] [--worker-nudges <n>]
-                    (--status-interval defaults to config foreman_status_interval, 3600)
+                    [--worker-idle <sec>] [--worker-nudges <n>] [--supervised]
+                    (--status-interval defaults to config foreman_status_interval, 3600;
+                     --supervised: the launchd/systemd form — stands by behind a running
+                     watcher and exits 0 once no batch is open)
+  bbs foreman supervisor status|install|uninstall
   bbs foreman retire <id> [--keep-workspace]
   bbs foreman hold <id>
   bbs foreman hold show <id>
@@ -137,7 +146,7 @@ func dispatchForeman(args []string) error {
 		return foremanInbox(rest)
 	case "report":
 		return foremanReport(rest)
-	case "contract", "bind", "snapshot", "readiness", "seal", "evidence", "progress", "complete":
+	case "contract", "bind", "snapshot", "readiness", "seal", "evidence", "progress", "complete", "release", "integrate", "land":
 		return foremanProjectCommand(sub, rest)
 	case "register":
 		return foremanRegister(rest)
@@ -164,6 +173,8 @@ func dispatchForeman(args []string) error {
 		return foremanModel(rest)
 	case "watch":
 		return foremanWatch(rest)
+	case "supervisor":
+		return foremanSupervisor(rest)
 	case "retire":
 		return foremanRetire(rest)
 	case "hold":
@@ -194,7 +205,7 @@ func foremanFlags(args []string) (id string, kv map[string]string, err error) {
 			return "", nil, fmt.Errorf("foreman: unexpected argument '%s'", a)
 		}
 		key := strings.TrimPrefix(a, "--")
-		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "exact-session" || key == "startup-only" || key == "rate-limited" { // the boolean flags
+		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "exact-session" || key == "startup-only" || key == "rate-limited" || key == "supervised" || key == "request" { // the boolean flags
 			kv[key] = "1"
 			continue
 		}
@@ -282,7 +293,8 @@ func foremanInbox(args []string) error {
 		// — the foreman is the one being waited on — and a foreman that read
 		// plain `pending` and waited would stall the batch.
 		if approval == "pending" {
-			if ok, _ := rec.Allows(tid, now); ok && (doc.Get("approval.kind") != "project-plan" || rec.Auto) {
+			kind := doc.Get("approval.kind")
+			if ok, _ := rec.Allows(tid, now); ok && kind != "release" && (kind != "project-plan" || rec.Auto) {
 				approval = "pending(auto)"
 			}
 		}

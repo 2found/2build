@@ -59,11 +59,11 @@ func TestVerificationProducerAndCrashRetry(t *testing.T) {
 	if err != nil || !ready.Enforced || !ready.Ready {
 		t.Fatalf("produced evidence unusable: %+v %v", ready, err)
 	}
-	// Even a new commit with an identical tree is a different delivered revision.
-	runGit(t, repo, "commit", "--allow-empty", "-m", "new revision")
+	// Evidence binds content: an edit after the gate makes it stale.
+	mustWrite(t, filepath.Join(repo, "tracked.txt"), "edited after the gate\n")
 	ready, err = evaluateReadiness(env, "review")
-	if err != nil || ready.Ready || !strings.Contains(strings.Join(ready.ReasonCodes, ","), "head_sha") {
-		t.Fatalf("post gate commit accepted: %+v %v", ready, err)
+	if err != nil || ready.Ready || !strings.Contains(strings.Join(ready.ReasonCodes, ","), "tree_digest") {
+		t.Fatalf("post gate edit accepted: %+v %v", ready, err)
 	}
 }
 

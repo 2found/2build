@@ -5,33 +5,42 @@ review and delivery unit; a closed worker/worktree is never proof of delivery.
 
 ## Project design checkpoint
 
-Before child creation, worktrees, or production dispatch:
+Before phase tickets, worktrees, or production dispatch:
 
-1. Dispatch a planning/design worker on the critical route in the parent
-   checkout to run `plan-draft` and, for user-facing work, `design-ui`, producing:
+1. Foreman has written the clarified `requirement.md` (SKILL.md step 1).
+   Dispatch the basic-design worker on the critical route in the parent
+   checkout to run `plan-draft` and, for user-facing work, `design-ui`,
+   producing:
 
-   - `requirement.md`, `plan.md`, `design.md` and `prototype.html`: all phase
-     scopes, transitions, empty/error states and acceptance criteria. Non-UI
-     designs use interfaces, examples and a workflow with visual prototype N/A.
-   - `manifest.md`: one row per phase — stable seed key, scope, size,
-     dependencies, shared contracts, acceptance ownership and integration
-     checks — sized and ordered per topology.md. Runtime ids/status belong in
-     relations/report, so progress does not rewrite the approved design.
+   - `design.md`: architecture — components, data model and migrations,
+     interfaces between tickets, risks, rollout and rollback per phase.
+   - `prototype.html`: one prototype of the whole product across all phases,
+     with transitions and empty/error states. Non-UI designs use interfaces,
+     examples and a workflow with visual prototype N/A.
+   - `plan.md`: the phase plan — what each phase ships and why it is safe to
+     release alone — and acceptance criteria.
+   - `manifest.md`: one row per ticket — phase, stable seed key, scope, size,
+     in-phase dependencies, owned files, shared contracts, acceptance
+     ownership — per topology.md and [phases](phases.md#the-phase-plan).
+     Runtime ids/status belong in relations/report, so progress does not
+     rewrite the approved design.
 
-   Parent planning/review may precede approval; child creation and production
-   edits may not. Write `project.json` through `bbs foreman contract` (execution.md).
+   Planning/review may precede approval; phase tickets and production edits
+   may not. Write `project.json`, with its `phases`, through `bbs foreman
+   contract` (execution.md).
 2. Publish the artifact-fingerprinted approval:
 
    ```bash
    BABYSIT_TICKET="$PARENT" bbs ticket approval publish --kind project-plan \
-     --note "Review the project plan, design/prototype, and proposed tickets"
+     --note "Review the basic design, prototype, and phase/release plan"
    ```
 
    It covers requirement, plan, design, prototype, manifest and project contract
    through their pointers. Changed/missing artifacts make `approval status`
    stale; refresh and republish. Never overwrite artifacts during pending human
    review. `redirected` requires rework/republish; `dropped` stops the project.
-3. Default: present artifact links and proposed tickets for **human review** through
+3. Default: present artifact links, the phases with their release modes and
+   the proposed tickets for **human review** through
    the preamble's invocation channel; persist the answer with `approval resolve`.
    An Orca coordinator relays this checkpoint, not its own Taste answer.
    Silence is not approval. Only current `approved` unlocks children.
@@ -47,9 +56,12 @@ Before child creation, worktrees, or production dispatch:
    `approval self-resolve --foreman "$FOREMAN_ID" --rubric-file <path>` and logs
    telemetry. runtime.md owns flag adoption; recorded `auto: true` survives resume,
    omitted flags and restart. Old records default to human review. Holds/grants,
-   non-delegable decisions and finish policy still apply; no fake human verdicts.
-5. **Phase plan checkpoints run inside the phase session**, so planning flows
-   into implementation without a worker switch. The larger of the phase's
+   non-delegable decisions and release modes still apply; no fake human verdicts.
+   `--auto` never grants a release: an `ask` phase still waits for a human go,
+   and a revised contract that lowers a phase's release mode (`ask` to `auto`
+   or `none`) goes to human review even under `--auto`.
+5. **Ticket plan checkpoints run inside the ticket session**, so planning flows
+   into implementation without a worker switch. The larger of the ticket's
    manifest size and its plan's `ticket_size` picks the approver, so a plan
    that grows to `L` goes to Foreman and none shrinks out of its review:
    - `XS`: no plan and no record.
@@ -65,22 +77,22 @@ Before child creation, worktrees, or production dispatch:
    - `L` — **Foreman approves**: the worker writes the rubric, publishes the
      plan record and asks Foreman with the artifact paths; the session waits.
 
-   Foreman answers a plan ask from the phase's `plan.md`/`design.md`, the
+   Foreman answers a plan ask from the ticket's `plan.md`/`design.md`, the
    parent goal, its acceptance IDs and the manifest's shared contracts. Approve
-   with `BABYSIT_TICKET=<phase> bbs ticket approval self-resolve --foreman
+   with `BABYSIT_TICKET=<ticket> bbs ticket approval self-resolve --foreman
    "$FOREMAN_ID" --rubric-file <path>` (Foreman's own rubric) and answer
    `approved`; or `approval resolve --action redirect --note <changes>` and
    answer with those exact changes — the worker revises and asks again, and
    after two redirects Foreman approves with named conditions or parks the
-   phase. A floor/hold/grant refusal that Foreman's authority cannot clear,
-   or a decision that reopens accepted scope, parks the phase: the worker
+   ticket. A floor/hold/grant refusal that Foreman's authority cannot clear,
+   or a decision that reopens accepted scope, parks the ticket: the worker
    reports `NEEDS_CONTEXT`, Foreman retains the session, relays the pending
    approval through the preamble's channel, lists it under `Remaining`, and
    resumes the session with `redirect` once it resolves. Material
-   scope/design changes reopen the parent checkpoint for the affected phases
+   scope/design changes reopen the parent checkpoint for the affected tickets
    only; unaffected work continues.
 
-   Never implement on an unapproved plan record. Foreman audits each phase's
+   Never implement on an unapproved plan record. Foreman audits each ticket's
    approval record and rubric at light verification. Keep these `kind=plan`
    reviews distinct from `project-plan`. Re-read `approval status` before
    dispatch and finish. On resume preserve live work, but gather
@@ -101,15 +113,18 @@ artifacts/receipts and include every required child (UNKNOWN when unreachable):
 
 ```markdown
 # <Project title> — <parent>
-Observed at: <UTC time> | Foreman: <id> | Run: <id> | Finish: <policy>
+Observed at: <UTC time> | Foreman: <id> | Run: <id> | Base: <branch>
 Project review: <human/auto, current approval revision, artifact links>
 Execution: <verified/required tickets; running/queued/blocked counts>
-Delivery: <PENDING / REVIEW_READY / PR_READY / LANDED_LOCAL / MERGED_REMOTE / UNKNOWN>
-Integration QA: <PENDING / PASS / FAIL / STALE / N/A reason> — <branch>@<SHA>, <evidence>
+Delivery: <PENDING / LANDED / RELEASED / UNKNOWN>
 
-| Ticket / work | Worker / phase | Branch / verified head | Review / QA | PR / merge | Cleanup / blocker |
+| Phase | Release mode | State | Cumulative QA | Release |
+|---|---|---|---|---|
+| <id + title, phase ticket> | <ask/auto/none> | <pending…released / release_failed> | <PASS/FAIL/STALE> — phase commit <SHA>, <evidence> | <tag + verdict + record, or pending go> |
+
+| Ticket / work | Phase / worker step | Sealed snapshot | Review / QA | Landed in | Cleanup / blocker |
 |---|---|---|---|---|---|
-| <id + meaningful title> | <Dispatch + current step> | <branch + SHA> | <evidence links> | <URL/state or land receipt> | <worktree/terminal state; blocker> |
+| <id + meaningful title> | <phase; Dispatch + current loop step> | <refs/bbs/tickets/id @ SHA> | <evidence links> | <phase commit SHA or pending> | <worktree/terminal state; blocker> |
 
 Remaining: <what still has to happen, who owns it, next action>
 ```
@@ -120,10 +135,8 @@ alone. Cancelled scope still needs an accepted contract change.
 
 | Delivery | Required evidence, including final acceptance PASS |
 |---|---|
-| `REVIEW_READY` | Retained clean branches/worktrees |
-| `PR_READY` | Verified PR heads, at least one open; report merged/total |
-| `LANDED_LOCAL` | Verified heads on local base; state remote delivery separately |
-| `MERGED_REMOTE` | Observed remote merges, not a local ancestor test |
+| `LANDED` | Every phase commit on local base (`bbs foreman snapshot` delivery rows) |
+| `RELEASED` | `LANDED`, and every `ask`/`auto` phase's release record passed |
 | `PENDING` / `UNKNOWN` | Missing gate / unreachable evidence with observation time |
 
 Evidence-only projects report artifact acceptance/delivery explicitly. Until the
@@ -131,81 +144,35 @@ final gate passes, delivery stays PENDING even if individual handlers succeeded.
 On a status request, reconcile before showing the snapshot. The report alone
 never unlocks a gate on resume.
 
-## Pre-land integration QA
+## Phase integration QA
 
-When tickets interact, add a Pre-land integration QA Task before landing them.
-Acquire the parent surface lease and dispatch an integration worker on the
-normal route to prepare the covered branches with `bbs ticket surface compose`,
-then a read-only QA worker to test that composition. Record covered revisions
-and acceptance evidence; changes invalidate the result. Revert only this known
-scratch composition before landing. This check never replaces final project QA.
-Per-ticket QA owns its own surface lifecycle; serialize all shared-surface work
-through leases and treat contention as queued work.
+Every code-bearing phase ends in one integration QA on its phase commit
+([phases](phases.md#2-integrate-the-phase)), testing every criterion of that
+phase and all earlier ones; the last phase's run is the project's final QA and
+passes before the Foreman `done` heartbeat. Per-ticket QA never substitutes for
+it. Wholly evidence-only projects may record N/A with acceptance evidence.
+Foreman owns the evidence checks; one integration worker session on the normal
+route tests through the `qa` skill — never fixing code. Foreman never tests
+inline.
 
-## Final integration QA
-
-Every code-bearing project has a final Integration QA Task. It runs **after
-the selected finish handlers and before the Foreman `done` heartbeat**, even
-when child tickets are independent. A pre-land integration check is additional
-evidence, not a substitute. Wholly evidence-only projects may record N/A with
-acceptance evidence. Use a read-only QA worker on the normal route; fixes
-go to the owning phase as `repair` follow-ups. Foreman owns lease acquisition and evidence checks;
-dispatch an integration worker on the normal route for surface preparation,
-merges/composition and restoration
-in steps 2–3 and 6. Wait for its settlement and verify the resulting refs before
-QA or lease release. Never prepare or test the integrated surface inline.
-
-1. Reconcile the complete required child set and current receipt/PR heads.
-   Acquire the parent surface lease in every participating primary checkout;
-   refresh its TTL during long tests and serialize with other projects.
-   Record the original branch/HEAD and the current scratch marker before
-   changing a surface. Require a clean checkout and no in-progress Git op.
-2. **`finish: land`**: after the last per-ticket QA/scratch composition,
-   revert only the known scratch composition before landing. Do not discard
-   unrelated retained local lands; reconcile them or block that reset. Land
-   required children in dependency order, verify their receipt heads remain
-   on `<base>`, then test that actual `<base>` HEAD in the primary checkout.
-   Never run `surface compose`, `surface revert`, `serve`, or a reset after
-   those lands as preparation/cleanup for final QA. Keep the retained base.
-3. **`finish: pr` or `review`**: fetch and record the intended base revision
-   (`origin/<base>` for PRs; the configured local base for local review).
-   Create a retained `qa/<parent>` branch with `git switch -c` from that
-   exact revision in the leased primary checkout. Merge the verified child
-   SHAs in dependency order with ordinary Git merges; for PRs, verify/fetch
-   the actual current PR heads, not stale local branch tips. A missing head
-   or failed fetch is BLOCKED, never permission to test an older revision.
-   Record branch/base/child SHAs immediately on the parent in
-   `integration-qa.md`. Never move `<base>` to build this composition.
-   If the QA branch already exists, reuse it only when its recorded manifest
-   and head exactly match; otherwise retain it and create a new uniquely
-   suffixed `qa/<parent>-<attempt>` branch. No `-B`, force update or deletion.
-   On conflict, abort only the merge this attempt started, preserve the QA
-   branch, and dispatch conflict repair to an owning child before rebuilding.
-4. Dispatch the QA worker on that **already prepared primary surface** with
-   parent identity, branch/HEAD, approved artifact revision, and the full
-   child/base manifest. Explicitly require the `qa` skill's Foreman final
-   integration mode: no composing, resetting, topology changes, code fixes,
-   or nested surface release. Foreman owns the lease. Runtime must serve
-   that exact tree; probe the changed behavior after preparing/restarting it.
-   Run the parent acceptance journeys including cross-ticket transitions and
-   adjacent regressions, not just a union of child PASS counts.
-5. Persist `integration-qa.md` with commands, results, runtime identity,
-   evidence links and all tested revisions; set `pointers.integration_qa`.
-   Persist the parent `qa` verdict too. Check branch/HEAD, clean tree, child
-   heads/PR heads, base revision and approval revision again after the tests.
-   Changed inputs mean STALE and a rerun, not PASS. Under `land`, compare the
-   tested final base HEAD; under `pr`/`review`, compare the source base too.
-6. Always finish environment cleanup while still holding the lease. Under
-   `pr`/`review`, switch back to the recorded original branch only when safe;
-   preserve its HEAD, the QA branch, and the prior scratch marker. Do not use
-   `surface revert` as restoration. Under `land`, leave the tested base HEAD
-   intact. Release leases on every terminal outcome; a restoration failure
-   is a blocker reported with the recoverable checkout, never forced away.
-7. On FAIL/STALE, dispatch child repairs and rerun their review/QA and finish
-   handlers before rebuilding final QA. If a child's QA reset displaced
-   retained lands, re-land and verify every required head before testing base
-   again. Only current PASS (or justified evidence-only N/A), successful
-   handlers and cleanup permit the final report and `done` heartbeat.
+1. `bbs foreman integrate "$PARENT" --phase <k>` builds the phase commit and
+   prints its detached integration worktree. A conflict names the ticket and
+   files: `repair` that ticket, then integrate again.
+2. Begin evidence with `"phase"` (execution.md), then run the `qa` skill in
+   that worktree with parent identity, the phase commit, the approved artifact
+   revision and the ticket list, in its Foreman integration mode: no commits,
+   code fixes or topology changes. The runtime must serve that exact tree;
+   probe the changed behavior first. Run the cumulative journeys,
+   cross-ticket transitions and adjacent regressions. A shared resource (port, database,
+   device) is taken with `bbs ticket surface acquire` and released on every
+   outcome.
+3. Persist `integration-qa.md` with commands, results, runtime identity,
+   evidence links and the tested commit; set `pointers.integration_qa` and the
+   parent `qa` verdict. A worktree that is no longer clean at the commit means
+   STALE and a rerun, not PASS.
+4. On FAIL/STALE, `repair` the owning tickets, reseal, integrate again and
+   rerun. On PASS, `bbs foreman land "$PARENT" --phase <k>` moves base to
+   exactly the tested commit ([delivery](delivery.md)).
 
 ## Executable completion
 

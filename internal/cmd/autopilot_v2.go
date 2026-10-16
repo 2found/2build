@@ -219,10 +219,7 @@ func collectAutopilotSnapshotOnceIn(a *apState, ticketID, ticketHome, dir string
 	if top == "" {
 		return nil, &snapshotError{Code: "NOT_A_REPOSITORY", Message: "snapshot requires a git repository", Exit: 3}
 	}
-	policy, err := snapshotGitFlow(top)
-	if err != nil {
-		return nil, &snapshotError{Code: "POLICY_INVALID", Message: err.Error(), Exit: 3}
-	}
+	policy := snapshotBasePolicy(top)
 	gitState, err := snapshotGitState(top, policy.Effective["base_branch"])
 	if err != nil {
 		var se *snapshotError
@@ -315,19 +312,11 @@ func requireJSONEOF(dec *json.Decoder) error {
 	return nil
 }
 
-func snapshotGitFlow(dir string) (snapshotPolicy, error) {
-	p, err := resolveGitFlow(dir)
-	if err != nil {
-		return snapshotPolicy{}, err
-	}
-	effective := map[string]string{
-		"profile": p.Profile, "base_branch": p.BaseBranch, "mode": p.Mode,
-		"land": p.Land, "finish": p.Finish, "push": p.Push,
-		"rigor": p.Rigor, "review_effort": p.ReviewEffort,
-	}
-	provenance := gitFlowProvenance(dir)
-	digest := digestJSON(map[string]interface{}{"effective": effective, "provenance": provenance})
-	return snapshotPolicy{Effective: effective, Provenance: provenance, Digest: digest}, nil
+// snapshotBasePolicy is the only repo policy left: the base branch work is
+// compared against. Changing it invalidates recorded gates.
+func snapshotBasePolicy(dir string) snapshotPolicy {
+	effective := map[string]string{"base_branch": baseBranchIn(dir)}
+	return snapshotPolicy{Effective: effective, Provenance: map[string]string{}, Digest: digestJSON(map[string]interface{}{"effective": effective})}
 }
 
 func snapshotGitState(dir, base string) (snapshotGit, error) {
@@ -357,7 +346,7 @@ func snapshotGitStateOnce(dir, base string) (snapshotGit, error) {
 	if err != nil {
 		return snapshotGit{}, err
 	}
-	treeDigest, err := workingTreeDigest(dir, statusRaw)
+	treeDigest, err := workingTreeDigest(dir)
 	if err != nil {
 		return snapshotGit{}, err
 	}
@@ -385,31 +374,27 @@ func snapshotGitStateOnce(dir, base string) (snapshotGit, error) {
 	}, nil
 }
 
-func workingTreeDigest(dir string, status []byte) (string, error) {
-	index, err := gitOutputBytes(dir, "ls-files", "-s", "-z")
-	if err != nil {
-		return "", err
-	}
+func workingTreeDigest(dir string) (string, error) {
 	pathsRaw, err := gitOutputBytes(dir, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
 	if err != nil {
 		return "", err
 	}
 	paths := strings.Split(string(pathsRaw), "\x00")
 	sort.Strings(paths)
+	// Content only: which commit, index entry or staging state holds a file
+	// does not change what was verified. Workers never commit, and whoever
+	// later commits a verified tree unchanged keeps its gates current.
 	h := sha256.New()
-	_, _ = h.Write(index)
-	_, _ = h.Write(status)
 	for _, rel := range paths {
 		if rel == "" {
 			continue
 		}
-		_, _ = io.WriteString(h, "\x00"+rel+"\x00")
 		path := filepath.Join(dir, filepath.FromSlash(rel))
 		fi, statErr := os.Lstat(path)
 		if statErr != nil {
-			_, _ = io.WriteString(h, "<missing>")
-			continue
+			continue // a deleted file reads the same before and after its commit
 		}
+		_, _ = io.WriteString(h, "\x00"+rel+"\x00")
 		_, _ = io.WriteString(h, fi.Mode().String()+"\x00")
 		if fi.Mode()&os.ModeSymlink != 0 {
 			target, readErr := os.Readlink(path)

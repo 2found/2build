@@ -72,8 +72,7 @@ func PrimaryWorktreeIn(dir string) (string, bool) {
 // from base", which is vacuously true for a branch freshly cut from base and
 // for one that never got a commit — so it reports every ticket as finished the
 // moment its branch exists. A branch appears here only if base actually merged
-// it, which is exactly what `bbs ticket land` does (--no-ff, so the merge is
-// never fast-forwarded away).
+// it, which is what a human's --no-ff merge of a PR branch records.
 //
 // A squash-merged PR is not in this set: squashing discards the second parent,
 // so nothing local records where the commit came from. Those tickets rest at

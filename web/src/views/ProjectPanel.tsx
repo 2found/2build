@@ -98,7 +98,7 @@ export function ProjectPanel({ project, ticket }: { project: string; ticket: str
     </section>
 
     <section aria-label="Project delivery"><SectionHeader title="Delivery" />
-      {!data.delivery?.length ? <p className="mt-2">No verified delivery yet.</p> : data.delivery.map((d, i) => <div className="py-2" key={`${d.ticket}-${i}`}><span>{d.ticket} · </span><Tag tone={d.state === 'UNKNOWN' ? 'warn' : 'ok'}>{d.state.replaceAll('_', ' ')}</Tag><p className="text-xs mt-1">{d.head.slice(0, 12)} · {d.policy}{d.reason && ` · ${d.reason}`}</p>{d.state === 'LANDED_LOCAL' && <p className="text-xs">Remote delivery has not been verified.</p>}{projectLink(d.url) && <a href={projectLink(d.url)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-11">Open pull request ↗</a>}</div>)}
+      {!data.delivery?.length ? <p className="mt-2">No phase integrated yet.</p> : data.delivery.map((d, i) => <div className="py-2" key={`${d.phase}-${d.repo ?? ''}-${i}`}><span>Phase {d.phase} · </span><Tag tone={d.state === 'PENDING' ? 'warn' : 'ok'}>{d.state.replaceAll('_', ' ')}</Tag>{d.commit && <p className="text-xs mt-1">{d.commit.slice(0, 12)} → {d.base}</p>}</div>)}
     </section>
   </div>;
 }

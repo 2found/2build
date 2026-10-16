@@ -14,7 +14,10 @@ import (
 	"github.com/2found/2build/internal/ticket"
 )
 
-func executionFixture(t *testing.T) (*ticket.Store, *ticket.Store, string) {
+// projectFixture is a project whose one child "ready" (seed core) holds
+// verified, uncommitted work on its ticket branch in repo and is sealed. The
+// contract has no phases yet; phasedFixture adds them.
+func projectFixture(t *testing.T) (*ticket.Store, *ticket.Store, string) {
 	t.Helper()
 	repo, env := initReadinessFixture(t)
 	t.Chdir(repo)
@@ -30,8 +33,6 @@ func executionFixture(t *testing.T) (*ticket.Store, *ticket.Store, string) {
 	t.Setenv("BABYSIT_TICKET", "ready")
 	runGit(t, repo, "switch", "-c", env.Branch)
 	mustWrite(t, filepath.Join(repo, "feature.txt"), "working journey\n")
-	runGit(t, repo, "add", ".")
-	runGit(t, repo, "commit", "-m", "child behavior")
 	child := ticket.New(env)
 	if err := ticket.WriteManifest(child.ManifestPath(), env.Ticket, "App", []ticket.Repo{{Name: "app", Canonical: repo, Worktree: repo, Branch: env.Branch, Base: "main"}}); err != nil {
 		t.Fatal(err)
@@ -61,37 +62,50 @@ func executionFixture(t *testing.T) (*ticket.Store, *ticket.Store, string) {
 	if err := writeJSONAtomic(projectContractPath(parent), c); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := approvalPublish(parent, "project-plan", "review", "developer"); err != nil {
-		t.Fatal(err)
-	}
-	if _, _, err := approvalResolve(parent, "approve", "accepted", "developer"); err != nil {
-		t.Fatal(err)
-	}
 	if err := foreman.Save(foreman.Record{ID: "fm-test", ProjectDir: repo, Status: "running"}); err != nil {
 		t.Fatal(err)
 	}
-	runGit(t, repo, "switch", "-c", "qa/parent")
 	return parent, child, repo
 }
 
-func executionEvidence(t *testing.T, st *ticket.Store, repo, kind string) string {
+// executionFixture is a one-phase project (p1, release none) with its phase
+// ticket bound, ready to integrate.
+func executionFixture(t *testing.T) (*ticket.Store, *ticket.Store, string) {
 	t.Helper()
-	spec := filepath.Join(t.TempDir(), "spec.json")
-	if err := writeJSONAtomic(spec, map[string]interface{}{"kind": kind, "producer": "fresh-evaluator", "surfaces": []projectSurface{{Dir: repo, Ref: "qa/parent", BaseRef: "main", RestoreRef: "main", RestoreHead: gitOutIn(repo, "rev-parse", "main")}}}); err != nil {
+	parent, child, repo := phasedFixture(t, []projectPhase{{ID: "p1", Title: "Tasks", Seeds: []string{"core"}, Release: "none"}})
+	if err := foremanProjectCommand("bind", []string{"parent", "--phase", "p1", "--child", "ph-p1"}); err != nil {
 		t.Fatal(err)
 	}
+	return parent, child, repo
+}
+
+// integratePhase builds the phase commit and returns its candidate.
+func integratePhase(t *testing.T, st *ticket.Store, phase string) projectCandidate {
+	t.Helper()
 	var err error
-	out := captureStdout(t, func() { err = projectEvidenceCommand(st, map[string]string{"begin": "1", "file": spec}) })
+	out := captureStdout(t, func() { err = projectIntegrateCommand(st, map[string]string{"phase": phase}) })
 	if err != nil {
 		t.Fatal(err)
 	}
 	var envelope struct {
-		Data projectEvidence `json:"data"`
+		Data projectCandidate `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(out), &envelope); err != nil {
 		t.Fatal(err)
 	}
-	return envelope.Data.ID
+	return envelope.Data
+}
+
+func landPhase(t *testing.T, st *ticket.Store, phase string) error {
+	t.Helper()
+	var err error
+	captureStdout(t, func() { err = projectLandCommand(st, map[string]string{"phase": phase}) })
+	return err
+}
+
+func executionEvidence(t *testing.T, st *ticket.Store, kind string) string {
+	t.Helper()
+	return phaseEvidence(t, st, kind, "p1")
 }
 
 func finishExecutionEvidence(t *testing.T, st *ticket.Store, id, kind string, failed bool) {
@@ -121,14 +135,17 @@ func finishExecutionEvidence(t *testing.T, st *ticket.Store, id, kind string, fa
 	}
 }
 
+// verifiedExecution integrates, verifies and lands the one phase.
 func verifiedExecution(t *testing.T) (*ticket.Store, *ticket.Store, string) {
 	t.Helper()
 	parent, child, repo := executionFixture(t)
+	integratePhase(t, parent, "p1")
 	for _, kind := range []string{"integration", "product"} {
-		id := executionEvidence(t, parent, repo, kind)
-		finishExecutionEvidence(t, parent, id, kind, false)
+		finishExecutionEvidence(t, parent, executionEvidence(t, parent, kind), kind, false)
 	}
-	runGit(t, repo, "switch", "main")
+	if err := landPhase(t, parent, "p1"); err != nil {
+		t.Fatal(err)
+	}
 	s, err := projectRead(parent)
 	if err != nil || !s.Ready {
 		t.Fatalf("valid project blocked: %+v %v", s.Blockers, err)
@@ -161,10 +178,10 @@ func TestProjectCompletionAndCleanedChildRecovery(t *testing.T) {
 	if err := foremanHeartbeat([]string{"fm-test", "--status", "done"}); err != nil {
 		t.Fatal(err)
 	}
-	// Subsequent unrelated checkout use doesn't erase an observed restoration.
-	runGit(t, repo, "switch", "qa/parent")
+	// Later work in the checkout doesn't erase a landed phase.
+	mustWrite(t, filepath.Join(repo, "next.txt"), "next project\n")
 	if s, _ := projectRead(st); s.Completion != "verified" {
-		t.Fatal("later checkout switch invalidated completion")
+		t.Fatal("later checkout use invalidated completion")
 	}
 	doc := ticket.ReadDoc(st.IndexPath())
 	doc.Set("assignee", "other")
@@ -210,7 +227,7 @@ func TestProjectCompleteSettledWorkerTerminals(t *testing.T) {
 		{name: "unverifiable active worker", status: "dispatched", terminal: "active", verdict: "unverifiable"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p, _, repo := executionFixture(t)
+			p, _, _ := executionFixture(t)
 			stubOrcaCLI(t)
 			t.Setenv("WORKERS", fmt.Sprintf(`{"ok":true,"result":{"workers":[{"dispatchId":"ctx-w","dispatchStatus":%q,"terminalState":%q,"projection":{"liveness":{"verdict":%q}}}],"page":{"hasMore":false}}}`, tc.status, tc.terminal, tc.verdict))
 			doc := ticket.ReadDoc(p.IndexPath())
@@ -218,11 +235,13 @@ func TestProjectCompleteSettledWorkerTerminals(t *testing.T) {
 			if err := ticket.WriteDoc(p.IndexPath(), doc); err != nil {
 				t.Fatal(err)
 			}
+			integratePhase(t, p, "p1")
 			for _, kind := range []string{"integration", "product"} {
-				id := executionEvidence(t, p, repo, kind)
-				finishExecutionEvidence(t, p, id, kind, false)
+				finishExecutionEvidence(t, p, executionEvidence(t, p, kind), kind, false)
 			}
-			runGit(t, repo, "switch", "main")
+			if err := landPhase(t, p, "p1"); err != nil {
+				t.Fatal(err)
+			}
 			var err error
 			captureStdout(t, func() { err = projectComplete(p, "fm-test") })
 			if tc.done {
@@ -335,14 +354,8 @@ func TestProjectRejectsFalseCompletion(t *testing.T) {
 		"changed child evidence": func(t *testing.T, p, c *ticket.Store, repo string) {
 			mustWrite(t, filepath.Join(c.Home(), "evidence", "check.log"), "changed log")
 		},
-		"post QA code": func(t *testing.T, p, c *ticket.Store, repo string) {
-			runGit(t, repo, "switch", "qa/parent")
-			mustWrite(t, filepath.Join(repo, "feature.txt"), "regression")
-			runGit(t, repo, "commit", "-am", "regression")
-		},
-		"base moved": func(t *testing.T, p, c *ticket.Store, repo string) {
-			mustWrite(t, filepath.Join(repo, "tracked.txt"), "new base")
-			runGit(t, repo, "commit", "-am", "base change")
+		"phase commit rewritten off base": func(t *testing.T, p, c *ticket.Store, repo string) {
+			runGit(t, repo, "branch", "-f", "main", "main~1")
 		},
 		"held lease": func(t *testing.T, p, c *ticket.Store, repo string) {
 			leasePublish(leaseDirOf(gitOutIn(repo, "rev-parse", "--absolute-git-dir")), leaseBodyFor("parent", leaseLong, "10"))
@@ -377,10 +390,10 @@ func TestProjectRejectsFalseCompletion(t *testing.T) {
 }
 
 func TestProjectEvidenceCapturesInputsBeforeCheck(t *testing.T) {
-	p, _, repo := executionFixture(t)
-	id := executionEvidence(t, p, repo, "integration")
-	mustWrite(t, filepath.Join(repo, "feature.txt"), "changed after begin")
-	runGit(t, repo, "commit", "-am", "late change")
+	p, _, _ := executionFixture(t)
+	cand := integratePhase(t, p, "p1")
+	id := executionEvidence(t, p, "integration")
+	mustWrite(t, filepath.Join(cand.Repos[0].Worktree, "feature.txt"), "changed after begin")
 	result := filepath.Join(t.TempDir(), "results.json")
 	mustWrite(t, result, `{"checks":[]}`)
 	if err := projectEvidenceCommand(p, map[string]string{"attempt": id, "file": result}); err == nil || !strings.Contains(err.Error(), "changed") {
@@ -389,12 +402,13 @@ func TestProjectEvidenceCapturesInputsBeforeCheck(t *testing.T) {
 }
 
 func TestProjectFailedCheckAndProductFindings(t *testing.T) {
-	p, _, repo := executionFixture(t)
-	id := executionEvidence(t, p, repo, "integration")
-	finishExecutionEvidence(t, p, id, "integration", true)
-	id = executionEvidence(t, p, repo, "product")
-	finishExecutionEvidence(t, p, id, "product", false)
-	runGit(t, repo, "switch", "main")
+	p, _, _ := executionFixture(t)
+	integratePhase(t, p, "p1")
+	finishExecutionEvidence(t, p, executionEvidence(t, p, "integration"), "integration", true)
+	finishExecutionEvidence(t, p, executionEvidence(t, p, "product"), "product", false)
+	if err := landPhase(t, p, "p1"); err == nil {
+		t.Fatal("landed a phase whose QA failed")
+	}
 	s, err := projectRead(p)
 	if err != nil || s.Ready || s.Coverage[0].State == "proven" {
 		t.Fatalf("failed check passed: %+v %v", s, err)
@@ -436,10 +450,10 @@ func TestProjectScopeContractInvalidatesApproval(t *testing.T) {
 
 func TestProjectEvidenceOnlyDelivery(t *testing.T) {
 	p, child, repo := executionFixture(t)
-	// Evidence-only work has no production commits and stores its outputs on
+	// Evidence-only work has no production code and stores its outputs on
 	// the durable ticket. Re-approve the explicitly different contract.
 	runGit(t, repo, "switch", "main")
-	runGit(t, repo, "branch", "-f", child.Env.Branch, "main")
+	os.Remove(filepath.Join(repo, "feature.txt"))
 	var c projectContract
 	readProjectJSON(projectContractPath(p), &c)
 	c.ArtifactsOnly = true
@@ -462,18 +476,12 @@ func TestProjectEvidenceOnlyDelivery(t *testing.T) {
 	if err := projectSealArtifacts(child, input); err != nil {
 		t.Fatal(err)
 	}
-	spec := filepath.Join(t.TempDir(), "spec.json")
-	writeJSONAtomic(spec, map[string]interface{}{"kind": "integration", "producer": "evaluator", "surfaces": []interface{}{}})
 	var err error
-	out := captureStdout(t, func() { err = projectEvidenceCommand(p, map[string]string{"begin": "1", "file": spec}) })
-	if err != nil {
-		t.Fatal(err)
+	captureStdout(t, func() { err = projectIntegrateCommand(p, map[string]string{"phase": "p1"}) })
+	if err == nil {
+		t.Fatal("artifact-only phase built a phase commit")
 	}
-	var e struct {
-		Data projectEvidence `json:"data"`
-	}
-	json.Unmarshal([]byte(out), &e)
-	finishExecutionEvidence(t, p, e.Data.ID, "integration", false)
+	finishExecutionEvidence(t, p, executionEvidence(t, p, "integration"), "integration", false)
 	s, err := projectRead(p)
 	if err != nil || !s.Ready || s.Delivery[0].State != "ARTIFACTS_READY" {
 		t.Fatalf("artifacts rejected: %+v %v", s, err)

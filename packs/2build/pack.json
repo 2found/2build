@@ -50,7 +50,7 @@
         {
           "name": "2build_autopilot",
           "file": "autopilot/skill.md",
-          "description": "Deliver one ticket end-to-end from a requirement or accepted plan to a releasable, locally committed change. Own implementation, review fixes, QA, and evidence across resumes; use foreman for multi-ticket projects."
+          "description": "Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; use foreman for multi-ticket projects."
         }
       ]
     },
@@ -68,7 +68,7 @@
         {
           "name": "2build_create-pr",
           "file": "create-pr/skill.md",
-          "description": "Prepare and create a pull request from the current branch. Use when the user requests a PR or a workflow authorizes the PR handoff."
+          "description": "Prepare and create a pull request from the current branch. Use when a human requests a PR; 2build workflows never open one."
         }
       ]
     },

@@ -18,7 +18,7 @@ import (
 // newAutopilotCmd exposes the checkpoint and recovery helpers used by the skill.
 func newAutopilotCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:                "autopilot {checkpoint|clear|recover|snapshot|attempt|verification|base-branch|git-flow|lint-workflow} ...",
+		Use:                "autopilot {checkpoint|clear|recover|snapshot|attempt|verification|base-branch|lint-workflow} ...",
 		Short:              "autopilot checkpoints, snapshots, recovery and verification",
 		DisableFlagParsing: true,
 		RunE: func(_ *cobra.Command, args []string) error {
@@ -28,7 +28,7 @@ func newAutopilotCmd() *cobra.Command {
 	}
 }
 
-const autopilotUsage = "usage: bbs-autopilot {checkpoint|clear|recover|snapshot|attempt|verification|base-branch|git-flow|lint-workflow} ..."
+const autopilotUsage = "usage: bbs-autopilot {checkpoint|clear|recover|snapshot|attempt|verification|base-branch|lint-workflow} ..."
 
 // apState is the identity + state-root resolved once per invocation, mirroring
 // the top-of-script derivation in the retired bbs-autopilot.
@@ -71,8 +71,6 @@ func runAutopilot(args []string) {
 		resolveAP().verification(rest)
 	case "base-branch":
 		fmt.Println(resolve(false).baseBranch())
-	case "git-flow":
-		printGitFlow(rest)
 	case "lint-workflow":
 		resolve(false).lintWorkflow(rest)
 	default:
@@ -593,8 +591,7 @@ func (a *apState) recover(args []string) {
 func (a *apState) baseBranch() string { return baseBranchIn("") }
 
 // baseBranchIn resolves the base branch for the repo at dir ("" = process cwd):
-// BBS_BASE_BRANCH → the repo's git-flow.yaml → global config → origin/HEAD →
-// "main". It takes no apState because nothing in the ladder is run-scoped, and
+// BBS_BASE_BRANCH → global config → origin/HEAD → "main". It takes no apState because nothing in the ladder is run-scoped, and
 // ticket base-ops needs the same answer for a worktree it is not standing in.
 //
 // The global-config rung reads ~/.babysit/config.yaml in-process. The bash
@@ -603,15 +600,6 @@ func (a *apState) baseBranch() string { return baseBranchIn("") }
 func baseBranchIn(dir string) string {
 	if v := os.Getenv("BBS_BASE_BRANCH"); v != "" {
 		return v
-	}
-	top := gitOutIn(dir, "rev-parse", "--show-toplevel")
-	if top != "" {
-		gf := filepath.Join(top, ".babysit", "git-flow.yaml")
-		if b, err := os.ReadFile(gf); err == nil {
-			if base := gitFlowBase(string(b)); base != "" {
-				return base
-			}
-		}
 	}
 	if v, ok := config.Get("base_branch"); ok && v != "" {
 		return v

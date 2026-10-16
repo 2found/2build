@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # tests/test_bbs_ticket_surface_lease.sh — coverage for bbs ticket § surface lease verbs.
 #
-# `surface acquire` = exclusive QA-session lease on the shared test
-# surface. While a ticket holds it, `surface compose` / `surface revert` from
-# any OTHER ticket BLOCK, so a QA verdict always describes the surface it was
-# measured on. Reentrant for the owner; stale leases (age > ttl) are stolen.
+# `surface acquire` = exclusive QA-session lease on a resource a repo's tickets
+# share. While a ticket holds it, another ticket's acquire BLOCKs naming the
+# holder. Reentrant for the owner; stale leases (age > ttl) are stolen.
 #
 # Scenarios:
 #   lease-acquire-status       acquire from a worktree → ACQUIRED=1; status
@@ -15,14 +14,6 @@
 #                              STOLE_FROM=A
 #   lease-release-owner-only   B can't release A's lease (exit 2), --force
 #                              can; release when free → FREE=1 exit 0
-#   lease-blocks-compose       A holds → B's surface compose BLOCKs naming A;
-#                              after A releases, the same compose lands
-#   lease-blocks-surface-ops   A holds → compose/revert as B BLOCK; compose
-#                              as A (own lease) passes
-#   lease-stale-guard-clears   stale lease → B's surface compose clears it with a
-#                              warning and proceeds
-#   clear-retained-marker-only clear refuses an absent head, then preserves a
-#                              manually landed head and unrelated dirty work
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -32,8 +23,8 @@ PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m  %s\n' "$1"; [ $# -gt 1 ] && printf '        %s\n' "$2"; }
 
-# Fixture: bare origin + clone with mode: worktree committed and pushed, then
-# two worktree tickets A and B, each with one committed file. Sets globals
+# Fixture: bare origin + clone, then two worktree tickets A and B, each with
+# one uncommitted file. Sets globals
 # WT_A/WT_B (worktree paths) and TK_A/TK_B (ticket ids). Runs in $1/repo.
 build_two_tickets() {
   local t="$1"
@@ -44,25 +35,19 @@ build_two_tickets() {
     git -c user.email=t@t -c user.name=t commit --allow-empty -q -m init
     git branch -M main
     git remote add origin "$t/remote.git"
-    mkdir -p .babysit
-    echo "mode: worktree" > .babysit/git-flow.yaml
-    git add .babysit/git-flow.yaml
-    git -c user.email=t@t -c user.name=t commit -q -m "git-flow config"
     git push -q origin main
   )
   cd "$t/repo"
   local out
-  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint tick-a --type feat 2>/dev/null)" || return 1
+  out="$("$BBS_TICKET_BIN" ticket ensure --mode=worktree --slug-hint tick-a --type feat 2>/dev/null)" || return 1
   TK_A="$(printf '%s\n' "$out" | sed -n 's|^TICKET=||p')"
   WT_A="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
-  out="$("$BBS_TICKET_BIN" ticket ensure --slug-hint tick-b --type feat 2>/dev/null)" || return 1
+  out="$("$BBS_TICKET_BIN" ticket ensure --mode=worktree --slug-hint tick-b --type feat 2>/dev/null)" || return 1
   TK_B="$(printf '%s\n' "$out" | sed -n 's|^TICKET=||p')"
   WT_B="$(printf '%s\n' "$out" | sed -n 's|^WORKTREE=||p')"
   [ -n "$WT_A" ] && [ -n "$WT_B" ] || return 1
-  ( cd "$WT_A" && echo "work a" > a.txt && git add a.txt \
-      && git -c user.email=t@t -c user.name=t commit -q -m "ticket a" ) || return 1
-  ( cd "$WT_B" && echo "work b" > b.txt && git add b.txt \
-      && git -c user.email=t@t -c user.name=t commit -q -m "ticket b" ) || return 1
+  echo "work a" > "$WT_A/a.txt"
+  echo "work b" > "$WT_B/b.txt"
 }
 
 # Backdate the lease so it reads as stale: rewrite since_epoch in the owner
@@ -167,129 +152,6 @@ T="$(mktemp -d)"
 ) && ok "lease-release-owner-only" || fail "lease-release-owner-only"
 rm -rf "$T"
 
-# ── lease-blocks-compose ───────────────────────────────────────────
-T="$(mktemp -d)"
-(
-  export PATH="$SCRIPT_DIR:$PATH"
-  export HOME="$T/home"; mkdir -p "$HOME"
-  export AGENT_ROLE=mayor
-  build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
-
-  (cd "$WT_A" && "$BBS_TICKET_BIN" ticket surface acquire >/dev/null 2>&1) || { echo "A acquire failed"; exit 1; }
-  (cd "$WT_B" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>"$T/err"); rc=$?
-  [ "$rc" -eq 2 ] || { echo "B's surface compose should BLOCK, rc=$rc"; exit 1; }
-  grep -q "leased by '$TK_A'" "$T/err" || { echo "expected lease reason: $(cat "$T/err")"; exit 1; }
-  [ ! -f b.txt ] || { echo "b.txt landed on primary despite lease"; exit 1; }
-
-  # Owner's own compose passes through the guard.
-  (cd "$WT_A" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>"$T/err") || {
-    echo "A's own compose failed under its lease: $(cat "$T/err")"; exit 1; }
-  [ -f a.txt ] || { echo "a.txt missing after A's surface compose"; exit 1; }
-
-  # Release, then B lands cleanly.
-  (cd "$WT_A" && "$BBS_TICKET_BIN" ticket surface release >/dev/null) || { echo "release failed"; exit 1; }
-  (cd "$WT_B" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>"$T/err") || {
-    echo "B's surface compose failed after release: $(cat "$T/err")"; exit 1; }
-  [ -f b.txt ] || { echo "b.txt missing after B's surface compose"; exit 1; }
-) && ok "lease-blocks-compose" || fail "lease-blocks-compose"
-rm -rf "$T"
-
-# ── lease-blocks-surface-ops ──────────────────────────────────────────
-T="$(mktemp -d)"
-(
-  export PATH="$SCRIPT_DIR:$PATH"
-  export HOME="$T/home"; mkdir -p "$HOME"
-  export AGENT_ROLE=mayor
-  build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
-
-  (cd "$WT_A" && "$BBS_TICKET_BIN" ticket surface acquire >/dev/null 2>&1) || { echo "A acquire failed"; exit 1; }
-  pre="$(git rev-parse HEAD)"
-
-  BABYSIT_TICKET="$TK_B" "$BBS_TICKET_BIN" ticket surface compose "$TK_B" >/dev/null 2>"$T/err"; rc=$?
-  [ "$rc" -eq 2 ] || { echo "compose as B should BLOCK, rc=$rc"; exit 1; }
-  grep -q "leased by '$TK_A'" "$T/err" || { echo "expected lease reason: $(cat "$T/err")"; exit 1; }
-  [ "$(git rev-parse HEAD)" = "$pre" ] || { echo "surface moved despite BLOCK"; exit 1; }
-
-  BABYSIT_TICKET="$TK_B" "$BBS_TICKET_BIN" ticket surface revert >/dev/null 2>"$T/err"; rc=$?
-  [ "$rc" -eq 2 ] || { echo "revert as B should BLOCK, rc=$rc"; exit 1; }
-
-  # The owner may re-point the surface under its own lease.
-  out="$(BABYSIT_TICKET="$TK_A" "$BBS_TICKET_BIN" ticket surface compose "$TK_A" 2>"$T/err")" || {
-    echo "compose as owner failed: $(cat "$T/err")"; exit 1; }
-  printf '%s\n' "$out" | grep -q "^SERVING=$TK_A$" || { echo "expected SERVING=$TK_A; out: $out"; exit 1; }
-  [ -f a.txt ] || { echo "a.txt missing after owner compose"; exit 1; }
-) && ok "lease-blocks-surface-ops" || fail "lease-blocks-surface-ops"
-rm -rf "$T"
-
-# ── lease-stale-guard-clears ──────────────────────────────────────────
-T="$(mktemp -d)"
-(
-  export PATH="$SCRIPT_DIR:$PATH"
-  export HOME="$T/home"; mkdir -p "$HOME"
-  export AGENT_ROLE=mayor
-  build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
-
-  (cd "$WT_A" && "$BBS_TICKET_BIN" ticket surface acquire >/dev/null 2>&1) || { echo "A acquire failed"; exit 1; }
-  backdate_lease "$T/repo" 3900
-  (cd "$WT_B" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>"$T/err") || {
-    echo "B's surface compose should clear the stale lease and land: $(cat "$T/err")"; exit 1; }
-  grep -q "stale surface lease" "$T/err" || { echo "expected stale-clear warning: $(cat "$T/err")"; exit 1; }
-  [ -f b.txt ] || { echo "b.txt missing after stale-clear compose"; exit 1; }
-  [ "$("$BBS_TICKET_BIN" ticket surface status)" = "FREE" ] || { echo "stale lease not cleared"; exit 1; }
-) && ok "lease-stale-guard-clears" || fail "lease-stale-guard-clears"
-rm -rf "$T"
-
-# ── clear-retained-marker-only ────────────────────────────────────────
-# A manual retained land can leave the old compose marker behind when revert
-# is unsafe. `clear` must preserve both the retained commits and unrelated dirty
-# work, while refusing a marker whose reviewed head is not actually on base.
-T="$(mktemp -d)"
-(
-  export PATH="$SCRIPT_DIR:$PATH"
-  export HOME="$T/home"; mkdir -p "$HOME"
-  export AGENT_ROLE=mayor
-  build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
-  head_a="$(git -C "$WT_A" rev-parse HEAD)"
-
-  (cd "$WT_A" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>&1) \
-    || { echo "compose A failed"; exit 1; }
-  "$BBS_TICKET_BIN" ticket surface clear --ticket "$TK_A" --head "$head_a" \
-    >"$T/clear-in-flight" 2>"$T/err"; rc=$?
-  [ "$rc" -eq 2 ] || { echo "clear accepted an unfinished ticket: $(cat "$T/clear-in-flight" "$T/err")"; exit 1; }
-  grep -q "not done" "$T/err" || { echo "missing unfinished-ticket reason: $(cat "$T/err")"; exit 1; }
-  "$BBS_TICKET_BIN" ticket board | grep -q "^SERVING: $TK_A$" \
-    || { echo "unfinished clear removed marker"; exit 1; }
-
-  git -C "$T/repo" reset --hard -q origin/main # stale marker, ticket not retained
-  BABYSIT_TICKET="$TK_A" "$BBS_TICKET_BIN" ticket set-status done >/dev/null 2>&1
-  "$BBS_TICKET_BIN" ticket surface clear --ticket "$TK_B" --head "$head_a" \
-    >"$T/clear-wrong-ticket" 2>"$T/err"; rc=$?
-  [ "$rc" -eq 2 ] || { echo "clear accepted the wrong marker ticket: $(cat "$T/clear-wrong-ticket" "$T/err")"; exit 1; }
-  grep -q "not exactly ticket" "$T/err" || { echo "missing marker-mismatch reason: $(cat "$T/err")"; exit 1; }
-
-
-  "$BBS_TICKET_BIN" ticket surface clear --ticket "$TK_A" --head "$head_a" \
-    >"$T/clear-before" 2>"$T/err"; rc=$?
-  [ "$rc" -eq 2 ] || { echo "clear accepted a head absent from base: $(cat "$T/clear-before" "$T/err")"; exit 1; }
-  grep -q "not retained" "$T/err" || { echo "missing not-retained reason: $(cat "$T/err")"; exit 1; }
-  "$BBS_TICKET_BIN" ticket board | grep -q "^SERVING: $TK_A$" \
-    || { echo "failed clear removed marker"; exit 1; }
-
-  git -C "$T/repo" -c user.email=t@t -c user.name=t merge --no-ff -q "$head_a" -m "land A"
-  echo dirty >> "$T/repo/.babysit/git-flow.yaml"
-  echo keep > "$T/repo/untracked.txt"
-  pre="$(git -C "$T/repo" rev-parse HEAD)"
-  out="$("$BBS_TICKET_BIN" ticket surface clear --ticket "$TK_A" --head "$head_a" 2>"$T/err")" \
-    || { echo "clear of retained marker failed: $(cat "$T/err")"; exit 1; }
-  printf '%s\n' "$out" | grep -q "^CLEARED=1$" || { echo "missing CLEARED=1: $out"; exit 1; }
-  [ "$(git -C "$T/repo" rev-parse HEAD)" = "$pre" ] || { echo "clear moved HEAD"; exit 1; }
-  grep -q dirty "$T/repo/.babysit/git-flow.yaml" || { echo "clear overwrote tracked dirt"; exit 1; }
-  [ "$(cat "$T/repo/untracked.txt")" = keep ] || { echo "clear removed untracked work"; exit 1; }
-  "$BBS_TICKET_BIN" ticket board | grep -q "^SERVING: (base only)$" \
-    || { echo "marker survived successful clear"; exit 1; }
-) && ok "clear-retained-marker-only" || fail "clear-retained-marker-only"
-rm -rf "$T"
-
 # ── lease-race-single-owner ───────────────────────────────────────────
 # The lease only means anything if a burst of workers racing for it produces
 # exactly one owner — foreman dispatches a batch at once, so this is the
@@ -356,8 +218,8 @@ rm -rf "$T"
 
 # ── lease-ownerless-not-stale ─────────────────────────────────────────
 # A lease directory whose owner file has not landed yet is mid-acquire, not
-# abandoned. Reading it as stale is what let a surface-mover delete a live
-# lease and land a merge on a surface that was under QA.
+# abandoned. Reading it as stale would let a second ticket delete a live lease
+# and start QA on a resource that was already in use.
 T="$(mktemp -d)"
 (
   export PATH="$SCRIPT_DIR:$PATH"
@@ -366,13 +228,10 @@ T="$(mktemp -d)"
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
 
   mkdir -p "$T/repo/.git/bbs-qa-lease"          # exactly the mid-acquire state
-  (cd "$WT_B" && "$BBS_TICKET_BIN" ticket surface compose >/dev/null 2>"$T/err"); rc=$?
-  [ "$rc" -ne 0 ] || { echo "compose landed on a lease that was mid-acquire: $(cat "$T/err")"; exit 1; }
-  [ ! -f "$T/repo/b.txt" ] || { echo "b.txt landed despite the held lease"; exit 1; }
-  [ -d "$T/repo/.git/bbs-qa-lease" ] || { echo "guard deleted a lease that was mid-acquire"; exit 1; }
 
   out="$(cd "$WT_B" && "$BBS_TICKET_BIN" ticket surface acquire 2>&1)"; rc=$?
   [ "$rc" -ne 0 ] || { echo "acquire stole a lease that was mid-acquire: $out"; exit 1; }
+  [ -d "$T/repo/.git/bbs-qa-lease" ] || { echo "acquire deleted a lease that was mid-acquire"; exit 1; }
 ) && ok "lease-ownerless-not-stale" || fail "lease-ownerless-not-stale"
 rm -rf "$T"
 

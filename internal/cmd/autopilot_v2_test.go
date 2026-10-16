@@ -125,23 +125,45 @@ func TestAutopilotV2SnapshotRejectsMalformedRequiredState(t *testing.T) {
 	}
 }
 
-func TestGitFlowV2ProvenanceUsesAuthoritativeResolver(t *testing.T) {
+func TestBasePolicyFollowsTheBaseBranch(t *testing.T) {
 	repo := initSnapshotRepo(t)
-	t.Setenv("BBS_BASE_BRANCH", "")
-	mustMkdirAll(t, filepath.Join(repo, ".babysit"))
-	mustWrite(t, filepath.Join(repo, ".babysit", "git-flow.yaml"), "profile: startup\nfinish: review\npush: false\n")
-	p, err := snapshotGitFlow(repo)
+	t.Setenv("BBS_BASE_BRANCH", "main")
+	main := snapshotBasePolicy(repo)
+	t.Setenv("BBS_BASE_BRANCH", "develop")
+	develop := snapshotBasePolicy(repo)
+	if main.Effective["base_branch"] != "main" || develop.Effective["base_branch"] != "develop" {
+		t.Fatalf("wrong base: %+v %+v", main.Effective, develop.Effective)
+	}
+	if !strings.HasPrefix(main.Digest, "sha256:") || main.Digest == develop.Digest {
+		t.Fatalf("a base change must change the policy digest: %q %q", main.Digest, develop.Digest)
+	}
+}
+
+// Workers never commit, so a gate verifies the working tree by content. A
+// human who later commits exactly that tree must not invalidate it; any other
+// change must.
+func TestTreeDigestIsCommitIndependent(t *testing.T) {
+	repo := initSnapshotRepo(t)
+	mustWrite(t, filepath.Join(repo, "tracked.txt"), "second\n")
+	mustWrite(t, filepath.Join(repo, "new.txt"), "new\n")
+	if err := os.Remove(filepath.Join(repo, "tracked.txt")); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(repo, "kept.txt"), "kept\n")
+	dirty, err := workingTreeDigest(repo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Effective["profile"] != "startup" || p.Effective["push"] != "false" {
-		t.Fatalf("wrong effective policy: %+v", p.Effective)
+	runGit(t, repo, "add", "-A")
+	staged, _ := workingTreeDigest(repo)
+	runGit(t, repo, "commit", "-m", "verified tree")
+	committed, _ := workingTreeDigest(repo)
+	if dirty != staged || staged != committed {
+		t.Fatalf("digest moved with git state alone: dirty=%s staged=%s committed=%s", dirty, staged, committed)
 	}
-	if p.Provenance["profile"] != "git-flow.yaml:profile" || p.Provenance["push"] != "git-flow.yaml:push" {
-		t.Fatalf("wrong provenance: %+v", p.Provenance)
-	}
-	if !strings.HasPrefix(p.Digest, "sha256:") {
-		t.Fatalf("missing policy digest: %q", p.Digest)
+	mustWrite(t, filepath.Join(repo, "kept.txt"), "edited\n")
+	if edited, _ := workingTreeDigest(repo); edited == committed {
+		t.Fatal("a content change must change the digest")
 	}
 }
 

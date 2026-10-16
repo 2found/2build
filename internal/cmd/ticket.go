@@ -99,14 +99,10 @@ func newTicketCmd() *cobra.Command {
 				runEnsure(args[1:])
 			case "clear":
 				runClear(args[1:])
-			case "refresh":
-				runRefresh(args[1:])
 			case "surface":
 				runSurface(args[1:])
-			case "serve":
-				runServe(args[1:])
-			case "land":
-				runLand(args[1:])
+			case "adopt":
+				runAdopt(args[1:])
 			case "add-handoff":
 				runAddHandoff(args[1:])
 			case "set-review":
@@ -147,13 +143,10 @@ func ticketUsage() {
 const ticketUsageText = `usage: bbs-ticket <subcommand> [args...]
 
 Subcommands:
-  ensure            idempotent: no-op on ticket branch, else cut one + init
-                    mode trunk|branch|worktree (trunk unless --mode or an
-                    explicit mode: key says otherwise — no profile derives
-                    one): trunk = no cut; branch = in-place from clean base else
-                    worktree divert; worktree = always divert, primary stays
-                    on base; diverts print WORKTREE=<path>; developer role
-                    asks before in-place — exit 3; --cut-branch/--no-branch
+  ensure            idempotent: no-op when a ticket resolves, else create + init
+                    mode trunk|worktree (default trunk): trunk = no cut;
+                    worktree = cut .babysit/worktrees/<ticket>_<slug> from
+                    local base (--from-ref REF) and print WORKTREE=<path>
   clear --all       move every active ticket record under ~/.babysit/projects
                     to ~/.babysit/trash; leaves config, sessions, analytics,
                     branches, and worktrees untouched
@@ -198,47 +191,21 @@ Subcommands:
                                  read-only typed gate freshness for the exact action
   append-history --event E [--actor A] [--extra-json JSON]
 
-Only for runs that cut something (--mode=branch|worktree, e.g. a foreman
-batch). In the default trunk mode the work is already on the branch you are
-standing on, so none of the next four apply:
+Only for runs inside a ticket worktree (a foreman batch). Workers never
+commit; Foreman seals, integrates and lands one commit per phase:
 
-  refresh [--base BRANCH]        bring the ticket branch up to date: fetch +
-                                 merge origin/<base> into it (never local base);
-                                 BLOCKs on dirty tree or conflict
-  surface <verb>                 the one test-surface lifecycle:
+  adopt <ticket>...              merge sealed tickets' snapshots into this
+                                 worktree as uncommitted changes; exit 5 and
+                                 CONFLICT=<file> lines on conflicts
+  surface <verb>                 lease on a shared test resource:
       acquire [--ticket ID] [--ttl-min N]
-                                 exclusive QA-session lease on the test surface;
-                                 other tickets' compose/revert BLOCK while held;
-                                 stale (> ttl) is stolen
-      compose [<ticket>...] [--base BRANCH]
-                                 test surface = base + exactly these tickets:
-                                 revert then merge each ticket branch in; bare
-                                 inside a ticket worktree composes that ticket
-      revert [--base BRANCH]     reset the primary checkout's base branch to
-                                 origin/<base> (drops local integration merges);
-                                 BLOCKs on dirty/off-base/non-merge local commits
-      clear --ticket ID --head SHA [--base BRANCH]
-                                 recovery only: clear one stale marker after a
-                                 retained landing; requires status=done and the
-                                 reviewed head on base; never changes the tree
+                                 exclusive QA-session lease; stale (> ttl) is stolen
       release [--ticket ID] [--force]
                                  drop the lease; --force overrides ownership
       status                     lease owner, age, ttl
-  serve [<ticket>...] [--ttl-min N]
-                                 human review: long surface lease (240min) +
-                                 compose, here and in each sibling repo; bare =
-                                 every finished ticket (qa + review-pr DONE);
-                                 re-run after each fix; serve --release frees
-                                 leases
-  land [<ticket>...] [--base BRANCH]
-                                 merge finished ticket branches into the LOCAL
-                                 base and KEEP the merge (--no-ff); gates on qa
-                                 + review-pr DONE, no override; never pushes.
-                                 Opt in per repo with finish: land so a
-                                 foreman lands a worker as it finishes
 
   board [--all] [--pr]           read-only ticket board: status, branch, qa/
-                                 review verdicts, session, PR, surface lease, serving
+                                 review verdicts, session, PR, surface lease
   dag [<ticket>] [--mermaid|--json]
                                  print a project DAG: a parent's declared
                                  children, layered into waves by

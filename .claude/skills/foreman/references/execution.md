@@ -22,9 +22,17 @@ approval's fingerprint. Stable seed keys exist before runtime ticket IDs:
     {"id":"AC2","text":"Assign from a narrow screen","owner":"assignments","checks":["behavior","responsive"]}
   ],
   "first_journey": ["AC1"],
-  "product_review": true
+  "product_review": true,
+  "phases": [
+    {"id":"p1","title":"Walking skeleton","seeds":["tasks"],"release":"ask"},
+    {"id":"p2","title":"Assignment","seeds":["assignments"],"release":"auto"}
+  ]
 }
 ```
+
+`phases` is the release plan ([phases](phases.md#the-phase-plan)); the CLI
+rejects an uncovered or doubly-assigned seed and a `first_journey` criterion
+outside phase 1.
 
 Use relevant check names, including accessibility, persistence, packaging or
 operational checks where required. Set `product_review: true` for user-facing
@@ -33,80 +41,73 @@ dispatch; it cannot convert an incomplete project to success. A changed budget
 or scope revisits the project approval. Usage stays unknown without provider
 observations; do not invent cost or token totals.
 
-Allocate children with the existing topology protocol, then bind each accepted
-seed with `bbs foreman bind "$PARENT" --seed <key> --child <ticket>`. One code
+Allocate each phase's ticket and children when the phase opens (phases.md,
+topology.md), then bind each accepted seed with `bbs foreman bind "$PARENT" --seed <key> --child <ticket>`. One code
 repository per child keeps each evidence subject unambiguous; use dependent
 children across repos. Every required leaf must have one accepted seed. A
 cancelled child leaves unmet scope until an explicit contract revision removes
 or replaces it.
 
-After parent approval, admit phases as SKILL.md's batch rule orders them —
-ready phases first, then dependents that wait in session with `bbs foreman
-await` — within resource bounds. `first_journey` identifies acceptance coverage, not a separate admission
-gate before other independent tickets. Shared interfaces and edit ownership are
+After parent approval, open phases as readiness allows and admit each open
+phase's tickets as SKILL.md's batch rule orders them — ready tickets first,
+then dependents that wait in session with `bbs foreman await` — within
+resource bounds. Shared interfaces and edit ownership are
 fixed in the accepted plan; dependency edges enforce necessary ordering.
 
 At each full reconciliation use `bbs foreman snapshot "$PARENT" --json`. It returns
-scope coverage, child seals, current evidence, blockers, delivery and observed
-time. Before new production dispatch use
-`bbs foreman readiness "$PARENT" --action dispatch --json`; inspect each child's
-dependencies through the existing DAG as well. Before closing use `--action
-finish`. Both return `ready` and specific reasons; a zero exit code only means
-the read succeeded. Reads never reconcile or mutate ticket status.
+scope coverage, child seals, current evidence, blockers, delivery, each
+phase's state, releases and problems, and observed time. Gate each phase step
+with `bbs foreman readiness "$PARENT" --action dispatch|integrate|land|release
+--phase <id> --json`; inspect each child's dependencies through the existing
+DAG as well. Before closing use `--action finish`. Each returns `ready`,
+specific reasons and, with `--phase`, the phase object; a zero exit code only
+means the read succeeded. Reads never reconcile or mutate ticket status.
 
 ## Worker packet and verification
 
 Use the worker packet in SKILL.md and the Orca envelope in topology.md.
-Autopilot honors its **Foreman phase assignment** contract on the assigned checkout.
+Autopilot honors its **Foreman ticket assignment** contract on the assigned checkout.
 
 New managed code children use `bbs autopilot checkpoint --ticket "$TICKET"
 --workflow builder --step run --status in_progress --contract-version 2` (substitute
 their actual workflow). Existing v1 tickets require that explicit migration and
 new gate runs; never wrap legacy PASS prose as typed evidence. Autopilot's
 [verification producer](../autopilot/references/verification.md) captures
-before/after subjects and archives logs. Seal each passing child **before** its
-finish handler or worktree removal: `bbs foreman seal "$TICKET"`.
+before/after subjects and archives logs. Seal each passing child as soon as it
+passes: `bbs foreman seal "$TICKET"`.
 
-A seal preserves verified source revisions, policies, gate attempts and log
-digests. Readiness still detects changed branches, gate inputs, dependencies and
-policy after cleanup. Keep source branches as the existing finish policy requires.
-Repairing a sealed child needs fresh gates and a new seal, then fresh integration.
+A seal snapshots the worker's uncommitted tree on `refs/bbs/tickets/<id>` and
+preserves gate attempts and log digests. An edit in the worktree after the
+seal invalidates it until the ticket is re-verified and resealed; once its
+phase landed and the worktree is gone, the snapshot is the record.
+Repairing a sealed child needs fresh gates and a new seal, then a fresh phase
+commit.
 
 Evidence-only projects explicitly approve `artifacts_only: true`. Their children
 keep the workflow verdict and durable outputs under the ticket directory. Seal
 with `bbs foreman seal "$TICKET" --file <artifacts.json>`, containing
-`{"paths":["<absolute ticket output>"]}`. Production commits cannot be delivered
-through this path. Final acceptance checks still cover each criterion; no Git
-surface is required, and delivery reads `ARTIFACTS_READY`.
+`{"paths":["<absolute ticket output>"]}`. Code changes cannot be delivered
+through this path. Final acceptance checks still cover each criterion; there is
+no phase commit to integrate or land, and delivery reads `ARTIFACTS_READY`.
 
 ## Integrated checks and independent product review
 
-Prepare the real final surface using project-contract.md, after finish handlers.
-Before testing, create a verification attempt:
+Build the phase commit first (`bbs foreman integrate`, [phases](phases.md#2-integrate-the-phase)).
+In its integration worktree, before testing, create a verification attempt:
 
 ```sh
 bbs foreman evidence "$PARENT" --begin --file /absolute/check-spec.json
 ```
 
 ```json
-{
-  "kind":"integration",
-  "producer":"actual-qa-dispatch-id",
-  "surfaces":[{
-    "dir":"/absolute/primary/repo",
-    "ref":"qa/parent-id",
-    "base_ref":"main",
-    "restore_ref":"main",
-    "restore_head":"<recorded original full SHA>"
-  }]
-}
+{"kind":"integration","producer":"actual-qa-dispatch-id","phase":"p2"}
 ```
 
-The CLI captures current heads and project subject. Under `land`, ref, base_ref
-and restoration are the delivered base; under `pr`, base_ref is `origin/<base>`.
-Under `review`/`pr`, preserve the `qa/<parent>` ref and the original checkout
-recorded before preparation. Store the returned attempt ID. Tests must run while
-the exact clean surface is checked out. After tests, **before restoration**, run:
+The CLI captures the phase subject (the contract plus every ticket of phases
+1..k) and derives the surfaces from the phase commit; it refuses a phase that
+is not ready, or an integration worktree that is not clean at that commit.
+Store the returned attempt ID. Tests run in that worktree, against that exact
+commit; earlier phases' commits must already be on base. After tests, run:
 
 ```sh
 bbs foreman evidence "$PARENT" --attempt <id> --file /absolute/results.json
@@ -127,6 +128,10 @@ that SHA exactly. The probe must query the running build; echoing an expected
 SHA proves nothing. The dashboard labels the observation time, never current
 server availability.
 
+Release receipts and requests are phases.md's: `bbs foreman release --request`
+and `--file` write `release-request.json` on the phase ticket and
+`project-releases/<id>.json` on the parent, and the snapshot reads them back.
+
 When the contract requires product review, dispatch a **fresh read-only product
 evaluator** on the normal route using [product-review.md](product-review.md).
 Its identity must differ from child gate producers. Final evidence and every
@@ -134,10 +139,9 @@ criterion check use `kind: product`; `kind: journey` is only for an explicitly
 required preliminary check. Material findings require repair and fresh evidence;
 minor findings stay in the handoff.
 
-After final QA/restoration, release settled workers and leases, persist the
-report, then run `bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"`.
-It writes the completion receipt only when all assigned parents are verified;
-retained review/open PR parents remain `in_review`. Status edits or a raw done
+After the last phase is released (or landed, for `none`), release settled
+workers and leases, persist the report, then run `bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"`.
+It writes the completion receipt only when all assigned parents are verified. Status edits or a raw done
 heartbeat cannot replace this receipt.
 
 ## Progress, waits and repair
@@ -151,22 +155,21 @@ milestone or wait transition. Use the actual run/Dispatch/attempt IDs:
  "evidence":"/absolute/durable/check.log"}
 ```
 
-`phase` names the loop step (`plan`, `approve`, `await`, `merge`, `build`,
-`review`, `qa`, `repair`, `deliver`), not the project phase, which is the
-ticket itself. An `approve` wait on Foreman is `wait_kind: approval`; an
+`phase` names the ticket's loop step (`plan`, `approve`, `await`, `adopt`,
+`build`, `review`, `qa`, `repair`), not a release phase. An `approve` wait on Foreman is `wait_kind: approval`; an
 `await` on prerequisites is `wait_kind: dependency`.
-Only changed evidence advances `progress_at`; summary rewrites and extra commits
+Only changed evidence advances `progress_at`; summary rewrites and extra edits
 do not. Waits add `wait_kind` (`test`, `dependency`, `approval`, `resource`),
 `wait_reason` and `wait_until` at most 15 minutes ahead. Refresh from actual
 ongoing waits, never a timer. Expiry is not failure or a reason to inspect a
 worker; Orca owns runtime state and runtime.md defines reconciliation triggers.
 
-A phase session repairs its own failures first: autopilot's repair loop, then
-Foreman's `repair` follow-ups into the same session. When the phase reports the
+A ticket session repairs its own failures first: autopilot's repair loop, then
+Foreman's `repair` follow-ups into the same session. When the ticket reports the
 same blocker `BLOCKED` after its retry budget, dispatch a fresh read-only
 diagnosis worker on the critical route with the failure evidence — a context
 that has not already failed three times is the point — then send its findings
-to the phase session as a `repair` (a fresh worker on the phase route if the
+to the ticket session as a `repair` (a fresh worker on the ticket route if the
 session is gone). Preserve failure counts and work; never restart a live
 writer, expire its lease, blindly resend assignments or silently upgrade its
 model. Missing intent/authority

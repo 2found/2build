@@ -90,7 +90,7 @@ else
 fi
 
 if ! grep -q 'CHILD_BRANCH=' "$B" \
-   && grep -q 'branch/worktree foreman prepared' "$B"; then
+   && grep -q 'worktree foreman prepared' "$B"; then
   ok "builder-has-no-topology"
 else
   fail "builder-has-no-topology"

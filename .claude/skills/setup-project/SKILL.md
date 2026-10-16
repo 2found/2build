@@ -26,24 +26,11 @@ Setup owns configuration writes; that skill owns the evidence checklist. Do
 not rewrite architecture docs or unrelated instructions during onboarding.
 
 ## Configure only missing or requested settings
-- `.babysit/git-flow.yaml`: start with `profile` and a verified `base_branch`.
-  Read [git-flow](../references/git-flow.md) for profiles and derived behavior;
-  session choice wins. Only when neither exists, ask what a mistake costs in
-  this repo: cheap/personal → `pet`, small-team → `startup`, quality-first team
-  → `enterprise`. Never ask about `mode`/`land`/`push`/rigor directly — that
-  one question is the whole interview. If the user is unsure, recommend
-  `startup`; unanswered is not consent. Continue independent setup while
-  awaiting required input.
-- Prefer the profile's base convention (`main` for `pet`, `develop` otherwise)
-  only when that branch exists. Inspect remote refs; do not invent a remote
-  base from a local branch. If `develop` is absent, resolve whether the repo
-  releases from its existing default branch or needs a new integration branch.
-  Reuse an already stated release model. Creating/pushing a branch is separate
-  work requiring authorization; a local-only repo must record that limitation.
-- Do not add `mode`, `land`, `push` or `finish` just to spell out defaults.
-  Preserve existing explicit keys unless asked to change them. Add Foreman
-  `finish: land` (`pet`) or `finish: pr` (other profiles) only with explicit
-  closeout authorization; setup alone supplies none.
+- Git needs no configuration ([git flow](../references/git-flow.md)). Verify
+  the base branch resolves to the branch the repo releases from (`origin/HEAD`
+  by default); if not, report the one-line fix (`git remote set-head origin
+  <branch>`) instead of writing a policy file. A leftover
+  `.babysit/git-flow.yaml` is ignored; mention it, never extend it.
 - `.babysit/qa.yaml`: use the smallest supported local configuration. Preserve
   service check maps and named environments when present. Record actual start
   and check commands with their working directories, a health/page target,
@@ -106,9 +93,8 @@ seed generic migrate/rollback commands: reversal is not necessarily safe.
 ## Verify and hand off
 Use [harness-audit](../harness-audit/SKILL.md)'s checks scoped to the files and
 services configured here; reuse the facts already gathered. Parse YAML and
-inspect `bbs autopilot git-flow` and `bbs secrets qa probe --env <local-name>`
-without executing their output. Compare derived values with the intended
-profile and deliberate overrides, rather than treating every override as wrong.
+inspect `bbs secrets qa probe --env <local-name>` without executing its
+output; treat deliberate overrides as valid.
 
 Inspect start/prepare commands before running them. Probe the local app when
 available; start only the intended local service when safe within this task.

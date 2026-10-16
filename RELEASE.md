@@ -1,8 +1,8 @@
 # 2build production release
 
 Use `release-prd` from [.claude/skills/release-prd/SKILL.md](.claude/skills/release-prd/SKILL.md).
-This profile covers `2found/2build`, base `main`, with the existing
-[git policy](.babysit/git-flow.yaml). It does not release sibling repos.
+This profile covers `2found/2build`, base `main`, under the one
+[git flow](.claude/skills/references/git-flow.md). It does not release sibling repos.
 
 ## Version, notes and normal delivery
 

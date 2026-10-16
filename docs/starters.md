@@ -6,14 +6,14 @@ are available in CLI 1.95.0+; the first stable starter release is `0.1.0`.
 Bootstrap uses published releases by default; `--source` supports local development.
 
 ```bash
-bbs bootstrap my-api --template hono-bun --profile startup
+bbs bootstrap my-api --template hono-bun
 bbs bootstrap another-api --template hono-bun --version 0.1.0
 bbs bootstrap local-api --source /path/to/2build-starters --template hono-bun
 bbs starter check --dir my-api --json
 ```
 
 The parent directory must already exist, the target must not exist, and its name
-must be lowercase kebab-case. Profiles: `pet`, `startup` (default), `enterprise`.
+must be lowercase kebab-case.
 Bootstrap resolves a published stable `vX.Y.Z` release to a Git commit, validates
 the catalog's CLI requirement, composes common/template files in a temporary
 directory, runs the template's verification commands, and publishes the project

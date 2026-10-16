@@ -38,7 +38,7 @@ export interface ProjectSnapshot {
     state: string;
     blocked_by: string[];
     problems: string[];
-    repos: { branch: string; head: string; finish: string }[];
+    repos: { branch: string; head: string }[];
     progress?: {
       phase: string; summary: string; health: string; updated_at: string;
       progress_at: string; wait_kind: string; wait_reason: string; wait_until: string;
@@ -46,7 +46,7 @@ export interface ProjectSnapshot {
     };
   }[];
   evidence: ProjectEvidence[];
-  delivery: { ticket: string; policy: string; state: string; head: string; url?: string; reason?: string }[];
+  delivery: { phase: string; repo?: string; base?: string; commit?: string; state: string }[];
   provider_usage: { available: boolean; reason?: string };
 }
 

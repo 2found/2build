@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // fakeOrca puts a stub `orca` on PATH whose behavior is the given script body
@@ -343,4 +344,24 @@ func readLog(t *testing.T, path string) string {
 		return ""
 	}
 	return string(b)
+}
+
+// A hung CLI call must not freeze a long-lived caller: with a call timeout
+// the command is killed and reported instead of blocking forever.
+func TestCallTimeoutBoundsAHungCommand(t *testing.T) {
+	fakeOrca(t, `case "$1" in
+  status) echo '{"ok":true,"result":{"runtime":{"reachable":true,"state":"ready"}}}' ;;
+  terminal) exec sleep 30 ;;
+esac`)
+	c, err := Preflight()
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	if _, err := c.WithCallTimeout(200 * time.Millisecond).Terminals(); err == nil {
+		t.Fatal("hung command returned no error")
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Fatalf("hung command held the caller %s", d)
+	}
 }

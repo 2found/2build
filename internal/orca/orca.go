@@ -40,6 +40,17 @@ type Client struct {
 	// (see orchestration.go) is on the hot path of a foreman's monitor loop.
 	caps []string
 	ctx  context.Context
+	// callTimeout bounds each command when set, so one hung CLI call cannot
+	// freeze a long-lived caller such as the watcher.
+	callTimeout time.Duration
+}
+
+// WithCallTimeout returns a copy whose every command is bounded by d. Use it
+// only where no call is a deliberate long wait (ask, check --wait).
+func (c *Client) WithCallTimeout(d time.Duration) *Client {
+	cp := *c
+	cp.callTimeout = d
+	return &cp
 }
 
 // Preflight returns a usable Client or the reason there isn't one.
@@ -410,6 +421,10 @@ func (c *Client) run(args ...string) (json.RawMessage, error) {
 	if _, bounded := ctx.Deadline(); bounded {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+	} else if c.callTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, c.callTimeout)
 		defer cancel()
 	}
 	cmd := exec.CommandContext(ctx, c.bin, full...)

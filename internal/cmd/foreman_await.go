@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -22,12 +24,19 @@ and its first edit. Blocks until every prerequisite phase has settled: its Orca
 Dispatch completed and its ticket passes readiness for review (or for push,
 when the phase recorded deferred heavy checks in pointers.deferred_heavy).
 
+When every prerequisite is ready, their work (each a snapshot of the
+prerequisite's uncommitted worktree) is merged into this worktree as
+uncommitted changes. Nothing is committed and HEAD never moves.
+
 Prints one PREREQ line per prerequisite and a final AWAIT line:
-  AWAIT=ready      exit 0  merge each printed HEAD, in the order given
+  AWAIT=ready      exit 0  prerequisites' work is in this worktree
+  AWAIT=conflict   exit 5  adopted with conflict markers in the CONFLICT files;
+                           resolve them before the first edit
   AWAIT=not-ready  exit 3  a prerequisite settled without passing; report it
   AWAIT=timeout    exit 4  still running; run the same command again
 
---timeout defaults to 540 seconds so one call fits an agent's foreground
+Orca being unreachable, or a readiness read failing fewer than three times in a
+row, is still waiting. --timeout defaults to 540 seconds so one call fits an agent's foreground
 command limit; --interval (default 20) is the poll period.
 `
 
@@ -39,6 +48,11 @@ command limit; --interval (default 20) is the poll period.
 
 type prereq struct{ ticket, task string }
 
+const (
+	awaitCallTimeout       = 30 * time.Second
+	awaitReadinessAttempts = 3
+)
+
 type prereqState struct {
 	State  string // waiting | ready | light-ready | not-ready
 	Head   string
@@ -46,6 +60,10 @@ type prereqState struct {
 }
 
 type prereqProbe func(p prereq) prereqState
+
+// adoptFunc merges ready prerequisites' snapshots into the waiting worktree
+// and returns the paths left with conflict markers.
+type adoptFunc func(heads []string) ([]string, error)
 
 func foremanAwait(args []string) error {
 	_, kv, err := foremanFlags(args)
@@ -64,19 +82,51 @@ func foremanAwait(args []string) error {
 	if err != nil {
 		return err
 	}
-	c, err := orca.Preflight()
-	if err != nil {
-		return fmt.Errorf("foreman await: %w", err)
+	// A runtime without Dispatch inspection can never answer; Orca merely
+	// being down (restarting, app relaunching) is a wait, not a failure.
+	var client *orca.Client
+	if c, err := orca.Preflight(); err == nil {
+		if !c.Orchestration() {
+			return fmt.Errorf("foreman await: %w", orca.ErrNoOrchestration)
+		}
+		client = c.WithCallTimeout(awaitCallTimeout)
 	}
-	if !c.Orchestration() {
-		return fmt.Errorf("foreman await: %w", orca.ErrNoOrchestration)
+	connect := func() (*orca.Client, error) {
+		if client == nil {
+			c, err := orca.Preflight()
+			if err != nil {
+				return nil, err
+			}
+			client = c.WithCallTimeout(awaitCallTimeout)
+		}
+		return client, nil
 	}
 	primary := baseOpsPrimary("foreman await")
 	if primary == "" {
 		os.Exit(2)
 	}
-	probe := liveProbe(c, primary, resolveProject())
-	code := awaitPrereqs(prereqs, probe, timeout, interval, time.Sleep, time.Now, os.Stdout)
+	// A dependent waiting here is proof a batch is running: restart its
+	// watcher if it died, or nobody wakes the Foreman when the batch settles.
+	ensureWatcher()
+	env := resolveProject()
+	probe := liveProbe(connect, primary, env)
+	adopt := func(heads []string) ([]string, error) {
+		dir := gitOutIn("", "rev-parse", "--show-toplevel")
+		if dir == "" {
+			return nil, fmt.Errorf("not inside a worktree")
+		}
+		conflicts, err := adoptSnapshots(dir, heads)
+		if err != nil {
+			return nil, err
+		}
+		if env.Ticket != "" {
+			if err := recordAdopted(storeForTicket(env, env.Ticket).Home(), heads); err != nil {
+				return nil, err
+			}
+		}
+		return conflicts, nil
+	}
+	code := awaitPrereqs(prereqs, probe, adopt, timeout, interval, time.Sleep, time.Now, os.Stdout)
 	if code != 0 {
 		os.Exit(code)
 	}
@@ -123,7 +173,7 @@ func awaitSeconds(kv map[string]string, key string, def int) (time.Duration, err
 // without passing, or the timeout expires. It prints a line only when a
 // prerequisite's state changes, so a long wait costs the worker's context
 // almost nothing, then the final state of every prerequisite.
-func awaitPrereqs(prereqs []prereq, probe prereqProbe, timeout, interval time.Duration, sleep func(time.Duration), now func() time.Time, out io.Writer) int {
+func awaitPrereqs(prereqs []prereq, probe prereqProbe, adopt adoptFunc, timeout, interval time.Duration, sleep func(time.Duration), now func() time.Time, out io.Writer) int {
 	deadline := now().Add(timeout)
 	last := map[string]prereqState{}
 	for {
@@ -154,23 +204,46 @@ func awaitPrereqs(prereqs []prereq, probe prereqProbe, timeout, interval time.Du
 			sleep(interval)
 			continue
 		}
+		var conflicts []string
+		if result == "ready" && adopt != nil {
+			heads := []string{}
+			for _, p := range prereqs {
+				if h := last[p.ticket].Head; h != "" {
+					heads = append(heads, h)
+				}
+			}
+			c, err := adopt(heads)
+			switch {
+			case err != nil:
+				fmt.Fprintln(out, "ADOPT_ERROR="+strconv.Quote(firstLineOf(err.Error())))
+				result, code = "not-ready", 3
+			case len(c) > 0:
+				conflicts = c
+				result, code = "conflict", 5
+			}
+		}
 		for _, p := range prereqs {
 			s := last[p.ticket]
 			line := fmt.Sprintf("PREREQ=%s TASK=%s STATE=%s", p.ticket, p.task, s.State)
 			if s.Head != "" {
-				line += " HEAD=" + s.Head
+				line += " SNAPSHOT=" + s.Head
 			}
 			if s.Reason != "" {
 				line += " REASON=" + strconv.Quote(s.Reason)
 			}
 			fmt.Fprintln(out, line)
 		}
+		for _, f := range conflicts {
+			fmt.Fprintln(out, "CONFLICT="+f)
+		}
 		fmt.Fprintln(out, "AWAIT="+result)
 		switch result {
 		case "ready":
-			fmt.Fprintln(out, "NEXT=merge each HEAD in the order listed (git merge --no-edit <HEAD>), then reconcile the plan with the merged code")
+			fmt.Fprintln(out, "NEXT=the prerequisites' work is now in this worktree as uncommitted changes; reconcile the plan with it, then edit")
+		case "conflict":
+			fmt.Fprintln(out, "NEXT=resolve the conflict markers in each CONFLICT file (keep both sides' intent), then continue; never commit")
 		case "not-ready":
-			fmt.Fprintln(out, "NEXT=do not merge; report worker_done BLOCKED naming the prerequisite — Foreman sends this session a refresh when it is repaired")
+			fmt.Fprintln(out, "NEXT=do not edit yet; report worker_done BLOCKED naming the prerequisite — Foreman sends this session a refresh when it is repaired")
 		default:
 			fmt.Fprintln(out, "NEXT=run the same command again")
 		}
@@ -189,8 +262,13 @@ func describePrereq(s prereqState) string {
 // liveProbe reads one prerequisite's settlement: the Orca Dispatch first, so
 // readiness is only judged once its worker has stopped writing, then the same
 // readiness evaluator land uses against the ticket's own worktree.
-func liveProbe(c *orca.Client, primary string, env identity.Env) prereqProbe {
+func liveProbe(connect func() (*orca.Client, error), primary string, env identity.Env) prereqProbe {
+	readinessErrors := map[string]int{}
 	return func(p prereq) prereqState {
+		c, err := connect()
+		if err != nil {
+			return prereqState{State: "waiting", Reason: "orca unreachable: " + firstLineOf(err.Error())}
+		}
 		d, err := c.DispatchStateFor(p.task)
 		switch {
 		case err != nil:
@@ -202,31 +280,71 @@ func liveProbe(c *orca.Client, primary string, env identity.Env) prereqProbe {
 		case d.Status != "completed":
 			return prereqState{State: "not-ready", Reason: "dispatch " + d.Status}
 		}
-		enforced, ready, reasons, head, err := ticketV2Readiness(primary, env, p.ticket, "review")
+		_, ready, reasons, _, err := ticketV2Readiness(primary, env, p.ticket, "review")
 		if err != nil {
-			return prereqState{State: "not-ready", Reason: "readiness: " + firstLineOf(err.Error())}
-		}
-		if ready {
-			return prereqState{State: "ready", Head: prereqHead(primary, p.ticket, enforced, head)}
-		}
-		deferred := ticket.ReadDoc(storeForTicket(env, p.ticket).IndexPath()).Get("pointers.deferred_heavy")
-		if deferred != "" {
-			if enforced, ok, _, head, err := ticketV2Readiness(primary, env, p.ticket, "push"); err == nil && ok {
-				return prereqState{State: "light-ready", Head: prereqHead(primary, p.ticket, enforced, head), Reason: "deferred heavy: " + deferred}
+			// A read racing the finishing worker's last write (git lock, a
+			// verdict mid-rename) clears on the next poll; only a repeated
+			// failure is the prerequisite's.
+			readinessErrors[p.ticket]++
+			reason := "readiness: " + readinessErrorReason(err)
+			if readinessErrors[p.ticket] < awaitReadinessAttempts {
+				return prereqState{State: "waiting", Reason: fmt.Sprintf("%s (attempt %d/%d)", reason, readinessErrors[p.ticket], awaitReadinessAttempts)}
 			}
+			return prereqState{State: "not-ready", Reason: reason}
+		}
+		delete(readinessErrors, p.ticket)
+		state, reason := "", ""
+		if ready {
+			state = "ready"
+		} else if deferred := ticket.ReadDoc(storeForTicket(env, p.ticket).IndexPath()).Get("pointers.deferred_heavy"); deferred != "" {
+			if _, ok, _, _, err := ticketV2Readiness(primary, env, p.ticket, "light"); err == nil && ok {
+				state, reason = "light-ready", "deferred heavy: "+deferred
+			}
+		}
+		if state != "" {
+			snap, err := prereqSnapshot(primary, env, p.ticket)
+			if err != nil {
+				return prereqState{State: "not-ready", Reason: "snapshot: " + firstLineOf(err.Error())}
+			}
+			return prereqState{State: state, Head: snap, Reason: reason}
 		}
 		return prereqState{State: "not-ready", Reason: strings.Join(reasons, ",")}
 	}
 }
 
-// prereqHead is the verified head v2 readiness returns; a legacy ticket has
-// none, so its branch tip is the revision its verdicts were written against.
-func prereqHead(primary, t string, enforced bool, head string) string {
-	if enforced && head != "" {
-		return head
+// readinessErrorReason renders a failed readiness run by its error envelope
+// (`CODE: message`) rather than the raw JSON it printed.
+func readinessErrorReason(err error) string {
+	msg := err.Error()
+	if i := strings.IndexByte(msg, '{'); i >= 0 {
+		var env struct {
+			Error struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if json.Unmarshal([]byte(msg[i:]), &env) == nil && env.Error.Code != "" {
+			return firstLineOf(env.Error.Code + ": " + env.Error.Message)
+		}
 	}
-	if b := ticketBranch(t); b != "" {
-		return gitOutIn(primary, "rev-parse", b)
+	return firstLineOf(msg)
+}
+
+// prereqSnapshot captures a verified prerequisite's worktree on its
+// snapshot ref; the waiting ticket adopts that commit, never a branch.
+func prereqSnapshot(primary string, env identity.Env, t string) (string, error) {
+	st := storeForTicket(env, t)
+	m, err := ticket.ReadManifest(st.ManifestPath())
+	if err != nil {
+		return "", err
 	}
-	return head
+	repo := m.FindRepo(func(r ticket.Repo) bool { return r.Worktree != "" })
+	if repo == nil {
+		return "", fmt.Errorf("ticket %s has no worktree", t)
+	}
+	dir := repo.Worktree
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(primary, dir)
+	}
+	return sealTicketSnapshot(dir, t, readAdopted(st.Home()))
 }

@@ -18,6 +18,12 @@ func projectArtifactInputs(st *ticket.Store, artifacts map[string]string) (strin
 		return "", fmt.Errorf("artifact child needs a parent")
 	}
 	parent := storeForTicket(st.Env, parentID)
+	// A phase's ticket sits under its phase ticket; the project is above it.
+	if _, err := os.Stat(projectContractPath(parent)); err != nil {
+		if up := ticket.ReadDoc(parent.IndexPath()).Get("parent"); idRe.MatchString(up) {
+			parent = storeForTicket(st.Env, up)
+		}
+	}
 	var c projectContract
 	if err := readProjectJSON(projectContractPath(parent), &c); err != nil || !c.ArtifactsOnly {
 		return "", fmt.Errorf("artifact seal requires an approved artifacts_only project")
@@ -36,11 +42,7 @@ func projectArtifactInputs(st *ticket.Store, artifacts map[string]string) (strin
 	// Evidence-only delivery must never conceal production commits.
 	if m, err := ticket.ReadManifest(st.ManifestPath()); err == nil {
 		for _, repo := range m.Repos {
-			p, err := resolveGitFlow(repo.Canonical)
-			if err != nil {
-				return "", err
-			}
-			if gitOutIn(repo.Canonical, "rev-list", "--count", p.BaseBranch+".."+repo.Branch) != "0" {
+			if gitOutIn(repo.Canonical, "rev-list", "--count", baseBranchIn(repo.Canonical)+".."+repo.Branch) != "0" {
 				return "", fmt.Errorf("artifact project contains code commits")
 			}
 			if repo.Worktree != "" && gitOutIn(repo.Worktree, "status", "--porcelain", "--untracked-files=all") != "" {
