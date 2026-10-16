@@ -197,6 +197,22 @@ esac`)
 	}
 }
 
+// An adopted Claude session retitles its terminal, so the recorded handle must
+// reach it; a handle Orca no longer lists falls back to the title.
+func TestPickPrefersALiveHandle(t *testing.T) {
+	c, _ := fakeWithTerminals(t)
+
+	if got := c.Pick("term_2", "bbs foreman fm-z"); got != "term_2" {
+		t.Errorf("live handle: got %q, want term_2", got)
+	}
+	if got := c.Pick("term_gone", "bbs foreman fm-a"); got != "bbs foreman fm-a" {
+		t.Errorf("stale handle: got %q, want the title", got)
+	}
+	if h, err := c.Ref("term_2"); err != nil || h != "term_2" {
+		t.Errorf("Ref by handle: got %q, %v", h, err)
+	}
+}
+
 func TestRefIgnoresUnrelatedTitle(t *testing.T) {
 	c, _ := fakeWithTerminals(t)
 

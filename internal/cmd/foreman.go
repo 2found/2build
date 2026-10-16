@@ -454,7 +454,7 @@ func foremanAdopt(args []string) error {
 			}
 		}
 		if r.WorkspaceTitle != "" {
-			ref, refErr := client.Ref(r.WorkspaceTitle)
+			ref, refErr := client.Ref(foremanTerm(client, r))
 			if refErr == nil && ref != term.Handle {
 				return fmt.Errorf("foreman %s is already running in another Orca terminal", id)
 			}
@@ -567,7 +567,7 @@ func foremanEnsure(args []string) error {
 		fmt.Printf("done %s — not recreating %s\n", id, rec.WorkspaceTitle)
 		return nil
 	}
-	if _, err := client.Ref(rec.WorkspaceTitle); err == nil {
+	if _, err := client.Ref(foremanTerm(client, rec)); err == nil {
 		// Check-in again on every ensure, including an already-open terminal:
 		// the watcher may have exited while Orca kept the terminal alive.
 		if !rec.ManualCommand {
@@ -704,7 +704,7 @@ func spawnForemanWithOptions(id, dir, command string, opts foremanSpawnOptions, 
 	r, loadErr := foreman.Load(id)
 	resuming := loadErr == nil
 	if resuming {
-		if ref, err := client.Ref(r.WorkspaceTitle); err == nil {
+		if ref, err := client.Ref(foremanTerm(client, r)); err == nil {
 			return "", fmt.Errorf("foreman %s already registered and running in %s — retire it first", id, ref)
 		} else if !errors.Is(err, orca.ErrNoTerminal) {
 			// Orca could not answer. Spawning anyway would create a second
@@ -935,7 +935,7 @@ func retireForeman(id string, keepWorkspace bool) (string, error) {
 			watchClear(id)
 			return fmt.Sprintf("retired %s; workspace %q left open (%v)", id, r.WorkspaceTitle, err), nil
 		}
-		if err := client.Close(r.WorkspaceTitle); err != nil {
+		if err := client.Close(foremanTerm(client, r)); err != nil {
 			return "", err
 		}
 	}

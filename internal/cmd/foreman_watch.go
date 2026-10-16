@@ -410,6 +410,11 @@ func ensureWatcher() {
 // foreman, so a session wedged long enough to need a nudge is exactly the one
 // that has gone stale. Selecting on liveness would drop every foreman this
 // command exists to catch.
+// foremanTerm is the key that reaches r's terminal: its handle while live, else its title.
+func foremanTerm(client *orca.Client, r foreman.Record) string {
+	return client.Pick(r.WorkspaceRef, r.WorkspaceTitle)
+}
+
 func watchTargets(client *orca.Client, id string) ([]foreman.Record, error) {
 	var records []foreman.Record
 	if id != "" {
@@ -434,7 +439,7 @@ func watchTargets(client *orca.Client, id string) ([]foreman.Record, error) {
 		if r.ManualCommand {
 			continue
 		}
-		if r.WorkspaceTitle == "" {
+		if r.WorkspaceTitle == "" && r.WorkspaceRef == "" {
 			continue
 		}
 		if err != nil {
@@ -442,7 +447,7 @@ func watchTargets(client *orca.Client, id string) ([]foreman.Record, error) {
 			continue
 		}
 		for _, t := range terms {
-			if t.Title == r.WorkspaceTitle {
+			if (r.WorkspaceRef != "" && t.Handle == r.WorkspaceRef) || (r.WorkspaceTitle != "" && t.Title == r.WorkspaceTitle) {
 				open = append(open, r)
 				break
 			}
@@ -467,7 +472,7 @@ func watchTick(client *orca.Client, r foreman.Record, o watchOpts, now time.Time
 		if now.Before(completedAt.Add(foremanDoneCloseGrace)) {
 			return ""
 		}
-		if err := client.Close(r.WorkspaceTitle); err != nil {
+		if err := client.Close(foremanTerm(client, r)); err != nil {
 			return fmt.Sprintf("CLOSE-BLOCKED %s — %v", r.ID, err)
 		}
 		watchClear(r.ID)
@@ -490,7 +495,7 @@ func watchTick(client *orca.Client, r foreman.Record, o watchOpts, now time.Time
 		return strings.Join(lines, "\n")
 	}
 
-	pane, err := client.CapturePane(r.WorkspaceTitle, o.lines)
+	pane, err := client.CapturePane(foremanTerm(client, r), o.lines)
 	if err != nil {
 		if errors.Is(err, orca.ErrNoTerminal) {
 			return fmt.Sprintf("GONE %s — terminal %q is closed", r.ID, r.WorkspaceTitle)
@@ -586,8 +591,8 @@ func watchTick(client *orca.Client, r foreman.Record, o watchOpts, now time.Time
 		}
 		s.Stalled = true
 		watchSave(r.ID, s)
-		_ = client.SetStatus(r.WorkspaceTitle, "needs-attention")
-		_ = client.Notify(r.WorkspaceTitle, r.ID+" is stalled",
+		_ = client.SetStatus(foremanTerm(client, r), "needs-attention")
+		_ = client.Notify(foremanTerm(client, r), r.ID+" is stalled",
 			fmt.Sprintf("no pane change in %s after %d nudges", roundMin(idleFor), s.Nudges))
 		return fmt.Sprintf("STALLED %s — %d nudges, no change in %s; open %q",
 			r.ID, s.Nudges, roundMin(idleFor), r.WorkspaceTitle)
@@ -652,7 +657,7 @@ func watchSend(client *orca.Client, r foreman.Record, instruction string) (strin
 		return "", err
 	}
 	prompt := foremanSkillPrompt(prof, r.ID, instruction)
-	if err := client.SendEnter(r.WorkspaceTitle, prompt); err != nil {
+	if err := client.SendEnter(foremanTerm(client, r), prompt); err != nil {
 		foreman.MarkUnreachable(r.ID)
 		return "", err
 	}

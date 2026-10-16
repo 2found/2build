@@ -351,17 +351,37 @@ func (c *Client) Rename(handle, title string) error {
 	return err
 }
 
-func (c *Client) lookup(title string) (Terminal, error) {
+// lookup finds a live terminal by handle or title.
+func (c *Client) lookup(key string) (Terminal, error) {
 	terms, err := c.Terminals()
 	if err != nil {
 		return Terminal{}, err
 	}
 	for _, t := range terms {
-		if t.Title == title {
+		if t.Handle == key || t.Title == key {
 			return t, nil
 		}
 	}
-	return Terminal{}, fmt.Errorf("%w: %q", ErrNoTerminal, title)
+	return Terminal{}, fmt.Errorf("%w: %q", ErrNoTerminal, key)
+}
+
+// Pick returns handle when a live terminal still has it, else title. An agent
+// such as Claude Code retitles its terminal, so the handle recorded at adopt is
+// the reliable key; the title covers a handle lost to an Orca restart.
+func (c *Client) Pick(handle, title string) string {
+	if handle != "" {
+		if terms, err := c.Terminals(); err == nil {
+			for _, t := range terms {
+				if t.Handle == handle {
+					return handle
+				}
+			}
+		}
+	}
+	if title == "" {
+		return handle
+	}
+	return title
 }
 
 // Terminals lists every live Orca terminal. One call answers "which of these

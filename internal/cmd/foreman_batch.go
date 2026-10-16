@@ -304,7 +304,7 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 
 	var lines, attention []string
 	questions, questionIDs, questionsRead := b.Questions, b.QuestionIDs, false
-	if handle, err := client.Ref(r.WorkspaceTitle); err == nil {
+	if handle, err := client.Ref(foremanTerm(client, r)); err == nil {
 		if n, ids, err := client.PendingMessagesFor(handle, "question,escalation"); err == nil {
 			if batchNewQuestion(b, n, ids) {
 				attention = append(attention, fmt.Sprintf("messages:%d", n))
@@ -473,7 +473,7 @@ func batchSettle(client *orca.Client, r foreman.Record, b *foremanBatch, o watch
 	prof, err := agent.ByName(batchAgent(r))
 	if err == nil && prof.Compact != "" {
 		focus := fmt.Sprintf("Foreman %s batch boundary: keep the foreman id, parent ticket, Orca Run and open decisions; everything else is durable on disk.", r.ID)
-		if err := client.SendEnter(r.WorkspaceTitle, prof.Compact+" "+focus); err == nil {
+		if err := client.SendEnter(foremanTerm(client, r), prof.Compact+" "+focus); err == nil {
 			b.CompactAt = now.UTC().Format(time.RFC3339)
 			b.PaneFingerprint = ""
 			return []string{fmt.Sprintf("COMPACTING %s — batch %s settled", r.ID, b.ID)}
@@ -486,7 +486,7 @@ func batchSettle(client *orca.Client, r foreman.Record, b *foremanBatch, o watch
 // (compaction finished) or the bound expires, then delivers the settled wake.
 func batchAfterCompact(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOpts, now time.Time) []string {
 	started, _ := time.Parse(time.RFC3339, b.CompactAt)
-	pane, err := client.CapturePane(r.WorkspaceTitle, o.lines)
+	pane, err := client.CapturePane(foremanTerm(client, r), o.lines)
 	if err == nil && now.Sub(started) < batchCompactSettleMax {
 		fp := paneFingerprint(pane)
 		if fp != b.PaneFingerprint {
@@ -552,7 +552,7 @@ func batchRun(b foremanBatch) string {
 // failed hold only costs extra Orca wakes, never a lost message.
 func batchHold(client *orca.Client, r foreman.Record, b foremanBatch) {
 	run := batchRun(b)
-	handle, err := client.Ref(r.WorkspaceTitle)
+	handle, err := client.Ref(foremanTerm(client, r))
 	if run == "" || err != nil {
 		return
 	}

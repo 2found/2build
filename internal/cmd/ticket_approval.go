@@ -418,7 +418,7 @@ func remindApproval(st *ticket.Store, env identity.Env) {
 		fmt.Fprintf(os.Stderr, "approval await: reminder not sent (%v)\n", err)
 		return
 	}
-	if err := client.Notify(rec.WorkspaceTitle, "bbs approval: "+env.Ticket,
+	if err := client.Notify(foremanTerm(client, rec), "bbs approval: "+env.Ticket,
 		env.Ticket+" has been waiting on a plan/prototype decision. Open the dashboard to approve, redirect, or drop it."); err != nil {
 		fmt.Fprintf(os.Stderr, "approval await: reminder not sent (%v)\n", err)
 	}

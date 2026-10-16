@@ -39,10 +39,10 @@ type Record struct {
 	// the foreman sits in the primary checkout and workers get worktrees.
 	ProjectDir   string `yaml:"project_dir"`
 	WorkspaceDir string `yaml:"workspace_dir"`
-	// WorkspaceTitle is the ONLY durable terminal handle. WorkspaceRef is the
-	// runtime handle as of the last write, kept for display — Orca issues
-	// term_… ids per session, so anything that actually talks to the
-	// terminal re-derives the handle from the title.
+	// WorkspaceRef is the terminal handle as of the last write and is tried
+	// first: an agent such as Claude Code retitles its terminal, so the title
+	// alone cannot find an adopted session. WorkspaceTitle is the fallback for
+	// a handle Orca no longer issues (foremanTerm).
 	WorkspaceRef   string `yaml:"workspace_ref"`
 	WorkspaceTitle string `yaml:"workspace_title"`
 	// Agent is the coding-agent CLI this foreman's session was minted by
