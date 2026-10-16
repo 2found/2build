@@ -143,9 +143,9 @@ The bbs watcher waits and supervises:
    and end the turn. The watcher follows a retried Task to its new Dispatch,
    outlives Orca restarts, and any `bbs` call made by a working agent restarts
    it if it died, so never babysit it.
-4. The watcher compacts the session (`/compact`, where the agent has one)
-   before a settled wake, so every batch wake is a cold-resume boundary:
-   recover from durable state per [runtime](runtime.md).
+4. The watcher never compacts Foreman; the agent compacts itself when its
+   context fills. Keep durable state on disk anyway, so a wake after
+   compaction recovers per [runtime](runtime.md).
 
 Process every message before acknowledging its Delivery. Judge each member from
 `bbs ticket verdict-status`, readiness JSON and the reported handoff paths; read

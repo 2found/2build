@@ -233,33 +233,6 @@ func TestBatchWakesForemanOnceWhenAllSettle(t *testing.T) {
 	}
 }
 
-func TestBatchCompactsBeforeTheSettledWake(t *testing.T) {
-	f := newBatchFixture(t, "claude")
-	f.start(t, "task-a")
-	now := time.Now()
-	f.world.Dispatch["task-a"] = "completed"
-	f.save(t)
-	if line := f.tick(t, now); !strings.Contains(line, "COMPACTING fm-batch") {
-		t.Fatalf("expected compaction, got %q", line)
-	}
-	if sends := f.sends(t); len(sends) != 1 || !strings.Contains(sends[0], "--text /compact Foreman fm-batch batch boundary") {
-		t.Fatalf("compact send = %v", sends)
-	}
-	// Compaction still rendering: the pane changes, so no wake yet.
-	f.world.Panes["term_0"] = "compacting..."
-	f.save(t)
-	if line := f.tick(t, now.Add(time.Minute)); line != "" {
-		t.Fatalf("woke during compaction: %q", line)
-	}
-	// Pane held still for a tick: compaction is done, deliver the wake.
-	if line := f.tick(t, now.Add(2*time.Minute)); !strings.Contains(line, "WOKE fm-batch") {
-		t.Fatalf("post-compact wake = %q", line)
-	}
-	if b, _ := loadBatch(f.record.ID); b.open() {
-		t.Fatal("batch still open after wake")
-	}
-}
-
 func TestBatchWakesEarlyForQuestionAndExitedWorker(t *testing.T) {
 	f := newBatchFixture(t, "codex")
 	f.start(t, "task-a", "task-b")

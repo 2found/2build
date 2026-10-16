@@ -463,9 +463,8 @@ While a batch handed over with `bbs foreman batch <id> --tasks a,b` is open, the
 watcher holds those foreman prompts and supervises the batch instead: it types
 `Continue Dispatch <id>…` into a worker pane idle for `--worker-idle` with its
 Dispatch open, up to `--worker-nudges` times, then reports it stalled. It wakes
-the foreman (Orca message plus pane prompt) once when every Dispatch is terminal
-— after typing `/compact` and letting it finish, for agents that have one — or
-early for a new question (tracked by message id, so a second question after
+the foreman (Orca message plus pane prompt) once when every Dispatch is terminal,
+or early for a new question (tracked by message id, so a second question after
 the first was read still wakes), an exited worker, a stall, or a lost worker —
 an open Dispatch with no worker row or live terminal for the whole stall
 budget. Early attention is held for `--attention-window` (default 120 s)

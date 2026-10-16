@@ -95,10 +95,6 @@ type Profile struct {
 	TrustFile string
 	// TrustHint says how to grant that trust, named in the preflight failure.
 	TrustHint string
-	// Compact is the in-session compaction command the Foreman watcher types
-	// at a batch boundary, before waking the coordinator. Empty means none is
-	// known for this agent, and the boundary wakes without compacting.
-	Compact string
 }
 
 // profiles holds the supported CLI protocols. Provider/model/effort translation
@@ -118,7 +114,6 @@ var profiles = map[string]Profile{
 		TrustFile: ".claude.json",
 		TrustHint: "run `claude` there once and accept the trust prompt, " +
 			"or dispatch the worker from a directory you have already trusted",
-		Compact: "/compact",
 	},
 	"grok": {
 		Name: "grok", Bin: "grok",
@@ -173,7 +168,6 @@ var profiles = map[string]Profile{
 		// identically, because the token follows the word either way.
 		Session: "", Resume: "resume", Continue: "",
 		SkillSigil: "$", SkillPrefix: "bbs:",
-		Compact: "/compact",
 		Install: "install codex: https://developers.openai.com/codex/cli, then install babysit: " +
 			"codex plugin marketplace add 2found/2build && codex plugin add bbs@babysit",
 	},

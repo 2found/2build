@@ -25,9 +25,8 @@ with its Dispatch open) and wakes the Foreman, by Orca message plus a prompt in
 its terminal, only when the whole batch has settled or cannot settle without
 it: an unread question/escalation, an exited worker, a worker that stayed
 idle through its nudges, or an open Dispatch with no live worker for as long
-(lost). A failed member the Foreman retries reopens on its new Dispatch. A
-settled batch is compacted first when the agent supports it. Re-running batch
-replaces the watched set, keeping nudge state.
+(lost). A failed member the Foreman retries reopens on its new Dispatch. Re-running
+batch replaces the watched set, keeping nudge state.
 `
 
 // Every coordinator wake re-reads its whole context, which dominates token
@@ -52,10 +51,6 @@ type foremanBatch struct {
 	// the attention window so close-together attention shares one wake.
 	Owed      []string `json:"owed,omitempty"`
 	OwedSince string   `json:"owed_since,omitempty"`
-	// CompactAt marks the compaction typed at settlement; the wake follows
-	// once the Foreman pane holds still. PaneFingerprint tracks that.
-	CompactAt       string `json:"compact_at,omitempty"`
-	PaneFingerprint string `json:"pane_fingerprint,omitempty"`
 	// WokeAt closes the batch: the settled wake was delivered.
 	WokeAt string `json:"woke_at,omitempty"`
 }
@@ -78,8 +73,6 @@ type batchMember struct {
 	// forever — nothing else would ever settle it.
 	Unseen string `json:"unseen,omitempty"`
 }
-
-const batchCompactSettleMax = 10 * time.Minute
 
 func batchPath(id string) string { return filepath.Join(watchDir(), id+".batch.json") }
 
@@ -238,11 +231,8 @@ func foremanBatchCommand(args []string) error {
 
 func printBatchState(b foremanBatch) {
 	state := "open"
-	switch {
-	case !b.open():
+	if !b.open() {
 		state = "settled"
-	case b.CompactAt != "":
-		state = "compacting"
 	}
 	fmt.Println("BATCH=" + b.ID)
 	fmt.Println("BATCH_STATE=" + state)
@@ -275,9 +265,6 @@ func printBatchState(b foremanBatch) {
 // batchTick is one watcher pass over a Foreman's open batch. It returns the
 // lines worth printing; a batch that is simply running prints nothing.
 func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOpts, now time.Time) []string {
-	if b.CompactAt != "" {
-		return batchAfterCompact(client, r, b, o, now)
-	}
 	stamp := now.UTC().Format(time.RFC3339)
 	for i := range b.Tasks {
 		m := &b.Tasks[i]
@@ -298,7 +285,7 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 		m.Dispatch, m.Status, m.Run = state.ID, state.Status, state.RunID
 	}
 	if b.settled() == len(b.Tasks) {
-		return batchSettle(client, r, b, o, now)
+		return []string{batchFinish(client, r, b, now)}
 	}
 	batchHold(client, r, *b)
 
@@ -464,37 +451,6 @@ func batchWatchWorker(client *orca.Client, m *batchMember, handle string, o watc
 	m.Pending = true
 	m.Since = stamp
 	return fmt.Sprintf("NUDGED-WORKER %s (%d/%d) after %s idle", m.Task, m.Nudges, o.workerNudges, roundMin(o.workerIdle)), ""
-}
-
-// batchSettle compacts the coordinator before the one wake a batch earns, so
-// the next batch starts from a small context; durable state is on disk by
-// design and compaction is already a cold-resume boundary for Foreman.
-func batchSettle(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOpts, now time.Time) []string {
-	prof, err := agent.ByName(batchAgent(r))
-	if err == nil && prof.Compact != "" {
-		focus := fmt.Sprintf("Foreman %s batch boundary: keep the foreman id, parent ticket, Orca Run and open decisions; everything else is durable on disk.", r.ID)
-		if err := client.SendEnter(foremanTerm(client, r), prof.Compact+" "+focus); err == nil {
-			b.CompactAt = now.UTC().Format(time.RFC3339)
-			b.PaneFingerprint = ""
-			return []string{fmt.Sprintf("COMPACTING %s — batch %s settled", r.ID, b.ID)}
-		}
-	}
-	return []string{batchFinish(client, r, b, now)}
-}
-
-// batchAfterCompact waits until the Foreman pane holds still for one tick
-// (compaction finished) or the bound expires, then delivers the settled wake.
-func batchAfterCompact(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOpts, now time.Time) []string {
-	started, _ := time.Parse(time.RFC3339, b.CompactAt)
-	pane, err := client.CapturePane(foremanTerm(client, r), o.lines)
-	if err == nil && now.Sub(started) < batchCompactSettleMax {
-		fp := paneFingerprint(pane)
-		if fp != b.PaneFingerprint {
-			b.PaneFingerprint = fp
-			return nil
-		}
-	}
-	return []string{batchFinish(client, r, b, now)}
 }
 
 func batchFinish(client *orca.Client, r foreman.Record, b *foremanBatch, now time.Time) string {
