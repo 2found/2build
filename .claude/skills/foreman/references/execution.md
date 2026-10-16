@@ -40,8 +40,9 @@ children across repos. Every required leaf must have one accepted seed. A
 cancelled child leaves unmet scope until an explicit contract revision removes
 or replaces it.
 
-After parent approval, admit ready tickets according to the DAG and resource
-bounds. `first_journey` identifies acceptance coverage, not a separate admission
+After parent approval, admit phases as SKILL.md's batch rule orders them —
+ready phases first, then dependents that wait in session with `bbs foreman
+await` — within resource bounds. `first_journey` identifies acceptance coverage, not a separate admission
 gate before other independent tickets. Shared interfaces and edit ownership are
 fixed in the accepted plan; dependency edges enforce necessary ordering.
 
@@ -56,7 +57,7 @@ the read succeeded. Reads never reconcile or mutate ticket status.
 ## Worker packet and verification
 
 Use the worker packet in SKILL.md and the Orca envelope in topology.md.
-Autopilot honors its **Foreman phase assignments** contract on the assigned checkout.
+Autopilot honors its **Foreman phase assignment** contract on the assigned checkout.
 
 New managed code children use `bbs autopilot checkpoint --ticket "$TICKET"
 --workflow builder --step run --status in_progress --contract-version 2` (substitute
@@ -127,7 +128,7 @@ SHA proves nothing. The dashboard labels the observation time, never current
 server availability.
 
 When the contract requires product review, dispatch a **fresh read-only product
-evaluator** on the normal phase route using [product-review.md](product-review.md).
+evaluator** on the normal route using [product-review.md](product-review.md).
 Its identity must differ from child gate producers. Final evidence and every
 criterion check use `kind: product`; `kind: journey` is only for an explicitly
 required preliminary check. Material findings require repair and fresh evidence;
@@ -150,15 +151,24 @@ milestone or wait transition. Use the actual run/Dispatch/attempt IDs:
  "evidence":"/absolute/durable/check.log"}
 ```
 
+`phase` names the loop step (`plan`, `approve`, `await`, `merge`, `build`,
+`review`, `qa`, `repair`, `deliver`), not the project phase, which is the
+ticket itself. An `approve` wait on Foreman is `wait_kind: approval`; an
+`await` on prerequisites is `wait_kind: dependency`.
 Only changed evidence advances `progress_at`; summary rewrites and extra commits
 do not. Waits add `wait_kind` (`test`, `dependency`, `approval`, `resource`),
 `wait_reason` and `wait_until` at most 15 minutes ahead. Refresh from actual
 ongoing waits, never a timer. Expiry is not failure or a reason to inspect a
 worker; Orca owns runtime state and runtime.md defines reconciliation triggers.
 
-On confirmed repeated semantic failure, dispatch planning/review diagnosis on
-the critical phase route with failure evidence, then repairs on the normal route.
-Preserve failure counts and work; never restart a live writer, expire its lease,
-blindly resend assignments or silently upgrade its model. Missing intent/authority
+A phase session repairs its own failures first: autopilot's repair loop, then
+Foreman's `repair` follow-ups into the same session. When the phase reports the
+same blocker `BLOCKED` after its retry budget, dispatch a fresh read-only
+diagnosis worker on the critical route with the failure evidence — a context
+that has not already failed three times is the point — then send its findings
+to the phase session as a `repair` (a fresh worker on the phase route if the
+session is gone). Preserve failure counts and work; never restart a live
+writer, expire its lease, blindly resend assignments or silently upgrade its
+model. Missing intent/authority
 escalates one User Challenge; unaffected work continues. Record telemetry and
 recovery evidence before retrying.

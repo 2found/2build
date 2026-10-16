@@ -29,10 +29,10 @@ has_all() {
 
 has_all "autonomous-project-scope" \
   'Autonomous Orca orchestrator' 'multiple tickets or dependent features' \
-  'Foreman owns the ticket DAG'
+  'owns the phase DAG'
 
 has_all "repository-autonomy-profiles" \
-  'bbs autopilot git-flow' 'profile sets review/QA breadth' 'admitted ready wave' \
+  'bbs autopilot git-flow' 'profile sets review/QA breadth' 'launch the DAG as one batch' \
   'task complexity, model tier'
 
 has_all "live-orchestration-contract" \
@@ -57,11 +57,12 @@ has_all "global-weighted-admission" \
   'never expires' 'resource backpressure'
 
 
-has_all "child-slice-sizing" \
-  'independent, testable, releasable units' \
-  'never split one coherent change across siblings' \
-  'sub-ticket needing its own worktree returns to Foreman' \
-  'explicit phases inside its own ticket'
+has_all "phase-slice-sizing" \
+  'independent, testable, releasable unit' \
+  'Never split' 'coherent change across siblings' \
+  'sub-ticket needing its own worktree' 'returns' \
+  'one worker' 'up to `L`' 'prefer fewer, larger phases' \
+  'split inside a worker' 'first usable journey lands' 'first'
 
 has_all "autopilot-worker-execution-envelope" \
   '`AGENT_ROLE=orca`' 'already spawned' \
@@ -76,15 +77,45 @@ else
   fail "autopilot-accepts-orca-dispatch-envelope"
 fi
 
-has_all "agent-independent-design-gate" \
-  'Keep separate phase Dispatches' '--stop-after=plan' 'approved' 'approval self-resolve'
+has_all "phase-runs-whole-loop-in-one-session" \
+  'One phase is one worker session' 'select its route once' \
+  'every follow-up' 'without stopping between steps' 'Merge prerequisites' \
+  'post-merge HEAD' 'no separate' 'approval self-resolve'
+
+has_all "phase-session-ownership" \
+  '### Phase session ownership' 'Reuse' 'Retain' 'Release' \
+  '`worker-retain`' 'retained idle' 'never send a follow-up to a session whose Dispatch is' \
+  '`repair`' '`refresh`' '`redirect`' '`deliver`' \
+  '### Reuse a phase session' '--terminal "$PHASE_TERMINAL"' '`transport-matched`' \
+  'Never reuse one phase' 'holds no lease'
+
+has_all "plan-approval-by-phase-size" \
+  '### Plan approval by phase size' 'Phase plan checkpoints run inside the phase session' \
+  'the worker self-approves as' 'Foreman reviews and approves' 'Foreman approves' \
+  'Exit 4 (rubric)' 'Exit 3 (floor) or 5 (hold/grant)' 'parks the' \
+  'Never implement on an unapproved plan record' 'after two redirects'
+
+has_all "whole-dag-one-wake" \
+  'one wake per project' 'Dependent phases therefore launch' \
+  'bbs foreman await --prereqs' 'AWAIT=not-ready' 'Foreman stays light' \
+  'dependent never displaces runnable work' '`messages:<n>` (an `L` plan review'
+
+if grep -q -- '--unblocks\|settled:<task>' "$F"; then
+  fail "no-per-wave-wake"
+else
+  ok "no-per-wave-wake"
+fi
+
+has_all "fresh-eyes-only-after-retry-budget" \
+  'after its retry budget' 'Fresh read-only' 'diagnosis worker' \
+  'a context' 'that has not already failed three times'
 
 has_all "lifecycle-aware-dispatch" \
   'pointers.workflow' 'default to `builder` only' 'LIFECYCLE' 'TRIGGER' 'evidence-only'
 
 has_all "project-qa-gate" \
   'Integration QA Task' 'bbs ticket surface compose' 'surface lease' 'read-only QA worker' \
-  'parent scope and cross-ticket flows'
+  'parent scope and cross-phase flows'
 
 has_all "durable-resume-and-finish" \
   'pointers.orca_run' 'Terminal handles are routing metadata' \
@@ -204,7 +235,7 @@ has_all "terminal-done-heartbeat" \
   'bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"' \
   'A `done` heartbeat alone is not completion' \
   'watcher closes only the adopted Foreman terminal' \
-  'blocked required ticket or unfinished cleanup'
+  'blocked required phase or unfinished cleanup'
 
 if ! grep -q 'bbs foreman mailbox' "$F" "$ROOT/.claude/skills/references/preamble.md" \
    && ! grep -q 'sleep 20' "$F" \
@@ -251,7 +282,7 @@ fi
 REF="$ROOT/.claude/skills/foreman/references/model-routing.md"
 if grep -q 'model-routing.md' "$F" \
    && ! grep -q 'model-routing.md' "$A" \
-   && grep -q '## Phase routing' "$REF" \
+   && grep -q '## Assignment routing' "$REF" \
    && grep -q 'bbs foreman model' "$REF" \
    && grep -q '~/.babysit/settings.json' "$REF" \
    && ! grep -q 'gpt-6.1-sol' "$REF"; then

@@ -117,6 +117,20 @@ else
   fail "goal-support-probed-not-guessed"
 fi
 
+# --auto is the no-human entry: no paste block, the agent arms its own goal
+# only through a tool it actually has, and otherwise just keeps working.
+if grep -q '### Autonomous entry (`--auto`)' "$AUTOPILOT_SKILL" \
+   && grep -q 'Never print the paste handoff or stop to wait for one' "$AUTOPILOT_SKILL" \
+   && grep -q 'its own tool list' "$AUTOPILOT_SKILL" \
+   && grep -q 'never ask anyone to type it' "$AUTOPILOT_SKILL" \
+   && grep -q 'enter the work loop directly in this session' "$AUTOPILOT_SKILL" \
+   && grep -q 'set-pointer' "$AUTOPILOT_SKILL" \
+   && grep -q 'invokes autopilot with' "$SCRIPT_DIR/.claude/skills/foreman/references/topology.md"; then
+  ok "auto-entry-needs-no-goal-paste"
+else
+  fail "auto-entry-needs-no-goal-paste"
+fi
+
 for name in builder grower sweeper maintainer; do
   if grep -q 'review-pr' "$WF_DIR/$name.md" \
      && grep -q 'current autopilot session' "$WF_DIR/$name.md"; then

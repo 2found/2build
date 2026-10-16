@@ -5,9 +5,11 @@ worker's agent from explicit intent, a compatible phase pin, or destination-host
 Orca discovery; `bbs foreman model` selects its configured model tier.
 The CLI owns defaults and settings merging; never copy model tables into skills.
 
-Foreman splits work into phase assignments, selects each model from task
-complexity plus phase, then launches its worker. Foreman launches Plan, Build,
-Review and QA as phase-scoped supervised sessions.
+Foreman splits a project into phases and selects one route per phase from
+its task complexity plus the assignment class; that one supervised session runs
+the phase's whole loop (plan, build, review, QA) and every follow-up on it.
+Single-purpose assignments (project planning, design review, diagnosis,
+heavy/integration QA, delivery in a fresh session) get their own routes.
 `autopilot` does not select models: every step in one invocation runs in the
 session opened by the human or Foreman. Neither skill switches a running worker's model.
 
@@ -48,30 +50,36 @@ complexity `critical` to `hard`; reserve `critical` for the phase class below.
 | `hard`     | security, auth, money, irreversible or live-data migration, distributed concurrency, a cross-system architecture decision |
 
 
-## Phase routing
+## Assignment routing
 
-Classify the phase using this table, then query `bbs foreman model` with the
-task complexity and selected agent. The CLI owns complexity-to-tier routing;
-settings can override it. `normal` names both a task complexity and a phase
-class; neither is a model tier.
+Classify the assignment using this table, then query `bbs foreman model` with
+the task complexity, its phase class and the selected agent.
+The CLI owns complexity-to-tier routing; settings can override it. `normal` names both a
+task complexity and a phase class; neither is a model tier.
 
 Routine work should stay in `lite`/`flash`/`pro`; reserve `pro`/`max` for assignments
 with evidenced difficulty or importance. A `critical` phase alone does not imply
-`max`. Use `normal` for an unclassified phase; with no difficulty or importance
-signal, the built-in policy falls back to `flash`.
+`max`. Use `normal` for an unclassified assignment; with no difficulty or
+importance signal, the built-in policy falls back to `flash`.
 
-| Phase                                                                            | Phase class |
-| -------------------------------------------------------------------------------- | ----------- |
-| Parent/child planning, decomposition, design, design feedback                    | `critical`  |
-| Code review and review diagnosis                                                 | `critical`  |
-| Mechanical re-verification of recorded checks on unchanged code                  | `normal`    |
-| Implementation and code repairs                                                  | `normal`    |
-| Per-ticket QA, integration QA and product acceptance checks                      | `normal`    |
-| Finish audits, merges, composition, authorized delivery, restoration and cleanup | `normal`    |
+| Assignment                                                                         | Phase class |
+| ---------------------------------------------------------------------------------- | ----------- |
+| Parent planning, decomposition, design, design review                              | `critical`  |
+| Phase worker: one session for the phase's whole loop and every follow-up on it     | `critical`  |
+| Diagnosis of a phase's repeated failure                                            | `critical`  |
+| Mechanical re-verification of recorded checks on unchanged code                    | `normal`    |
+| Consolidated heavy QA, integration QA and product acceptance checks                | `normal`    |
+| Finish audits, merges, composition, delivery, restoration and cleanup in a fresh session | `normal`    |
 
-The mechanical re-verification exception applies only to executing recorded
-checks. Reviewing changed code, assessing new findings or issuing a fresh
-judgment remains code review, even when the dispatch is called a recheck.
+A phase worker is `critical` because it owns its phase plan and landing review;
+implementation rides the same session instead of buying a cold start on a
+cheaper model. Its task complexity still separates a `simple` phase (`flash`
+built in) from a `hard` one (`max`). To make routine phase workers cheaper,
+override `routing.normal.critical`, knowing it also moves normal-complexity
+project planning. The mechanical re-verification exception applies only to
+executing recorded checks. Reviewing changed code, assessing new findings or
+issuing a fresh judgment remains code review, even when the dispatch is called
+a recheck.
 
 ## Model tiers
 
@@ -152,14 +160,14 @@ the Auto-Decision Framework.
 
 ## Autopilot session boundary
 
-A Foreman-dispatched Autopilot honors the supplied phase and model, records the
+A Foreman-dispatched Autopilot honors the supplied assignment and model, records the
 routing metadata with observed launch settings, and reports conflicting launch
 evidence to Foreman before work. It does not classify tasks, select tiers or
 repair a route by spawning a worker. Foreman recovers missing legacy routing
 evidence from the durable handoff before its next launch.
 
 Standalone Autopilot runs all steps in the human-opened session. It does not
-load this routing table, recommend a tier, or change models between phases.
+load this routing table, recommend a tier, or change models between steps.
 Record the actual session model (unknown if unobserved) as evidence; use the
 existing capability/NEEDS\_CONTEXT handling if the session cannot carry the work.
 
@@ -173,9 +181,11 @@ task/phase/tier evidence must be resolved through the CLI policy before the next
 launch. A changed task scope or routing policy is reclassified at a settled
 boundary and the previous route remains in the handoff.
 
-Release a settled worker when the next phase needs a different route; start a
-fresh worker on the same checkout. Reuse only when agent, provider, model,
-effort and resource profile match the next assigned phase. Persist requested
+Follow-ups on a phase reuse its live session, whose route is the phase route
+by construction. A phase whose route must change (reclassified scope, explicit
+override) releases its settled session and starts a fresh worker on the same
+checkout; never reuse a session for an assignment with a different agent,
+provider, model, effort or resource profile. Persist requested
 settings and observed launch results separately; label an unobserved native
 default as `native-default`, never as a known effective model. That label is
 bookkeeping, never a CLI model argument or evidence that a tier was honored.

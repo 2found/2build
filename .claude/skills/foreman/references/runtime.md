@@ -68,8 +68,8 @@ reminder, a concrete failure, or final completion:
    A stale approval returns to the project checkpoint before new production work.
 4. Refresh the parent `report.md` using the project contract. For a status request,
    show every project Task and supervised worker, delivery/QA/cleanup state,
-   resource use and the DAG. Release settled orphans, dispatch newly ready work
-   as one batch, hand it to `bbs foreman batch` and end the turn. Do not repeat heavy review or QA yourself.
+   resource use and the DAG. Release settled orphans, launch every unlaunched
+   phase (dependents included) as one batch, hand it to `bbs foreman batch` and end the turn. Do not repeat heavy review or QA yourself.
 
 Carry failure counts across retries/resumes. After three failed attempts at the
 same blocker, mark that ticket blocked and continue independent ready work.

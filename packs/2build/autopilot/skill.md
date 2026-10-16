@@ -148,8 +148,8 @@ trigger is satisfied.
    ticket, each running autopilot). `NEEDS_CONTEXT` only when there is no ticket,
    requirement, plan, manifest, or branch work at all *and* no archetype was
    named — a named archetype is direction enough to proceed.
-4. Seed the plan when the routed mode needs one (build mode, size above XS)
-   or `--stop-after=plan` explicitly requests it, regardless of archetype:
+4. Seed the plan when the routed mode needs one (build or child mode, size
+   above XS) or `--stop-after=plan` explicitly requests it, regardless of archetype:
    run `plan-draft` in this session, per the planning policy below — `plan.md` on
    disk is what a crashed loop recovers from. User-facing work routes through
    `design-ui` inside `plan-draft`; make sure that ran, so the spec and
@@ -158,7 +158,8 @@ trigger is satisfied.
    Size relaxes *only this step*: an XS change still gets the step-2 ticket
    and the verdict gates — there is no inline path.
 5. Hand the work to the harness's work loop (below). Init never executes
-   workflow steps; without `/goal`, transition directly to execution.
+   workflow steps; under `--auto` or without `/goal`, transition directly to
+   execution.
 
 ### Planning runs in this session
 `plan-draft` — including the `design-ui` it invokes when the work adds or
@@ -190,13 +191,39 @@ human chooses the replacement session; Autopilot does not select another model.
 Never silently replace an accepted plan. Record the session model, artifact
 paths, and result in the checkpoint/handoff.
 ## The work loop (`/goal`)
+### Autonomous entry (`--auto`)
+`--auto` means nobody will paste a `/goal` block or answer a prompt: not a
+human, and not an orchestrator woken just to type one. A Foreman phase
+assignment, `SPAWNED=true` and an authenticated Orca Dispatch imply it.
+Record it once with `BABYSIT_TICKET="$TICKET" bbs ticket set-pointer
+autopilot_auto true` so re-entry and resume keep it. Under it:
+
+1. Never print the paste handoff or stop to wait for one.
+2. If this agent can set its own goal — a goal/objective tool in
+   **its own tool list** (for example Codex's when its `goals` feature is on, or OMP's
+   goal mode) — set it with the completion condition from the template below
+   and keep working in the same turn. A slash command only a user can type
+   (Claude Code's `/goal`) is not such a tool; never ask anyone to type it.
+3. Otherwise enter the work loop directly in this session and hold yourself
+   to the same condition: do not end the turn until it holds or a terminal
+   `DONE`/`NEEDS_CONTEXT`/`BLOCKED` status block is printed. Compaction or a
+   crash resumes from the checkpoint like any cold re-entry.
+4. Init's design checkpoint is judged in-session: run
+   `../semantic-decision/skill.md` kind `human-review` on the plan/prototype
+   and continue on `proceed`; repair `revise` once in place. `--stop-after`,
+   invoker-held approvals (a Foreman plan approval) and the decision floors
+   still stop the run; a genuine User Challenge ends it with a
+   `NEEDS_CONTEXT` block through the invocation channel rather than a wait.
+
+### Developer handoff
 On a harness that supports `/goal`, `/goal <condition>` arms a Stop hook
-that blocks stopping until the condition holds. Autopilot cannot arm it
-itself — after init, print the handoff and stop (`developer`: the human
-copy-pastes it; orchestrators put the block in the spawn prompt).
+that blocks stopping until the condition holds. Without `--auto`, autopilot
+cannot arm it itself — after init, print the handoff and stop (`developer`:
+the human copy-pastes it; orchestrators that still spawn with a prompt put
+the block in the spawn prompt).
 Without `/goal` support, skip this paste/stop protocol and continue execution
 as specified above; `developer` alone never requires a `/goal` handoff.
-If `SPAWNED` is already true, you are that process: skip the handoff and work.
+If `SPAWNED` is already true, you are that process: follow Autonomous entry.
 An authenticated, current Orca Dispatch preamble is equivalent evidence even
 when a legacy state echo says `SPAWNED=false`: honor the Task spec's effective
 `AGENT_ROLE=orca`, execute in this turn, and use the injected lifecycle instead
@@ -235,8 +262,8 @@ in this template and never print the angle-bracket placeholders. The
 `developer` `/goal` handoff — a non-technical user must never guess that the block
 is a thing they paste. Orchestrators (non-`developer`) skip the preamble and
 the copy-paste line and put only the `/goal` block in the spawn prompt.
-Inside the loop (re-entry, orchestrator, `SPAWNED=true`), skip the handoff
-and work. Cold session: recover from checkpoint, ticket files, workflow file,
+Inside the loop (re-entry, orchestrator, `SPAWNED=true`, `--auto`), skip the
+handoff and work. Cold session: recover from checkpoint, ticket files, workflow file,
 git state first; warm session: keep going with what's in context. Treat the
 workflow file as mode router + gate list, not a script — pick the mode from
 durable state, honor the gates, and do everything between them the way a
@@ -272,39 +299,85 @@ and write scope in the durable plan/handoff; report milestones and bounded waits
 through `bbs foreman progress`. These are evidence responsibilities, not topology
 or sibling orchestration. Standalone v1 skills keep their existing fallback.
 
-### Foreman phase assignments
+### Foreman phase assignment
 
-A current, authenticated Orca Dispatch from Foreman may explicitly assign only
-Plan, Build, Review, or QA. Honor that phase and its stop boundary instead of
-running init or workflow steps outside that phase: Plan writes artifacts;
-Build implements, checks and commits; Review runs `review-pr medium --fix`
-(`low` when Foreman marked the ticket simple) and commits its repairs in the
-assigned worktree, reporting skipped and unfixable findings; QA verifies
-without code fixes. A QA assignment that names deferred heavy checks skips
-them, records `DEFERRED_HEAVY=<profile>: <checks>` in its handoff and leaves
-the `qa` verdict open; a consolidated heavy-QA assignment lists several
-tickets and writes each one's `qa` verdict with `BABYSIT_TICKET=<ticket>` on
-that ticket's assigned head, without code fixes. Review fixes change the captured gate subject: commit
-them and run a fresh review attempt inside the same phase, per
-`references/verification.md`. Foreman dispatches
-repairs the Review phase could not finish and the next phase.
-Foreman owns task classification, phase splitting and model selection before
-launch. Honor its assigned phase and model; record the supplied routing metadata
-and observed launch settings in the handoff. If launch evidence conflicts with
+A current, authenticated Orca Dispatch from Foreman assigns either one
+**project phase** — a child ticket in its own worktree — or a **follow-up** on
+a phase this session already ran. Either way the whole assignment runs in this
+session on its launched model; that continuity is why Foreman sends a phase's
+follow-ups back here instead of to a fresh worker.
+
+A phase assignment runs the ticket's whole loop without stopping between
+steps and ends when the phase is ready for Foreman's finish policy:
+
+1. **Plan.** Run `plan-draft` scoped by the phase seed/requirement and the
+   accepted parent plan and design, which constrain it; reuse a current phase
+   plan on resume; an XS phase skips this step and step 2. Plan against the
+   prerequisites' accepted contracts and their `plan.md`; their code may not
+   exist yet.
+2. **Plan approval, by phase size** — the larger of the assigned size and
+   the plan's `ticket_size`. Judge the plan with
+   `../semantic-decision/skill.md` kind `human-review` against the accepted
+   parent artifacts, write the five-line rubric with named evidence and run
+   `bbs ticket approval publish --kind plan`. `S`/`M`: resolve it yourself
+   with `bbs ticket approval self-resolve --foreman <assigned id>
+   --rubric-file <path>`; exit 4 means repair the plan or rubric here, at most
+   twice. `L`, or exit 3/5, a third refusal, a `needs-human`/`blocked`
+   judgment, or a material deviation from accepted scope or a shared
+   contract: Orca `ask` Foreman with the artifact paths and wait in this
+   session (`--timeout-ms 540000`; on timeout `ask --resume <message-id>`).
+   `approved` continues; a redirect is revised here and asked again; a park
+   answer ends the Dispatch with `NEEDS_CONTEXT`.
+   Never implement on an unapproved plan record.
+3. **Await prerequisites.** With prerequisites assigned, run
+   `bbs foreman await --prereqs <ticket>:<task>,...` in the foreground and
+   repeat it on `AWAIT=timeout`. `AWAIT=not-ready` ends the Dispatch: report
+   `BLOCKED` naming the prerequisite, without merging anything.
+4. **Merge prerequisites.** Merge exactly the heads `await` printed, in its
+   order (`git merge --no-edit <sha>`), resolving conflicts against the
+   accepted shared interfaces. Record the merged SHAs; the resulting HEAD is
+   the phase's review base, so review covers this phase's diff only. This is
+   the only integration a phase session performs — never fetch, rebase, or
+   merge anything else. Then reconcile the plan with the merged code: fix
+   details in place; a scope, acceptance or shared-contract change is a
+   material deviation and goes back through step 2.
+5. **Build**, then **Review** with `review-pr <effort> --fix` at the
+   assignment's effort (`medium`, or `low` when Foreman marked the phase
+   simple), then **QA**, all under the Current-session gates and the repair
+   loop below: QA fixes return to review exactly as in a direct run. A check
+   the assignment defers to a heavy profile is skipped and recorded as
+   `DEFERRED_HEAVY=<profile>: <checks>` in the handoff and with
+   `bbs ticket set-pointer deferred_heavy "<profile>: <checks>"`, leaving the
+   `qa` verdict open.
+6. **Report.** Require `bbs ticket readiness --action review --json` (`push`
+   when heavy checks are deferred), persist the checkpoint, handoff and gate
+   evidence per `references/verification.md`, and send exactly one
+   `worker_done`. Record workflow completion only when review, QA and
+   readiness are all current. Never push, land or open a PR.
+
+A follow-up carries a new Dispatch and names its kind and trigger evidence:
+`repair` fixes the named findings or failures, `refresh` re-runs steps 3–4
+for the named prerequisites, `redirect` resumes from step 2 with Foreman's
+answer — each then re-runs every gate the change invalidates. `deliver` runs only the
+named finish handler (`create-pr`, or `bbs ticket land <child>` from the
+primary checkout) and returns its receipt: that is Foreman's finish policy
+executing in this session, the only push/land/PR authority this skill ever
+holds, and only for that Dispatch. A consolidated heavy-QA assignment lists
+several tickets and writes each one's `qa` verdict with
+`BABYSIT_TICKET=<ticket>` on that ticket's assigned head, without code fixes.
+
+Foreman owns phase decomposition, task classification and model selection before
+launch. Honor its assigned model; record the supplied routing metadata and
+observed launch settings in the handoff. If launch evidence conflicts with
 the assignment, report the mismatch to Foreman before work; never select a
 replacement model or start a worker to fix it.
 Keep each assigned skill in this session on its launched model; never delegate
 the whole phase, dispatch sibling Tasks or switch models. The review skill's
 internal analysis fan-out remains allowed under Current-session gates below.
-Read the accepted plan and prior handoffs,
-persist the phase's checkpoint/handoff and actual gate evidence using
-`references/verification.md`, and send exactly one `worker_done` for this
-Dispatch. Build/Review settlement leaves the workflow in progress; only final
-QA with current review, QA and readiness may record workflow completion.
-Any discovered need for planning or a code fix outside the assigned phase is
-a handoff to Foreman, not permission to continue on the wrong model. This
-explicit envelope takes precedence over whole-workflow execution in this skill
-and its workflow files (including automatic planning and `review-pr --fix`);
+Work beyond the phase — another phase's files or contracts, scope one
+coherent plan cannot hold, a scope change — is a handoff to Foreman with a
+proposed split or change request, never absorbed silently. This explicit envelope takes
+precedence over the workflow files' mode selection and `/goal` handoff;
 ordinary direct autopilot invocations retain the full current-session loop.
 
 ### Current-session gates (`review-pr`, `qa`)

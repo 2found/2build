@@ -26,10 +26,14 @@ A code-bearing child is eligible when all of these hold:
   `origin/<base>` and would discard an early merge. Final Integration QA
   depends on these lands, so it must not be a prerequisite of the land handler.
 
-Dispatch `land`/`pr` handlers to normal-phase delivery workers, one child at a
-time in dependency order. Name the policy, exact child/head, destination, lease
-and required receipt; verify it before cleanup or the next handler. `review`
-status and worker release stay with Foreman:
+Run `land`/`pr` handlers one child at a time in dependency order, as a
+`deliver` follow-up on the phase's own session when it is reusable — the agent
+that built the phase writes its PR — otherwise as a fresh normal-route delivery
+worker. Name the policy, exact child/head, destination, lease and required
+receipt; verify it before cleanup or the next handler. A `deliver` assignment
+runs only the named handler: it is Foreman's finish policy executing in that
+session, never autopilot close-out. `review` status and worker release stay
+with Foreman:
 
 - `land` — `bbs ticket land <child>` from the primary checkout. Revert any
    scratch composition first (`bbs ticket surface revert`); `land` BLOCKs on
@@ -86,7 +90,7 @@ Failure routing — never blind-retry an unchanged state or schedule retry ticks
 |---|---|
 | Surface lease held | Queue until release/resource notification or bounded recovery |
 | Stale evidence / `ready:false` | Re-run affected gates before delivery |
-| Merge conflict | Supervised repair Dispatch merges `origin/<base>` (never local base) into the child; await settlement |
+| Merge conflict | Supervised repair Dispatch — a `repair` follow-up on the phase session, else a fresh phase worker — merges `origin/<base>` (never local base) into the child; await settlement |
 | Other land BLOCK (dirty/off-base/scratch) | Report blocker; wait for the primary state to change |
 | A later composition discarded a land | Re-land after surface work settles; recreate a removed worktree from its branch first |
 | `create-pr` failed | Recover actual handler state, retry once if recoverable; otherwise block with evidence |

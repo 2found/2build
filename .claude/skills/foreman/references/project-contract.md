@@ -7,14 +7,15 @@ review and delivery unit; a closed worker/worktree is never proof of delivery.
 
 Before child creation, worktrees, or production dispatch:
 
-1. Dispatch a planning/design worker on the critical phase route in the parent
+1. Dispatch a planning/design worker on the critical route in the parent
    checkout to run `plan-draft` and, for user-facing work, `design-ui`, producing:
 
-   - `requirement.md`, `plan.md`, `design.md` and `prototype.html`: all ticket
+   - `requirement.md`, `plan.md`, `design.md` and `prototype.html`: all phase
      scopes, transitions, empty/error states and acceptance criteria. Non-UI
      designs use interfaces, examples and a workflow with visual prototype N/A.
-   - `manifest.md`: stable seed keys, scopes, dependencies, shared contracts,
-     acceptance ownership and integration checks. Runtime ids/status belong in
+   - `manifest.md`: one row per phase — stable seed key, scope, size,
+     dependencies, shared contracts, acceptance ownership and integration
+     checks — sized and ordered per topology.md. Runtime ids/status belong in
      relations/report, so progress does not rewrite the approved design.
 
    Parent planning/review may precede approval; child creation and production
@@ -35,24 +36,55 @@ Before child creation, worktrees, or production dispatch:
    An Orca coordinator relays this checkpoint, not its own Taste answer.
    Silence is not approval. Only current `approved` unlocks children.
 4. **`--auto` delegates the human design reviews** within authorized scope.
-   Dispatch a critical-phase design reviewer to inspect the artifacts/prototype
-   and fill the five-line rubric with evidence. Use
+   Foreman reviews the artifacts/prototype itself — confirming the general
+   plan is its job — and fills the five-line rubric with evidence. Use
    `../semantic-decision/SKILL.md` kind `human-review` to judge that evidence
    against the accepted direction and delegated scope (shared human-review
    contract in `../references/semantic-decision.md`). Only `proceed` advances
-   to self-resolution; repair `revise`, route `needs-human`, and record `blocked`.
-   Foreman verifies it, publishes `project-plan`, then uses
+   to self-resolution; send `revise` back to the planning worker's session,
+   route `needs-human`, and record `blocked`. Foreman publishes
+   `project-plan`, then uses
    `approval self-resolve --foreman "$FOREMAN_ID" --rubric-file <path>` and logs
    telemetry. runtime.md owns flag adoption; recorded `auto: true` survives resume,
    omitted flags and restart. Old records default to human review. Holds/grants,
    non-delegable decisions and finish policy still apply; no fake human verdicts.
-5. Review child plans with critical-phase workers against accepted parent artifacts;
-   Foreman applies the same `human-review` step to their evidenced rubrics
-   under child-review policy. Keep these `kind=plan`
-   reviews distinct from `project-plan`. Material scope/design changes pause
-   affected production and reopen the parent checkpoint; unaffected work continues.
-   Re-read `approval status` before dispatch and finish. On resume preserve live
-   work, but gather missing/stale approval before new production dispatch.
+5. **Phase plan checkpoints run inside the phase session**, so planning flows
+   into implementation without a worker switch. The larger of the phase's
+   manifest size and its plan's `ticket_size` picks the approver, so a plan
+   that grows to `L` goes to Foreman and none shrinks out of its review:
+   - `XS`: no plan and no record.
+   - `S`/`M` — **self-approve**: the worker judges its plan against the
+     accepted parent artifacts with `human-review`, writes the five-line
+     rubric with named evidence, runs `approval publish --kind plan`, and
+     resolves it with `approval self-resolve --foreman "$FOREMAN_ID"
+     --rubric-file <path>` as this Foreman's delegate. Exit 4 (rubric) is
+     repaired in session, at most twice. Exit 3 (floor) or 5 (hold/grant), a
+     `needs-human` or `blocked` judgment, a third rubric refusal, or a
+     material deviation from accepted scope or a shared contract becomes an
+     Orca `ask` to Foreman, and the session waits.
+   - `L` — **Foreman approves**: the worker writes the rubric, publishes the
+     plan record and asks Foreman with the artifact paths; the session waits.
+
+   Foreman answers a plan ask from the phase's `plan.md`/`design.md`, the
+   parent goal, its acceptance IDs and the manifest's shared contracts. Approve
+   with `BABYSIT_TICKET=<phase> bbs ticket approval self-resolve --foreman
+   "$FOREMAN_ID" --rubric-file <path>` (Foreman's own rubric) and answer
+   `approved`; or `approval resolve --action redirect --note <changes>` and
+   answer with those exact changes — the worker revises and asks again, and
+   after two redirects Foreman approves with named conditions or parks the
+   phase. A floor/hold/grant refusal that Foreman's authority cannot clear,
+   or a decision that reopens accepted scope, parks the phase: the worker
+   reports `NEEDS_CONTEXT`, Foreman retains the session, relays the pending
+   approval through the preamble's channel, lists it under `Remaining`, and
+   resumes the session with `redirect` once it resolves. Material
+   scope/design changes reopen the parent checkpoint for the affected phases
+   only; unaffected work continues.
+
+   Never implement on an unapproved plan record. Foreman audits each phase's
+   approval record and rubric at light verification. Keep these `kind=plan`
+   reviews distinct from `project-plan`. Re-read `approval status` before
+   dispatch and finish. On resume preserve live work, but gather
+   missing/stale approval before new production dispatch.
 
 This is Foreman's human design checkpoint; do not add routine final Taste
 confirmation. Under `--auto`, Foreman resolves Taste decisions; route
@@ -103,7 +135,7 @@ never unlocks a gate on resume.
 
 When tickets interact, add a Pre-land integration QA Task before landing them.
 Acquire the parent surface lease and dispatch an integration worker on the
-normal phase route to prepare the covered branches with `bbs ticket surface compose`,
+normal route to prepare the covered branches with `bbs ticket surface compose`,
 then a read-only QA worker to test that composition. Record covered revisions
 and acceptance evidence; changes invalidate the result. Revert only this known
 scratch composition before landing. This check never replaces final project QA.
@@ -116,9 +148,9 @@ Every code-bearing project has a final Integration QA Task. It runs **after
 the selected finish handlers and before the Foreman `done` heartbeat**, even
 when child tickets are independent. A pre-land integration check is additional
 evidence, not a substitute. Wholly evidence-only projects may record N/A with
-acceptance evidence. Use a read-only QA worker on the normal phase route; fixes
-go to owning children. Foreman owns lease acquisition and evidence checks;
-dispatch an integration worker on the normal phase route for surface preparation,
+acceptance evidence. Use a read-only QA worker on the normal route; fixes
+go to the owning phase as `repair` follow-ups. Foreman owns lease acquisition and evidence checks;
+dispatch an integration worker on the normal route for surface preparation,
 merges/composition and restoration
 in steps 2–3 and 6. Wait for its settlement and verify the resulting refs before
 QA or lease release. Never prepare or test the integrated surface inline.

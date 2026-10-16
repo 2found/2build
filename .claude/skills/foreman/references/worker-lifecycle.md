@@ -26,7 +26,12 @@ capability, Task ID and Dispatch ID; never reconstruct authority from env/ticket
   `--outcome failed` when ending as BLOCKED/NEEDS_CONTEXT. A pending ask is
   not a terminal report. `--files-modified` / `--report-path` name real artifacts.
 - A `Continue Dispatch <id>` prompt is the watcher's idle nudge: resume the
-  phase, or send its pending `worker_done` if the phase is already complete.
+  assignment, or send its pending `worker_done` if it is already complete.
+- A phase session can receive a follow-up Dispatch (`repair`, `refresh`,
+  `redirect`, `deliver`) after its `worker_done`. Its new injected preamble
+  carries new Task and Dispatch IDs: apply this lifecycle to it afresh, keep
+  the context you already hold, re-read the durable state the follow-up
+  names, and never reuse settled IDs.
 - After delivery, end the dispatched turn and idle. Ordinary sessions without
   an injected Dispatch emit no lifecycle messages. The coordinator reads
   `bbs ticket verdict-status`; the message does not substitute for a verdict.

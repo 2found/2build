@@ -62,6 +62,8 @@ const foremanUsage = `Usage:
   bbs foreman resource <status|reserve|release> ...
   bbs foreman batch <id> --tasks <task,task,...>
   bbs foreman batch show <id>
+  bbs foreman await --prereqs <ticket>:<task>[,...] [--timeout <sec>] [--interval <sec>]
+                    (phase worker: wait in-session for prerequisite phases to settle)
   bbs foreman watch [<id>] [--interval <sec>] [--idle <sec>] [--lines <n>]
                     [--status-interval <sec>] [--nudge <text>] [--max-nudges <n>] [--once]
                     [--worker-idle <sec>] [--worker-nudges <n>]
@@ -154,6 +156,8 @@ func dispatchForeman(args []string) error {
 		return foremanResource(rest)
 	case "batch":
 		return foremanBatchCommand(rest)
+	case "await":
+		return foremanAwait(rest)
 	case "route":
 		return foremanRoute(rest)
 	case "model":

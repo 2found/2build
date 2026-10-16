@@ -46,7 +46,16 @@ forbid 'OMP launch rule' "$SKILL"
 forbid 'automatic QA subagent' "$SKILL"
 forbid '../references/model-routing.md' "$SKILL"
 require 'Autopilot does not select a model tier or reroute the session' "$SKILL"
-require 'Foreman owns task classification, phase splitting and model selection before' "$SKILL"
+require 'Foreman owns phase decomposition, task classification and model selection before' "$SKILL"
+require '### Foreman phase assignment' "$SKILL"
+require 'only integration' "$SKILL"
+require 'Never implement on an unapproved plan record' "$SKILL"
+require 'Plan approval, by phase size' "$SKILL"
+require 'bbs foreman await --prereqs' "$SKILL"
+require 'AWAIT=not-ready' "$SKILL"
+require 'set-pointer deferred_heavy' "$SKILL"
+require 'the only push/land/PR authority this skill ever' "$SKILL"
+forbid 'may explicitly assign only' "$SKILL"
 require 'report the mismatch to Foreman before work' "$SKILL"
 require 'human chooses the replacement session; Autopilot does not select another model' "$SKILL"
 forbid 'model to restart the run on' "$SKILL"
@@ -58,9 +67,9 @@ for f in "$WORKFLOWS"/*.md; do
   forbid 'automatic QA path' "$f"
 done
 
-# --- foreman selects the route before opening each phase worker ------------
+# --- foreman selects one route per phase before opening its worker --------
 require '`autopilot` does not select models' "$REF"
-require 'Foreman splits work into phase assignments' "$REF"
+require 'Foreman splits a project into phases and selects one route per phase' "$REF"
 forbid '`autopilot` routes its planner' "$REF"
 require 'bbs agent detect --json' "$REF"
 require 'bbs agent list --json' "$REF"
@@ -69,7 +78,7 @@ require 'BBS global agent/provider/model/effort preferences' "$REF"
 require 'bytes remain unchanged' "$REF"
 require '`bbs config set` rejects new writes' "$REF"
 require '`bbs agent resolve`' "$REF"
-require '## Phase routing' "$REF"
+require '## Assignment routing' "$REF"
 require 'launch.effective' "$REF"
 require 'came back short' "$REF"
 require 'an obvious local docs/config edit' "$REF"
@@ -84,7 +93,7 @@ require '`BLOCKED` before dispatch' "$REF"
 require 'Never replace a live writer' "$REF"
 require 'Do not invent an OMP effort' "$REF"
 require 'Standalone Autopilot runs all steps in the human-opened session' "$REF"
-require 'load this routing table, recommend a tier, or change models between phases' "$REF"
+require 'load this routing table, recommend a tier, or change models between steps' "$REF"
 
 
 # --- routing policy is CLI-owned: assert live defaults, plus the doc's
@@ -131,12 +140,12 @@ rows = [[cell.strip().strip('`') for cell in line.strip('|').split('|')]
         for line in text.splitlines() if line.startswith('|')]
 phases = {r[0]: r[1] for r in rows if len(r) == 2 and r[1] in ('critical', 'normal')}
 assert phases == {
-    'Parent/child planning, decomposition, design, design feedback': 'critical',
-    'Code review and review diagnosis': 'critical',
+    'Parent planning, decomposition, design, design review': 'critical',
+    "Phase worker: one session for the phase's whole loop and every follow-up on it": 'critical',
+    "Diagnosis of a phase's repeated failure": 'critical',
     'Mechanical re-verification of recorded checks on unchanged code': 'normal',
-    'Implementation and code repairs': 'normal',
-    'Per-ticket QA, integration QA and product acceptance checks': 'normal',
-    'Finish audits, merges, composition, authorized delivery, restoration and cleanup': 'normal',
+    'Consolidated heavy QA, integration QA and product acceptance checks': 'normal',
+    'Finish audits, merges, composition, delivery, restoration and cleanup in a fresh session': 'normal',
 }, phases
 PY
 

@@ -84,12 +84,16 @@ as default. This coverage audit separates judgments from enforced policy:
 | Recoverable blocker or missing human input | Triage / `recovery` | Retry budget, ownership and dispatch authority |
 
 Foreman's parent plan requires human review unless explicit, persisted `--auto`
-delegates it. Child reviews are autonomous by default within the accepted parent
-plan and current bounds. Semantic judgment evaluates the rubric; `approval
+delegates it. Phase plans are approved by size within the accepted parent plan
+and current bounds: `S`/`M` by the phase worker as Foreman's delegate, `L` by
+Foreman itself; one that neither may approve parks that phase only. Semantic judgment evaluates the rubric; `approval
 self-resolve` still enforces floor → rubric → authority → approval. A model's
 `proceed` answer is not an approval record.
 
-Autopilot honors `--stop-after` and invoker-held approvals, repairs routine
+Autopilot `--auto` (implied for every Foreman worker) never prints a `/goal`
+paste block: the agent sets its own goal when it has a tool for that, otherwise
+it works the loop directly in the same session, so no human or Foreman wake is
+needed to start execution. Autopilot honors `--stop-after` and invoker-held approvals, repairs routine
 findings itself, and escalates non-derivable User Challenges. Composed Taste
 choices go in its handoff; it never gains permission to push or release from a
 semantic answer. Direct skills retain the Auto-Decision Framework's own final
@@ -164,7 +168,8 @@ other admitted work and retries the queued Task on its next reconcile tick.
 
 Foreman prepares one parent plan, design/prototype and proposed ticket map
 before creating child worktrees or dispatching production work. Review that
-project checkpoint once; Foreman reviews the child plans against it. Product
+project checkpoint once; phase plans are approved against it — `S`/`M` by
+their own worker, `L` by Foreman — without stopping the phase session. Product
 scope/design changes return to the parent checkpoint. Approval is bound to
 the artifact revision, so changed documents require a new review.
 
@@ -180,7 +185,7 @@ Codex        $bbs:foreman --auto <large project>
 the choice on that Foreman record across resumes. It still creates and
 reviews the artifacts; hold/grant bounds, non-delegable decisions, code review,
 QA, and `finish:` authorization remain in force. Existing records without
-`auto: true` use human project review; child plan autonomy is unchanged.
+`auto: true` use human project review; phase plan approval is unchanged.
 
 `bbs foreman report <parent-ticket>` reads the last durable `report.md`, even
 after Orca closes. Each reconciliation writes the observation time, meaningful
@@ -349,9 +354,11 @@ verification reads `dispatchId` and `launch.effective.agent`, and requires
 ready/accepted input. For a native OMP terminal, `route verify --terminal <handle>`
 returns `transport-matched`; null effective settings stay null. Verify the
 worker's actual session settings separately before accepting phase work.
-After settlement, release the worker and close a retained native terminal only
-if this Foreman created it. Direct `worker-command` uses the same route policy.
-See [model routing](../.claude/skills/references/model-routing.md) and the
+A follow-up for the same phase reuses that worker's terminal and must verify
+`transport-matched` again. After settlement, release the worker (or retain it
+while the phase awaits heavy QA, integration QA or its land turn) and close a
+native terminal only if this Foreman created it. Direct `worker-command` uses the same route policy.
+See [model routing](../.claude/skills/foreman/references/model-routing.md) and the
 [worker launch reference](../.claude/skills/foreman/references/worker-routing.md).
 
 ## Telemetry
@@ -434,6 +441,16 @@ pointer into an idle coordinator for every arriving message unless its mailbox
 holds an unacknowledged Delivery, so the watcher keeps one open (seeding an
 empty mailbox with the batch notice) until the foreman's wake acknowledges it.
 `bbs foreman batch show <id>` prints the batch state the wake refers to.
+
+A batch normally holds the whole phase DAG: a dependent phase's worker waits for
+its prerequisites inside its own session with `bbs foreman await --prereqs
+<ticket>:<task>,...`, and an `L` phase waits for Foreman's plan approval through
+`orca orchestration ask`. Both run as foreground commands bounded below the
+default 10-minute `--worker-idle` (540 s per call, then repeated), so a waiting
+worker is neither nudged nor reported stalled. `await` exits 0 with the verified
+heads to merge, 3 when a prerequisite settled without passing readiness (the
+dependent reports `BLOCKED` and Foreman later sends it a `refresh`), and 4 on
+timeout.
 
 ```bash
 bbs foreman watch                       # every foreman with an open workspace

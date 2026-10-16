@@ -78,7 +78,7 @@ for that workflow.
 | --- | --- | --- |
 | `agent-first-docs` | 2928 | Write product documentation and quick starts that begin with one coding-agent prompt, then human and agent references. Use for agent-assisted onboarding and discoverable Markdown documentation. |
 | `analytics-review` | 3379 | Maintainer pass over babysit telemetry. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED. |
-| `autopilot` | 31442 | Deliver one ticket end-to-end from a requirement or accepted plan to a releasable, locally committed change. Own implementation, review fixes, QA, and evidence across resumes; use foreman for multi-ticket projects. |
+| `autopilot` | 35985 | Deliver one ticket end-to-end from a requirement or accepted plan to a releasable, locally committed change. Own implementation, review fixes, QA, and evidence across resumes; use foreman for multi-ticket projects. |
 | `browse` | 8470 | Use the browser for focused web-app checks: open a URL, inspect state, click through a flow, capture screenshots, read console errors, or verify a frontend fix. Prefer this over a full QA workflow. |
 | `create-pr` | 4892 | Prepare and create a pull request from the current branch. Use when the user requests a PR or a workflow authorizes the PR handoff. |
 | `design-ui` | 3388 | Design and iterate a reviewable UI using the project's design authority and existing screens. Use for UI design requests or a workflow's design/prototype handoff; a direct build request can use the working UI as its prototype. |
@@ -87,7 +87,7 @@ for that workflow.
 | `implement` | 6125 | Implement a scoped code change from the user's request, an accepted plan.md, or ticket context. Use for feature work, bug fixes, endpoints, UI changes, integrations, and contained refactors. |
 | `investigate` | 1709 | Debug a failure before fixing it. Use when the user asks why something is broken, wants root cause analysis, or reports an error, regression, flaky test, crash, or unexpected behavior. |
 | `maintain` | 2347 | Keep a mature system secure, reliable, and efficient at scale. Use for security and dependency audits, reliability hardening, db/query performance (schema, indexes, partitioning, caching, batching, async processing), and architecture reviews under change or scale pressure. |
-| `plan-draft` | 11648 | Draft a technical plan before implementation. Use when the user asks for a plan, architecture, ticket breakdown, or wants to turn a requirement into plan.md without coding yet. |
+| `plan-draft` | 12289 | Draft a technical plan before implementation. Use when the user asks for a plan, architecture, ticket breakdown, or wants to turn a requirement into plan.md without coding yet. |
 | `product-marketing-page` | 2601 | Write or revise product introduction pages around customer value and a clear activation path. Use for product heroes, benefits, CTAs and agent-assisted quick starts, rather than full technical manuals. |
 | `prototype` | 2278 | Build a fast, throwaway spike to validate one risky technical or product idea before committing to production work. Use to test feasibility, churn a rough proof, or de-risk an assumption — not to ship, and not for UI look-and-feel questions (that is design-ui). |
 | `qa` | 18396 | Systematically test a web application, fix issues caused by the current change, and re-verify. Use for full QA loops, critical user flows, release checks, or test-and-fix requests. |

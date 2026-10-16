@@ -19,8 +19,8 @@ eval "$(bbs autopilot git-flow)"
 | Foreman finish (default) | `review` | `review` | `review` |
 
 Rigor scales *breadth* only — `PASS` means the same thing in all three tiers
-(`../qa/skill.md § Rigor tiers`). Foreman's Review phase passes its own
-effort (`medium`, or `low` for `simple` tickets) and ignores this profile
+(`../qa/skill.md § Rigor tiers`). A Foreman phase assignment passes its own
+review effort (`medium`, or `low` for `simple` phases) and ignores this profile
 row. Under `land: none` `create-pr` BLOCKs: the
 qa + review-pr verdicts are the only gate before the push. An explicit
 `mode:`/`land:`/`push:`/`finish:` key always wins over the profile.

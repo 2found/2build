@@ -1,6 +1,6 @@
 # Worker launch and route persistence
 
-Read the canonical contract in [model routing](../references/model-routing.md)
+Read the canonical contract in [model routing](references/model-routing.md)
 for task/phase classification, tiers, phase overrides and OMP role bindings.
 For Orca-supervised Foreman Dispatches, this reference owns worker agent
 selection and resume. New routes use explicit intent, a compatible phase pin,
@@ -108,6 +108,31 @@ when this Foreman created it and the Dispatch is settled. Never close a
 preexisting user's terminal or an uncertain live worker. Apply the same ownership
 rule after a failed launch, then release the resource lease.
 
+### Reuse a phase session
+
+Every follow-up on a phase (`repair`, `refresh`, `redirect`, `deliver`) goes to
+that phase's existing session when Orca proves it reusable; it inherits the
+phase route, so skip model lookup and route resolution. Reuse only when the
+previous Dispatch on that terminal settled with an accepted report, the handle
+is the exact one recorded for this phase, and `worker-list` shows it `live`:
+
+```bash
+orca orchestration worker-show --dispatch "$LAST_DISPATCH" --json
+orca orchestration task-create --spec "<follow-up assignment>" --json
+# reserve the phase's resource profile for the new Task first (topology.md)
+orca orchestration worker-start --task "$FOLLOWUP_TASK" \
+  --terminal "$PHASE_TERMINAL" --json
+
+bbs foreman route verify --ticket "$TICKET" --task "$FOLLOWUP_TASK" \
+  --agent <phase-agent> --terminal "$PHASE_TERMINAL" --receipt-file "$WORKER_START_RECEIPT"
+```
+
+`--terminal` takes no model or effort: the live session keeps the phase route.
+Require `transport-matched`. A refused reuse, a non-live or unverifiable
+session, or a phase whose route must change starts a fresh worker in the phase
+worktree on the recorded route instead; never type a follow-up into a pane by
+hand. The reused terminal's cleanup ownership moves to the new Dispatch.
+
 Both launch modes persist sanitized receipt evidence. A mismatch is a failed
 launch. If `worker-start` reports rate limiting, persist it with
 `bbs foreman route verify ... --agent <selected-agent> --rate-limited`, re-read
@@ -123,25 +148,22 @@ and separately observed session settings in the corresponding Orca Task/Dispatch
 handoff, including planning, finish audits, integration and delivery.
 `route verify` also writes a numbered ticket handoff.
 
-Keep phase routes separate using `bbs ticket set-pointer`:
-
-| Phase | Pointer prefix |
-|---|---|
-| Plan | `planner_` |
-| Implement | `worker_` |
-| Review | `reviewer_` |
-| QA | `qa_` |
-
-Each prefix has `agent`, `provider`, `model`, `effort` fields, for example:
-`BABYSIT_TICKET="$TICKET" bbs ticket set-pointer planner_model "<model-or-role>"`.
-Pass the phase's agent/model/effort pins to `bbs foreman route`; provider is not
-a `worker-start` selector unless Orca explicitly advertises support. Persist
-other assignments in their Task/Dispatch handoffs rather than overwriting
-another phase's route.
+A phase has one route, persisted on its ticket under the `worker_` prefix with
+`bbs ticket set-pointer`: `worker_agent`, `worker_provider`, `worker_model`,
+`worker_effort`, for example
+`BABYSIT_TICKET="$TICKET" bbs ticket set-pointer worker_model "<model-or-role>"`.
+Pass these pins to `bbs foreman route` for a fresh phase worker; provider is not
+a `worker-start` selector unless Orca explicitly advertises support. Legacy
+`planner_`, `reviewer_` and `qa_` pointers from split-step tickets are read only
+to resume their exact recorded sessions. Persist other assignments (project
+planning, heavy/integration QA, diagnosis, fresh delivery) in their Task/Dispatch
+handoffs rather than overwriting a phase route.
 
 Apply the canonical resume policy before the next launch: exact native-session
 resume requires the recorded agent and settings plus `--exact-session`; never
 route a recorded session through today's effective default. For a new Dispatch,
 reuse a compatible phase pin; otherwise resolve the destination-host default.
-Never change a live worker's model. After Plan, release its worker and resource
-lease before starting Build; each new Dispatch reserves its own lease.
+Never change a live worker's model. Every Dispatch, including a follow-up on a
+reused session, reserves its own lease and releases it at settlement; whether
+the session is then reused, retained or released is the ownership decision in
+SKILL.md.

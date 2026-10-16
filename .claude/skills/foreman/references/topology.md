@@ -4,12 +4,22 @@ Before step 2, pass **Project design checkpoint** in the project contract.
 Step 1 drafts seeds and interfaces; it does not authorize child worktrees or
 production dispatch. Reuse current approved artifacts on resume.
 
-1. Use the approved parent plan/manifest from the planning worker. Children are
-   **independent, testable, releasable units**, each with its own branch, verdicts
-   and revert; never split one coherent change across siblings merely to widen
-   the DAG. A large child uses explicit phases inside its own ticket. A proposed
-   sub-ticket needing its own worktree returns to Foreman for approval against
-   accepted scope, bidirectional linkage and DAG admission; workers never own topology.
+1. Use the approved parent plan/manifest from the planning worker. Each
+   **phase** is one child ticket: an **independent, testable, releasable unit**
+   with its own branch, verdicts and revert, run end to end by **one worker
+   session**, which can work for hours or days. Any size on the
+   [size rubric](../references/ticket-size-rubric.md) up to `L` is a valid
+   phase; every phase boundary costs a cold session, a merge and a full
+   review/QA cycle, so **prefer fewer, larger phases**. Split only along a real
+   seam: a dependency another phase needs first, work that genuinely runs in
+   parallel, a separately verifiable and revertible outcome, or scope one
+   coherent plan cannot hold (unrelated journeys or subsystems). Never split
+   one coherent change across siblings merely to widen the DAG, and never
+   split inside a worker. Order phases so the first usable journey lands
+   first. A worker that finds its phase beyond one coherent plan, or a
+   sub-ticket needing its own worktree, returns the proposed split to Foreman
+   for approval against accepted scope, bidirectional linkage and DAG
+   admission; workers never own topology.
    Preserve real `blocked_by`/`blocks` dependencies, shared interfaces, edit
    ownership, and acceptance-to-seed/evidence mapping. Missing accepted coverage
    needs a child or repair; changed scope or non-delegable decisions escalate.
@@ -52,13 +62,22 @@ production dispatch. Reuse current approved artifacts on resume.
    branch head, and configured base before dispatch. Recreate a missing clean
    worktree only from its recorded branch. A dirty or divergent worktree is a
    recovery case, not permission to replace it.
-5. Start dependents only after prerequisite gates pass. Before Build, dispatch
-   an integration worker on the normal phase route to merge verified prerequisite
-   heads into the dependent worktree; record exact SHAs in its handoff. Conflicts
-   go to supervised repair workers. A later prerequisite repair invalidates
-   affected dependent gates and parent integration evidence: merge the new heads
-   and reverify in dependency order, only at settled worker boundaries.
-   Never merge into a live writer's tree or accept gates for untested revisions.
+5. Dependents launch with their prerequisites. The dependent's assignment
+   names each prerequisite as `<ticket>:<orca-task>`; after its plan is
+   approved, its phase worker runs `bbs foreman await --prereqs
+   <ticket>:<task>,...`, which blocks until each prerequisite's Dispatch has
+   completed and its ticket passes readiness (review, or push when
+   `pointers.deferred_heavy` defers its QA) and prints the verified heads. The
+   worker merges exactly those heads in the order printed, resolves conflicts
+   in the same session against the accepted shared interfaces, records the
+   merged SHAs, and uses the post-merge HEAD as its review base — no separate
+   integration worker. `AWAIT=not-ready` (a prerequisite settled without
+   passing) ends that Dispatch without merging; once the prerequisite passes,
+   send the dependent a `refresh`. A later prerequisite repair invalidates
+   affected dependent gates and parent integration evidence: send each
+   affected dependent a `refresh` in dependency order, only at settled
+   boundaries. Never merge into a live writer's tree or accept gates for
+   untested revisions.
 
 ## Resource admission
 
@@ -85,7 +104,11 @@ Classify the Task from its requirement, plan, and acceptance commands:
 If workload evidence is ambiguous between `standard` and a heavy profile, use
 the heavy profile. Simulator profiles reserve the shared mobile stack and GPU;
 `local-ml` reserves the GPU. `plan` and `standard` cost one unit, heavy
-profiles four; a heavy Task is normally the consolidated heavy QA from SKILL.md. Before each new or reused Dispatch:
+profiles four; a phase worker is `standard` (`plan` for an evidence-only
+phase), and a heavy Task is normally the consolidated heavy QA from SKILL.md.
+Admit runnable phases before dependents that would only wait: a waiting
+dependent holds its slot and lease, so it gets one only after every ready
+phase has its own. Before each new or reused Dispatch:
 
 Resolve the agent route first with [worker routing](worker-routing.md), then
 pass its selected agent and destination host into quota admission:
@@ -129,14 +152,20 @@ unverifiable workers retain capacity (`RESOURCE_HELD`); never release by age.
 Retry proven stopped Tasks through their failed Dispatch, preserving worktrees
 and checkpoints. Release settled leases with
 `bbs foreman resource release "$RESOURCE_LEASE"`, clear `pointers.resource_lease`,
-and reserve the next Task's profile before reusing a worker.
+and reserve the next Task's profile before reusing a worker. A retained idle
+phase session holds no lease.
 
 ## Worker envelope
 
 Every worker Task spec must establish the execution envelope before naming its
 ticket work: this is a supervised Orca Dispatch, its effective
-`AGENT_ROLE=orca`, and it is already spawned. It also names the resource
-profile Foreman reserved for this Task. The worker invokes the installed skill
+`AGENT_ROLE=orca`, and it is already spawned. It invokes autopilot with
+`--auto`, so the worker sets its own goal where its agent can and otherwise
+works the loop directly; Foreman never types `/goal` or any prompt into a
+worker pane. It also names the resource
+profile Foreman reserved for this Task, and whether it is a phase assignment
+or a follow-up (`repair`, `refresh`, `redirect`, `deliver`) on an existing
+phase session, with the trigger evidence and the gates it invalidates. The worker invokes the installed skill
 directly in that turn, skips any developer `/goal` copy/paste handoff, uses
 Orca `ask` for a genuine User Challenge, and follows the injected lifecycle
 through exactly one `worker_done`. This statement in the Task spec is

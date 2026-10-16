@@ -14,7 +14,7 @@ Re-read ticket state, checkpoint, and git status; choose the **first** match:
 
 | Mode | Condition | What it does |
 |------|-----------|--------------|
-| **child** | `origin_type = sub_ticket` | Implement + QA only this child's scope; hand off to the parent. |
+| **child** | `origin_type = sub_ticket` | One Foreman phase: plan, implement, review and QA only this child's scope; hand off to the parent. |
 | **implement** | `plan.md` exists, no manifest | Implement the accepted plan. |
 | **build** | `requirement.md` exists, `plan.md` absent | Plan first, then implement. |
 | **verify** | none of the above, but a non-base branch has commits | QA-only pass on existing work. |
@@ -31,11 +31,14 @@ no ticket/requirement, stop with `NEEDS_CONTEXT`.
    a valid `pet` policy from the resolver; never create or rewrite it while
    executing. Record missing QA configuration as a handoff warning and point
    at `$bbs:setup-project` when it matters.
-2. **build mode only (skip when init already seeded `plan.md`):** run
+2. **build and child modes (skip when init already seeded `plan.md`; a child
+   plans its own phase within the accepted parent plan, XS skips):** run
    `plan-draft` (user-facing work routes through `design-ui`, so the plan
    carries the UI spec + prototype). Write `plan.md` unless the task is XS.
    Don't stop for plan/prototype review — the human reviews once, at the
-   final handoff — unless `--stop-after=plan` was passed.
+   final handoff — unless `--stop-after=plan` was passed. A Foreman phase
+   approves its plan by phase size here instead (SKILL.md § Foreman phase
+   assignment).
 3. **build / implement / child modes:** run `implement` against the
    requirement, plan, and (child mode) only the child scope. `implement`
    leaves the working tree dirty by design — commit its output here. Skills
