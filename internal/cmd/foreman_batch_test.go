@@ -24,6 +24,7 @@ type batchWorld struct {
 	Asked     []string          `json:"asked"`
 	Missing   []string          `json:"missing"`
 	Released  []string          `json:"released"`
+	Taken     []string          `json:"taken"`
 	Broken    []string          `json:"broken"`
 	PaneDown  bool              `json:"pane_down"`
 	Attempts  map[string]string `json:"attempts,omitempty"`
@@ -44,7 +45,7 @@ func newBatchFixture(t *testing.T, agentName string) *batchFixture {
 	t.Helper()
 	dir := t.TempDir()
 	f := &batchFixture{state: filepath.Join(dir, "state.json"), log: filepath.Join(dir, "calls.log")}
-	f.world = batchWorld{Dispatch: map[string]string{}, Exited: []string{}, Asked: []string{}, Missing: []string{}, Released: []string{}, Broken: []string{}, Panes: map[string]string{"term_0": "foreman: idle"}}
+	f.world = batchWorld{Dispatch: map[string]string{}, Exited: []string{}, Asked: []string{}, Missing: []string{}, Released: []string{}, Taken: []string{}, Broken: []string{}, Panes: map[string]string{"term_0": "foreman: idle"}}
 	f.save(t)
 	script := `#!/usr/bin/python3
 import json, sys
@@ -88,8 +89,9 @@ elif cmd == ["orchestration", "send"]:
     out({"message": {"id": "msg-%d" % w["mail"]}})
 elif cmd == ["orchestration", "worker-list"]:
     rows = [{"dispatchId": ctx(t), "dispatchStatus": s,
-             "terminalState": "released" if t in w["released"] else "active",
+             "terminalState": "released" if t in w["released"] else ("retained" if t in w["taken"] else "active"),
              "agentTerminalHandle": "term_w_" + t,
+             "resource": {"retainedReason": "user_takeover"} if t in w["taken"] else None,
              "projection": {"liveness": {"verdict": "exited" if ctx(t) in w["exited"] else "live"}}}
             for t, s in w["dispatch"].items() if t not in w["missing"]]
     out({"workers": rows, "page": {"hasMore": False}})
@@ -496,6 +498,21 @@ func TestBatchTreatsAReleasedTerminalUnderAnOpenDispatchAsLost(t *testing.T) {
 	f.tick(t, now)
 	if line := f.tick(t, now.Add(30*time.Minute)); !strings.Contains(line, "lost:task-a") {
 		t.Fatalf("released open dispatch = %q", line)
+	}
+}
+
+// A user takeover hides the terminal handle, but a live agent behind it is
+// still working: never lost, never nudged.
+func TestBatchKeepsWaitingOnALiveTakenOverWorker(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.start(t, "task-a")
+	f.world.Taken = []string{"task-a"}
+	f.save(t)
+	now := time.Now()
+	for _, min := range []int{0, 30, 60} {
+		if line := f.tick(t, now.Add(time.Duration(min)*time.Minute)); line != "" {
+			t.Fatalf("taken-over live worker at %dm: %q", min, line)
+		}
 	}
 }
 

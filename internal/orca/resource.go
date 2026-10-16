@@ -12,6 +12,10 @@ type Worker struct {
 	Handle string
 	// Exited is the fleet's agent verdict (not merely PTY liveness).
 	Exited bool
+	// Live is the fleet's "live" agent verdict: a taken-over terminal has no
+	// handle to type into, yet its agent may still be working. A released
+	// terminal is never live.
+	Live bool
 }
 
 // ExitedWorkers reads the fleet's agent verdict (not merely PTY liveness).
@@ -86,6 +90,7 @@ func (c *Client) Workers(run string) ([]Worker, error) {
 				Dispatch: worker.DispatchID,
 				Handle:   handle,
 				Exited:   worker.Projection.Liveness.Verdict == "exited" || (settled && terminalGone),
+				Live:     worker.Projection.Liveness.Verdict == "live" && worker.TerminalState != "released",
 			})
 		}
 		if !page.Page.HasMore {

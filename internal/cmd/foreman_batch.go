@@ -320,7 +320,7 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 			continue
 		}
 		w, ok := workers[m.Dispatch]
-		if !ok || (w.Handle == "" && !w.Exited) {
+		if !ok || (w.Handle == "" && !w.Exited && !w.Live) {
 			// No worker row (Orca restarted, the worker never started, the
 			// list is failing) or a released/taken-over terminal: nothing
 			// here can settle this Dispatch, so bound the wait.
@@ -339,6 +339,11 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 			if key := "exited:" + m.Task; !b.reported(key) {
 				attention = append(attention, key)
 			}
+			continue
+		}
+		if w.Handle == "" {
+			// A user took the terminal over and its agent is still live:
+			// not lost, and not ours to nudge.
 			continue
 		}
 		if line, key := batchWatchWorker(client, m, w.Handle, o, now); line != "" || key != "" {
