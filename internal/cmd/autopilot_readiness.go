@@ -105,6 +105,7 @@ func evaluateReadinessIn(env identity.Env, action, dir string) (readinessResult,
 	if s.ActiveAttempt != nil {
 		result.ReasonCodes = append(result.ReasonCodes, "attempt:active")
 	}
+	result.ReasonCodes = append(result.ReasonCodes, contractReadinessReasons(ticket.New(env), orDefault(dir, "."))...)
 	ticketHome := ticket.New(env).Home()
 	cp, err := readStrictObject(filepath.Join(ticketHome, "checkpoint.json"), true)
 	if err != nil {

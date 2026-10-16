@@ -316,7 +316,10 @@ steps and ends when the ticket is ready for its phase's integration:
    accepted parent plan and design, which constrain it; reuse a current ticket
    plan on resume; an XS ticket skips this step and step 2. Plan against the
    prerequisites' accepted contracts and their `plan.md`; their code may not
-   exist yet.
+   exist yet. For each interface contract the ticket builds against
+   (`.babysit/contracts.yaml`), `bbs contract pin <id>`; a ticket that
+   provides one changes its files first and runs `bbs contract check <id>`
+   before reporting ([contracts](../shared/contracts.md)).
 2. **Plan approval, by ticket size** — the larger of the assigned size and
    the plan's `ticket_size`. Judge the plan with
    `../semantic-decision/skill.md` kind `human-review` against the accepted
@@ -361,7 +364,8 @@ steps and ends when the ticket is ready for its phase's integration:
 
 A follow-up carries a new Dispatch and names its kind and trigger evidence:
 `repair` fixes the named findings or failures, `refresh` re-runs steps 3–4
-for the named prerequisites, `redirect` resumes from step 2 with Foreman's
+for the named prerequisites (or re-reads a changed contract, adapts and
+re-pins it), `redirect` resumes from step 2 with Foreman's
 answer — each then re-runs every gate the change invalidates. A `repair`
 from phase integration QA names the failing criterion and the tested phase
 commit; reproduce it in this ticket's worktree. A `repair` because the phase

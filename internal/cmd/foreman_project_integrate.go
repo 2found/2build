@@ -34,6 +34,8 @@ type projectCandidateRepo struct {
 	Commit    string   `json:"commit"`
 	Worktree  string   `json:"worktree"`
 	Tickets   []string `json:"tickets"`
+	// Contracts the phase changes; their checks belong in phase QA.
+	Contracts map[string][]string `json:"contracts_changed,omitempty"`
 }
 
 func projectCandidatePath(st *ticket.Store, phase string) string {
@@ -198,6 +200,20 @@ func projectIntegrateCommand(st *ticket.Store, kv map[string]string) error {
 				body := message + "\n\nPhase " + p.ID + " of " + st.Env.Ticket + ": " + strings.Join(r.Tickets, ", ")
 				if r.Commit, err = commitTree(canonical, commitIdentityEnv(canonical), tree, body, baseHead); err != nil {
 					return err
+				}
+			}
+			changed, err := contractsChanged(canonical, baseHead, r.Commit)
+			if err != nil {
+				return err
+			}
+			if conflicts := contractOwnerConflicts(changed, ticket.ReadDoc(st.IndexPath()).Get("assignee")); len(conflicts) > 0 {
+				return fmt.Errorf("phase %s changes contracts another Foreman owns: %s; ask the owner for the change (bbs ticket assign a ticket to it) and build against its new version", p.ID, strings.Join(conflicts, ", "))
+			}
+			if len(changed) > 0 {
+				after, _ := readContracts(canonical, r.Commit)
+				r.Contracts = map[string][]string{}
+				for id := range changed {
+					r.Contracts[id] = after[id].Checks
 				}
 			}
 			if _, err := gitPlumb(canonical, nil, "update-ref", phaseCandidateRef(st.Env.Ticket, p.ID), r.Commit); err != nil {

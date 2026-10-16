@@ -30,15 +30,19 @@ const foremanUsage = `Usage:
   bbs foreman contract <parent> --file project.json
   bbs foreman bind <parent> --seed <key> --child <ticket>
   bbs foreman bind <parent> --phase <id> --child <phase-ticket>
+  bbs foreman next <parent> [--json]     suggested next steps (advice; every verb keeps its own gate)
   bbs foreman snapshot <parent> --json
   bbs foreman readiness <parent> --action dispatch|finish --json
-  bbs foreman readiness <parent> --action dispatch|integrate|release --phase <id> --json
+  bbs foreman readiness <parent> --action dispatch|integrate|land|release --phase <id> --json
+  bbs foreman integrate <parent> --phase <id> [--message <text>]
+                                         (compose the phase's sealed tickets into one commit)
+  bbs foreman land <parent> --phase <id> (fast-forward base to the QA'd phase commit)
   bbs foreman release <parent> --phase <id> --request [--note <text>]
                                          (publish the phase's human release approval)
   bbs foreman release <parent> --phase <id> --file receipt.json
                                          (record a release-prd verdict for the phase)
-  bbs foreman seal <child>               preserve verified v2 inputs before delivery
-  bbs foreman evidence <parent> --begin --file spec.json
+  bbs foreman seal <child>...            preserve verified tickets' work before their phase integrates
+  bbs foreman evidence <parent> --phase <id> --begin --file spec.json
   bbs foreman evidence <parent> --attempt <id> --file results.json
   bbs foreman progress <ticket> --file progress.json
   bbs foreman complete <parent> --foreman <id>
@@ -72,8 +76,10 @@ const foremanUsage = `Usage:
                     (phase worker: wait in-session for prerequisite phases to settle)
   bbs foreman watch [<id>] [--interval <sec>] [--idle <sec>] [--lines <n>]
                     [--status-interval <sec>] [--nudge <text>] [--max-nudges <n>] [--once]
-                    [--worker-idle <sec>] [--worker-nudges <n>] [--supervised]
+                    [--worker-idle <sec>] [--worker-nudges <n>] [--attention-window <sec>]
+                    [--supervised]
                     (--status-interval defaults to config foreman_status_interval, 3600;
+                     --attention-window, default 120: early wakes arriving within it share one;
                      --supervised: the launchd/systemd form — stands by behind a running
                      watcher and exits 0 once no batch is open)
   bbs foreman supervisor status|install|uninstall
@@ -146,7 +152,9 @@ func dispatchForeman(args []string) error {
 		return foremanInbox(rest)
 	case "report":
 		return foremanReport(rest)
-	case "contract", "bind", "snapshot", "readiness", "seal", "evidence", "progress", "complete", "release", "integrate", "land":
+	case "seal":
+		return foremanSealMany(rest)
+	case "contract", "bind", "snapshot", "readiness", "next", "evidence", "progress", "complete", "release", "integrate", "land":
 		return foremanProjectCommand(sub, rest)
 	case "register":
 		return foremanRegister(rest)

@@ -99,6 +99,10 @@ type watchOpts struct {
 	// whose pane sits idle while their Dispatch is open.
 	workerIdle   time.Duration
 	workerNudges int
+	// attentionWindow holds an early wake so attention arriving close
+	// together (L plan reviews from tickets that started together) costs the
+	// Foreman one wake, not one each.
+	attentionWindow time.Duration
 }
 
 func watchDir() string { return filepath.Join(identity.BabysitHome(), "watch") }
@@ -154,6 +158,8 @@ func watchOptsFrom(kv map[string]string) (watchOpts, error) {
 		maxNudges:    3,
 		workerIdle:   10 * time.Minute,
 		workerNudges: 2,
+
+		attentionWindow: 2 * time.Minute,
 	}
 	// The status clock's default is the shared configured reconciliation
 	// interval — the same value the Foreman skill uses for fallback audits
@@ -189,6 +195,9 @@ func watchOptsFrom(kv map[string]string) (watchOpts, error) {
 		return o, err
 	}
 	if err := secs("worker-idle", &o.workerIdle); err != nil {
+		return o, err
+	}
+	if err := secs("attention-window", &o.attentionWindow); err != nil {
 		return o, err
 	}
 	// Quiet worker waits are normal. Do not nudge sooner than the periodic

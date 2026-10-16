@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -47,6 +48,10 @@ type foremanBatch struct {
 	// lost:<task>) already delivered, so each wakes the Foreman once per
 	// Dispatch attempt.
 	Reported []string `json:"reported,omitempty"`
+	// Owed is attention seen but not yet delivered, held since OwedSince for
+	// the attention window so close-together attention shares one wake.
+	Owed      []string `json:"owed,omitempty"`
+	OwedSince string   `json:"owed_since,omitempty"`
 	// CompactAt marks the compaction typed at settlement; the wake follows
 	// once the Foreman pane holds still. PaneFingerprint tracks that.
 	CompactAt       string `json:"compact_at,omitempty"`
@@ -133,6 +138,13 @@ func (b *foremanBatch) forget(task string) {
 		}
 	}
 	b.Reported = kept
+	owed := b.Owed[:0]
+	for _, k := range b.Owed {
+		if _, t, _ := strings.Cut(k, ":"); t != task {
+			owed = append(owed, k)
+		}
+	}
+	b.Owed = owed
 }
 
 // batchFinal is a Dispatch no retry reopens. A failed attempt is settled for
@@ -156,6 +168,7 @@ func foremanBatchCommand(args []string) error {
 			return fmt.Errorf("foreman batch show: no batch recorded for %s", args[1])
 		}
 		printBatchState(b)
+		printForemanNext(args[1])
 		return nil
 	}
 	id, kv, err := foremanFlags(args)
@@ -251,7 +264,7 @@ func printBatchState(b foremanBatch) {
 		}
 		fmt.Println(line)
 	}
-	for _, key := range b.Reported {
+	for _, key := range append(slices.Clone(b.Reported), b.Owed...) {
 		fmt.Println("ATTENTION=" + key)
 	}
 	if b.Questions > 0 {
@@ -350,7 +363,27 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 			}
 		}
 	}
-	if len(attention) > 0 {
+	question := false
+	for _, key := range attention {
+		if strings.HasPrefix(key, "messages:") {
+			question = true
+		} else if !slices.Contains(b.Owed, key) {
+			b.Owed = append(b.Owed, key)
+		}
+	}
+	if len(b.Owed) > 0 || question {
+		if b.OwedSince == "" {
+			b.OwedSince = stamp
+		}
+		if since, err := time.Parse(time.RFC3339, b.OwedSince); err == nil && now.Sub(since) < o.attentionWindow {
+			// Held, not dropped: the question stays unseen and Owed keeps
+			// the rest until the window closes or the batch settles.
+			return lines
+		}
+		attention = slices.Clone(b.Owed)
+		if question {
+			attention = append(attention, fmt.Sprintf("messages:%d", questions))
+		}
 		sort.Strings(attention)
 		summary := fmt.Sprintf("batch %s needs you (%d/%d settled): %s", b.ID, b.settled(), len(b.Tasks), strings.Join(attention, ", "))
 		line := batchWake(client, r, *b, summary)
@@ -360,11 +393,8 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 			// same wake rather than dropping it.
 			return lines
 		}
-		for _, key := range attention {
-			if !strings.HasPrefix(key, "messages:") {
-				b.Reported = append(b.Reported, key)
-			}
-		}
+		b.Reported = append(b.Reported, b.Owed...)
+		b.Owed, b.OwedSince = nil, ""
 	}
 	if questionsRead {
 		b.Questions, b.QuestionIDs = questions, questionIDs
@@ -491,7 +521,7 @@ func batchFinish(client *orca.Client, r foreman.Record, b *foremanBatch, now tim
 // its turn — the held mailbox mutes Orca's own pointer, so the prompt is the
 // only doorbell.
 func batchWake(client *orca.Client, r foreman.Record, b foremanBatch, summary string) string {
-	instruction := summary + ". Run `bbs foreman batch show " + r.ID + "`, then consume the Orca Delivery."
+	instruction := summary + ". Run `bbs foreman batch show " + r.ID + "` (batch, attention and each project's next steps), then consume the Orca Delivery."
 	note := ""
 	if run := batchRun(b); run != "" {
 		if err := client.SendMessage("run:"+run, "bbs foreman batch", summary); err != nil {

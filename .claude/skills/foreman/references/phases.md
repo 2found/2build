@@ -53,8 +53,15 @@ unphased contracts only resume.
 
 ## Phase loop
 
-For phase `k`, in order. Every step re-reads readiness; a refusal names what is
-missing and is the next action.
+For phase `k`, in order. `bbs foreman next` suggests the step; every verb
+re-checks its own gate, and a refusal names what is missing.
+
+**Pipeline one phase deep:** while phase `k` waits on its release, open phase
+`k+1` (readiness allows it once `k` has landed), so a human release decision
+never idles the workers. Phase `k+1` cannot integrate until `k` is released.
+A wake handles every phase that is ready — open, integrate, land, release —
+before handing over the next batch. Phase QA always tests that exact commit
+`integrate` built, in its integration worktree.
 
 ### 1. Open the phase
 

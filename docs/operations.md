@@ -182,6 +182,7 @@ gives the go), `auto` (the approved design is the go) or `none` (ships with the
 next phase). The CLI enforces the order:
 
 ```bash
+bbs foreman next <parent>                       # what to do now (advice; verbs keep their gates)
 bbs foreman readiness <parent> --action dispatch|integrate|land|release --phase <id> --json
 bbs foreman integrate <parent> --phase <id>     # one phase commit, detached worktree
 bbs foreman land <parent> --phase <id>          # after phase QA: fast-forward base
@@ -467,13 +468,17 @@ the foreman (Orca message plus pane prompt) once when every Dispatch is terminal
 early for a new question (tracked by message id, so a second question after
 the first was read still wakes), an exited worker, a stall, or a lost worker —
 an open Dispatch with no worker row or live terminal for the whole stall
-budget. A wake that cannot be delivered stays owed and is retried each tick;
+budget. Early attention is held for `--attention-window` (default 120 s)
+from the first item, so plan reviews and questions from tickets that started
+together cost one wake; `batch show` lists held items too. A wake that cannot be delivered stays owed and is retried each tick;
 a failed member the foreman retries is followed to its new Dispatch, so the
 batch does not settle under a running retry. Orca itself types a mail
 pointer into an idle coordinator for every arriving message unless its mailbox
 holds an unacknowledged Delivery, so the watcher keeps one open (seeding an
 empty mailbox with the batch notice) until the foreman's wake acknowledges it.
-`bbs foreman batch show <id>` prints the batch state the wake refers to.
+`bbs foreman batch show <id>` prints the batch state the wake refers to and
+then the `NEXT=` steps of every project the foreman owns, so one read covers a
+wake.
 
 The watcher is built to outlive what goes wrong around it: every Orca call is
 bounded (60 s), a failing tick is logged as `TICK-FAILED` rather than ending

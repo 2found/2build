@@ -608,3 +608,46 @@ func TestAnyOpenBatchTracksTheOwedWake(t *testing.T) {
 		t.Fatal("settled batch still owes a wake")
 	}
 }
+
+// Tickets launched together reach their L plan reviews close together; the
+// attention window turns those questions, and an exit inside the window,
+// into one Foreman wake. Nothing is dropped: the held attention is delivered
+// when the window closes.
+func TestBatchAttentionWindowCoalescesEarlyWakes(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.start(t, "task-a", "task-b", "task-c")
+	o := batchWatchOpts()
+	o.attentionWindow = 2 * time.Minute
+	now := time.Now()
+	tick := func(min int) string {
+		t.Helper()
+		for _, task := range []string{"task-a", "task-b", "task-c"} {
+			f.world.Panes["term_w_"+task] = fmt.Sprintf("%s: %d", task, min)
+		}
+		f.save(t)
+		return watchTick(f.client, f.record, o, now.Add(time.Duration(min)*time.Minute))
+	}
+	f.world.Asked = []string{"msg-a"}
+	if line := tick(0); strings.Contains(line, "WOKE") {
+		t.Fatalf("woke before the window closed: %q", line)
+	}
+	f.world.Asked = []string{"msg-a", "msg-b"}
+	f.world.Exited = []string{"ctx-task-c"}
+	if line := tick(1); strings.Contains(line, "WOKE") {
+		t.Fatalf("woke before the window closed: %q", line)
+	}
+	out := captureStdout(t, func() { _ = foremanBatchCommand([]string{"show", f.record.ID}) })
+	if !strings.Contains(out, "ATTENTION=exited:task-c") {
+		t.Fatalf("held attention not shown: %q", out)
+	}
+	line := tick(2)
+	if !strings.Contains(line, "WOKE") || !strings.Contains(line, "messages:2") || !strings.Contains(line, "exited:task-c") {
+		t.Fatalf("coalesced wake = %q", line)
+	}
+	if n := len(f.wakes(t)); n != 1 {
+		t.Fatalf("Foreman woke %d times, want 1", n)
+	}
+	if line := tick(3); strings.Contains(line, "WOKE") {
+		t.Fatalf("delivered attention woke again: %q", line)
+	}
+}

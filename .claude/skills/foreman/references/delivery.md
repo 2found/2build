@@ -79,3 +79,26 @@ On resume, read `bbs foreman snapshot` first: a phase whose commit is on base
 is landed whatever the worktrees look like; a sealed ticket's work lives on
 `refs/bbs/tickets/<id>` even after its worktree is gone. Never assume success
 from a log line — the snapshot is the record.
+
+## Finish the project
+
+1. The last phase's cumulative QA is the project's final QA; nothing is
+   re-tested by a separate final pass unless a later repair invalidated it.
+2. `bbs foreman complete` itself checks every phase, gate and cleanup, so no
+   audit worker is needed by default. Dispatch a read-only finish-audit
+   worker on the **normal** route only for what the CLI cannot see — scope
+   cancelled mid-run (did it go through an accepted contract change?), kept
+   worktrees, a release whose hypercare was cut short.
+3. Release settled workers and leases, persist the parent report, and require
+   `bbs foreman readiness "$PARENT" --action finish --json` to report ready.
+   Only then run `bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"`. No
+   unreleased phase, missing gate, blocked ticket or unfinished cleanup can
+   become DONE.
+
+Report the result per phase — phase commit, release tag and verdict, QA
+evidence — and remaining human action. Use `STATUS: DONE | IN_PROGRESS |
+NEEDS_CONTEXT | BLOCKED`, link the parent `report.md`, and end with `Next:`
+(a pending release go, kept worktrees, parked approvals, or none).
+Distinguish landed-on-local-base from released (pushed and deployed).
+Normal worker activity stays in Orca; report state changes, requests and
+terminal evidence.

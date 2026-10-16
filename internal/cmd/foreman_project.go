@@ -425,6 +425,8 @@ func foremanProjectCommand(verb string, args []string) error {
 		return projectIntegrateCommand(st, kv)
 	case "land":
 		return projectLandCommand(st, kv)
+	case "next":
+		return projectNextCommand(st, kv)
 	case "snapshot", "readiness":
 		s, err := projectRead(st)
 		if err != nil {
@@ -453,6 +455,34 @@ func foremanProjectCommand(verb string, args []string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown project command")
+}
+
+// foremanSealMany seals each named ticket independently: one ticket that is
+// not ready does not hold back the rest of a settled batch.
+func foremanSealMany(args []string) error {
+	var ids []string
+	for len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		ids, args = append(ids, args[0]), args[1:]
+	}
+	if len(ids) <= 1 {
+		return foremanProjectCommand("seal", append(ids, args...))
+	}
+	if len(args) > 0 {
+		return fmt.Errorf("seal: --file seals one evidence-only ticket at a time")
+	}
+	failed := 0
+	for _, id := range ids {
+		if err := foremanProjectCommand("seal", []string{id}); err != nil {
+			failed++
+			fmt.Printf("NOT_SEALED=%s %v\n", id, err)
+			continue
+		}
+		fmt.Println("SEALED=" + id)
+	}
+	if failed > 0 {
+		return fmt.Errorf("seal: %d of %d tickets not sealed", failed, len(ids))
+	}
+	return nil
 }
 
 // projectBindPhase marks a direct child of the parent as one phase's ticket:

@@ -58,7 +58,9 @@ Exercise the application like a user and leave reproducible evidence.
    **Foreman integration mode:** a Task explicitly assigned a phase's
    integration worktree (detached at the phase commit `bbs foreman integrate`
    built) plus the cumulative acceptance (every criterion of this phase and
-   earlier ones) tests that exact commit read-only. Verify the worktree is
+   earlier ones) tests that exact commit read-only, and runs
+   `bbs contract check <id>` there for each contract the phase changed
+   (`contracts_changed` in the integrate output). Verify the worktree is
    clean at that commit before and after testing. Do not edit code, commit,
    switch revisions or touch other checkouts. Report findings to Foreman for
    ticket repairs; persist evidence/verdict on the parent.
