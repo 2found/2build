@@ -140,6 +140,9 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 		switch {
 		case childSealable(cs):
 			sealable = append(sealable, child.ID)
+		case ticket.ReadDoc(cs.IndexPath()).Get("pointers.resource_lease") != "":
+			// A held lease is a launched worker: dispatching again would duplicate it.
+			steps = append(steps, step("wait", child.ID, "", "its worker holds a lease; the batch wake reports it"))
 		case child.State == ticket.StateReady:
 			steps = append(steps, step("build", child.ID, "", "ready: dispatch it to a worker session"))
 		default:

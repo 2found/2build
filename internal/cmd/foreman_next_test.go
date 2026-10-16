@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -143,5 +144,30 @@ func TestSealManyReportsEachTicket(t *testing.T) {
 	out := captureStdout(t, func() { err = foremanSealMany([]string{"ready", "missing-ticket"}) })
 	if err == nil || !strings.Contains(out, "SEALED=ready") || !strings.Contains(out, "NOT_SEALED=missing-ticket") {
 		t.Fatalf("seal many = %v %q", err, out)
+	}
+}
+
+// A launched worker holds a lease until it settles; next must not suggest
+// dispatching its ticket a second time.
+func TestForemanNextWaitsOnALaunchedWorker(t *testing.T) {
+	st, child, repo := phasedFixture(t, []projectPhase{{ID: "p1", Title: "Tasks", Seeds: []string{"core"}, Release: "none"}})
+	if err := foremanProjectCommand("bind", []string{"parent", "--phase", "p1", "--child", "ph-p1"}); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(repo, "feature.txt"), "changed after the seal\n")
+	doc := ticket.ReadDoc(child.IndexPath())
+	doc.Set("status", "open")
+	if err := ticket.WriteDoc(child.IndexPath(), doc); err != nil {
+		t.Fatal(err)
+	}
+	if got := stepDos(nextSteps(t, st)); got != "build:p1:ready" {
+		t.Fatalf("unlaunched: %s", got)
+	}
+	doc.Set("pointers.resource_lease", "rsc-1")
+	if err := ticket.WriteDoc(child.IndexPath(), doc); err != nil {
+		t.Fatal(err)
+	}
+	if got := stepDos(nextSteps(t, st)); got != "wait:p1:ready" {
+		t.Fatalf("launched: %s", got)
 	}
 }
