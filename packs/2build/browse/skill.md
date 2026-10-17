@@ -78,6 +78,26 @@ expands it: zsh doesn't split unquoted vars, so `$CMD click @e1` fails — call
 Drop to plain headless (unset the three stealth vars, or `--headless`; keep
 the session and idle-timeout exports) only when there's no display — CI, a
 remote box without X — or the caller asks.
+## Browser hygiene
+A leaked browser keeps burning CPU and RAM long after the run (130+ orphaned
+Chrome trees have been found this way), so the lifecycle is part of the check.
+- **Own browser for automation:** Chrome for Testing, cloakbrowser's Chromium or
+  a Playwright-managed browser, never the human's installed Chrome or its
+  profile. If the installed Chrome is unavoidable, launch it on a cloned
+  `--user-data-dir` this run owns.
+- **Quit, don't kill:** end with the browser's own close (`agent-browser close`,
+  CDP `Browser.close`) so Chrome shuts down and flushes its profile. `kill` is a
+  last resort for a process proven owned that survived a scoped close.
+- **Check before reaping clones or stale browsers:** a clone profile or browser
+  may still be in use (`ps` for its `--user-data-dir`, `lsof +D <dir>`). Reap
+  only what no live process or session owns.
+- **Only the exported session:** an ad-hoc `--session` name, or a bare
+  `agent-browser` call after the exports are lost (fresh shell, compaction),
+  starts a daemon that `close` on the real session never reaches and that has no
+  idle timeout. Re-source the exports on every call.
+- **Whatever else you start** that spawns a browser (test suite, render, crawler)
+  is yours to stop through its own shutdown path.
+
 ## Cleanup
 Cleanup is a mandatory finalizer, including on failed checks, tool errors, and
 `BLOCKED` exits. After capturing evidence:

@@ -80,8 +80,9 @@ not rewrite architecture docs or unrelated instructions during onboarding.
   (`AGENTS.md` preferred when both exist; create it if neither exists). Read
   [project pointers](references/project-pointers.md) for the section and,
   only when related repos are in scope, workspace registration. Update existing
-  sections in place and preserve imports/symlinks. Machine-local workspace
-  mappings belong in `~/.babysit/config.yaml`, never `.babysit/config.yaml`.
+  sections in place and preserve imports/symlinks. The template's browser
+  bullets (including browser hygiene) are part of the pointer; add a missing one.
+  Machine-local workspace mappings belong in `~/.babysit/config.yaml`, never `.babysit/config.yaml`.
 
 For a new single-target app, adapt this shape to observed commands:
 ```yaml
