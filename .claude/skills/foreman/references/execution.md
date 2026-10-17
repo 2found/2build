@@ -68,10 +68,9 @@ means the read succeeded. Reads never reconcile or mutate ticket status.
 Use the worker packet in SKILL.md and the Orca envelope in topology.md.
 Autopilot honors its **Foreman ticket assignment** contract on the assigned checkout.
 
-New managed code children use `bbs autopilot checkpoint --ticket "$TICKET"
---workflow builder --step run --status in_progress --contract-version 2` (substitute
-their actual workflow). Existing v1 tickets require that explicit migration and
-new gate runs; never wrap legacy PASS prose as typed evidence. Autopilot's
+Every ticket is created with a `schema_version: 2` checkpoint; an older one is
+refused by readiness, gates and seal until migrated as the producer reference
+says, and its gates then run again. Autopilot's
 [verification producer](../autopilot/references/verification.md) captures
 before/after subjects and archives logs. Seal each passing child as soon as it
 passes: `bbs foreman seal "$TICKET"`.

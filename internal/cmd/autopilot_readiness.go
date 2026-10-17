@@ -22,13 +22,11 @@ var (
 )
 
 type readinessResult struct {
-	ContractVersion int                    `json:"contract_version"`
-	Enforced        bool                   `json:"enforced"`
-	Action          string                 `json:"action"`
-	Ready           bool                   `json:"ready"`
-	ReasonCodes     []string               `json:"reason_codes"`
-	Gates           []snapshotGate         `json:"gates"`
-	CurrentSubject  map[string]interface{} `json:"current_subject"`
+	Action         string                 `json:"action"`
+	Ready          bool                   `json:"ready"`
+	ReasonCodes    []string               `json:"reason_codes"`
+	Gates          []snapshotGate         `json:"gates"`
+	CurrentSubject map[string]interface{} `json:"current_subject"`
 }
 
 func evidenceSchemaVersion(body string) int {
@@ -66,29 +64,27 @@ func evaluateReadinessIn(env identity.Env, action, dir string) (readinessResult,
 		return readinessResult{}, err
 	}
 	result := readinessResult{
-		ContractVersion: 1, Action: action, Gates: s.Gates,
+		Action: action, Gates: s.Gates,
 		CurrentSubject: currentEvidenceSubjectIn(s, dir),
 	}
-	if s.Run != nil {
-		result.ContractVersion = s.Run.Contract
-	}
-	result.Enforced = result.ContractVersion == 2
 	needed := []string{"review-pr"}
 	// light: review only, for a prerequisite whose heavy checks are deferred.
 	if action != "push" && action != "light" {
 		needed = append(needed, "qa")
 	}
-
-	if !result.Enforced {
-		st := ticket.New(env)
+	ticketHome := ticket.New(env).Home()
+	// No checkpoint means no gate ever ran: not ready, and not an error, so a
+	// gate keeps answering for a ticket that never started a run.
+	if !fileExists(filepath.Join(ticketHome, "checkpoint.json")) {
+		result.ReasonCodes = append(result.ReasonCodes, "checkpoint:missing")
 		for _, gate := range needed {
-			status := verdictStatus(st, gate)
-			if status != "DONE" && status != "DONE_WITH_CONCERNS" {
-				result.ReasonCodes = append(result.ReasonCodes, gate+":legacy_verdict_"+strings.ToLower(status))
-			}
+			result.ReasonCodes = append(result.ReasonCodes, gate+":missing")
 		}
-		result.Ready = len(result.ReasonCodes) == 0
 		return result, nil
+	}
+	cp, err := readCheckpointV2(ticketHome, env.Ticket)
+	if err != nil {
+		return readinessResult{}, err
 	}
 
 	if s.Run != nil {
@@ -106,11 +102,6 @@ func evaluateReadinessIn(env identity.Env, action, dir string) (readinessResult,
 		result.ReasonCodes = append(result.ReasonCodes, "attempt:active")
 	}
 	result.ReasonCodes = append(result.ReasonCodes, contractReadinessReasons(ticket.New(env), orDefault(dir, "."))...)
-	ticketHome := ticket.New(env).Home()
-	cp, err := readStrictObject(filepath.Join(ticketHome, "checkpoint.json"), true)
-	if err != nil {
-		return readinessResult{}, err
-	}
 	accepted, _ := cp["accepted_evidence"].(map[string]interface{})
 	for _, gate := range needed {
 		attemptID := stringValue(accepted[gate])
@@ -279,8 +270,8 @@ func setV2VerificationEvidence(env identity.Env, body []byte) (string, error) {
 		if snapshotErr != nil {
 			return snapshotErr
 		}
-		if s.Run == nil || s.Run.Contract != 2 {
-			return fmt.Errorf("version-2 evidence needs a schema_version 2 checkpoint")
+		if _, err := readCheckpointV2(ticketHome, env.Ticket); err != nil {
+			return err
 		}
 		if reasons := evidenceReadinessReasons(ev, gate, currentEvidenceSubject(s)); containsStaleReason(reasons) {
 			return fmt.Errorf("evidence is stale for current state: %s", strings.Join(reasons, ","))
@@ -326,12 +317,12 @@ func setV2VerificationEvidence(env identity.Env, body []byte) (string, error) {
 		}
 
 		cpPath := filepath.Join(ticketHome, "checkpoint.json")
-		cp, cpErr := readStrictObject(cpPath, true)
+		cp, cpErr := readCheckpointV2(ticketHome, env.Ticket)
 		if cpErr != nil {
 			return cpErr
 		}
-		if contractVersion(cp) != 2 || stringValue(cp["run_id"]) != stringValue(ev["run_id"]) {
-			return fmt.Errorf("checkpoint run/version changed before evidence acceptance")
+		if stringValue(cp["run_id"]) != stringValue(ev["run_id"]) {
+			return fmt.Errorf("checkpoint run changed before evidence acceptance")
 		}
 		accepted, _ := cp["accepted_evidence"].(map[string]interface{})
 		if accepted == nil {
@@ -517,7 +508,7 @@ func containsStaleReason(reasons []string) bool {
 // ticketV2Readiness evaluates a ticket against the worktree recorded in its
 // manifest. Land can run from the primary checkout, whose tree is intentionally
 // not the ticket tree; evaluating there would make every fresh ticket stale.
-func ticketV2Readiness(primary string, base identity.Env, ticketID, action string) (bool, bool, []string, string, error) {
+func ticketV2Readiness(primary string, base identity.Env, ticketID, action string) (bool, []string, string, error) {
 	st := storeForTicket(base, ticketID)
 	dir := primary
 	if manifest, err := ticket.ReadManifest(st.ManifestPath()); err == nil {
@@ -541,9 +532,9 @@ func ticketV2Readiness(primary string, base identity.Env, ticketID, action strin
 	out, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return false, false, nil, "", fmt.Errorf("readiness exited %d: %s", exitErr.ExitCode(), strings.TrimSpace(string(out)))
+			return false, nil, "", fmt.Errorf("readiness exited %d: %s", exitErr.ExitCode(), strings.TrimSpace(string(out)))
 		}
-		return false, false, nil, "", err
+		return false, nil, "", err
 	}
 	var envelope struct {
 		SchemaVersion int             `json:"schema_version"`
@@ -552,15 +543,15 @@ func ticketV2Readiness(primary string, base identity.Env, ticketID, action strin
 		Error         *v2Error        `json:"error"`
 	}
 	if err := json.Unmarshal(out, &envelope); err != nil {
-		return false, false, nil, "", fmt.Errorf("invalid readiness response: %w", err)
+		return false, nil, "", fmt.Errorf("invalid readiness response: %w", err)
 	}
 	if envelope.SchemaVersion != 2 || !envelope.OK {
 		if envelope.Error != nil {
-			return false, false, nil, "", fmt.Errorf("%s: %s", envelope.Error.Code, envelope.Error.Message)
+			return false, nil, "", fmt.Errorf("%s: %s", envelope.Error.Code, envelope.Error.Message)
 		}
-		return false, false, nil, "", fmt.Errorf("unsupported readiness response")
+		return false, nil, "", fmt.Errorf("unsupported readiness response")
 	}
-	return envelope.Data.Enforced, envelope.Data.Ready, envelope.Data.ReasonCodes, stringValue(envelope.Data.CurrentSubject["head_sha"]), nil
+	return envelope.Data.Ready, envelope.Data.ReasonCodes, stringValue(envelope.Data.CurrentSubject["head_sha"]), nil
 }
 
 func overlayProcessEnv(values map[string]string) []string {

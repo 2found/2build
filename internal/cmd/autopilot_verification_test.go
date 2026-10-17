@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -56,7 +57,7 @@ func TestVerificationProducerAndCrashRetry(t *testing.T) {
 		}
 	}
 	ready, err := evaluateReadiness(env, "review")
-	if err != nil || !ready.Enforced || !ready.Ready {
+	if err != nil || !ready.Ready {
 		t.Fatalf("produced evidence unusable: %+v %v", ready, err)
 	}
 	// Evidence binds content: an edit after the gate makes it stale.
@@ -90,5 +91,31 @@ func TestVerificationProducerRejectsRepairDuringGate(t *testing.T) {
 	}
 	if rec := readAttemptRecord(filepath.Join(env.ProjectHome, "tickets", env.Ticket, "attempts", e.Data.ID+".json")); rec == nil || rec.State != "failed" {
 		t.Fatal("stale attempt retained writer ownership")
+	}
+}
+
+// A gate needs a ticket and a checkpoint this bbs can read: no ticket is a
+// rejection, not a panic, and a newer schema is named as such rather than as v1.
+func TestVerificationBeginRefusesWithoutUsableCheckpoint(t *testing.T) {
+	repo, env := initReadinessFixture(t)
+	t.Chdir(repo)
+	begin := []string{"begin", "--gate", "qa", "--owner", "worker", "--handle", "session-test", "--transport", "test", "--harness", "test"}
+	none := &apState{slug: env.Slug, branch: env.Branch, stateRoot: env.ProjectHome}
+	if err := none.verificationCommand(begin); err == nil || !strings.Contains(err.Error(), "needs a ticket") {
+		t.Fatalf("begin without a ticket = %v, want a ticket refusal", err)
+	}
+
+	cpPath := filepath.Join(env.ProjectHome, "tickets", env.Ticket, "checkpoint.json")
+	a := &apState{slug: env.Slug, branch: env.Branch, ticket: env.Ticket, stateRoot: env.ProjectHome}
+	if err := os.Remove(cpPath); err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	if err := a.verificationCommand(begin); err == nil || !strings.Contains(err.Error(), "checkpoint --refresh") {
+		t.Fatalf("begin without a checkpoint = %v, want the refresh command", err)
+	}
+
+	mustWrite(t, cpPath, `{"schema_version":3,"ticket":"`+env.Ticket+`","run_id":"run-x"}`)
+	if err := a.verificationCommand(begin); err == nil || !strings.Contains(err.Error(), "newer than this bbs supports") {
+		t.Fatalf("begin on schema_version 3 = %v, want CHECKPOINT_UNSUPPORTED", err)
 	}
 }

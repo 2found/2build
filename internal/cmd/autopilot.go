@@ -261,14 +261,10 @@ func fileNonEmpty(p string) bool {
 // ─── checkpoint ──────────────────────────────────────────────────────────────
 
 func (a *apState) checkpoint(args []string) {
-	var ticket, workflow, step, status, note, depth, contractVersionArg, stopAfter string
+	var ticket, workflow, step, status, note, depth, stopAfter string
 	var expectedRevision *int64
 	var force, refresh bool
 	for i := 0; i < len(args); i++ {
-		if strings.HasPrefix(args[i], "--contract-version=") {
-			contractVersionArg = strings.TrimPrefix(args[i], "--contract-version=")
-			continue
-		}
 		if strings.HasPrefix(args[i], "--expect-revision=") {
 			v := strings.TrimPrefix(args[i], "--expect-revision=")
 			n, err := strconv.ParseInt(v, 10, 64)
@@ -292,8 +288,6 @@ func (a *apState) checkpoint(args []string) {
 			note, i = next(args, i)
 		case "--depth":
 			depth, i = next(args, i)
-		case "--contract-version":
-			contractVersionArg, i = next(args, i)
 		case "--expect-revision":
 			v, ni := next(args, i)
 			i = ni
@@ -327,118 +321,13 @@ func (a *apState) checkpoint(args []string) {
 		fmt.Fprintf(os.Stderr, "checkpoint: invalid status '%s'\n", status)
 		os.Exit(2)
 	}
-	if contractVersionArg != "" && contractVersionArg != "2" {
-		fmt.Fprintf(os.Stderr, "checkpoint: unsupported contract version %q\n", contractVersionArg)
-		os.Exit(2)
+	if err := a.checkpointV2(checkpointV2Input{
+		Ticket: ticket, Workflow: workflow, Step: step, Status: status,
+		Note: note, Depth: depth, StopAfter: stopAfter, ExpectedRevision: expectedRevision, Force: force,
+	}); err != nil {
+		fmt.Fprintln(os.Stderr, "checkpoint:", err)
+		os.Exit(3)
 	}
-	existingCP := filepath.Join(a.stateRoot, "tickets", safeTicket(ticket), "checkpoint.json")
-	if contractVersionArg == "2" || int64Value(readJSONObject(existingCP)["schema_version"]) == 2 {
-		if err := a.checkpointV2(checkpointV2Input{
-			Ticket: ticket, Workflow: workflow, Step: step, Status: status,
-			Note: note, Depth: depth, StopAfter: stopAfter, ExpectedRevision: expectedRevision, Force: force,
-		}); err != nil {
-			fmt.Fprintln(os.Stderr, "checkpoint:", err)
-			os.Exit(3)
-		}
-		return
-	}
-	if expectedRevision != nil {
-		fmt.Fprintln(os.Stderr, "checkpoint: --expect-revision requires contract version 2")
-		os.Exit(2)
-	}
-
-	if a.ticket != "" && a.ticket != safeTicket(ticket) {
-		fmt.Fprintf(os.Stderr, retarget("bbs-autopilot: WARNING branch ticket '%s' != --ticket '%s'\n"), a.ticket, ticket)
-	}
-
-	// --- Checkpoint validation guard ---
-	if os.Getenv("BABYSIT_SKIP_CHECKPOINT_VALIDATION") != "1" {
-		if depth != "" {
-			d, err := strconv.Atoi(depth)
-			if err != nil || d < 0 || !isAllDigits(depth) {
-				fmt.Fprintln(os.Stderr, "checkpoint: --depth must be a non-negative integer")
-				os.Exit(2)
-			}
-			if d > 3 {
-				fmt.Fprintf(os.Stderr, "checkpoint: depth %s exceeds max (3)\n", depth)
-				os.Exit(1)
-			}
-		}
-		if !force {
-			if wfPath, ok := resolveWorkflowPath(workflow); ok {
-				steps := stepList(wfPath)
-				if len(steps) > 0 {
-					newPos := indexOf(steps, step) // 1-based, 0 if absent
-					existingCP := filepath.Join(a.stateRoot, "tickets", safeTicket(ticket), "checkpoint.json")
-					if existingStep := readJSONField(existingCP, "step"); existingStep != "" && newPos > 0 {
-						oldPos := indexOf(steps, existingStep)
-						if oldPos > 0 && newPos < oldPos {
-							fmt.Fprintf(os.Stderr, "checkpoint: step regression: %s (%d) < %s (%d)\n", step, newPos, existingStep, oldPos)
-							os.Exit(1)
-						}
-					}
-				}
-			}
-		}
-	}
-
-	a.ensureRoot()
-	dir, ok := a.ticketDir(ticket)
-	if !ok {
-		fmt.Fprintln(os.Stderr, "checkpoint: invalid ticket")
-		os.Exit(2)
-	}
-	os.MkdirAll(dir, 0o755)
-
-	ts := isoNow()
-	headSha := jsonSafe(gitOut("rev-parse", "HEAD"))
-	cp := filepath.Join(dir, "checkpoint.json")
-
-	// Iteration tracking (loop-safety counters).
-	iterCount, consecSame := 1, 1
-	firstAt := ts
-	if !force {
-		if prev, ok := readCheckpoint(cp); ok {
-			iterCount = prev.iterInt() + 1
-			if prev.Step != "" && prev.Step == jsonSafe(step) {
-				consecSame = prev.consecInt() + 1
-			} else {
-				consecSame = 1
-			}
-			if prev.FirstIterationAt != "" {
-				firstAt = prev.FirstIterationAt
-			}
-		}
-	}
-
-	body := fmt.Sprintf(`{"ticket":"%s","workflow":"%s","step":"%s","status":"%s","note":"%s","branch":"%s","head_sha":"%s","slug":"%s","depth":"%s","updated_at":"%s","iteration_count":%d,"consecutive_same_step":%d,"first_iteration_at":"%s"}`+"\n",
-		jsonSafe(ticket), jsonSafe(workflow), jsonSafe(step), status, jsonSafe(note), jsonSafe(a.branch), headSha, jsonSafe(a.slug), jsonSafe(depth), ts,
-		iterCount, consecSame, jsonSafe(firstAt))
-	if !atomicWrite(cp, body) {
-		fmt.Fprintln(os.Stderr, "checkpoint: write failed")
-		os.Exit(1)
-	}
-
-	// Per-ticket history.
-	hist := fmt.Sprintf(`{"ts": "%s", "ticket": "%s", "workflow": "%s", "step": "%s", "status": "%s", "note": "%s", "branch": "%s", "actor": "work"}`+"\n",
-		ts, jsonSafe(ticket), jsonSafe(workflow), jsonSafe(step), status, jsonSafe(note), jsonSafe(a.branch))
-	appendFile(filepath.Join(dir, "history.jsonl"), hist)
-
-	a.appendTimeline(ticket, workflow, step, status, note)
-	a.bumpSession(ts)
-
-	var comment string
-	switch status {
-	case "in_progress":
-		comment = fmt.Sprintf("[WORK] %s:%s — started", jsonSafe(workflow), jsonSafe(step))
-	case "done_step":
-		comment = fmt.Sprintf("[WORK] %s:%s — done%s", jsonSafe(workflow), jsonSafe(step), suffixNote(note))
-	case "done":
-		comment = fmt.Sprintf("[WORK] %s complete%s", jsonSafe(workflow), suffixNote(note))
-	case "blocked":
-		comment = fmt.Sprintf("[WORK] %s:%s — BLOCKED%s", jsonSafe(workflow), jsonSafe(step), suffixNote(note))
-	}
-	a.postComment(ticket, comment)
 }
 
 // suffixNote reproduces `${N:+ — }$N`: a leading " — " only when the note is
@@ -451,6 +340,9 @@ func suffixNote(note string) string {
 	return " — " + n
 }
 
+// checkpointRefresh is the one command that brings any ticket onto the
+// contract: a missing checkpoint is seeded, a schema_version 1 one migrated,
+// a current one re-stamped with the branch and HEAD.
 func (a *apState) checkpointRefresh(ticket string) {
 	if ticket == "" {
 		ticket = a.ticket
@@ -464,56 +356,14 @@ func (a *apState) checkpointRefresh(ticket string) {
 		fmt.Fprintln(os.Stderr, "checkpoint --refresh: invalid ticket")
 		os.Exit(2)
 	}
-	cp := filepath.Join(dir, "checkpoint.json")
-	// schema_version 2 checkpoints refresh through the typed writer; legacy
-	// checkpoints keep the field-preserving rewrite below.
-	if cpObj := readJSONObject(cp); cpObj != nil && int64Value(cpObj["schema_version"]) == 2 {
-		if err := a.refreshCheckpointV2(ticket); err != nil {
-			fmt.Fprintln(os.Stderr, "checkpoint --refresh:", err)
-			os.Exit(1)
-		}
-		return
-	}
-	prev, ok := readCheckpoint(cp)
-	if !ok {
-		fmt.Fprintf(os.Stderr, "checkpoint --refresh: no checkpoint for %s\n", ticket)
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+		fmt.Fprintf(os.Stderr, "checkpoint --refresh: no ticket %s\n", ticket)
 		os.Exit(1)
 	}
-	ts := isoNow()
-	firstAt := prev.FirstIterationAt
-	if firstAt == "" {
-		firstAt = ts
-	}
-	headSha := jsonSafe(gitOut("rev-parse", "HEAD"))
-	body := fmt.Sprintf(`{"ticket":"%s","workflow":"%s","step":"%s","status":"%s","note":"%s","branch":"%s","head_sha":"%s","slug":"%s","depth":"%s","updated_at":"%s","iteration_count":%s,"consecutive_same_step":%s,"first_iteration_at":"%s"}`+"\n",
-		jsonSafe(ticket), jsonSafe(prev.Workflow), jsonSafe(prev.Step), prev.Status, jsonSafe(prev.Note), jsonSafe(a.branch), headSha, jsonSafe(prev.Slug), jsonSafe(prev.Depth), ts,
-		prev.iterStr(), prev.consecStr(), jsonSafe(firstAt))
-	if !atomicWrite(cp, body) {
-		fmt.Fprintln(os.Stderr, "checkpoint --refresh: post-write validation failed")
+	if err := a.refreshCheckpointV2(ticket); err != nil {
+		fmt.Fprintln(os.Stderr, "checkpoint --refresh:", err)
 		os.Exit(1)
 	}
-}
-
-// atomicWrite writes via a temp file + rename in the same dir, then validates
-// the result parses as JSON (restoring nothing — the caller reports failure).
-func atomicWrite(path, body string) bool {
-	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".cp.*")
-	if err != nil {
-		return false
-	}
-	name := tmp.Name()
-	_, werr := tmp.WriteString(body)
-	tmp.Close()
-	if werr != nil {
-		os.Remove(name)
-		return false
-	}
-	if !json.Valid([]byte(body)) {
-		os.Remove(name)
-		return false
-	}
-	return os.Rename(name, path) == nil
 }
 
 // ─── clear ───────────────────────────────────────────────────────────────────
@@ -544,7 +394,15 @@ func (a *apState) recover(args []string) {
 	if a.ticket != "" {
 		fmt.Printf("CURRENT_TICKET: %s (resolved by identity ladder)\n", a.ticket)
 		cp := filepath.Join(a.stateRoot, "tickets", a.ticket, "checkpoint.json")
-		if b, err := os.ReadFile(cp); err == nil {
+		b, readErr := os.ReadFile(cp)
+		if readErr == nil && len(b) > 0 {
+			if _, err := readCheckpointV2(filepath.Dir(cp), a.ticket); err != nil {
+				fmt.Fprintf(os.Stderr, "autopilot recover: %v\n", err)
+				os.Exit(3)
+			}
+		}
+		// A seeded checkpoint carries no step yet: nothing to resume.
+		if readErr == nil && readJSONField(cp, "step") != "" {
 			fmt.Printf("LATEST_CHECKPOINT: %s\n", cp)
 			os.Stdout.Write(b)
 			cpSha := readJSONField(cp, "head_sha")
@@ -792,58 +650,6 @@ func (a *apState) ticketOut(ticket string, args ...string) string {
 		return ""
 	}
 	return strings.TrimRight(string(out), "\n")
-}
-
-// checkpointFile mirrors the fields refresh/iteration tracking read back.
-type checkpointFile struct {
-	Workflow            string          `json:"workflow"`
-	Step                string          `json:"step"`
-	Status              string          `json:"status"`
-	Note                string          `json:"note"`
-	Slug                string          `json:"slug"`
-	Depth               string          `json:"depth"`
-	IterationCount      json.RawMessage `json:"iteration_count"`
-	ConsecutiveSameStep json.RawMessage `json:"consecutive_same_step"`
-	FirstIterationAt    string          `json:"first_iteration_at"`
-}
-
-func readCheckpoint(path string) (checkpointFile, bool) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return checkpointFile{}, false
-	}
-	var cf checkpointFile
-	if json.Unmarshal(b, &cf) != nil {
-		return checkpointFile{}, false
-	}
-	return cf, true
-}
-
-func (c checkpointFile) iterInt() int   { return rawInt(c.IterationCount, 0) }
-func (c checkpointFile) consecInt() int { return rawInt(c.ConsecutiveSameStep, 0) }
-
-// iterStr / consecStr preserve the existing numeric value verbatim for refresh
-// (bash re-emits `.iteration_count // 1` unquoted). Default to 1 when absent.
-func (c checkpointFile) iterStr() string   { return rawNum(c.IterationCount, "1") }
-func (c checkpointFile) consecStr() string { return rawNum(c.ConsecutiveSameStep, "1") }
-
-func rawInt(raw json.RawMessage, def int) int {
-	if len(raw) == 0 {
-		return def
-	}
-	n, err := strconv.Atoi(strings.TrimSpace(string(raw)))
-	if err != nil {
-		return def
-	}
-	return n
-}
-
-func rawNum(raw json.RawMessage, def string) string {
-	s := strings.TrimSpace(string(raw))
-	if s == "" || s == "null" {
-		return def
-	}
-	return s
 }
 
 // readJSONField reads a top-level string field from a JSON file, or "".

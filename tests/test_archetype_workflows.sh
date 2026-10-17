@@ -139,13 +139,15 @@ for name in builder grower sweeper maintainer; do
     fail "$name-runs-review-in-current-session"
   fi
 
-  if grep -q 'set-verdict --skill qa' "$WF_DIR/$name.md"; then
-    ok "$name-persists-qa-verdict"
+  if grep -q 'verification begin --gate qa\|--gate qa`' "$WF_DIR/$name.md" \
+     && ! grep -q 'set-verdict --skill qa' "$WF_DIR/$name.md"; then
+    ok "$name-records-qa-gate"
   else
-    fail "$name-persists-qa-verdict"
+    fail "$name-records-qa-gate"
   fi
 
-  if grep -q 'set-verdict --skill review-pr' "$WF_DIR/$name.md" \
+  if grep -q 'verification begin --gate review-pr' "$WF_DIR/$name.md" \
+     && ! grep -q 'set-verdict --skill review-pr' "$WF_DIR/$name.md" \
      && grep -q 'readiness --action review --json' "$WF_DIR/$name.md"; then
     ok "$name-enforces-final-production-gates"
   else

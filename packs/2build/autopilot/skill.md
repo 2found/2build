@@ -280,7 +280,7 @@ When available, read `bbs autopilot snapshot --json` once at loop entry and
 accept it only when its envelope is `schema_version: 2` and `ok: true`. Use its
 identity, policy, artifact digests, gates, and obligations as the common
 read-only packet; read every listed artifact that is required for the chosen
-action. An unavailable/unsupported packet falls back to the legacy reads.
+action. An unavailable packet falls back to reading the ticket files directly.
 Never treat an `ok: true` snapshot or a projected gate as readiness or finish
 permission: AP-03's readiness evaluator is the authorization boundary.
 ## Step Skills
@@ -294,12 +294,13 @@ local check). Debug: `investigate`. Committing and closing out is the human's
 (`create-pr`) or foreman's phase landing — never autopilot's.
 ### Managed project evidence
 
-For a v2 child, read [verification.md](references/verification.md) before the
-review/QA loop. Use its producer to capture gate subjects before checks and
-archive results afterwards. Keep parent acceptance IDs, dependency revisions,
-and write scope in the durable plan/handoff; report milestones and bounded waits
-through `bbs foreman progress`. These are evidence responsibilities, not topology
-or sibling orchestration. Standalone v1 skills keep their existing fallback.
+Read [verification.md](references/verification.md) before the review/QA loop.
+Its producer captures each gate's subject before checks and archives results
+afterwards; it is the only writer of gate evidence and of `verdicts/review-pr.md`
+and `verdicts/qa.md`. Under Foreman, keep parent acceptance IDs, dependency
+revisions, and write scope in the durable plan/handoff; report milestones and
+bounded waits through `bbs foreman progress`. These are evidence
+responsibilities, not topology or sibling orchestration.
 
 ### Foreman ticket assignment
 
@@ -436,9 +437,10 @@ step is ever dispatched to a child, a second session, or an external process.
    reviewed revision, report, fixes, and evidence paths in the
    checkpoint/handoff. A gate owns the checkout while it runs — no editing the
    same files until its report is in. Inspect each report and unresolved
-   finding; persist each accepted body with
-   `BABYSIT_TICKET="$TICKET" bbs ticket set-verdict --skill <review-pr|qa> --body-file <path>` unless
-   the skill already persisted it, then read `BABYSIT_TICKET="$TICKET" bbs ticket verdict-status`.
+   finding; persist each full report with
+   `BABYSIT_TICKET="$TICKET" bbs ticket set-review --skill <review-pr|qa> --body-file <path>` unless
+   the skill already persisted it, and record the gate with
+   `bbs autopilot verification record` ([verification.md](references/verification.md)).
    Require evidence from this attempt and the current change, not an old
    `DONE` left on disk. A crash, missing report, or inadequate check is not a
    pass: fix and re-run the gate, or record `BLOCKED`. Never overwrite a failed
@@ -473,13 +475,14 @@ Apply this loop to every production workflow before its final handoff:
 4. Reconcile the acceptance/evidence mapping, refresh the checkpoint, and read both verdict bodies. Run
    `BABYSIT_TICKET="$TICKET" bbs ticket readiness --action review --json`.
    Inspect `ok` and `data.ready`, not just exit 0; any false/error result is
-   unfinished. For v2 runs, Markdown verdicts alone do not satisfy readiness:
-   persist gate attempts and typed verification evidence through the installed
-   CLI's supported contract, never downgrade the checkpoint to bypass it.
-   Legacy readiness checks verdict status only, so also verify freshness, coverage, and unresolved findings from the actual reports.
+   unfinished. Markdown verdicts never satisfy readiness: it reads only the
+   gate evidence `bbs autopilot verification record` accepted for the current
+   tree. Readiness does not grade a report, so also verify coverage and
+   unresolved findings from the actual reports.
    If a sub-skill reports `DONE_WITH_CONCERNS` for blocked required coverage,
-   retain its report and persist a `BLOCKED` gate body naming the unmet check;
-   a permissive fallback status cannot make production work releasable.
+   retain its report and record the gate with the unmet check under
+   `limitations` (the producer records it `BLOCKED`); a permissive fallback
+   status cannot make production work releasable.
    Never rewrite old evidence to make it appear current.
 
 Leave one release handoff: acceptance results, final revision, review and QA
@@ -514,12 +517,11 @@ does not replace normal cleanup.
 - Disk state must always be enough for a cold session to resume — but disk is
   the backup, not the brain; in a live session use everything already learned.
 - Full reasoning depth at every step; requirement and plan are single-pass on
-  wording, not on thinking. `review-pr` and `qa` are the strict gates — their
-  persisted verdicts are what the push/PR hook enforces. `review-pr` only
-  reports findings, so persisting its verdict is yours: the body needs a
-  first-column `STATUS:` line reflecting the result (`DONE`,
-  `DONE_WITH_CONCERNS`, `BLOCKED`, or `NEEDS_CONTEXT`). A `VERDICT: PASS`
-  prose line is not a status; `set-verdict` refuses a body without one.
+  wording, not on thinking. `review-pr` and `qa` are the strict gates — the
+  evidence `bbs autopilot verification record` accepts for them is what the
+  push/PR hook and `foreman seal` enforce. `review-pr` only reports findings,
+  so recording its gate is yours: unresolved material findings go in
+  `unresolved_findings`, and `set-verdict` refuses both gate names.
 - Git scope is exactly: `git init` plus its empty initial commit on an
   unborn repo, and reading history.
   Never commit, push, stash, reset, rebase or open a PR, and never cut a
@@ -531,9 +533,9 @@ does not replace normal cleanup.
   exact next command to paste; a non-technical user must be able to keep
   the build moving without knowing git.
 - Never force-push, drop data, or send external messages.
-- Always run QA before final handoff and persist the verdict with
-  `BABYSIT_TICKET="$TICKET" bbs ticket set-verdict --skill qa` (real PASS/FIXED, or
-  BLOCKED/NEEDS_CONTEXT naming the blocker). "Implemented but not QA'd" is
+- Always run QA before final handoff and record its gate with
+  `BABYSIT_TICKET="$TICKET" bbs autopilot verification begin --gate qa` and `record`
+  (real checks, or the blocker under `limitations`). "Implemented but not QA'd" is
   incomplete; happy-path-only QA is incomplete — include at least one
   validation/error/empty/responsive case.
 - Leave a clean handoff: no debug leftovers in the diff, checkpoint current.

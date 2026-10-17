@@ -51,7 +51,6 @@ type snapshotRun struct {
 	Mode           string      `json:"mode,omitempty"`
 	Control        interface{} `json:"control,omitempty"`
 	StopAfter      string      `json:"stop_after,omitempty"`
-	Contract       int         `json:"contract_version"`
 }
 
 type snapshotGit struct {
@@ -264,7 +263,7 @@ func collectAutopilotSnapshotOnceIn(a *apState, ticketID, ticketHome, dir string
 	s.Run = &snapshotRun{
 		ID: stringValue(cp["run_id"]), Workflow: stringValue(cp["workflow"]),
 		WorkflowDigest: stringValue(cp["workflow_digest"]), Mode: deriveMode(idx, ticketHome, top),
-		Control: idx.Value("control"), StopAfter: stringValue(cp["stop_after"]), Contract: contractVersion(cp),
+		Control: idx.Value("control"), StopAfter: stringValue(cp["stop_after"]),
 	}
 	activeID := stringValue(cp["active_attempt_id"])
 	if activeID != "" {
@@ -279,6 +278,15 @@ func collectAutopilotSnapshotOnceIn(a *apState, ticketID, ticketHome, dir string
 	s.Gates = collectSnapshotGates(ticketHome, cp)
 	s.ActiveAttempt = activeAttempt(ticketHome, activeID)
 	s.Obligations = deriveObligations(s, st)
+	// Facts still render so an old ticket stays visible, but a checkpoint off
+	// the v2 contract is not current state: refreshing it is the only obligation.
+	if se := checkpointV2Error(cp, checkpointPath, ticketID); se != nil {
+		action := "checkpoint-refresh"
+		if se.Code == "CHECKPOINT_UNSUPPORTED" {
+			action = "upgrade-bbs"
+		}
+		s.Obligations = []snapshotObligation{{Kind: "checkpoint", Reason: se.Code + ": " + se.Message, AllowedActions: []string{action}}}
+	}
 	return s, nil
 }
 
@@ -689,12 +697,82 @@ func digestFile(path string) (string, bool) {
 	return "sha256:" + hex.EncodeToString(sum[:]), true
 }
 
-func contractVersion(cp map[string]interface{}) int {
-	v := int(int64Value(cp["schema_version"]))
-	if v == 0 {
-		return 1
+// readCheckpointV2 is the read every decision makes — readiness, attempts,
+// evidence acceptance, seal. A ticket without a schema_version 2 checkpoint is
+// refused with the one command that brings it onto the contract; it is never
+// judged on older terms.
+func readCheckpointV2(ticketHome, ticketID string) (ticket.Doc, error) {
+	path := filepath.Join(ticketHome, "checkpoint.json")
+	cp, err := readStrictObject(path, false)
+	if err != nil {
+		return nil, err
 	}
-	return v
+	if se := checkpointV2Error(cp, path, ticketID); se != nil {
+		return nil, se
+	}
+	return cp, nil
+}
+
+// checkpointV2Error is readCheckpointV2's verdict on an already-read
+// checkpoint, nil when it is on the schema_version 2 contract.
+func checkpointV2Error(cp ticket.Doc, path, ticketID string) *snapshotError {
+	fix := fmt.Sprintf("run `bbs autopilot checkpoint --refresh --ticket %s`", ticketID)
+	if len(cp) == 0 {
+		return &snapshotError{Code: "CHECKPOINT_MISSING", Message: fmt.Sprintf("ticket %s has no checkpoint; %s", ticketID, fix), Details: map[string]string{"path": path}, Exit: 3}
+	}
+	if v := int64Value(cp["schema_version"]); v > 2 {
+		return &snapshotError{Code: "CHECKPOINT_UNSUPPORTED", Message: fmt.Sprintf("ticket %s has a schema_version %d checkpoint, newer than this bbs supports; upgrade bbs", ticketID, v), Details: map[string]string{"path": path}, Exit: 3}
+	} else if v != 2 {
+		return &snapshotError{Code: "CHECKPOINT_V1", Message: fmt.Sprintf("ticket %s has a pre-schema_version 2 checkpoint; %s to migrate it", ticketID, fix), Details: map[string]string{"path": path}, Exit: 3}
+	}
+	return nil
+}
+
+// upgradeCheckpoint puts a checkpoint read for writing on schema_version 2: an
+// older one is backed up once and migrated in place, a missing one starts a run.
+func upgradeCheckpoint(ticketHome, ticketID string, cp map[string]interface{}, now string) error {
+	raw := int64Value(cp["schema_version"])
+	if raw > 2 {
+		return fmt.Errorf("unsupported checkpoint schema_version %d", raw)
+	}
+	if raw != 2 && len(cp) > 0 {
+		path := filepath.Join(ticketHome, "checkpoint.json")
+		backup := filepath.Join(ticketHome, "checkpoint.v1.backup.json")
+		if _, statErr := os.Stat(backup); os.IsNotExist(statErr) {
+			if b, readErr := os.ReadFile(path); readErr == nil {
+				if err := ticket.WriteAtomic(backup, b); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	cp["schema_version"] = 2
+	if stringValue(cp["run_id"]) == "" {
+		sum := sha256.Sum256([]byte(ticketID + "\x00" + now))
+		cp["run_id"] = "run-" + hex.EncodeToString(sum[:6])
+	}
+	return nil
+}
+
+// seedCheckpoint gives a freshly created ticket its schema_version 2
+// checkpoint, so every ticket can run gates without a migration step. It
+// records identity only: the creator's cwd need not be the ticket's checkout,
+// so head_sha is left to the first checkpoint written from the work.
+func seedCheckpoint(env identity.Env) error {
+	st := ticket.New(env)
+	return withLock(st, func() error {
+		path := filepath.Join(st.Home(), "checkpoint.json")
+		if fileExists(path) {
+			return nil
+		}
+		now := isoNow()
+		cp := map[string]interface{}{}
+		if err := upgradeCheckpoint(st.Home(), env.Ticket, cp, now); err != nil {
+			return err
+		}
+		cp["ticket"], cp["slug"], cp["branch"], cp["revision"], cp["updated_at"] = env.Ticket, env.Slug, env.Branch, 1, now
+		return writeJSONAtomic(path, cp)
+	})
 }
 
 func int64Value(v interface{}) int64 {

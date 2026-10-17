@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -13,7 +12,7 @@ import (
 )
 
 // This file ports the append-only artifact family of the retired bbs-ticket.bash:
-// add-handoff, set-review, set-evidence, evidence-status, qa-evidence. All are
+// add-handoff, set-review, set-evidence, evidence-status. All are
 // file I/O over the Layout C ticket home; none touch git.
 
 // runAddHandoff ports add-handoff (tests/fixtures/bbs-ticket.reference:1340-1375): write the next
@@ -178,7 +177,13 @@ func runSetEvidence(args []string) {
 		fmt.Fprintln(os.Stderr, "set-evidence: --json or --json-file required")
 		os.Exit(2)
 	}
-	if kind == "verification" && evidenceSchemaVersion(jsonStr) == 2 {
+	// Verification evidence has one shape — the producer's schema_version 2
+	// envelope; `bbs autopilot verification begin/record` writes it.
+	if kind == "verification" {
+		if evidenceSchemaVersion(jsonStr) != 2 {
+			fmt.Fprintln(os.Stderr, "set-evidence: verification evidence must be a schema_version 2 envelope; record gates with `bbs autopilot verification begin/record`")
+			os.Exit(2)
+		}
 		path, err := setV2VerificationEvidence(env, []byte(jsonStr))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "set-evidence:", err)
@@ -222,20 +227,7 @@ func validateEvidence(kind, jsonStr string) string {
 	if len(missing) > 0 {
 		return fmt.Sprintf("set-evidence: %s missing field(s): %s\n", kind, strings.Join(missing, ", "))
 	}
-	if kind == "verification" {
-		res := strings.ToUpper(scalarStr(d["result"]))
-		if res != "PASS" && res != "FAIL" {
-			return "set-evidence: verification.result must be PASS or FAIL\n"
-		}
-	}
 	return ""
-}
-
-func scalarStr(v interface{}) string {
-	if s, ok := v.(string); ok {
-		return s
-	}
-	return fmt.Sprintf("%v", v)
 }
 
 // runEvidenceStatus ports evidence-status (tests/fixtures/bbs-ticket.reference:1552-1577): {none|
@@ -277,115 +269,4 @@ func runEvidenceStatus(args []string) {
 	}
 	fmt.Println("valid")
 	os.Exit(0)
-}
-
-var (
-	qaStatusRe   = regexp.MustCompile(`^STATUS:[[:space:]]*([A-Z_]+)`)
-	qaVerdictRe  = regexp.MustCompile(`^VERDICT:[[:space:]]*([A-Z_]+)`)
-	qaFreshRe    = regexp.MustCompile(`freshness=([A-D])`)
-	qaBadDimRe   = regexp.MustCompile(`[a-z_]+=[CD]\b`)
-	qaThinNoEvid = regexp.MustCompile(`(?i)^(none|n/?a|-|tbd)$`)
-	qaE2ERe      = regexp.MustCompile(`(?i)e2e|browser|agent-browser|journey|click|navigat|snapshot|screenshot|\.png|curl|api|cli|request`)
-	qaArtifactRe = regexp.MustCompile(`evidence/[A-Za-z0-9_./-]+`)
-)
-
-// runQAEvidence ports qa-evidence (tests/fixtures/bbs-ticket.reference:1589-1632): audit the persisted
-// qa verdict against the coverage rubric it claims. Classifies, never scores.
-func runQAEvidence(args []string) {
-	env := resolveEnv()
-	needTicket(env)
-	fmt.Println(qaEvidenceClassify(ticket.New(env).Home()))
-	os.Exit(0)
-}
-
-// qaEvidenceClassify is the reusable read behind qa-evidence and the
-// pre-tool-gate hook: classify the persisted qa verdict under ticketHome as
-// {none|ok|contradiction:<d>|thin:<d>|unexplained}.
-func qaEvidenceClassify(ticketHome string) string {
-	vp := filepath.Join(ticketHome, "verdicts", "qa.md")
-	b, err := os.ReadFile(vp)
-	if err != nil {
-		return "none"
-	}
-	lines := strings.Split(string(b), "\n")
-	var status, verdict, rubric, evid, summ string
-	firstMatch := func(re *regexp.Regexp) string {
-		for _, ln := range lines {
-			if m := re.FindStringSubmatch(ln); m != nil {
-				return m[1]
-			}
-		}
-		return ""
-	}
-	firstLinePrefix := func(prefix string) string {
-		for _, ln := range lines {
-			if strings.HasPrefix(ln, prefix) {
-				return ln
-			}
-		}
-		return ""
-	}
-	// bash strips the prefix + following whitespace via sed (leading only —
-	// trailing whitespace is preserved), so left-trim rather than TrimSpace.
-	stripPrefix := func(prefix string) string {
-		return strings.TrimLeft(strings.TrimPrefix(firstLinePrefix(prefix), prefix), " \t")
-	}
-	status = firstMatch(qaStatusRe)
-	verdict = firstMatch(qaVerdictRe)
-	rubric = firstLinePrefix("RUBRIC:")
-	evid = stripPrefix("EVIDENCE:")
-	summ = stripPrefix("SUMMARY:")
-
-	passCheck := func() string {
-		if m := qaFreshRe.FindStringSubmatch(rubric); m != nil && m[1] != "A" {
-			return "contradiction:freshness=" + m[1]
-		}
-		if m := qaBadDimRe.FindString(rubric); m != "" {
-			return "contradiction:" + m
-		}
-		if evid == "" || qaThinNoEvid.MatchString(evid) {
-			return "thin:no-evidence"
-		}
-		if !qaE2ERe.MatchString(evid) {
-			return "thin:no-e2e"
-		}
-		// A verdict that cites an artifact path must have written it — a
-		// citation to a missing file is a fabricated-evidence smell. The
-		// thin: prefix keeps the classification inside the set pre-tool-gate
-		// acts on; traversal is rejected before Stat so a citation can never
-		// escape the ticket home.
-		for _, m := range qaArtifactRe.FindAllString(string(b), -1) {
-			p := filepath.Clean(strings.TrimRight(m, ".,;:)"))
-			if !strings.HasPrefix(p, "evidence/") {
-				// Cleaned path escaped evidence/ (traversal) — flag it, never Stat.
-				return "thin:invalid-artifact-path:" + m
-			}
-			if _, err := os.Stat(filepath.Join(ticketHome, p)); err != nil {
-				return "thin:missing-artifact:" + p
-			}
-		}
-		return "ok"
-	}
-
-	switch status {
-	case "BLOCKED", "NEEDS_CONTEXT":
-		return "ok"
-	case "DONE", "DONE_WITH_CONCERNS":
-		switch verdict {
-		case "PASS", "FIXED":
-			return passCheck()
-		default:
-			if summ+evid != "" {
-				return "ok"
-			}
-			return "unexplained"
-		}
-	default:
-		switch verdict {
-		case "PASS", "FIXED":
-			return passCheck()
-		default:
-			return "ok"
-		}
-	}
 }

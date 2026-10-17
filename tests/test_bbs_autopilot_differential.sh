@@ -77,28 +77,29 @@ if [ -f "$WF" ]; then
 fi
 
 # ── checkpoint / refresh / recover (masked) ─────────
+# The checkpoint contract is v2 only, so checkpoint.json and history.jsonl are
+# Go-only assertions; the frozen oracle still writes the retired v1 shape.
 cp_args=(checkpoint --ticket bs-x1 --workflow builder --step implement --status in_progress --note "a note")
 BABYSIT_PROJECT_HOME="$WORK/cp-b" bash "$ORACLE" "${cp_args[@]}" >/dev/null 2>&1
 BABYSIT_PROJECT_HOME="$WORK/cp-g" "$GO"        "${cp_args[@]}" >/dev/null 2>&1
 
-e="$(mask < "$WORK/cp-b/tickets/bs-x1/checkpoint.json")"
-g="$(mask < "$WORK/cp-g/tickets/bs-x1/checkpoint.json")"
-cmp_case "checkpoint.json content" "$e" "$g" 0 0
+cp_field() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2], ""))' "$WORK/cp-g/tickets/bs-x1/checkpoint.json" "$1"; }
+g="$(cp_field schema_version) $(cp_field revision) $(cp_field step) $(cp_field note)"
+cmp_case "checkpoint.json is v2" "2 1 implement a note" "$g" 0 0
+case "$(cp_field run_id)" in run-*) echo "ok   checkpoint.json run_id"; PASS=$((PASS+1)) ;; *) echo "FAIL checkpoint.json run_id"; FAIL=$((FAIL+1)) ;; esac
 
-e="$(mask < "$WORK/cp-b/tickets/bs-x1/history.jsonl")"
-g="$(mask < "$WORK/cp-g/tickets/bs-x1/history.jsonl")"
-cmp_case "history.jsonl content" "$e" "$g" 0 0
+g="$(python3 -c 'import json,sys; r=json.loads(open(sys.argv[1]).readline()); print(r["ticket"], r["step"], r["status"], r["actor"])' "$WORK/cp-g/tickets/bs-x1/history.jsonl")"
+cmp_case "history.jsonl row" "bs-x1 implement in_progress work" "$g" 0 0
 
 e="$(mask < "$WORK/cp-b/timeline.jsonl")"
 g="$(mask < "$WORK/cp-g/timeline.jsonl")"
 cmp_case "timeline.jsonl content" "$e" "$g" 0 0
 
-# refresh, then compare (preserves step/status/iteration, restamps ts+head_sha)
-BABYSIT_PROJECT_HOME="$WORK/cp-b" bash "$ORACLE" checkpoint --refresh --ticket bs-x1 >/dev/null 2>&1
-BABYSIT_PROJECT_HOME="$WORK/cp-g" "$GO"        checkpoint --refresh --ticket bs-x1 >/dev/null 2>&1
-e="$(mask < "$WORK/cp-b/tickets/bs-x1/checkpoint.json")"
-g="$(mask < "$WORK/cp-g/tickets/bs-x1/checkpoint.json")"
-cmp_case "checkpoint.json after --refresh" "$e" "$g" 0 0
+# refresh keeps the run and step, bumps the revision
+run_id="$(cp_field run_id)"
+BABYSIT_PROJECT_HOME="$WORK/cp-g" "$GO" checkpoint --refresh --ticket bs-x1 >/dev/null 2>&1
+g="$(cp_field schema_version) $(cp_field revision) $(cp_field step) $(cp_field run_id)"
+cmp_case "checkpoint.json after --refresh" "2 2 implement $run_id" "$g" 0 0
 
 # recover (embeds the checkpoint; mask ts)
 e="$(BABYSIT_PROJECT_HOME="$WORK/ph-b" bash "$ORACLE" recover 2>/dev/null | mask)"
@@ -117,7 +118,7 @@ repos:
   - name: repo
     worktree: $REPO
 EOF
-printf "%s\n" "{\"ticket\":\"bs-manifest\",\"workflow\":\"builder\",\"step\":\"implement\",\"status\":\"in_progress\"}" > "$MANIFEST_TH/checkpoint.json"
+printf "%s\n" "{\"schema_version\":2,\"run_id\":\"run-m\",\"revision\":1,\"ticket\":\"bs-manifest\",\"workflow\":\"builder\",\"step\":\"implement\",\"status\":\"in_progress\"}" > "$MANIFEST_TH/checkpoint.json"
 g="$(BABYSIT_PROJECT_HOME="$MANIFEST_PH" "$GO" recover 2>/dev/null | mask)"
 case "$g" in
   *"CURRENT_TICKET: bs-manifest (resolved by identity ladder)"*"LATEST_CHECKPOINT: $MANIFEST_TH/checkpoint.json"*"--- END RECOVERY ---"*)

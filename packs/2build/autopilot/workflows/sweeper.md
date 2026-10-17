@@ -16,11 +16,11 @@ should get smaller or faster without changing behavior.
    duplication, unused features, measured hot paths).
 3. Run `review-pr --fix` in the current autopilot session via SKILL.md's
    Current-session gates (`review-pr`, `qa`) policy (applies fixes to the
-   working tree). Persist and read back the verdict with
-   `bbs ticket set-verdict --skill review-pr` and `verdict-status`.
+   working tree), bracketed by
+   `bbs autopilot verification begin --gate review-pr` and `record`.
 4. Run `qa` in the same session (or the strongest equivalent fallback) and
-   confirm behavior matches the recorded baseline. Persist and read back the
-   QA verdict with `bbs ticket set-verdict --skill qa` and `verdict-status`.
+   confirm behavior matches the recorded baseline, bracketed by
+   `bbs autopilot verification begin --gate qa` and `record`.
 5. Apply autopilot's **Repair until the final change passes** loop. Both gates
    must cover the same final tree, and
    `bbs ticket readiness --action review --json` must report `data.ready=true`.

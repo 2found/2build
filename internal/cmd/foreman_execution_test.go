@@ -574,3 +574,39 @@ func TestProjectProgressWaitsAndEvidence(t *testing.T) {
 		t.Fatal(next)
 	}
 }
+
+// Seal and readiness are one evaluator: with qa missing, readiness is not
+// ready, childSealable says no and seal refuses; a v1 checkpoint is refused by
+// both with the migration command.
+func TestSealAndReadinessAgreeOnMissingGate(t *testing.T) {
+	repo, env := initReadinessFixture(t)
+	t.Chdir(repo)
+	t.Setenv("BABYSIT_PROJECT_HOME", env.ProjectHome)
+	t.Setenv("BABYSIT_TICKET", env.Ticket)
+	runGit(t, repo, "switch", "-c", env.Branch)
+	child := ticket.New(env)
+	if err := ticket.WriteManifest(child.ManifestPath(), env.Ticket, "App", []ticket.Repo{{Name: "app", Canonical: repo, Worktree: repo, Branch: env.Branch, Base: "main"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := setV2VerificationEvidence(env, evidenceForCurrentSnapshot(t, env, "review-pr", "review-1", 0)); err != nil {
+		t.Fatal(err)
+	}
+	ready, err := evaluateReadinessIn(env, "review", repo)
+	if err != nil || ready.Ready || !containsString(ready.ReasonCodes, "qa:missing") {
+		t.Fatalf("readiness with qa missing = %+v, %v", ready, err)
+	}
+	if childSealable(child) {
+		t.Fatal("childSealable with qa missing")
+	}
+	if err := projectSealChild(child); err == nil || !strings.Contains(err.Error(), "qa") {
+		t.Fatalf("seal with qa missing = %v, want refusal naming qa", err)
+	}
+
+	mustWrite(t, filepath.Join(child.Home(), "checkpoint.json"), `{"ticket":"ready","workflow":"builder"}`)
+	if childSealable(child) {
+		t.Fatal("childSealable on a v1 checkpoint")
+	}
+	if err := projectSealChild(child); err == nil || !strings.Contains(err.Error(), "checkpoint --refresh") {
+		t.Fatalf("seal on a v1 checkpoint = %v, want the refresh command", err)
+	}
+}

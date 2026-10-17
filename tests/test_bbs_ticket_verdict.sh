@@ -15,6 +15,9 @@
 #   placeholder-allowed      an explicitly empty body still records "<no verdict>"
 #   refusal-does-not-clobber set-verdict is last-writer-wins; a refused hollow
 #                            write must not destroy the real verdict underneath
+#   gate-verdict-refused     review-pr / qa are gates: set-verdict refuses them
+#                            and names `bbs autopilot verification`, which
+#                            projects verdicts/<gate>.md from recorded evidence
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -32,7 +35,7 @@ sandbox() {
   export BABYSIT_TICKET="bs-vd00001"
   export AGENT_ROLE=mayor
   unset BBS_TICKET 2>/dev/null || true
-  VP="$BABYSIT_PROJECT_HOME/tickets/$BABYSIT_TICKET/verdicts/review-pr.md"
+  VP="$BABYSIT_PROJECT_HOME/tickets/$BABYSIT_TICKET/verdicts/plan-draft.md"
 }
 
 # Verbatim what the spawned verifier persisted for bs-ho0yw43e.
@@ -43,14 +46,14 @@ Effort: medium. Scope: `git diff HEAD~1`.'
 
 # ── hollow-body-refused ───────────────────────────────────────────────
 TMP=$(mktemp -d); sandbox "$TMP"
-ERR=$("$BBS" ticket set-verdict --skill review-pr --body "$HOLLOW" 2>&1 >/dev/null); RC=$?
+ERR=$("$BBS" ticket set-verdict --skill plan-draft --body "$HOLLOW" 2>&1 >/dev/null); RC=$?
 if [ "$RC" -ne 2 ]; then
   fail hollow-body-refused "rc=$RC, want 2"
 elif ! printf '%s' "$ERR" | grep -q 'STATUS:'; then
   fail hollow-body-refused "stderr does not name the missing line: $ERR"
 elif [ -f "$VP" ]; then
   fail hollow-body-refused "refused write still created $VP"
-elif [ "$("$BBS" ticket verdict-status --skill review-pr)" != "none" ]; then
+elif [ "$("$BBS" ticket verdict-status --skill plan-draft)" != "none" ]; then
   fail hollow-body-refused "verdict-status moved off none"
 else
   ok hollow-body-refused
@@ -59,11 +62,11 @@ rm -rf "$TMP"
 
 # ── status-body-accepted ──────────────────────────────────────────────
 TMP=$(mktemp -d); sandbox "$TMP"
-if ! "$BBS" ticket set-verdict --skill review-pr --body "STATUS: DONE
+if ! "$BBS" ticket set-verdict --skill plan-draft --body "STATUS: DONE
 $HOLLOW" >/dev/null 2>&1; then
   fail status-body-accepted "set-verdict rejected a body carrying a status line"
-elif [ "$("$BBS" ticket verdict-status --skill review-pr)" != "DONE" ]; then
-  fail status-body-accepted "verdict-status = $("$BBS" ticket verdict-status --skill review-pr), want DONE"
+elif [ "$("$BBS" ticket verdict-status --skill plan-draft)" != "DONE" ]; then
+  fail status-body-accepted "verdict-status = $("$BBS" ticket verdict-status --skill plan-draft), want DONE"
 else
   ok status-body-accepted
 fi
@@ -72,7 +75,7 @@ rm -rf "$TMP"
 # ── body-file-guarded ─────────────────────────────────────────────────
 TMP=$(mktemp -d); sandbox "$TMP"
 printf '%s\n' "$HOLLOW" > "$TMP/v.md"
-"$BBS" ticket set-verdict --skill review-pr --body-file "$TMP/v.md" >/dev/null 2>&1; RC=$?
+"$BBS" ticket set-verdict --skill plan-draft --body-file "$TMP/v.md" >/dev/null 2>&1; RC=$?
 if [ "$RC" -ne 2 ]; then
   fail body-file-guarded "rc=$RC, want 2 — --body-file bypassed the guard"
 elif [ -f "$VP" ]; then
@@ -86,7 +89,7 @@ rm -rf "$TMP"
 # An empty body is a caller explicitly recording the absence of a verdict, not
 # one fumbling the format of a real one. It stays legal.
 TMP=$(mktemp -d); sandbox "$TMP"
-if ! "$BBS" ticket set-verdict --skill review-pr >/dev/null 2>&1; then
+if ! "$BBS" ticket set-verdict --skill plan-draft >/dev/null 2>&1; then
   fail placeholder-allowed "empty body no longer records the placeholder"
 elif ! grep -q '<no verdict>' "$VP" 2>/dev/null; then
   fail placeholder-allowed "placeholder body not written to $VP"
@@ -97,13 +100,29 @@ rm -rf "$TMP"
 
 # ── refusal-does-not-clobber ──────────────────────────────────────────
 TMP=$(mktemp -d); sandbox "$TMP"
-"$BBS" ticket set-verdict --skill review-pr --body "STATUS: DONE" >/dev/null 2>&1
-"$BBS" ticket set-verdict --skill review-pr --body "$HOLLOW" >/dev/null 2>&1
-if [ "$("$BBS" ticket verdict-status --skill review-pr)" != "DONE" ]; then
+"$BBS" ticket set-verdict --skill plan-draft --body "STATUS: DONE" >/dev/null 2>&1
+"$BBS" ticket set-verdict --skill plan-draft --body "$HOLLOW" >/dev/null 2>&1
+if [ "$("$BBS" ticket verdict-status --skill plan-draft)" != "DONE" ]; then
   fail refusal-does-not-clobber "a refused hollow write destroyed the real verdict"
 else
   ok refusal-does-not-clobber
 fi
+rm -rf "$TMP"
+
+# ── gate-verdict-refused ──────────────────────────────────────────────
+TMP=$(mktemp -d); sandbox "$TMP"
+for gate in review-pr qa; do
+  ERR=$("$BBS" ticket set-verdict --skill "$gate" --body "STATUS: DONE" 2>&1 >/dev/null); RC=$?
+  if [ "$RC" -ne 2 ]; then
+    fail "gate-verdict-refused-$gate" "rc=$RC, want 2"
+  elif ! printf '%s' "$ERR" | grep -q 'bbs autopilot verification begin'; then
+    fail "gate-verdict-refused-$gate" "stderr does not name the producer: $ERR"
+  elif [ -f "$BABYSIT_PROJECT_HOME/tickets/$BABYSIT_TICKET/verdicts/$gate.md" ]; then
+    fail "gate-verdict-refused-$gate" "refused write still created verdicts/$gate.md"
+  else
+    ok "gate-verdict-refused-$gate"
+  fi
+done
 rm -rf "$TMP"
 
 echo

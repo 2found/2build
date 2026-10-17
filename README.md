@@ -66,7 +66,7 @@ starter is ready to download directly from GitHub. Follow the
 
 ## Try your first ticket
 
-1. Restart your agent, open a Git repo and choose a small bug or feature with a clear success check. Autopilot works and commits on your current checkout; create your preferred branch first if you want isolation.
+1. Restart your agent, open a Git repo and choose a small bug or feature with a clear success check. Autopilot works on your current checkout and leaves its changes uncommitted; create your preferred branch first if you want isolation.
 2. Invoke the **skill in agent chat**, replacing the example with your task:
 
    | Agent | Example |
@@ -78,7 +78,7 @@ starter is ready to download directly from GitHub. Follow the
    | Antigravity / other compatible agents | Ask it to use the installed `autopilot` skill for your task. |
 
 3. Review the plan and, for UI work, open the prototype. Adjust the layout, flow or scope here. When Autopilot returns a `/goal` block, paste it into the same agent to start execution. For an agent without goal mode, include `--stop-after=plan` in your first request to hold this review checkpoint, then follow the native resume instruction in its handoff. To run unattended instead, add `--auto` (for example `/bbs:autopilot --auto "…"`): Autopilot reviews its own plan, prints no `/goal` block, sets its own goal when the agent lets it, and otherwise keeps working in the same session until the ticket is done or blocked.
-4. Let Autopilot implement, review, fix, test and run QA. It returns a local commit and evidence when the ticket passes its completion gates; a blocked run names the missing input. After a restart, give it the ticket ID from the handoff to resume.
+4. Let Autopilot implement, review, fix, test and run QA. When the ticket passes its completion gates it leaves the verified change uncommitted in your checkout, with evidence, for you to commit or hand to `create-pr`; a blocked run names the missing input. After a restart, give it the ticket ID from the handoff to resume.
 
 No Orca, new worker session or project configuration is needed for this first ticket. You choose the session's model before starting. [Inspect progress and recover a session](docs/companion-cli.md).
 
@@ -120,13 +120,14 @@ For dependent tickets and supervised workers, [Foreman](docs/foreman.md) uses [O
 
 ## Skills and CLI
 
-Skills are the agent-facing workflows; `bbs` is the companion CLI they use. `/bbs:foreman` runs the project coordinator; `bbs foreman` manages model policy lookups, durable Foreman records, contracts, and reports. `/bbs:autopilot` runs the one-ticket workflow; `bbs autopilot` exposes its checkpoint and state helpers. `bbs ticket` owns ticket identity, DAG relations, evidence, test surfaces, delivery, and cleanup.
+Skills are the agent-facing workflows; `bbs` is the companion CLI they use. `/bbs:foreman` runs the project coordinator; `bbs foreman` manages model policy lookups, durable Foreman records, phases (`seal`, `integrate`, `land`, `release`), suggested next steps, and reports; `bbs contract` manages the interface contracts parallel tickets build against. `/bbs:autopilot` runs the one-ticket workflow; `bbs autopilot` exposes its checkpoint and state helpers. `bbs ticket` owns ticket identity, DAG relations, evidence, test-surface leases, and adopting sealed work.
 
 Useful CLI entry points:
 
 ```bash
 bbs dashboard
 bbs foreman report <parent-ticket>
+bbs foreman next <parent-ticket>
 bbs ticket dag <parent-ticket>
 bbs autopilot snapshot --json
 bbs autopilot recover --json

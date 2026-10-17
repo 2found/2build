@@ -94,6 +94,9 @@ func runEnsure(args []string) {
 				os.Exit(1)
 			}
 			st.HistoryAppendExtra("requirement_seeded", actorRole(), "")
+			if err := seedCheckpoint(env); err != nil {
+				fmt.Fprintf(os.Stderr, "ensure: warning — checkpoint.json seed failed (continuing): %v\n", err)
+			}
 			fmt.Printf("TICKET=%s\n", env.Ticket)
 			fmt.Printf("BRANCH=%s\n", env.Branch)
 			fmt.Printf("TICKET_HOME=%s\n", st.Home())
@@ -264,6 +267,9 @@ func runEnsure(args []string) {
 	}
 	if mErr != nil {
 		fmt.Fprintln(os.Stderr, "ensure: warning — manifest.yaml seed failed (continuing)")
+	}
+	if err := seedCheckpoint(stEnv); err != nil {
+		fmt.Fprintf(os.Stderr, "ensure: warning — checkpoint.json seed failed (continuing): %v\n", err)
 	}
 
 	fmt.Printf("TICKET=%s\n", ticketID)

@@ -190,12 +190,9 @@ func validateProjectContract(c projectContract) error {
 }
 
 func projectChildInputs(st *ticket.Store) (string, []string, error) {
-	cp, err := readStrictObject(filepath.Join(st.Home(), "checkpoint.json"), true)
+	cp, err := readCheckpointV2(st.Home(), st.Env.Ticket)
 	if err != nil {
 		return "", nil, err
-	}
-	if contractVersion(cp) != 2 {
-		return "", nil, fmt.Errorf("typed v2 evidence required; migrate and rerun gates")
 	}
 	if stringValue(cp["active_attempt_id"]) != "" {
 		return "", nil, fmt.Errorf("active attempt still owns ticket")

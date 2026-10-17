@@ -2,8 +2,8 @@
 
 The hooks are compiled into the bbs binary (`bbs hooks <name>`), so the
 manifest commands carry no shell syntax at all — the portability claim this
-suite guards. Decisions are driven by real ticket state (verdict files under
-BABYSIT_PROJECT_HOME), not stubs: the gate resolves identity in-process now,
+suite guards. Decisions are driven by real ticket state (evidence recorded by
+`bbs autopilot verification` under BABYSIT_PROJECT_HOME), not stubs: the gate resolves identity in-process now,
 so a fake bbs shim could never intercept it.
 """
 import json
@@ -119,30 +119,52 @@ class Hooks(unittest.TestCase):
         self.assertEqual(len(self.hooks["PreToolUse"][0]["hooks"]), 1)
 
     # ── release decisions ────────────────────────────────────────
+    def record_gate(self, gate: str):
+        def bbs(*args):
+            out = subprocess.run([str(self.bbs), *args], cwd=self.repo, env=self.env,
+                                 capture_output=True, text=True, timeout=30)
+            self.assertEqual(out.returncode, 0, out.stderr)
+            return out.stdout
+        attempt = json.loads(bbs("autopilot", "verification", "begin", "--gate", gate,
+                                 "--owner", "test", "--handle", "test",
+                                 "--transport", "test", "--harness", "test"))["data"]["id"]
+        log = self.root / f"{gate}.log"
+        log.write_text("ok\n")
+        result = self.root / f"{gate}.json"
+        result.write_text(json.dumps({
+            "checks": [{"argv": ["true"], "cwd": str(self.repo), "exit_code": 0,
+                        "log_path": str(log)}],
+            "unresolved_findings": [], "limitations": []}))
+        bbs("autopilot", "verification", "record", "--attempt", attempt, "--file", str(result))
+
     def test_release_decisions(self):
-        cases = [
-            # (review, qa, command, expected)
-            ("none", "none", "git push origin HEAD", "ask"),
-            ("BLOCKED", "none", "git push origin HEAD", "deny"),
-            ("DONE", "none", "git push origin HEAD", "pass"),
-            ("DONE", "none", "gh pr create --fill", "ask"),
-            ("DONE", "BLOCKED", "gh pr create --fill", "deny"),
-            ("DONE", "DONE", "gh pr create --fill", "pass"),
-            ("DONE", "DONE", "gh pr merge 12", "pass"),
-            ("DONE", "BLOCKED", "gh pr merge 12", "deny"),
-        ]
-        for review, qa, command, expected in cases:
+        # Verdict prose never opens the gate: without recorded evidence every
+        # hard stage denies, whatever the verdict files say.
+        for review, qa, command in [
+            ("none", "none", "git push origin HEAD"),
+            ("DONE", "none", "git push origin HEAD"),
+            ("DONE", "DONE", "gh pr create --fill"),
+            ("DONE", "DONE", "gh pr merge 12"),
+        ]:
             with self.subTest(review=review, qa=qa, command=command):
                 self.clear_verdicts()
                 if review != "none":
                     self.verdict("review-pr", f"STATUS: {review}\n")
                 if qa != "none":
-                    self.verdict("qa", f"STATUS: {qa}\nVERDICT: PASS\n"
-                                       "EVIDENCE: browser journey ok, "
-                                       "screenshot evidence/qa/shot.png\n")
-                    (self.ticket_home / "evidence" / "qa").mkdir(parents=True, exist_ok=True)
-                    (self.ticket_home / "evidence" / "qa" / "shot.png").write_text("png")
-                self.assertEqual(self.decision(command), expected)
+                    self.verdict("qa", f"STATUS: {qa}\nVERDICT: PASS\n")
+                self.assertEqual(self.decision(command), "deny")
+
+        # Evidence recorded through the producer opens each action it covers.
+        subprocess.run([str(self.bbs), "ticket", "init"], cwd=self.repo, env=self.env,
+                       capture_output=True, check=True)
+        (self.ticket_home / "requirement.md").write_text("requirement\n")
+        (self.ticket_home / "plan.md").write_text("plan\n")
+        self.record_gate("review-pr")
+        self.assertEqual(self.decision("git push origin HEAD"), "pass")
+        self.assertEqual(self.decision("gh pr create --fill"), "deny")
+        self.record_gate("qa")
+        self.assertEqual(self.decision("gh pr create --fill"), "pass")
+        self.assertEqual(self.decision("gh pr merge 12"), "pass")
 
     def test_no_ticket_passes(self):
         env = {**self.env, "BABYSIT_TICKET": ""}

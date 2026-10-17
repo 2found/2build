@@ -4,8 +4,8 @@
 # the frozen bash oracle.
 #
 # Covers the file-only Slice D subcommands: path (--read/--write across kinds),
-# list, reconcile, add-handoff, set-review, set-evidence, evidence-status,
-# qa-evidence. All operate over the Layout C home
+# list, reconcile, add-handoff, set-review, set-evidence, evidence-status.
+# All operate over the Layout C home
 # with a fixed ticket, so the sequence is deterministic once timestamps and the
 # per-impl project-home prefix are masked. Git-mutating base-ops + ensure have
 # their own harness (test_bbs_ticket_baseops_differential.sh).
@@ -116,10 +116,9 @@ SEQ=(
   "path handoff --read --latest"
   # reviews + evidence
   "set-review --skill review-pr --body-file $ROOT/review.md"
-  "set-evidence --skill qa --kind verification --json {\"result\":\"pass\"}"
   "set-evidence --skill qa --kind risk-gate --json {\"high_risk\":false}"
   "evidence-status --skill qa"
-  "set-evidence --skill qa --kind verification --json {\"nope\":1}"   # missing field
+  "set-evidence --skill qa --kind risk-gate --json {\"reason\":\"x\"}"   # missing field
   # list
   "list"
 )
@@ -132,26 +131,9 @@ for cmd in "${SEQ[@]}"; do
   run_impl go "$@"
 done
 
-# ── qa-evidence needs a verdict body on stdin; run it separately ──────
-QA_BODY='STATUS: DONE
-VERDICT: PASS
-RUBRIC: correctness=A completeness=A freshness=A
-EVIDENCE: ran agent-browser journey, captured screenshot evidence/qa/run.png
-SUMMARY: all flows pass'
-run_qa() {
-  local impl="$1"
-  export BABYSIT_PROJECT_HOME="$ROOT/$impl-home/projects/slug"
-  local out err rc
-  out="$(printf '%s' "$QA_BODY" | "$ROOT/$impl-cmd" qa-evidence 2>"$ROOT/.err")"; rc=$?
-  err="$(cat "$ROOT/.err")"
-  { printf '### qa-evidence (stdin)\nRC=%s\nOUT=%s\nERR=%s\n' "$rc" "$out" "$err"; } >> "$ROOT/$impl.steps"
-}
-run_qa bash
-run_qa go
-
 # ── assert per-step stdout/stderr/exit identical ─────────────────────
 if diff -u <(mask < "$ROOT/bash.steps") <(mask < "$ROOT/go.steps") > "$ROOT/steps.diff"; then
-  ok "per-command stdout/stderr/exit identical across all $(( ${#SEQ[@]} + 1 )) steps"
+  ok "per-command stdout/stderr/exit identical across all ${#SEQ[@]} steps"
 else
   fail "per-command output diverged" "$(head -60 "$ROOT/steps.diff")"
 fi

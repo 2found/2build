@@ -66,7 +66,7 @@ các lệnh và điều kiện cần thiết.
 
 ## Chạy ticket đầu tiên
 
-1. Khởi động lại agent, mở Git repo và chọn một bug hoặc tính năng nhỏ với tiêu chí kiểm tra rõ ràng. Autopilot làm việc và commit trên checkout hiện tại; tạo branch bạn muốn trước nếu cần tách công việc.
+1. Khởi động lại agent, mở Git repo và chọn một bug hoặc tính năng nhỏ với tiêu chí kiểm tra rõ ràng. Autopilot làm việc trên checkout hiện tại và để thay đổi ở trạng thái chưa commit; tạo branch bạn muốn trước nếu cần tách công việc.
 2. Gọi **skill trong chat của agent**, thay ví dụ bằng tác vụ của bạn:
 
    | Agent | Ví dụ |
@@ -77,8 +77,8 @@ các lệnh và điều kiện cần thiết.
    | Grok | `/bbs:autopilot "Thêm màn hình tìm kiếm đã lưu. Cho xem prototype trước, rồi triển khai, review và QA."` |
    | Antigravity / agent tương thích khác | Yêu cầu dùng skill `autopilot` đã cài cho tác vụ của bạn. |
 
-3. Đọc kế hoạch và, với tác vụ UI, mở prototype. Chỉnh bố cục, luồng tương tác hoặc phạm vi ngay tại đây. Khi Autopilot trả block `/goal`, dán vào cùng agent để bắt đầu thực hiện. Với agent không có goal mode, thêm `--stop-after=plan` vào yêu cầu đầu tiên để dừng ở bước duyệt này, rồi làm theo lời gọi tiếp tục trong handoff.
-4. Để Autopilot triển khai, review, sửa lỗi, kiểm thử và QA. Khi đạt các gate hoàn tất, nó trả commit cục bộ và bằng chứng; nếu bị chặn, báo cáo nêu phần còn thiếu. Sau khi khởi động lại, đưa ticket ID từ handoff để tiếp tục.
+3. Đọc kế hoạch và, với tác vụ UI, mở prototype. Chỉnh bố cục, luồng tương tác hoặc phạm vi ngay tại đây. Khi Autopilot trả block `/goal`, dán vào cùng agent để bắt đầu thực hiện. Với agent không có goal mode, thêm `--stop-after=plan` vào yêu cầu đầu tiên để dừng ở bước duyệt này, rồi làm theo lời gọi tiếp tục trong handoff. Để chạy không cần giám sát, thêm `--auto` (ví dụ `/bbs:autopilot --auto "…"`): Autopilot tự duyệt kế hoạch của mình, không in block `/goal`, tự đặt goal khi agent cho phép, và nếu không thì tiếp tục làm việc trong cùng session cho đến khi ticket hoàn tất hoặc bị chặn.
+4. Để Autopilot triển khai, review, sửa lỗi, kiểm thử và QA. Khi đạt các gate hoàn tất, nó để thay đổi đã xác minh ở trạng thái chưa commit trong checkout của bạn, kèm bằng chứng, để bạn commit hoặc chuyển cho `create-pr`; nếu bị chặn, báo cáo nêu phần còn thiếu. Sau khi khởi động lại, đưa ticket ID từ handoff để tiếp tục.
 
 Ticket đầu không cần Orca, session worker mới hay cấu hình dự án. Chọn model của session trước khi chạy. [Xem tiến độ và khôi phục session](docs/companion-cli.md).
 
@@ -120,13 +120,14 @@ Với nhiều ticket phụ thuộc nhau, [Foreman](docs/foreman.md) dùng [Orca]
 
 ## Skill và CLI
 
-Skill là các quy trình dành cho agent; `bbs` là CLI hỗ trợ chúng. `/bbs:foreman` chạy bộ điều phối dự án; `bbs foreman` quản lý tra cứu chính sách model, bản ghi Foreman bền vững, các quy ước và báo cáo. `/bbs:autopilot` chạy quy trình một ticket; `bbs autopilot` cung cấp các công cụ checkpoint và trạng thái. `bbs ticket` quản lý danh tính ticket, quan hệ DAG, bằng chứng, môi trường kiểm thử, bàn giao và dọn dẹp.
+Skill là các quy trình dành cho agent; `bbs` là CLI hỗ trợ chúng. `/bbs:foreman` chạy bộ điều phối dự án; `bbs foreman` quản lý tra cứu chính sách model, bản ghi Foreman bền vững, các phase (`seal`, `integrate`, `land`, `release`), gợi ý bước tiếp theo và báo cáo; `bbs contract` quản lý các quy ước giao diện mà các ticket song song dựa vào. `/bbs:autopilot` chạy quy trình một ticket; `bbs autopilot` cung cấp các công cụ checkpoint và trạng thái. `bbs ticket` quản lý danh tính ticket, quan hệ DAG, bằng chứng, khóa môi trường kiểm thử và nhận công việc đã seal.
 
 Một số lệnh CLI hữu ích:
 
 ```bash
 bbs dashboard
 bbs foreman report <parent-ticket>
+bbs foreman next <parent-ticket>
 bbs ticket dag <parent-ticket>
 bbs autopilot snapshot --json
 bbs autopilot recover --json
@@ -135,6 +136,17 @@ bbs autopilot recover --json
 `snapshot` đọc trạng thái chuẩn của ticket và bằng chứng của các gate; `recover` bổ sung các trích đoạn tài liệu có giới hạn để tiếp tục công việc.
 
 Chạy `bbs <subcommand> --help` để xem cách dùng. Chi tiết: [CLI hỗ trợ](docs/companion-cli.md), [git flow](.claude/skills/references/git-flow.md) và [vận hành](docs/operations.md).
+
+## Quyết định ngữ nghĩa
+
+`semantic-decision` biến việc đánh giá kích thước tác vụ, độ phức tạp, định tuyến, tác động lên kiểm thử và review thành một bước skill rõ ràng, có thể tái sử dụng. Provider mặc định là LLM hiện tại; không cần cấu hình hay tiến trình model bổ sung. Để dùng Cloudflare:
+
+```bash
+bbs config set semantic_decision_provider cloudflare
+bbs config set semantic_decision_model clef-flash  # or clef
+```
+
+Đặt `CLOUDFLARE_ACCOUNT_ID` và `CLOUDFLARE_API_TOKEN` trong môi trường hoặc `~/.babysit/.env`. Chỉ cấu hình của người dùng chọn provider; chính sách dự án có thể hạn chế suy luận bên ngoài. Khi Cloudflare lỗi hoặc câu trả lời không chắc chắn, hệ thống quay về LLM hiện tại. Xem [skill](.claude/skills/semantic-decision/SKILL.md) và [hợp đồng](.claude/skills/references/semantic-decision.md). Xem thêm [các thiết lập không có điều khiển trên dashboard](docs/operations.md#settings-without-a-dashboard-control) để biết đường dẫn config, giá trị mặc định, giới hạn của dự án và hành vi duyệt bởi con người.
 
 </details>
 

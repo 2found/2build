@@ -65,7 +65,7 @@ bbs install
 
 ## 运行第一个 ticket
 
-1. 重启 agent，打开 Git repo，选择一个有明确成功检查的小 bug 或功能。Autopilot 在当前 checkout 上工作并 commit；需要隔离时先创建自己的 branch。
+1. 重启 agent，打开 Git repo，选择一个有明确成功检查的小 bug 或功能。Autopilot 在当前 checkout 上工作，并让改动保持未 commit 状态；需要隔离时先创建自己的 branch。
 2. 在 **agent chat 中调用 skill**，将示例换成你的任务：
 
    | Agent | 示例 |
@@ -76,8 +76,8 @@ bbs install
    | Grok | `/bbs:autopilot "添加已保存搜索的页面。先展示原型，再实现、审查和 QA。"` |
    | Antigravity / 其他兼容 agent | 请它为任务使用已安装的 `autopilot` skill。 |
 
-3. 审阅计划；对于 UI 任务，打开原型，在此调整布局、交互或范围。Autopilot 返回 `/goal` block 时，将其粘贴到同一 agent 以启动执行。对于没有 goal mode 的 agent，在首次请求中加入 `--stop-after=plan`，确保停在此审阅检查点，然后按 handoff 中的原生指令恢复。
-4. 让 Autopilot 实现、审查、修复、测试并运行 QA。通过完成 gate 后，它返回本地 commit 和证据；被阻塞时会指出缺少的输入。重启后，用 handoff 中的 ticket ID 恢复。
+3. 审阅计划；对于 UI 任务，打开原型，在此调整布局、交互或范围。Autopilot 返回 `/goal` block 时，将其粘贴到同一 agent 以启动执行。对于没有 goal mode 的 agent，在首次请求中加入 `--stop-after=plan`，确保停在此审阅检查点，然后按 handoff 中的原生指令恢复。若要无人值守运行，加上 `--auto`（例如 `/bbs:autopilot --auto "…"`）：Autopilot 自行审阅计划，不输出 `/goal` block；agent 允许时自行设定 goal，否则在同一 session 中继续工作，直到 ticket 完成或被阻塞。
+4. 让 Autopilot 实现、审查、修复、测试并运行 QA。通过完成 gate 后，它把已验证的改动以未 commit 状态留在你的 checkout 中并附上证据（由你 commit 或交给 `create-pr`）；被阻塞时会指出缺少的输入。重启后，用 handoff 中的 ticket ID 恢复。
 
 第一个 ticket 无需 Orca、新 worker session 或项目配置。开始前选好 session 的 model。[查看进度和恢复 session](docs/companion-cli.md)。
 
@@ -119,13 +119,14 @@ Autopilot 将任务路由到产品团队的五种角色之一。也可指定 wor
 
 ## Skill 与 CLI
 
-Skill 是面向 agent 的工作流；`bbs` 是它们使用的配套 CLI。`/bbs:foreman` 运行项目协调器；`bbs foreman` 管理 model 策略查询、持久化的 Foreman 记录、契约和报告。`/bbs:autopilot` 运行单 ticket 工作流；`bbs autopilot` 提供 checkpoint 和状态辅助命令。`bbs ticket` 管理 ticket 身份、DAG 关系、证据、测试环境、交付和清理。
+Skill 是面向 agent 的工作流；`bbs` 是它们使用的配套 CLI。`/bbs:foreman` 运行项目协调器；`bbs foreman` 管理 model 策略查询、持久化的 Foreman 记录、phase（`seal`、`integrate`、`land`、`release`）、下一步建议和报告；`bbs contract` 管理并行 ticket 所依赖的接口契约。`/bbs:autopilot` 运行单 ticket 工作流；`bbs autopilot` 提供 checkpoint 和状态辅助命令。`bbs ticket` 管理 ticket 身份、DAG 关系、证据、测试环境租约和接收已 seal 的工作。
 
 常用 CLI 入口：
 
 ```bash
 bbs dashboard
 bbs foreman report <parent-ticket>
+bbs foreman next <parent-ticket>
 bbs ticket dag <parent-ticket>
 bbs autopilot snapshot --json
 bbs autopilot recover --json
@@ -134,6 +135,17 @@ bbs autopilot recover --json
 `snapshot` 读取 ticket 的权威状态和 gate 证据；`recover` 额外提供长度受限的产物摘录，以便恢复工作。
 
 运行 `bbs <subcommand> --help` 查看用法。更多详情：[配套 CLI](docs/companion-cli.md)、[git flow](.claude/skills/references/git-flow.md) 和[运维](docs/operations.md)。
+
+## 语义决策
+
+`semantic-decision` 将任务规模、复杂度、路由、测试影响和审查判断变成显式、可复用的 skill 步骤。默认 provider 是当前 LLM，无需配置，也无需额外的 model 进程。要使用 Cloudflare：
+
+```bash
+bbs config set semantic_decision_provider cloudflare
+bbs config set semantic_decision_model clef-flash  # or clef
+```
+
+在环境变量或 `~/.babysit/.env` 中设置 `CLOUDFLARE_ACCOUNT_ID` 和 `CLOUDFLARE_API_TOKEN`。只有用户配置能选择 provider；项目策略可以限制外部推理。Cloudflare 出错或回答不确定时，回退到当前 LLM。参见 [skill](.claude/skills/semantic-decision/SKILL.md) 和[契约](.claude/skills/references/semantic-decision.md)。配置路径、默认值、项目限制和人工审查行为见[没有 dashboard 控件的设置](docs/operations.md#settings-without-a-dashboard-control)。
 
 </details>
 

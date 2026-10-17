@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# tests/test_autopilot_v2_readiness.sh — the compiled gate honors the v2
-# readiness contract end-to-end: enforced checkpoints deny on missing/stale
-# typed evidence and pass on accepted current evidence, never consulting
-# legacy verdict prose.
+# tests/test_autopilot_v2_readiness.sh — the compiled gate honors the
+# readiness contract end-to-end: a fresh ticket is v2 without a flag, the gate
+# denies on missing/stale typed evidence and passes on accepted current
+# evidence, never consulting verdict prose.
 #
-# Drives the real `bbs hooks pre-tool-gate` against a real v2 ticket produced
-# by `bbs autopilot checkpoint` + `bbs autopilot verification` — no stubs:
+# Drives the real `bbs hooks pre-tool-gate` against a real ticket produced
+# by `bbs ticket init` + `bbs autopilot verification` — no stubs:
 # the gate resolves identity and readiness in-process now, so a fake
 # bbs-ticket could never intercept it.
 set -u
@@ -18,7 +18,7 @@ BBS="$TMP/bbs"
 ( cd "$ROOT" && go build -o "$BBS" ./cmd/bbs ) || { echo "FAIL: go build" >&2; exit 1; }
 
 export HOME="$TMP/home" BABYSIT_HOME="$TMP/state" BABYSIT_PROJECT_HOME="$TMP/state/projects/repo"
-export BABYSIT_TICKET=v2-ticket BABYSIT_SKIP_CHECKPOINT_VALIDATION=1
+export BABYSIT_TICKET=v2-ticket
 mkdir -p "$HOME" "$BABYSIT_PROJECT_HOME"
 unset BBS_TICKET CODEX_SESSION_ID CODEX_THREAD_ID GROK_SESSION_ID GROK_HOOK_EVENT CLAUDE_CODE_SESSION_ID
 
@@ -34,11 +34,13 @@ mkdir -p "$TICKET_HOME"
 echo requirement > "$TICKET_HOME/requirement.md"
 echo plan > "$TICKET_HOME/plan.md"
 
-# ticket init seeds index.json, which the verification producer requires;
-# the v2 checkpoint then makes readiness enforced.
+# ticket init seeds index.json, which the verification producer requires, and
+# a schema_version 2 checkpoint — no flag asks for it.
 ( cd "$REPO" && "$BBS" ticket init >/dev/null 2>&1 || true )
+[ "$(jq -r .schema_version "$TICKET_HOME/checkpoint.json" 2>/dev/null)" = 2 ] \
+  || { echo "FAIL: ticket init did not seed a v2 checkpoint"; exit 1; }
 ( cd "$REPO" && "$BBS" autopilot checkpoint --ticket v2-ticket --workflow builder \
-    --step run --status in_progress --contract-version 2 >/dev/null ) \
+    --step run --status in_progress >/dev/null ) \
   || { echo "FAIL: checkpoint"; exit 1; }
 
 input() {
@@ -58,7 +60,7 @@ check() { # $1=name $2=want-decision-or-empty $3=stdout
   fi
 }
 
-# Enforced, no accepted evidence → deny naming the missing gates.
+# No accepted evidence → deny naming the missing gates.
 out="$(cd "$REPO" && "$BBS" hooks pre-tool-gate <<<"$(input 'gh pr create --fill')")"
 check v2-missing-denies deny "$out"
 printf '%s' "$out" | grep -q missing || { echo "FAIL v2-missing-denies: reason lacks 'missing': $out"; fail=1; }
@@ -78,7 +80,7 @@ EOF
     || { echo "FAIL: verification record $gate"; exit 1; }
 done
 
-# Accepted current evidence → pass, even with a BLOCKED legacy verdict file.
+# Accepted current evidence → pass, even with a BLOCKED verdict file.
 mkdir -p "$TICKET_HOME/verdicts"
 printf 'STATUS: BLOCKED\n' > "$TICKET_HOME/verdicts/review-pr.md"
 out="$(cd "$REPO" && "$BBS" hooks pre-tool-gate <<<"$(input 'gh pr create --fill')")"
@@ -88,5 +90,24 @@ check v2-ready-passes pass "$out"
 git -C "$REPO" commit -qm 'new revision' --allow-empty
 out="$(cd "$REPO" && "$BBS" hooks pre-tool-gate <<<"$(input 'gh pr create --fill')")"
 check v2-stale-denies deny "$out"
+
+# `ticket ensure` is the other creator: a fresh ticket is v2 without a flag.
+ENSURE_REPO="$TMP/ensure-repo"; mkdir -p "$ENSURE_REPO"
+git -C "$ENSURE_REPO" init -qb main
+git -C "$ENSURE_REPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+ensured="$(cd "$ENSURE_REPO" && BABYSIT_TICKET= "$BBS" ticket ensure --no-branch 2>/dev/null | sed -n 's/^TICKET=//p')"
+if [ -n "$ensured" ] && [ "$(jq -r .schema_version "$BABYSIT_PROJECT_HOME/tickets/$ensured/checkpoint.json" 2>/dev/null)" = 2 ]; then
+  echo "ok ensure-seeds-v2"
+else
+  echo "FAIL ensure-seeds-v2: ticket=$ensured"; fail=1
+fi
+
+# The fast path (identity already names the ticket) creates it the same way.
+(cd "$ENSURE_REPO" && BABYSIT_TICKET=bs-fast0001 "$BBS" ticket ensure --from-input req >/dev/null 2>&1)
+if [ "$(jq -r .schema_version "$BABYSIT_PROJECT_HOME/tickets/bs-fast0001/checkpoint.json" 2>/dev/null)" = 2 ]; then
+  echo "ok ensure-fast-path-seeds-v2"
+else
+  echo "FAIL ensure-fast-path-seeds-v2"; fail=1
+fi
 
 exit "$fail"

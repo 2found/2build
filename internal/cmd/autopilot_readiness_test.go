@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -21,7 +22,7 @@ func TestV2EvidenceAndReadinessAreBoundToCurrentSubject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !push.Enforced || !push.Ready {
+	if !push.Ready {
 		t.Fatalf("fresh review did not make push ready: %+v", push)
 	}
 	land, err := evaluateReadiness(env, "land")
@@ -178,24 +179,36 @@ func TestV2ReadinessRejectsCodeBaseAndPolicyChanges(t *testing.T) {
 	}
 }
 
-func TestLegacyReadinessPreservesVerdictContract(t *testing.T) {
+// Prose verdicts are never gate input: a ticket whose checkpoint predates
+// schema_version 2 is refused with the migration command, and a ticket with no
+// checkpoint is not ready however its verdict files read.
+func TestReadinessNeverReadsVerdictProse(t *testing.T) {
 	repo := initSnapshotRepo(t)
 	t.Chdir(repo)
 	t.Setenv("BBS_BASE_BRANCH", "main")
 	project := filepath.Join(t.TempDir(), "project")
-	home := filepath.Join(project, "tickets", "legacy")
+	home := filepath.Join(project, "tickets", "old")
 	mustMkdirAll(t, filepath.Join(home, "verdicts"))
-	mustWrite(t, filepath.Join(home, "index.json"), `{"id":"legacy","control":null}`)
-	mustWrite(t, filepath.Join(home, "checkpoint.json"), `{"ticket":"legacy","workflow":"builder"}`)
+	mustWrite(t, filepath.Join(home, "index.json"), `{"id":"old","control":null}`)
 	mustWrite(t, filepath.Join(home, "verdicts", "review-pr.md"), "STATUS: DONE\n")
-	mustWrite(t, filepath.Join(home, "verdicts", "qa.md"), "STATUS: DONE_WITH_CONCERNS\n")
-	env := identity.Env{Slug: "project", Branch: "feat/legacy_x", Ticket: "legacy", ProjectHome: project}
+	mustWrite(t, filepath.Join(home, "verdicts", "qa.md"), "STATUS: DONE\n")
+	env := identity.Env{Slug: "project", Branch: "feat/old_x", Ticket: "old", ProjectHome: project}
+
 	ready, err := evaluateReadiness(env, "land")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ready.Enforced || !ready.Ready {
-		t.Fatalf("legacy verdict behavior changed: %+v", ready)
+	for _, want := range []string{"checkpoint:missing", "review-pr:missing", "qa:missing"} {
+		if ready.Ready || !containsString(ready.ReasonCodes, want) {
+			t.Fatalf("no checkpoint: want not ready with %s, got %+v", want, ready)
+		}
+	}
+
+	mustWrite(t, filepath.Join(home, "checkpoint.json"), `{"ticket":"old","workflow":"builder"}`)
+	_, err = evaluateReadiness(env, "land")
+	var se *snapshotError
+	if !errors.As(err, &se) || se.Code != "CHECKPOINT_V1" || !strings.Contains(se.Message, "bbs autopilot checkpoint --refresh --ticket old") {
+		t.Fatalf("v1 checkpoint: want CHECKPOINT_V1 naming the refresh command, got %v", err)
 	}
 }
 

@@ -24,8 +24,7 @@ no ticket/requirement, stop with `NEEDS_CONTEXT`.
 ## run
 > produces: verdict:builder + qa:checked
 1. Ensure ticket and checkpoint exist; record the mode in the checkpoint.
-   Prefer a valid v2 `bbs autopilot snapshot --json` packet for these facts,
-   otherwise use the legacy resolver. Work happens on the current checkout —
+   Read these facts from `bbs autopilot snapshot --json`. Work happens on the current checkout —
    autopilot never cuts a branch or worktree (a foreman that dispatched you
    already placed you in one; work in place). Record missing QA configuration as a handoff warning and point
    at `$bbs:setup-project` when it matters.
@@ -41,17 +40,15 @@ no ticket/requirement, stop with `NEEDS_CONTEXT`.
    requirement, plan, and (child mode) only the child scope. `implement`
    leaves its output uncommitted, and so does this workflow: gates bind the
    tree's content, and committing belongs to the human or Foreman.
-4. On a v2 checkpoint, use autopilot references/verification.md to begin and
-   record each gate around its actual execution. New managed children require
-   this producer; plain markdown verdicts cannot satisfy their readiness.
+4. Record each gate around its actual execution with autopilot
+   references/verification.md; markdown verdicts never satisfy readiness.
    Run `review-pr --fix` in the current autopilot session via SKILL.md's
    **Current-session gates (`review-pr`, `qa`)** policy (applies fixes to
-   the working tree), then persist and read back the
-   verdict with `bbs ticket set-verdict --skill review-pr` and
-   `bbs ticket verdict-status --skill review-pr` — the push/PR hook reads it
-   when a human pushes or opens a PR.
-   Verify mode may reuse review only if its persisted DONE covers the current
-   change; otherwise run it too.
+   the working tree), bracketed by
+   `bbs autopilot verification begin --gate review-pr` and `record` — the
+   push/PR hook reads that evidence when a human pushes or opens a PR.
+   Verify mode may reuse review only if its accepted evidence covers the
+   current tree; otherwise run it too.
 5. Run `qa` in the same session, after review fixes are integrated, against
    the requirement's acceptance criteria, the
    `**Verify:**` line, and the implement handoff — not just the diff. The
@@ -59,8 +56,8 @@ no ticket/requirement, stop with `NEEDS_CONTEXT`.
    needs there and takes the surface lease for a shared resource (see
    `../shared/worktrees.md`). No runnable target → record the blocker
    and run the strongest fallback (`browse` for UI, else a narrow local
-   check). Then persist the verdict with
-   `bbs ticket set-verdict --skill qa`.
+   check). Bracket it with `bbs autopilot verification begin --gate qa` and
+   `record`.
 6. Apply autopilot's **Repair until the final change passes** loop: a QA fix
    returns to review, and both gates must cover the final tree.
    Reconcile every acceptance criterion with executed evidence and require
@@ -111,8 +108,9 @@ review and QA each repo's change against *its own* base, once per repo touched.
    Then link both sides:
    `bbs ticket set-sibling --role <fe|be|shared> --repo <name> --ticket <id>`.
 3. Run `qa` in each repo you touched; the `qa` skill owns that repo's
-   surface protocol. Persist that repo's result on the sibling ticket
-   (`BBS_TICKET=<sibling> bbs ticket set-verdict --skill qa`).
+   surface protocol. Record that repo's gate on the sibling ticket
+   (`BABYSIT_TICKET=<sibling> bbs autopilot verification begin --gate qa`, then
+   `record`).
 4. The handoff lists every touched repo with its changed files.
 **Stop conditions**
 

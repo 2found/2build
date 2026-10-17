@@ -141,20 +141,19 @@ def test_review_emits_gate_report_not_just_findings(repo, tmp_path):
     for field in ('STATUS:', 'VERDICT:', 'FINDINGS:', 'FIXED:', 'RISK_AREAS:'):
         assert field in producer
     run = attach(repo)
-    # The previous findings-only output must not masquerade as a gate verdict.
-    raw = tmp_path / 'raw.json'
-    raw.write_text('[]\n')
-    assert run('bbs', 'ticket', 'set-verdict', '--skill', 'review-pr',
-               '--body-file', str(raw), check=False).returncode == 2
-    for status, verdict, finding in [('BLOCKED', 'FINDINGS(1)', 'material fixture'),
-                                     ('DONE_WITH_CONCERNS', 'FINDINGS(1)', 'minor fixture'),
-                                     ('DONE', 'PASS', 'none')]:
-        raw.write_text(f'STATUS: {status}\nVERDICT: {verdict}\nSUMMARY: fixture\n'
-                       f'FINDINGS: {finding}\nFIXED: none\nRISK_AREAS: file reader\n')
-        run('bbs', 'ticket', 'set-verdict', '--skill', 'review-pr', '--body-file', str(raw))
-        assert run('bbs', 'ticket', 'verdict-status', '--skill', 'review-pr').stdout.strip() == status
-        path = Path(run('bbs', 'ticket', 'path', 'verdict', '--skill', 'review-pr', '--read').stdout.strip())
-        assert path.read_text() == raw.read_text()
+    raw = tmp_path / 'raw.md'
+    raw.write_text('STATUS: DONE\nVERDICT: PASS\nSUMMARY: fixture\n'
+                   'FINDINGS: none\nFIXED: none\nRISK_AREAS: file reader\n')
+    # A report is never a gate verdict: only the verification producer writes
+    # verdicts/review-pr.md, so even a complete status block is refused here.
+    refused = run('bbs', 'ticket', 'set-verdict', '--skill', 'review-pr',
+                  '--body-file', str(raw), check=False)
+    assert refused.returncode == 2
+    assert 'bbs autopilot verification begin --gate review-pr' in refused.stderr
+    assert run('bbs', 'ticket', 'verdict-status', '--skill', 'review-pr').stdout.strip() == 'none'
+    run('bbs', 'ticket', 'set-review', '--skill', 'review-pr', '--body-file', str(raw))
+    path = Path(run('bbs', 'ticket', 'path', 'review', '--skill', 'review-pr', '--read').stdout.strip())
+    assert path.read_text() == raw.read_text()
 
 
 @pytest.mark.parametrize('name', ['implement', 'qa', 'review-pr'])
@@ -179,36 +178,34 @@ def test_standalone_without_ticket_plan_origin_or_clean_tree(name, repo):
         assert 'security-review' not in text  # no such bundled skill
 
 
-def test_qa_report_is_consumable_by_evidence_audit(repo, tmp_path):
+def test_qa_report_is_persisted_but_never_opens_the_gate(repo, tmp_path):
+    text = skill('qa')
+    assert 'set-review --skill qa' in text
+    assert 'verification begin --gate qa' in text
     run = attach(repo)
     report = tmp_path / 'qa-report.md'
-    body = ('STATUS: DONE\nVERDICT: PASS\nSUMMARY: synthetic contract fixture\n'
-            'SOURCES: fixture requirement\n'
-            'RUBRIC: flow=B boundary=B regression=B data=N/A compat=N/A '
-            'security=N/A a11y=N/A perf=N/A freshness=A\n'
-            'EVIDENCE: CLI e2e contract fixture, not a product test\n'
-            'CLEANUP: no owned processes\n')
-    report.write_text(body)
-    run('bbs', 'ticket', 'set-verdict', '--skill', 'qa', '--body-file', str(report))
-    assert run('bbs', 'ticket', 'qa-evidence').stdout.strip() == 'ok'
-    report.write_text(body.replace('freshness=A', 'freshness=B'))
-    run('bbs', 'ticket', 'set-verdict', '--skill', 'qa', '--body-file', str(report))
-    assert run('bbs', 'ticket', 'qa-evidence').stdout.strip() == 'contradiction:freshness=B'
-    report.write_text('STATUS: BLOCKED\nVERDICT: FAIL\nSUMMARY: fixture failure\n')
-    run('bbs', 'ticket', 'set-verdict', '--skill', 'qa', '--body-file', str(report))
+    report.write_text('STATUS: DONE\nVERDICT: PASS\nSUMMARY: synthetic contract fixture\n'
+                      'SOURCES: fixture requirement\n'
+                      'RUBRIC: flow=B boundary=B regression=B data=N/A compat=N/A '
+                      'security=N/A a11y=N/A perf=N/A freshness=A\n'
+                      'EVIDENCE: CLI e2e contract fixture, not a product test\n'
+                      'CLEANUP: no owned processes\n')
+    run('bbs', 'ticket', 'set-review', '--skill', 'qa', '--body-file', str(report))
+    assert run('bbs', 'ticket', 'set-verdict', '--skill', 'qa', '--body-file', str(report),
+               check=False).returncode == 2
     readiness = json.loads(run('bbs', 'ticket', 'readiness', '--action', 'review', '--json').stdout)
     assert not readiness['data']['ready']
+    assert 'qa:missing' in readiness['data']['reason_codes']
 
 
 def test_v2_projection_preserves_full_review_for_qa(repo, tmp_path):
     run = attach(repo)
     path, env, _ = repo
-    env['BABYSIT_SKIP_CHECKPOINT_VALIDATION'] = '1'
     for kind in ('requirement', 'plan'):
         output = Path(run('bbs', 'ticket', 'path', kind, '--write').stdout.strip())
         output.write_text(f'{kind}: contract fixture\n')
     run('bbs', 'autopilot', 'checkpoint', '--ticket', 'dry-run', '--workflow', 'builder',
-        '--step', 'run', '--status', 'in_progress', '--contract-version', '2')
+        '--step', 'run', '--status', 'in_progress')
     report = tmp_path / 'review.md'
     report.write_text('STATUS: DONE\nVERDICT: PASS\nFINDINGS: none\n'
                       'FIXED: none\nRISK_AREAS: fixture input parser\n')
@@ -237,11 +234,11 @@ def test_v2_projection_preserves_full_review_for_qa(repo, tmp_path):
 def test_workflows_never_replace_reports_with_empty_verdicts(repo, tmp_path):
     run = attach(repo)
     report = tmp_path / 'review.md'
-    report.write_text('STATUS: DONE\nVERDICT: PASS\n')
-    run('bbs', 'ticket', 'set-verdict', '--skill', 'review-pr', '--body-file', str(report))
+    report.write_text('STATUS: DONE\nVERDICT: PLANNED(S)\n')
+    run('bbs', 'ticket', 'set-verdict', '--skill', 'plan-draft', '--body-file', str(report))
     # A bare write really does erase a valid status, so examples must carry a body.
-    run('bbs', 'ticket', 'set-verdict', '--skill', 'review-pr')
-    assert run('bbs', 'ticket', 'verdict-status', '--skill', 'review-pr').stdout.strip() == 'none'
+    run('bbs', 'ticket', 'set-verdict', '--skill', 'plan-draft')
+    assert run('bbs', 'ticket', 'verdict-status', '--skill', 'plan-draft').stdout.strip() == 'none'
     for path in (SKILLS / 'autopilot/workflows').glob('*.md'):
         for command in re.findall(r'`([^`]*bbs ticket set-verdict[^`]*)`', path.read_text()):
             assert '--body-file ' in command, (path, command)

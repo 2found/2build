@@ -24,12 +24,11 @@ production system safe as it scales. Two modes, chosen from the invocation:
    fix) is a valid run. **fix:** run `investigate` to root-cause, then apply the
    smallest fix via `implement` with a regression check.
 3. If code changed, in the current autopilot session run `review-pr --fix` and
-   then `qa` under its gate policy. Persist and read back both verdicts, apply the
-   **Repair until the final change passes** loop, and require
-   `bbs ticket readiness --action review --json` to report `data.ready=true`
-   for the final tree. Persist with
-   `bbs ticket set-verdict --skill review-pr` and
-   `bbs ticket set-verdict --skill qa`. A pure audit records its commands and
+   then `qa` under its gate policy. Record both gates
+   (`bbs autopilot verification begin --gate review-pr` / `--gate qa`, then
+   `record`), apply the **Repair until the final change passes** loop, and
+   require `bbs ticket readiness --action review --json` to report
+   `data.ready=true` for the final tree. A pure audit records its commands and
    evidence but does not manufacture code gates.
 4. Leave the fix uncommitted. Autopilot never commits, pushes, or opens a PR —
    that is the human's (`create-pr`) or Foreman's phase landing.

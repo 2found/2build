@@ -13,7 +13,7 @@ import (
 )
 
 // hooks_test.go covers the Go port of the plugin hooks (pre-tool-gate, session-writer):
-// the gate's deny/ask/pass matrix, stage classification (incl. .exe and
+// the gate's deny/pass decisions, stage classification (incl. .exe and
 // git -C), Grok's deny-only contract, and the session writer's minting,
 // ticket derivation, throttle, started_at preservation, and stale sweep.
 
@@ -145,110 +145,49 @@ func TestGateEnvConflictDenies(t *testing.T) {
 	}
 }
 
-// gateMatrix runs the verdict matrix: review-pr/qa verdict files under the
-// project home, BABYSIT_TICKET pinned, payload workdir = temp repo.
-func TestGateVerdictMatrix(t *testing.T) {
+// TestGateIgnoresVerdictProse: prose verdicts never open the gate. A ticket
+// with passing verdict files but no checkpoint denies every hard stage, and a
+// pre-schema_version 2 checkpoint denies naming the migration command.
+func TestGateIgnoresVerdictProse(t *testing.T) {
 	projectHome, _ := gateEnv(t)
 	t.Setenv("BABYSIT_TICKET", "bs-test")
 	repo := gitRepo(t, "main")
+	writeVerdict(t, projectHome, "bs-test", "review-pr", "STATUS: DONE\n")
+	writeVerdict(t, projectHome, "bs-test", "qa", "STATUS: DONE\nVERDICT: PASS\nEVIDENCE: browser journey ok\n")
 
-	seed := func(review, qa, qaBody string) {
-		t.Helper()
-		th := filepath.Join(projectHome, "tickets", "bs-test")
-		os.RemoveAll(th)
-		// The ticket dir must exist or v2 readiness denies TICKET_NOT_FOUND.
-		if err := os.MkdirAll(filepath.Join(th, "verdicts"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if review != "" {
-			writeVerdict(t, projectHome, "bs-test", "review-pr", "STATUS: "+review+"\n")
-		}
-		if qa != "" {
-			writeVerdict(t, projectHome, "bs-test", "qa", "STATUS: "+qa+"\n"+qaBody)
+	for _, command := range []string{"git push origin HEAD", "gh pr create --fill", "gh pr merge 12"} {
+		if d := evaluateGate(gatePayload(command, repo)); d.action != "deny" || !strings.Contains(d.reason, "checkpoint:missing") {
+			t.Fatalf("%s with prose verdicts only = %v, want deny/checkpoint:missing", command, d)
 		}
 	}
-	gate := func(command string) gateDecision {
-		t.Helper()
-		return evaluateGate(gatePayload(command, repo))
-	}
 
-	// push: only review-pr gates.
-	seed("", "", "")
-	if d := gate("git push origin HEAD"); d.action != "ask" {
-		t.Fatalf("push no-verdict = %v, want ask", d)
-	}
-	seed("BLOCKED", "", "")
-	if d := gate("git push origin HEAD"); d.action != "deny" {
-		t.Fatalf("push blocked-review = %v, want deny", d)
-	}
-	seed("DONE", "", "")
-	if d := gate("git push origin HEAD"); d.action != "pass" {
-		t.Fatalf("push ready-review = %v, want pass", d)
-	}
-
-	// pr: review + qa both gate, then the qa evidence body.
-	seed("DONE", "", "")
-	if d := gate("gh pr create --fill"); d.action != "ask" {
-		t.Fatalf("pr missing-qa = %v, want ask", d)
-	}
-	seed("DONE", "BLOCKED", "")
-	if d := gate("gh pr create --fill"); d.action != "deny" {
-		t.Fatalf("pr blocked-qa = %v, want deny", d)
-	}
-	// qa verdict claims PASS but cites no e2e evidence → ask.
-	seed("DONE", "DONE", "VERDICT: PASS\nEVIDENCE: none\n")
-	if d := gate("gh pr create --fill"); d.action != "ask" {
-		t.Fatalf("pr thin-qa-evidence = %v, want ask", d)
-	}
-	// Real e2e evidence with an existing artifact → pass. The artifact is
-	// seeded after seed() because seed wipes the ticket dir.
-	seed("DONE", "DONE", "VERDICT: PASS\nEVIDENCE: browser journey ok, screenshot evidence/qa/shot.png\n")
-	if err := os.MkdirAll(filepath.Join(projectHome, "tickets", "bs-test", "evidence", "qa"), 0o755); err != nil {
+	cp := filepath.Join(projectHome, "tickets", "bs-test", "checkpoint.json")
+	if err := os.WriteFile(cp, []byte(`{"ticket":"bs-test","workflow":"builder"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(projectHome, "tickets", "bs-test", "evidence", "qa", "shot.png"), []byte("png"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if d := gate("gh pr create --fill"); d.action != "pass" {
-		t.Fatalf("pr ready = %v, want pass", d)
-	}
-
-	// merge: same contract, plus the contradiction deny.
-	seed("DONE", "DONE", "VERDICT: PASS\nRUBRIC: freshness=B\nEVIDENCE: browser journey ok, screenshot evidence/qa/shot.png\n")
-	if d := gate("gh pr merge 12"); d.action != "deny" || !strings.Contains(d.reason, "contradicts its own rubric") {
-		t.Fatalf("merge contradiction = %v, want deny/contradiction", d)
-	}
-	seed("DONE", "DONE", "VERDICT: PASS\nEVIDENCE: browser journey ok, screenshot evidence/qa/shot.png\n")
-	if err := os.MkdirAll(filepath.Join(projectHome, "tickets", "bs-test", "evidence", "qa"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(projectHome, "tickets", "bs-test", "evidence", "qa", "shot.png"), []byte("png"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if d := gate("gh pr merge 12"); d.action != "pass" {
-		t.Fatalf("merge ready = %v, want pass", d)
+	if d := evaluateGate(gatePayload("git push origin HEAD", repo)); d.action != "deny" || !strings.Contains(d.reason, "CHECKPOINT_V1") || !strings.Contains(d.reason, "checkpoint --refresh") {
+		t.Fatalf("v1 checkpoint = %v, want deny/CHECKPOINT_V1 naming --refresh", d)
 	}
 }
 
-// TestGateV2Readiness exercises the enforced path: a schema_version 2
-// checkpoint makes the typed evaluator authoritative — missing/stale evidence
-// denies, accepted current evidence passes, and legacy verdict files are
+// TestGateReadiness: the typed evaluator is the whole gate — missing/stale
+// evidence denies, accepted current evidence passes, and verdict files are
 // never consulted.
-func TestGateV2Readiness(t *testing.T) {
+func TestGateReadiness(t *testing.T) {
 	gateEnv(t)
 	repo, env := initReadinessFixture(t)
 	t.Setenv("BABYSIT_TICKET", env.Ticket)
 	t.Setenv("BABYSIT_PROJECT_HOME", env.ProjectHome)
 	t.Chdir(repo)
 
-	// Enforced with no accepted evidence → deny naming the missing gates.
+	// No accepted evidence → deny naming the missing gates.
 	d := evaluateGate(gatePayload("gh pr create --fill", repo))
 	if d.action != "deny" || !strings.Contains(d.reason, "missing") {
-		t.Fatalf("v2 missing evidence = %v, want deny/missing", d)
+		t.Fatalf("missing evidence = %v, want deny/missing", d)
 	}
 
 	// Accept current evidence for both gates → ready → pass, even with a
-	// BLOCKED legacy verdict file present (v2 is authoritative).
+	// BLOCKED verdict file present (evidence is authoritative).
 	for _, row := range []struct{ gate, attempt string }{{"review-pr", "review-1"}, {"qa", "qa-1"}} {
 		if _, err := setV2VerificationEvidence(env, evidenceForCurrentSnapshot(t, env, row.gate, row.attempt, 0)); err != nil {
 			t.Fatalf("record %s evidence: %v", row.gate, err)
@@ -256,7 +195,7 @@ func TestGateV2Readiness(t *testing.T) {
 	}
 	writeVerdict(t, env.ProjectHome, env.Ticket, "review-pr", "STATUS: BLOCKED\n")
 	if d := evaluateGate(gatePayload("gh pr create --fill", repo)); d.action != "pass" {
-		t.Fatalf("v2 ready = %v, want pass", d)
+		t.Fatalf("ready = %v, want pass", d)
 	}
 
 	// An edit after the evidence was accepted makes it stale → deny.
@@ -264,15 +203,16 @@ func TestGateV2Readiness(t *testing.T) {
 		t.Fatal(err)
 	}
 	if d := evaluateGate(gatePayload("gh pr create --fill", repo)); d.action != "deny" || !strings.Contains(d.reason, "tree_digest") {
-		t.Fatalf("v2 stale = %v, want deny/tree_digest", d)
+		t.Fatalf("stale = %v, want deny/tree_digest", d)
 	}
 }
 
 func TestRunPreToolGateEmit(t *testing.T) {
-	projectHome, _ := gateEnv(t)
-	t.Setenv("BABYSIT_TICKET", "bs-test")
-	repo := gitRepo(t, "main")
-	writeVerdict(t, projectHome, "bs-test", "review-pr", "STATUS: BLOCKED\n")
+	gateEnv(t)
+	repo, env := initReadinessFixture(t)
+	t.Setenv("BABYSIT_TICKET", env.Ticket)
+	t.Setenv("BABYSIT_PROJECT_HOME", env.ProjectHome)
+	t.Chdir(repo)
 
 	var out, errb bytes.Buffer
 	runPreToolGate(gatePayload("git push", repo), &out, &errb)
@@ -288,10 +228,12 @@ func TestRunPreToolGateEmit(t *testing.T) {
 		t.Fatalf("decision = %q, want deny", dec.HookSpecificOutput.PermissionDecision)
 	}
 
-	// Pass prints nothing on stdout.
+	// Pass prints nothing on stdout: push needs only review-pr.
 	out.Reset()
 	errb.Reset()
-	writeVerdict(t, projectHome, "bs-test", "review-pr", "STATUS: DONE\n")
+	if _, err := setV2VerificationEvidence(env, evidenceForCurrentSnapshot(t, env, "review-pr", "review-1", 0)); err != nil {
+		t.Fatal(err)
+	}
 	runPreToolGate(gatePayload("git push", repo), &out, &errb)
 	if out.Len() != 0 {
 		t.Fatalf("pass stdout = %q, want empty", out.String())
@@ -300,12 +242,12 @@ func TestRunPreToolGateEmit(t *testing.T) {
 		t.Fatalf("pass stderr missing trail: %q", errb.String())
 	}
 
-	// Grok payload → {decision:"deny"} shape, never hookSpecificOutput.
+	// Grok payload → {decision:"deny"} shape, never hookSpecificOutput (a PR
+	// still lacks qa).
 	out.Reset()
-	writeVerdict(t, projectHome, "bs-test", "review-pr", "STATUS: BLOCKED\n")
 	grokPayload, _ := json.Marshal(map[string]any{
 		"hookEventName": "PreToolUse",
-		"toolInput":     map[string]any{"command": "git push", "workdir": repo},
+		"toolInput":     map[string]any{"command": "gh pr create --fill", "workdir": repo},
 	})
 	runPreToolGate(grokPayload, &out, &errb)
 	var grokDec struct {

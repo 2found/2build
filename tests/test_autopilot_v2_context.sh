@@ -32,6 +32,20 @@ jq -e '.ok == true and .data.action == "continue" and (.data.projection.artifact
 printf '%s\n' 'changed plan' > "$TICKET_HOME/plan.md"
 "$BBS" autopilot recover --json --ticket tkt | jq -e '.data.projection.artifacts[] | select(.role == "plan") | .excerpt | contains("changed plan")' >/dev/null
 
+# A v1 checkpoint is never resumed: recover refuses it in both modes, naming
+# the migration; snapshot still renders facts but marks it as not current.
+cp "$TICKET_HOME/checkpoint.json" "$TMP/checkpoint.v2.json"
+printf '%s\n' '{"ticket":"tkt","workflow":"builder","step":"qa"}' > "$TICKET_HOME/checkpoint.json"
+rc=0; "$BBS" autopilot recover --json --ticket tkt > "$TMP/v1-recover.json" 2>/dev/null || rc=$?
+[ "$rc" -eq 3 ]
+jq -e '.ok == false and .error.code == "CHECKPOINT_V1" and (.error.message | contains("bbs autopilot checkpoint --refresh --ticket tkt"))' "$TMP/v1-recover.json" >/dev/null
+rc=0; "$BBS" autopilot recover --ticket tkt > /dev/null 2> "$TMP/v1-recover.err" || rc=$?
+[ "$rc" -eq 3 ] && grep -q 'checkpoint --refresh --ticket tkt' "$TMP/v1-recover.err"
+"$BBS" autopilot snapshot --json --ticket tkt > "$TMP/v1-snapshot.json"
+jq -e '.ok == true and ([.data.obligations[].kind] == ["checkpoint"]) and (.data.obligations[0].reason | startswith("CHECKPOINT_V1: ")) and .data.obligations[0].allowed_actions == ["checkpoint-refresh"]' "$TMP/v1-snapshot.json" >/dev/null
+cp "$TMP/checkpoint.v2.json" "$TICKET_HOME/checkpoint.json"
+"$BBS" autopilot snapshot --json --ticket tkt | jq -e '[.data.obligations[].kind] | index("checkpoint") == null' >/dev/null
+
 "$BBS" skill enter --name implement --json > "$TMP/enter.json"
 INVOCATION="$(jq -r '.data.invocation_id' "$TMP/enter.json")"
 "$BBS" skill exit --invocation "$INVOCATION" --outcome success > "$TMP/exit.json"

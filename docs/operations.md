@@ -526,6 +526,8 @@ bbs foreman watch --once                # one pass, for cron
 | `--max-nudges <n>` | 3 | budget before it reports `STALLED` and stops |
 | `--worker-idle <sec>` | 600 | batch worker pane unchanged this long, Dispatch open → nudge |
 | `--worker-nudges <n>` | 2 | worker nudges before the batch reports it `stalled:<task>` |
+| `--attention-window <sec>` | 120 | early wakes arriving within this window of the first share one wake |
+| `--supervised` | off | the launchd/systemd form: stands by behind a running watcher, exits 0 once no batch is open |
 | `--once` | off | single pass then exit; prints a line per foreman |
 
 It is a foreground loop, not a daemon — but you rarely start it yourself:

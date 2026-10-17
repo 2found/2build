@@ -26,11 +26,11 @@ reversible experiment per run.
    `implement`. An unmeasurable variant is `BLOCKED`, not shipped. Otherwise
    stop at the ranked recommendation.
 4. If code changed, in the current autopilot session run `review-pr --fix` and
-   then `qa` under its gate policy. Persist and read back both verdicts, apply the
-   **Repair until the final change passes** loop, and require
-   `bbs ticket readiness --action review --json` to report `data.ready=true`
-   for the final tree. Use `bbs ticket set-verdict --skill review-pr`
-   and `bbs ticket set-verdict --skill qa`; completion prose is not evidence.
+   then `qa` under its gate policy. Record both gates
+   (`bbs autopilot verification begin --gate review-pr` / `--gate qa`, then
+   `record`), apply the **Repair until the final change passes** loop, and
+   require `bbs ticket readiness --action review --json` to report
+   `data.ready=true` for the final tree; completion prose is not evidence.
 5. Leave any scaffolded variant uncommitted. Autopilot never commits, pushes,
    or opens a PR — that is the human's (`create-pr`) or Foreman's phase
    landing.

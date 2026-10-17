@@ -38,8 +38,11 @@ func (a *apState) verificationCommand(args []string) error {
 		if err != nil {
 			return err
 		}
-		if s.Run == nil || s.Run.Contract != 2 {
-			return fmt.Errorf("verification needs a v2 ticket")
+		if s.Run == nil {
+			return fmt.Errorf("verification needs a ticket")
+		}
+		if _, err := readCheckpointV2(filepath.Join(a.stateRoot, "tickets", a.ticket), a.ticket); err != nil {
+			return err
 		}
 		rec, err := prepareAttempt(a, a.ticket, map[string]interface{}{
 			"gate": gate, "owner": owner, "idempotency_key": newInvocationID(), "run_id": s.Run.ID, "expected_state_revision": s.StateRevision,

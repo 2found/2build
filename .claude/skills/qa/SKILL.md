@@ -227,15 +227,12 @@ EVIDENCE: <last e2e run: tool + journey + result; screenshot + errors/report pat
 CLEANUP: <owned resources stopped and verified; pre-existing/shared resources retained>
 ```
 When a ticket resolves, persist the **full block** (`RUBRIC`, `EVIDENCE`, and
-`CLEANUP` included) — `verdicts/qa.md` is the only artifact a human or
-orchestrator sees after the fact. A `qa-evidence` audit re-checks the body on
-write and
-the PR/merge gate **denies** a PASS that contradicts its own rubric
-(freshness < A, any C/D dimension) or carries no e2e evidence. Record it even
-when full QA was impossible (`VERDICT: FAIL`, `STATUS: BLOCKED`, with the
-missing required coverage and blocker named):
+`CLEANUP` included) — `reviews/qa.md` is the report a human or orchestrator
+reads after the fact. Record it even when full QA was impossible
+(`VERDICT: FAIL`, `STATUS: BLOCKED`, with the missing required coverage and
+blocker named):
 ```bash
-bbs ticket set-verdict --skill qa --body "$(cat <<'EOF'
+bbs ticket set-review --skill qa --body "$(cat <<'EOF'
 STATUS: ...
 VERDICT: ...
 SUMMARY: ...
@@ -246,3 +243,7 @@ CLEANUP: <owned resources stopped and verified; pre-existing/shared resources re
 EOF
 )"
 ```
+The gate is the caller's `bbs autopilot verification begin --gate qa` /
+`record` pair around this run
+([verification.md](../autopilot/references/verification.md)), which projects
+`verdicts/qa.md`; a FAIL is recorded, with its blocker under `limitations`.

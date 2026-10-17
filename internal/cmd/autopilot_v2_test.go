@@ -228,3 +228,33 @@ func directoryFingerprint(t *testing.T, root string) string {
 	sum := sha256.Sum256([]byte(strings.Join(rows, "\n")))
 	return hex.EncodeToString(sum[:])
 }
+
+func TestSnapshotMarksACheckpointOffTheV2Contract(t *testing.T) {
+	repo, env := initReadinessFixture(t)
+	t.Chdir(repo)
+	a := &apState{slug: env.Slug, branch: env.Branch, ticket: env.Ticket, stateRoot: env.ProjectHome}
+	cpPath := filepath.Join(env.ProjectHome, "tickets", env.Ticket, "checkpoint.json")
+	for _, tc := range []struct{ body, code, action string }{
+		{`{"ticket":"ready","workflow":"builder","step":"qa"}`, "CHECKPOINT_V1", "checkpoint-refresh"},
+		{`{"schema_version":3,"ticket":"ready","run_id":"run-1"}`, "CHECKPOINT_UNSUPPORTED", "upgrade-bbs"},
+	} {
+		mustWrite(t, cpPath, tc.body)
+		s, err := collectAutopilotSnapshot(a, "")
+		if err != nil {
+			t.Fatalf("%s: snapshot must still render facts: %v", tc.code, err)
+		}
+		if len(s.Obligations) != 1 || s.Obligations[0].Kind != "checkpoint" || !strings.HasPrefix(s.Obligations[0].Reason, tc.code+": ") || s.Obligations[0].AllowedActions[0] != tc.action {
+			t.Fatalf("%s: obligations = %+v, want only the checkpoint obligation", tc.code, s.Obligations)
+		}
+	}
+	mustWrite(t, cpPath, `{"schema_version":2,"ticket":"ready","run_id":"run-1","revision":1,"workflow":"builder"}`)
+	s, err := collectAutopilotSnapshot(a, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, o := range s.Obligations {
+		if o.Kind == "checkpoint" {
+			t.Fatalf("v2 checkpoint marked: %+v", o)
+		}
+	}
+}

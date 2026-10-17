@@ -9,7 +9,7 @@ or a worker's `DONE` message cannot issue that receipt.
 
 Use `/bbs:foreman` for a project. The existing parent design checkpoint remains;
 `--auto` delegates that review. Foreman writes `project.json` before approval,
-binds each accepted seed to a child, and uses v2 Autopilot evidence for code work.
+binds each accepted seed to a child, and uses Autopilot gate evidence for code work.
 Changes to the accepted contract invalidate its approval and integrated evidence.
 
 ```sh
@@ -27,22 +27,26 @@ The full contract, evidence and progress formats are in the
 [execution reference](../.claude/skills/foreman/references/execution.md).
 Workers use the [verification producer](../.claude/skills/autopilot/references/verification.md)
 to capture the current revision before a check and archive its actual results.
-Do not convert old verdict prose into typed evidence: migrate legacy child
-checkpoints using the supported Autopilot migration command and rerun the gates.
+Do not convert old verdict prose into typed evidence: a child checkpoint from
+before `schema_version: 2` is refused until
+`bbs autopilot checkpoint --refresh --ticket <id>` migrates it; then rerun its gates.
 
 ## Delivery and recovery
 
-- Seal each code child while its verified checkout still exists. The seal binds
-  actual commits, policy, accepted review/QA attempts and archived logs. Removed
-  worktrees do not erase that proof. Changed source refs or logs invalidate it.
+- Seal each code child while its verified checkout still exists
+  (`bbs foreman seal <ticket>...` takes several at once). The seal snapshots the
+  uncommitted tree on a hidden ref and binds policy, accepted review/QA attempts
+  and archived logs. Removed worktrees do not erase that proof. A later edit to
+  the tree or changed logs invalidate it.
 - One code child owns one repository. Split cross-repository work into dependent
   children; final verification names every affected repository surface.
-- Final integration runs against the delivered local base for `land`, or a
-  retained project QA branch for `review`/`pr`. Product review uses a separate
+- Each phase is composed into one commit (`bbs foreman integrate`) and QA'd on
+  exactly that commit; `bbs foreman land` then fast-forwards local base to it.
+  The last phase's run is the final integration. Product review uses a separate
   evaluator identity. Capture the tested runtime revision for preview links.
 - `bbs foreman complete PARENT --foreman ID` checks readiness and cleanup again,
-  then writes the receipt. Review-ready branches and open PRs remain `in_review`.
-  Local landing and remote merge are reported separately.
+  then writes the receipt. Landing on local base, push and release are reported
+  separately.
 - For documentation/research projects, explicitly approve `artifacts_only` and
   seal the child workflow's durable outputs. Production commits cannot use this
   shortcut.

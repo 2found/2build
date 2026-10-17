@@ -58,8 +58,7 @@ under that phase's ticket.
    `index.json` directly. Write `requirement.md` and assign parent and
    children to this foreman.
    Bind the accepted seed with `bbs foreman bind "$PARENT" --seed <key>
-   --child "$TICKET"`, initialize code children with contract version 2 per
-   execution.md, and include their parent acceptance IDs in the Task.
+   --child "$TICKET"` and include their parent acceptance IDs in the Task.
    The moment both sides of every relation are linked, emit the DAG with the
    dispatch plan — see [runtime](references/runtime.md), **Intake and DAG**.
 4. Validate every recorded worktree path and the base before dispatch. A

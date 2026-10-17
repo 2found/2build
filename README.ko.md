@@ -65,7 +65,7 @@ bbs install
 
 ## 첫 ticket 실행
 
-1. Agent를 재시작하고 Git repo를 열어 성공 조건이 명확한 작은 bug나 기능을 고르세요. Autopilot은 현재 checkout에서 작업하고 commit합니다. 작업을 분리하려면 먼저 원하는 branch를 만드세요.
+1. Agent를 재시작하고 Git repo를 열어 성공 조건이 명확한 작은 bug나 기능을 고르세요. Autopilot은 현재 checkout에서 작업하고 변경 사항을 commit하지 않은 채로 남겨 둡니다. 작업을 분리하려면 먼저 원하는 branch를 만드세요.
 2. **Agent chat에서 skill을 호출**하고 예제를 자신의 작업으로 바꾸세요:
 
    | Agent | 예제 |
@@ -76,8 +76,8 @@ bbs install
    | Grok | `/bbs:autopilot "저장된 검색 화면을 추가해 주세요. 프로토타입을 먼저 보여 준 뒤 구현, 리뷰, QA를 진행하세요."` |
    | Antigravity / 다른 호환 agent | 설치된 `autopilot` skill로 작업하도록 요청하세요. |
 
-3. 계획을 검토하고 UI 작업은 프로토타입을 여세요. 여기서 배치, 상호작용, 범위를 조정합니다. Autopilot이 `/goal` block을 반환하면 같은 agent에 붙여 넣어 실행을 시작하세요. Goal mode가 없는 agent에서는 첫 요청에 `--stop-after=plan`을 추가해 이 검토 단계에서 멈추게 한 뒤 handoff의 재개 지시를 따르세요.
-4. Autopilot이 구현, 리뷰, 수정, 테스트, QA를 수행하게 두세요. 완료 gate를 통과하면 로컬 commit과 근거를 반환합니다. 진행이 막히면 부족한 입력을 명시합니다. 재시작 후 handoff의 ticket ID로 재개할 수 있습니다.
+3. 계획을 검토하고 UI 작업은 프로토타입을 여세요. 여기서 배치, 상호작용, 범위를 조정합니다. Autopilot이 `/goal` block을 반환하면 같은 agent에 붙여 넣어 실행을 시작하세요. Goal mode가 없는 agent에서는 첫 요청에 `--stop-after=plan`을 추가해 이 검토 단계에서 멈추게 한 뒤 handoff의 재개 지시를 따르세요. 무인으로 실행하려면 `--auto`를 추가하세요(예: `/bbs:autopilot --auto "…"`). Autopilot이 스스로 계획을 검토하고 `/goal` block을 출력하지 않으며, agent가 허용하면 직접 goal을 설정하고, 그렇지 않으면 ticket이 완료되거나 막힐 때까지 같은 session에서 계속 작업합니다.
+4. Autopilot이 구현, 리뷰, 수정, 테스트, QA를 수행하게 두세요. 완료 gate를 통과하면 검증된 변경을 commit하지 않은 채 checkout에 남기고 근거를 함께 제공합니다(직접 commit하거나 `create-pr`에 넘기세요). 진행이 막히면 부족한 입력을 명시합니다. 재시작 후 handoff의 ticket ID로 재개할 수 있습니다.
 
 첫 ticket에는 Orca, 새 worker session, 프로젝트 설정이 필요 없습니다. 시작 전에 session model을 선택하세요. [진행 확인과 session 복구](docs/companion-cli.md).
 
@@ -119,13 +119,14 @@ Autopilot은 작업을 제품 팀의 다섯 역할 중 하나로 배정합니다
 
 ## Skill과 CLI
 
-Skill은 agent용 workflow이고 `bbs`는 이를 지원하는 CLI입니다. `/bbs:foreman`은 프로젝트 조정자를 실행하며, `bbs foreman`은 model 정책 조회, 영구 Foreman 기록, 계약, 보고서를 관리합니다. `/bbs:autopilot`은 단일 ticket workflow를 실행하며, `bbs autopilot`은 checkpoint와 상태 관리 도구를 제공합니다. `bbs ticket`은 ticket 식별, DAG 관계, 증거, 테스트 환경, 인도, 정리를 관리합니다.
+Skill은 agent용 workflow이고 `bbs`는 이를 지원하는 CLI입니다. `/bbs:foreman`은 프로젝트 조정자를 실행하며, `bbs foreman`은 model 정책 조회, 영구 Foreman 기록, phase(`seal`, `integrate`, `land`, `release`), 다음 단계 제안, 보고서를 관리하고, `bbs contract`는 병렬 ticket이 의존하는 인터페이스 계약을 관리합니다. `/bbs:autopilot`은 단일 ticket workflow를 실행하며, `bbs autopilot`은 checkpoint와 상태 관리 도구를 제공합니다. `bbs ticket`은 ticket 식별, DAG 관계, 증거, 테스트 환경 lease, seal된 작업 가져오기를 관리합니다.
 
 자주 쓰는 CLI 명령:
 
 ```bash
 bbs dashboard
 bbs foreman report <parent-ticket>
+bbs foreman next <parent-ticket>
 bbs ticket dag <parent-ticket>
 bbs autopilot snapshot --json
 bbs autopilot recover --json
@@ -134,6 +135,17 @@ bbs autopilot recover --json
 `snapshot`은 ticket의 기준 상태와 gate 증거를 읽습니다. `recover`는 작업을 재개할 수 있도록 분량이 제한된 산출물 발췌를 추가합니다.
 
 사용법은 `bbs <subcommand> --help`로 확인하세요. 자세한 내용은 [지원 CLI](docs/companion-cli.md), [git flow](.claude/skills/references/git-flow.md), [운영](docs/operations.md)을 참고하세요.
+
+## 시맨틱 결정
+
+`semantic-decision`은 작업 규모, 복잡도, 라우팅, 테스트 영향, 리뷰 판단을 명시적이고 재사용 가능한 skill 단계로 만듭니다. 기본 provider는 현재 LLM이며 별도 설정이나 추가 model 프로세스가 필요 없습니다. Cloudflare를 사용하려면:
+
+```bash
+bbs config set semantic_decision_provider cloudflare
+bbs config set semantic_decision_model clef-flash  # or clef
+```
+
+`CLOUDFLARE_ACCOUNT_ID`와 `CLOUDFLARE_API_TOKEN`을 환경 변수 또는 `~/.babysit/.env`에 설정하세요. provider는 사용자 설정만 선택할 수 있고, 프로젝트 정책은 외부 추론을 제한할 수 있습니다. Cloudflare 오류나 불확실한 답변은 현재 LLM으로 대체됩니다. [skill](.claude/skills/semantic-decision/SKILL.md)과 [계약](.claude/skills/references/semantic-decision.md)을 참고하세요. 설정 경로, 기본값, 프로젝트 제한, 사람 검토 동작은 [dashboard 컨트롤이 없는 설정](docs/operations.md#settings-without-a-dashboard-control)을 참고하세요.
 
 </details>
 

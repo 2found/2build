@@ -239,3 +239,46 @@ func jsonNumber(v int) string {
 	b, _ := json.Marshal(v)
 	return string(b)
 }
+
+// --refresh is the one command onto the contract: it seeds a ticket with no
+// checkpoint and migrates a schema_version 1 one; seedCheckpoint never touches
+// an existing checkpoint.
+func TestRefreshSeedsAndMigratesCheckpoint(t *testing.T) {
+	repo := initSnapshotRepo(t)
+	t.Chdir(repo)
+	project := filepath.Join(t.TempDir(), "project")
+	home := filepath.Join(project, "tickets", "ap-05")
+	mustMkdirAll(t, home)
+	env := identity.Env{Slug: "project", Branch: "main", Ticket: "ap-05", ProjectHome: project}
+
+	if err := seedCheckpoint(env); err != nil {
+		t.Fatal(err)
+	}
+	cp := readJSONObject(filepath.Join(home, "checkpoint.json"))
+	if int64Value(cp["schema_version"]) != 2 || stringValue(cp["run_id"]) == "" || stringValue(cp["ticket"]) != "ap-05" || int64Value(cp["revision"]) != 1 {
+		t.Fatalf("seeded checkpoint is not v2: %#v", cp)
+	}
+	if err := seedCheckpoint(env); err != nil {
+		t.Fatal(err)
+	}
+	if again := readJSONObject(filepath.Join(home, "checkpoint.json")); int64Value(again["revision"]) != 1 {
+		t.Fatalf("seed rewrote an existing checkpoint: %#v", again)
+	}
+
+	legacy := `{"ticket":"ap-05","workflow":"builder","step":"qa","status":"in_progress"}`
+	mustWrite(t, filepath.Join(home, "checkpoint.json"), legacy)
+	a := &apState{slug: "project", branch: "main", ticket: "ap-05", stateRoot: project}
+	if err := a.refreshCheckpointV2("ap-05"); err != nil {
+		t.Fatal(err)
+	}
+	migrated := readJSONObject(filepath.Join(home, "checkpoint.json"))
+	if int64Value(migrated["schema_version"]) != 2 || stringValue(migrated["step"]) != "qa" || stringValue(migrated["run_id"]) == "" {
+		t.Fatalf("refresh did not migrate v1: %#v", migrated)
+	}
+	if backup, err := os.ReadFile(filepath.Join(home, "checkpoint.v1.backup.json")); err != nil || string(backup) != legacy {
+		t.Fatalf("v1 backup mismatch: err=%v body=%q", err, backup)
+	}
+	if _, err := readCheckpointV2(home, "ap-05"); err != nil {
+		t.Fatalf("migrated checkpoint refused: %v", err)
+	}
+}

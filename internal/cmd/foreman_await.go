@@ -280,7 +280,7 @@ func liveProbe(connect func() (*orca.Client, error), primary string, env identit
 		case d.Status != "completed":
 			return prereqState{State: "not-ready", Reason: "dispatch " + d.Status}
 		}
-		_, ready, reasons, _, err := ticketV2Readiness(primary, env, p.ticket, "review")
+		ready, reasons, _, err := ticketV2Readiness(primary, env, p.ticket, "review")
 		if err != nil {
 			// A read racing the finishing worker's last write (git lock, a
 			// verdict mid-rename) clears on the next poll; only a repeated
@@ -297,7 +297,7 @@ func liveProbe(connect func() (*orca.Client, error), primary string, env identit
 		if ready {
 			state = "ready"
 		} else if deferred := ticket.ReadDoc(storeForTicket(env, p.ticket).IndexPath()).Get("pointers.deferred_heavy"); deferred != "" {
-			if _, ok, _, _, err := ticketV2Readiness(primary, env, p.ticket, "light"); err == nil && ok {
+			if ok, _, _, err := ticketV2Readiness(primary, env, p.ticket, "light"); err == nil && ok {
 				state, reason = "light-ready", "deferred heavy: "+deferred
 			}
 		}

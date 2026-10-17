@@ -67,7 +67,7 @@ func hooksUsage() {
 	fmt.Fprint(os.Stderr, `usage: bbs hooks <hook> [--payload <json>]
 
   pre-tool-gate   PreToolUse(Bash) release gate — reads hook JSON, emits a
-                  native deny/ask decision, or nothing when it has no objection
+                  native deny decision, or nothing when it has no objection
   session-writer  SessionStart + PostToolUse session tracker — refreshes
                   ~/.babysit/sessions/<agent>-<id>.yaml, always exits 0
   worker-report-gate  Stop check — keeps an Orca worker running until its
@@ -105,12 +105,12 @@ func hookPayload(args []string) []byte {
 // ─── pre-tool-gate ─────────────────────────────────────────────────────────
 
 // gateDecision is the gate's outcome: pass emits nothing (the call falls
-// through to the host's own permission rules); deny/ask emit the host's
+// through to the host's own permission rules); deny emits the host's
 // native decision JSON. "defer" is never produced — Claude Code honors it as
 // "pause the session" in every non-interactive context (github issue #21).
 type gateDecision struct {
-	action string // "pass" | "deny" | "ask"
-	reason string // pass: stderr trail; deny/ask: decision reason
+	action string // "pass" | "deny"
+	reason string // pass: stderr trail; deny: decision reason
 }
 
 var gateExeRe = regexp.MustCompile(`(git|gh|glab)\.exe`)
@@ -180,9 +180,6 @@ func gateWorkdir(payload map[string]any) string {
 	return ""
 }
 
-func verdictReady(v string) bool   { return v == "DONE" || v == "DONE_WITH_CONCERNS" }
-func verdictBlocked(v string) bool { return v == "BLOCKED" || v == "NEEDS_CONTEXT" }
-
 // evaluateGate is the whole decision, separated from I/O so tests drive it
 // directly. It may chdir into the payload's workdir — the same contract the
 // bash hook had (hooks can run outside the tool's working directory).
@@ -220,83 +217,30 @@ func evaluateGate(payload []byte) gateDecision {
 	}
 	ticketID := env.Ticket
 
-	// Version-2 runs use the shared typed evaluator. An evaluator error on a
-	// v2 command is a closed gate, never an implicit legacy downgrade.
-	v2Action := stage
-	if v2Action == "merge" {
-		v2Action = "land"
+	// The shared readiness evaluator is the whole decision. An evaluator error
+	// is a closed gate, never a fallback to verdict prose.
+	action := stage
+	if action == "merge" {
+		action = "land"
 	}
-	res, err := evaluateReadiness(env, v2Action)
+	res, err := evaluateReadiness(env, action)
 	if err != nil {
 		code := "READINESS_ERROR"
 		var se *snapshotError
 		if errors.As(err, &se) && se.Code != "" {
 			code = se.Code
 		}
-		return gateDecision{"deny", fmt.Sprintf("Autopilot v2 readiness failed on %s (%s); blocking %s rather than falling back to stale verdict prose.", ticketID, code, stage)}
+		return gateDecision{"deny", fmt.Sprintf("Readiness failed on %s (%s: %v); blocking %s.", ticketID, code, err, stage)}
 	}
-	if res.Enforced {
-		if !res.Ready {
-			return gateDecision{"deny", fmt.Sprintf("Autopilot v2 is not ready for %s on %s (%s). Re-run the stale or missing gate on the current tree.", stage, ticketID, strings.Join(res.ReasonCodes, ","))}
-		}
-		return gateDecision{"pass", fmt.Sprintf("autopilot-v2 readiness=ready — ok for %s", stage)}
+	if !res.Ready {
+		return gateDecision{"deny", fmt.Sprintf("%s is not ready for %s (%s). Run the missing or stale gate on the current tree with bbs autopilot verification.", ticketID, stage, strings.Join(res.ReasonCodes, ","))}
 	}
-
-	st := ticket.New(env)
-	review := verdictStatus(st, "review-pr")
-	qa := verdictStatus(st, "qa")
-
-	// qaEvidenceClassify audits the qa verdict *body* (freshness, rubric, e2e
-	// evidence), not just its STATUS token — consulted only once qa reads ready.
-	qaEvidence := func() string { return qaEvidenceClassify(st.Home()) }
-
-	switch stage {
-	case "push":
-		if verdictBlocked(review) {
-			return gateDecision{"deny", fmt.Sprintf("review-pr verdict is %s on %s — resolve it before pushing.", review, ticketID)}
-		}
-		if !verdictReady(review) {
-			return gateDecision{"ask", fmt.Sprintf("No ready review-pr verdict on %s (review-pr=%s). Run the review-pr skill before pushing.", ticketID, review)}
-		}
-		return gateDecision{"pass", fmt.Sprintf("review-pr=%s — ok to push", review)}
-	case "pr":
-		// PR creation is babysit's real handoff-to-human boundary, so QA gates
-		// here, not only at merge.
-		if verdictBlocked(review) || verdictBlocked(qa) {
-			return gateDecision{"deny", fmt.Sprintf("Not ready for a PR on %s — review-pr=%s, qa=%s.", ticketID, review, qa)}
-		}
-		if !verdictReady(review) || !verdictReady(qa) {
-			return gateDecision{"ask", fmt.Sprintf("Open PR for %s: review-pr=%s, qa=%s. Run the missing review-pr or qa check before creating the PR.", ticketID, review, qa)}
-		}
-		switch ev := qaEvidence(); {
-		case strings.HasPrefix(ev, "contradiction:"):
-			return gateDecision{"deny", fmt.Sprintf("qa=%s on %s contradicts its own rubric (%s) — not a real PASS. Re-run /bbs:qa before opening a PR.", qa, ticketID, ev)}
-		case strings.HasPrefix(ev, "thin:") || ev == "unexplained":
-			return gateDecision{"ask", fmt.Sprintf("qa=%s on %s but evidence is %s — no confirmed end-to-end web run. Run /bbs:qa or approve to proceed.", qa, ticketID, ev)}
-		}
-		return gateDecision{"pass", fmt.Sprintf("review-pr=%s qa=%s — ok to open PR", review, qa)}
-	case "merge":
-		if verdictBlocked(review) || verdictBlocked(qa) {
-			return gateDecision{"deny", fmt.Sprintf("Not ready to merge %s — review-pr=%s, qa=%s.", ticketID, review, qa)}
-		}
-		if !verdictReady(review) || !verdictReady(qa) {
-			return gateDecision{"ask", fmt.Sprintf("Merge %s: review-pr=%s, qa=%s. Run the missing review-pr or qa check before merging.", ticketID, review, qa)}
-		}
-		switch ev := qaEvidence(); {
-		case strings.HasPrefix(ev, "contradiction:"):
-			return gateDecision{"deny", fmt.Sprintf("qa=%s on %s contradicts its own rubric (%s) — not a real PASS. Re-run /bbs:qa before merging.", qa, ticketID, ev)}
-		case strings.HasPrefix(ev, "thin:") || ev == "unexplained":
-			return gateDecision{"ask", fmt.Sprintf("qa=%s on %s but evidence is %s — no confirmed end-to-end web run. Run /bbs:qa or approve to merge anyway.", qa, ticketID, ev)}
-		}
-		return gateDecision{"pass", fmt.Sprintf("review-pr=%s qa=%s — ok to merge", review, qa)}
-	}
-	return gateDecision{"pass", "no rule matched"}
+	return gateDecision{"pass", fmt.Sprintf("readiness=ready — ok for %s", stage)}
 }
 
 // runPreToolGate emits the decision: pass → stderr trail only, empty stdout;
-// deny/ask → the host's native decision JSON. Grok has no ask response, so
-// under Grok both become {decision:"deny"} — the missing check goes back to
-// the agent instead of silently allowing or inventing a confirmation channel.
+// deny → the host's native decision JSON ({decision:"deny"} under Grok) — the
+// missing check goes back to the agent instead of silently allowing.
 func runPreToolGate(payload []byte, stdout, stderr io.Writer) {
 	d := evaluateGate(payload)
 	if d.action == "pass" {

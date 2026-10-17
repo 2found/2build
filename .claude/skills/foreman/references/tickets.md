@@ -179,8 +179,8 @@ waiting on it:
 
 Check the expected Task/Dispatch and accepted lifecycle settlement, then the
 ticket's artifacts, plan approval record, revision and verdicts. A message alone
-is not a passing gate. For code tickets, read current review/QA evidence,
-`qa-evidence` and `bbs ticket readiness --action review --json`;
+is not a passing gate. For code tickets, read current review/QA evidence
+and `bbs ticket readiness --action review --json`;
 require `ok` and `data.ready`, and confirm each adopted prerequisite snapshot
 is still the one that prerequisite was sealed at. For evidence-only tickets,
 check their artifacts and acceptance coverage. Foreman does not repeat code

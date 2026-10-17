@@ -46,20 +46,23 @@ Paths below are relative to the ticket directory. Mutate metadata through `bbs t
 | Path | Contents / writer |
 |------|-------------------|
 | `handoffs/<NNN>-<skill>.md` | Append-only briefs; `add-handoff` |
-| `verdicts/<skill>.md` | Latest status block; `set-verdict --skill <skill> --body-file <report>` |
+| `verdicts/<skill>.md` | Latest status block; `set-verdict --skill <skill> --body-file <report>`. `review-pr`/`qa` are gates: projected by `bbs autopilot verification record`, never `set-verdict` |
 | `reviews/<skill>.md` | Latest review; `set-review --skill <skill> --body-file <report>` |
 | `plan.md`, `design.md`, `manifest.md` | Canonical artifacts; skill writes, `set-pointer` registers |
 | `evidence/*.{png,json}`, `report.md` | Screenshots, structured output, summary; skill writes |
 
 ### Typed evidence artifacts
 `bbs ticket set-evidence` validates structure. Exit 2 → retry once, then escalate.
-Check presence/structure, never a self-assigned score. Release gates still read
-`verdicts/` ([approval contract](../../../docs/artifact-gated-approval.md)).
+Check presence/structure, never a self-assigned score. Release gates read only
+the `verification` evidence that
+[the producer](../autopilot/references/verification.md) accepted for the
+current tree, never `verdicts/`
+([approval contract](../../../docs/artifact-gated-approval.md)).
 
-`verification` belongs to `implement`, `browse`, `investigate`: required `result`
-(`PASS` or `FAIL`); optional `checks:[{cmd,result}]`, `before`, `after`.
+`verification` is written only by `bbs autopilot verification record`;
+`set-evidence --kind verification` takes nothing but its `schema_version: 2`
+envelope. `risk-gate` and `adversarial` are written with `set-evidence`.
 ```bash
-bbs ticket set-evidence --kind verification --json '{"result":"PASS"}'
 bbs ticket evidence-status --kind verification   # none | valid | malformed
 ```
 

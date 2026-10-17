@@ -311,7 +311,7 @@ func projectSealChild(st *ticket.Store) error {
 			if err != nil {
 				return err
 			}
-			if !ready.Enforced || !ready.Ready {
+			if !ready.Ready {
 				return fmt.Errorf("child not verified: %v", ready.ReasonCodes)
 			}
 			cut := gitOutIn(r.Worktree, "rev-parse", "--verify", "-q", "HEAD^{commit}")

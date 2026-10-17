@@ -60,8 +60,10 @@ T="$(mktemp -d)"
   export HOME="$T/home"; mkdir -p "$HOME"
   export AGENT_ROLE=mayor
   build_two_tickets "$T" || { echo "fixture failed"; exit 1; }
-  BABYSIT_TICKET="$TK_A" "$BBS_TICKET_BIN" ticket set-verdict --skill qa \
-    --body "STATUS: DONE" >/dev/null 2>&1 || { echo "set-verdict failed"; exit 1; }
+  # verdicts/qa.md is the verification producer's projection; write it as one.
+  th="$(BABYSIT_TICKET="$TK_A" "$BBS_TICKET_BIN" ticket path home --read)" \
+    || { echo "ticket home failed"; exit 1; }
+  mkdir -p "$th/verdicts" && printf 'STATUS: DONE\n' > "$th/verdicts/qa.md"
 
   out="$("$BBS_TICKET_BIN" ticket board 2>"$T/err")"; rc=$?
   [ "$rc" -eq 0 ] || { echo "board failed rc=$rc: $(cat "$T/err")"; exit 1; }

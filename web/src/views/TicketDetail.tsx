@@ -1088,7 +1088,8 @@ function StatusStrip({
   // autopilot writes what it is blocked on. Neither is shown anywhere else on
   // the page, so the cell carries both rather than dropping them.
   const cp = detail.checkpoint;
-  const step = cp
+  // A freshly created ticket has a seeded checkpoint with no workflow yet.
+  const step = cp?.workflow && cp?.step
     ? (
       <span title={cp.note || undefined}>
         {cp.workflow} / {cp.step}
@@ -1185,7 +1186,6 @@ function StatusStrip({
 function readinessValue(readiness: ReadinessResult | null): ReactNode {
   if (!readiness) return <span style={{ color: 'var(--text-muted)' }}>snapshot only</span>;
   if (!readiness.available) return <span title={readiness.reason} style={{ color: 'var(--text-muted)' }}>unavailable</span>;
-  if (!readiness.enforced) return <span style={{ color: 'var(--text-muted)' }}>legacy</span>;
   if (readiness.ready) return <Tag tone="ok">ready</Tag>;
   const reasons = readiness.reason_codes?.join(', ') || 'not ready';
   return <span className="font-mono" title={reasons} style={{ color: 'var(--status-blocked-text)' }}>{reasons}</span>;

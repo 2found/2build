@@ -111,8 +111,6 @@ func newTicketCmd() *cobra.Command {
 				runSetEvidence(args[1:])
 			case "evidence-status":
 				runEvidenceStatus(args[1:])
-			case "qa-evidence":
-				runQAEvidence(args[1:])
 			case "readiness":
 				runReadiness(args[1:])
 			case "path":
@@ -185,8 +183,6 @@ Subcommands:
   set-review  --skill S [--body MD | --body-file FILE]
   set-evidence --kind K (--json STR | --json-file FILE)   K ∈ verification|risk-gate|adversarial
   evidence-status --kind K       print {none|valid|malformed}
-  qa-evidence                    audit qa verdict body: {none|ok|contradiction:<d>|thin:<d>|unexplained}
-                                 thin:<d> covers no-evidence, no-e2e, missing-artifact:<p>, invalid-artifact-path:<p>
   readiness --json --action push|land|pr|review
                                  read-only typed gate freshness for the exact action
   append-history --event E [--actor A] [--extra-json JSON]

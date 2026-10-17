@@ -46,6 +46,13 @@ func (a *apState) recoverV2(args []string) {
 	if err != nil {
 		writeSnapshotError(err)
 	}
+	// Recovery decides what to do next, so it reads the checkpoint as a
+	// decision reader: off the v2 contract it is refused, never resumed.
+	if snapshot.Ticket != nil {
+		if _, err := readCheckpointV2(filepath.Join(a.stateRoot, "tickets", snapshot.Ticket.ID), snapshot.Ticket.ID); err != nil {
+			writeSnapshotError(err)
+		}
+	}
 	projection := buildContextProjection(snapshot)
 	action := "continue"
 	if snapshot.ActiveAttempt != nil {

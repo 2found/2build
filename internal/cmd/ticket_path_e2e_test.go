@@ -468,10 +468,9 @@ func TestTicketLifecycleScenarios(t *testing.T) {
 func TestTicketTypedEvidence(t *testing.T) {
 	e := newE2E(t)
 	e.expectStdout("EV: status none before any write", 0, "none", "evidence-status", "--kind", "verification")
-	e.expectStdout("EV: verification valid write returns path", 0, filepath.Join(e.th, "evidence", "verification", "result.json"),
+	e.expectStderrContains("EV: pre-v2 verification refused", 2, "verification begin/record",
 		"set-evidence", "--kind", "verification", "--json", `{"result":"PASS","after":"BUILT(S)"}`)
-	e.expectStdout("EV: verification status valid", 0, "valid", "evidence-status", "--kind", "verification")
-	e.expectExit("EV: bad result value → exit 2", 2, "set-evidence", "--kind", "verification", "--json", `{"result":"MAYBE"}`)
+	e.expectStdout("EV: refused write leaves no evidence", 0, "none", "evidence-status", "--kind", "verification")
 	e.expectExit("EV: not-json → exit 2", 2, "set-evidence", "--kind", "risk-gate", "--json", "nope")
 	e.expectStderrContains("EV: missing required field names it", 2, "high_risk",
 		"set-evidence", "--kind", "risk-gate", "--json", `{"reason":"x"}`)

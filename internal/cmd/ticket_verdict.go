@@ -38,6 +38,12 @@ func runSetVerdict(args []string) {
 		os.Exit(2)
 	}
 	skill = safePathComponent("verdict", "skill", skill)
+	// review-pr and qa verdicts are projections of typed gate evidence; a
+	// hand-written body there would read as a gate result that never ran.
+	if skill == "review-pr" || skill == "qa" {
+		fmt.Fprintf(os.Stderr, "set-verdict: %s is a gate; record it with `bbs autopilot verification begin --gate %s` then `verification record`, which writes verdicts/%s.md\n", skill, skill, skill)
+		os.Exit(2)
+	}
 
 	st := ticket.New(env)
 	st.EnsureDirs()

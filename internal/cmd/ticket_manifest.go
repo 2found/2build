@@ -172,6 +172,11 @@ func runInit(args []string) {
 	}
 
 	st.ReleaseLock()
+	if fresh {
+		if err := seedCheckpoint(env); err != nil {
+			fmt.Fprintf(os.Stderr, "init: warning — checkpoint.json seed failed (continuing): %v\n", err)
+		}
+	}
 	fmt.Println(f)
 	os.Exit(0)
 }

@@ -73,7 +73,7 @@ bbs skill enter --name <skill>
 Use the skill's frontmatter `name:`. Keep the returned `SESSION_ID` for the
 exit call. The command loads config/identity, checks updates, refreshes
 sessions, initializes ticket state, recovers context and logs skill start.
-A v2 snapshot supplies facts, never release permission. `--json` retains the
+The snapshot supplies facts, never release permission. `--json` retains the
 telemetry-only API for callers that own bootstrap.
 
 If `bbs` is missing from PATH, try its installed absolute path (usually
@@ -127,5 +127,5 @@ SUMMARY: <1–2 sentences>
 - `NEEDS_CONTEXT`: requires human information, or scope exceeds what you can self-verify.
 
 Non-happy statuses add `REASON`, `ATTEMPTED`, `RECOMMENDATION`.
-Hook-enforced: QA `FAIL` → `BLOCKED`; unresolved material review findings →
+Gate-enforced: QA `FAIL` → `BLOCKED`; unresolved material review findings →
 `BLOCKED`; minor review residuals → `DONE_WITH_CONCERNS`.

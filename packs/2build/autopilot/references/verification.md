@@ -1,8 +1,11 @@
 # Typed verification producer
 
-Use for managed v2 children and explicitly migrated v2 tickets. Standalone v1
-skills keep their existing invocation and verdict behavior. Do not silently
-convert old evidence. Run the real review-pr and qa skills in the current session.
+The only writer of `review-pr` and `qa` gate evidence and of their
+`verdicts/<gate>.md` projections. A checkpoint from before `schema_version: 2`
+is refused with `CHECKPOINT_V1` (`recover` included; `snapshot` still renders
+its facts but lists a lone `checkpoint` obligation); migrate it once with
+`bbs autopilot checkpoint --refresh --ticket <id>` and never convert old
+evidence. Run the real review-pr and qa skills in the current session.
 
 Never commit for a gate: the subject is the working tree's content, untracked
 files included. Capture it **before** verification:

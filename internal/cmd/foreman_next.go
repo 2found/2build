@@ -165,7 +165,7 @@ func childSealable(cs *ticket.Store) bool {
 	env := cs.Env
 	env.Branch = m.Repos[0].Branch
 	r, err := evaluateReadinessIn(env, "review", m.Repos[0].Worktree)
-	return err == nil && r.Enforced && r.Ready
+	return err == nil && r.Ready
 }
 
 // phaseContractChecks lists the checks of the contracts a phase commit changes.

@@ -120,14 +120,17 @@ is the exact one recorded for this ticket, and `worker-list` shows it `live`:
 orca orchestration worker-show --dispatch "$LAST_DISPATCH" --json
 orca orchestration task-create --spec "<follow-up assignment>" --json
 # reserve the ticket's resource profile for the new Task first (topology.md)
+TICKET_WORKTREE=$(BABYSIT_TICKET="$TICKET" bbs ticket path worktree --read)
 orca orchestration worker-start --task "$FOLLOWUP_TASK" \
-  --terminal "$TICKET_TERMINAL" --json
+  --worktree "path:$TICKET_WORKTREE" --terminal "$TICKET_TERMINAL" --json
 
 bbs foreman route verify --ticket "$TICKET" --task "$FOLLOWUP_TASK" \
   --agent <ticket-agent> --terminal "$TICKET_TERMINAL" --receipt-file "$WORKER_START_RECEIPT"
 ```
 
 `--terminal` takes no model or effort: the live session keeps the ticket route.
+It does need `--worktree` naming that terminal's ticket worktree; without it
+Orca binds the Dispatch to the coordinator's (`current`) worktree.
 Require `transport-matched`. A refused reuse, a non-live or unverifiable
 session, or a ticket whose route must change starts a fresh worker in the ticket
 worktree on the recorded route instead; never type a follow-up into a pane by

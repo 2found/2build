@@ -144,7 +144,6 @@ export function prototypeUrl(project: string, ticket: string) {
 export interface ReadinessResult {
   available: boolean;
   action: 'push' | 'pr' | 'land';
-  enforced?: boolean;
   ready?: boolean;
   reason_codes?: string[];
   reason?: string;

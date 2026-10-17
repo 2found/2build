@@ -22,8 +22,8 @@ links it into `~/.local/bin`).
 
 | Agent | Wiring | Payload / decision |
 | --- | --- | --- |
-| Claude Code | Plugin auto-discovers `hooks/hooks.json` | snake_case input; native deny/ask JSON |
-| Codex | Plugin auto-discovers `hooks/hooks.json` | snake_case input; native deny/ask JSON |
+| Claude Code | Plugin auto-discovers `hooks/hooks.json` | snake_case input; native deny JSON |
+| Codex | Plugin auto-discovers `hooks/hooks.json` | snake_case input; native deny JSON |
 | Grok Build | Plugin loads `hooks/hooks.json` | camelCase input; native deny JSON |
 | OMP | Load `hooks/omp.ts` as an extension | `tool_call` / `tool_result` / `session_start` / `session_stop`; native block result |
 
@@ -54,17 +54,21 @@ Run releases through 2build's workflows; `bbs foreman land` independently
 checks phase QA evidence.
 
 - No ticket: no objection.
-- Ticket identity conflict or unavailable companion binary: deny with a reason.
-- Push: a blocked review denies; a missing review requests the review.
-- PR creation / merge: check both review and QA, including the QA evidence body.
-  Contradictory evidence denies; missing or thin evidence requests the check.
+- Ticket identity conflict, unavailable companion binary or a readiness error
+  (a checkpoint from before `schema_version: 2` is refused with
+  `CHECKPOINT_V1` naming `bbs autopilot checkpoint --refresh`): deny with the
+  reason.
+- Push needs current `review-pr` evidence; PR creation and merge need
+  `review-pr` and `qa`. The gate is `bbs ticket readiness`, which reads only
+  evidence `bbs autopilot verification record` accepted for the current tree;
+  a missing, failed or stale gate denies naming it. Verdict files are never
+  read.
 - No objection means **exit 0 with no output**. Never emit `allow` (which
   could override the host's own permission checks) or `defer` (which can
   suspend Claude Code's headless execution).
 
-Claude Code and Codex can present their native `ask` decision. Grok and OMP
-return a denial/block with the missing check's reason, so an unattended agent
-can perform the check and retry. No custom prompt or automatic approval is
+Every host receives a denial/block with the missing gate's reason, so an
+unattended agent can run the gate and retry. No custom prompt or automatic approval is
 introduced. OMP also blocks process failures, timeouts, and malformed
 decision responses. Host-native timeout/error handling otherwise applies;
 this is not a universal fail-closed boundary.
@@ -136,8 +140,8 @@ python3 tests/test_hooks_portability.py
 bun test tests/test_hooks_omp.test.ts
 ```
 
-The Go tests cover the gate's deny/ask/pass matrix (including the enforced v2
-readiness path) and the session writer; the portability suite executes the
+The Go tests cover the gate's deny/pass decisions over readiness and the
+session writer; the portability suite executes the
 shipped command manifest against real ticket state; the OMP tests exercise
 the adapter contract. These tests make no model requests and never execute
 the proposed release command.

@@ -80,7 +80,7 @@ func projectProgressCommand(st *ticket.Store, kv map[string]string) error {
 	}
 	return withLock(st, func() error {
 		if p.Attempt != "" {
-			cp, err := readStrictObject(filepath.Join(st.Home(), "checkpoint.json"), true)
+			cp, err := readCheckpointV2(st.Home(), st.Env.Ticket)
 			if err != nil {
 				return err
 			}

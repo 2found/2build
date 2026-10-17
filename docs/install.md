@@ -124,8 +124,8 @@ core bins are now Go and ship inside this one binary, reachable as `bbs <sub>`:
 (resolve, verdicts, session, board), the index.json state-accessors
 (`env`, `get`, `set-status`, `set-phase`, `set-parent`, `set-sibling`,
 `set-pointer`, `ensure-size`, `append-history`), the file-only
-manifest.yaml ops (`init`, `get-manifest`, `set-branch`), the base-ops family
-(`refresh`, `surface`, `serve`, `land`), `ensure`, and
+manifest.yaml ops (`init`, `get-manifest`, `set-branch`), the base-ops
+(`surface` lease, `adopt`), `ensure`, and
 `path`/`list`/`reconcile`. `bbs ticket` is now entirely
 self-contained in the binary — a brew-only install runs every subcommand
 without the skill pack.

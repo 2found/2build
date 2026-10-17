@@ -119,7 +119,7 @@ func (s *dashServer) handleReadiness(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "action must be push, pr, land, or review")
 		return
 	}
-	enforced, ready, reasons, _, err := ticketV2Readiness(s.currentDir, st.Env, st.Env.Ticket, action)
+	ready, reasons, _, err := ticketV2Readiness(s.currentDir, st.Env, st.Env.Ticket, action)
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]interface{}{
 			"available": false,
@@ -131,7 +131,6 @@ func (s *dashServer) handleReadiness(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"available":    true,
 		"action":       action,
-		"enforced":     enforced,
 		"ready":        ready,
 		"reason_codes": reasons,
 	})
@@ -306,6 +305,11 @@ func (s *dashServer) handleCreateTicket(w http.ResponseWriter, r *http.Request) 
 		st.HistoryAppendExtra("requirement_seeded", actorRole(), "")
 		return nil
 	})
+	if err == nil {
+		if seedErr := seedCheckpoint(env); seedErr != nil {
+			fmt.Fprintf(os.Stderr, "bbs dashboard: %s: checkpoint.json seed failed (continuing): %v\n", env.Ticket, seedErr)
+		}
+	}
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return

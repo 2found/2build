@@ -98,12 +98,9 @@ func prepareAttempt(a *apState, ticketID string, input map[string]interface{}) (
 	var rec *attemptRecord
 	err := withLock(st, func() error {
 		cpPath := filepath.Join(st.Home(), "checkpoint.json")
-		cp, err := readStrictObject(cpPath, true)
+		cp, err := readCheckpointV2(st.Home(), ticketID)
 		if err != nil {
 			return err
-		}
-		if contractVersion(cp) != 2 {
-			return fmt.Errorf("attempts require a schema_version 2 checkpoint")
 		}
 		if stringValue(cp["run_id"]) != runID {
 			return fmt.Errorf("assignment run_id does not match checkpoint")
@@ -240,11 +237,11 @@ func mutateAttempt(a *apState, ticketID, id string, expected int64, patch map[st
 			return fmt.Errorf("attempt %s is terminal (%s)", id, rec.State)
 		}
 		cpPath := filepath.Join(st.Home(), "checkpoint.json")
-		cp, err := readStrictObject(cpPath, true)
+		cp, err := readCheckpointV2(st.Home(), ticketID)
 		if err != nil {
 			return err
 		}
-		if contractVersion(cp) != 2 || stringValue(cp["run_id"]) != rec.RunID {
+		if stringValue(cp["run_id"]) != rec.RunID {
 			return fmt.Errorf("attempt run no longer matches checkpoint")
 		}
 		if stringValue(cp["active_attempt_id"]) != id {
@@ -473,10 +470,6 @@ func (a *apState) checkpointV2(input checkpointV2Input) error {
 		if err != nil {
 			return err
 		}
-		version := contractVersion(cp)
-		if raw := int(int64Value(cp["schema_version"])); raw > 2 {
-			return fmt.Errorf("unsupported checkpoint schema_version %d", raw)
-		}
 		if input.ExpectedRevision != nil && int64Value(cp["revision"]) != *input.ExpectedRevision {
 			return fmt.Errorf("checkpoint revision changed: expected %d, current %d", *input.ExpectedRevision, int64Value(cp["revision"]))
 		}
@@ -492,22 +485,10 @@ func (a *apState) checkpointV2(input checkpointV2Input) error {
 				}
 			}
 		}
-		if version == 1 && len(cp) > 0 {
-			backup := filepath.Join(st.Home(), "checkpoint.v1.backup.json")
-			if _, statErr := os.Stat(backup); os.IsNotExist(statErr) {
-				if b, readErr := os.ReadFile(path); readErr == nil {
-					if err := ticket.WriteAtomic(backup, b); err != nil {
-						return err
-					}
-				}
-			}
-		}
 		now := isoNow()
 		ts = now
-		cp["schema_version"] = 2
-		if stringValue(cp["run_id"]) == "" {
-			sum := sha256.Sum256([]byte(input.Ticket + "\x00" + now))
-			cp["run_id"] = "run-" + hex.EncodeToString(sum[:6])
+		if err := upgradeCheckpoint(st.Home(), input.Ticket, cp, now); err != nil {
+			return err
 		}
 		cp["revision"] = int64Value(cp["revision"]) + 1
 		if input.Force {
@@ -567,20 +548,25 @@ func (a *apState) refreshCheckpointV2(ticketID string) error {
 	st := ticket.New(env)
 	return withLock(st, func() error {
 		path := filepath.Join(st.Home(), "checkpoint.json")
-		cp, err := readStrictObject(path, true)
+		cp, err := readStrictObject(path, false)
 		if err != nil {
 			return err
-		}
-		if contractVersion(cp) != 2 {
-			return fmt.Errorf("checkpoint is not schema_version 2")
 		}
 		if tk := stringValue(cp["ticket"]); tk != "" && tk != ticketID {
 			return fmt.Errorf("ticket/checkpoint divergence: ticket=%q checkpoint=%q", ticketID, tk)
 		}
+		now := isoNow()
+		if err := upgradeCheckpoint(st.Home(), ticketID, cp, now); err != nil {
+			return err
+		}
+		cp["ticket"] = ticketID
+		if stringValue(cp["slug"]) == "" {
+			cp["slug"] = a.slug
+		}
 		cp["revision"] = int64Value(cp["revision"]) + 1
 		cp["branch"] = a.branch
 		cp["head_sha"] = gitOut("rev-parse", "HEAD")
-		cp["updated_at"] = isoNow()
+		cp["updated_at"] = now
 		return writeJSONAtomic(path, cp)
 	})
 }
