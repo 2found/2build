@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.100.0 — 2026-10-18
+
+### Changed
+
+- **Flash-first Foreman ticket routing** — ticket workers on `simple` and
+  `normal` tasks now run on the `flash` tier (Claude `sonnet`, Codex
+  `gpt-6.1-sol`, OMP `@normal`); only `hard` tickets reach `max`. Codex `flash`
+  now binds `gpt-6.1-sol` (was `gpt-6-luna`, which stays on `lite`), and OMP
+  `lite` binds `@smol`. Codex integration, QA and release work on `normal`
+  tasks therefore also moves from luna to sol; override `tiers.flash.codex` to
+  keep luna.
+- **Strict `hard` rubric** — complexity is classified from the ticket's own
+  diff, not its project or domain. `bbs foreman route --complexity hard` now
+  requires `--hard-reason money|auth|security|live-data|concurrency` and
+  rejects anything else; the reason is persisted with the route. Exact-session
+  resumes of recorded routes are unaffected. Expect about one hard ticket in seven.
+
+### Added
+
+- **`design` phase class** — basic design (architecture, prototype, phase
+  plan) routes on its own class: `max` for `normal`/`hard`, `pro` for `simple`.
+  Overriding `routing.normal.critical` no longer moves project planning.
+- **OMP quota offload** — `bbs foreman model --quota [--host <id>]` reads the
+  destination host's Orca quota snapshots and moves a new `lite`/`flash`
+  Claude or Codex worker to OMP when the authoritative weekly window is above
+  70%. Unknown quota never offloads; `pro`/`max` work stays put. Configure with
+  `foreman.models.offload` (`agent`, `from`, `tiers`, `weeklyUsedPercent`);
+  `"agent": ""` disables it.
+
 ## 1.99.1 — 2026-10-17
 
 ### Changed
