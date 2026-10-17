@@ -24,17 +24,17 @@ func TestForemanModelDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct{ complexity, phase, tier string }{
-		{"simple", "normal", "lite"}, {"simple", "critical", "flash"},
-		{"normal", "normal", "flash"}, {"normal", "critical", "pro"},
-		{"hard", "normal", "pro"}, {"hard", "critical", "max"},
+		{"simple", "normal", "lite"}, {"simple", "critical", "flash"}, {"simple", "design", "pro"},
+		{"normal", "normal", "flash"}, {"normal", "critical", "flash"}, {"normal", "design", "max"},
+		{"hard", "normal", "pro"}, {"hard", "critical", "max"}, {"hard", "design", "max"},
 		{"critical", "critical", "max"},
 	} {
 		for agent, bindings := range map[string]map[string]ModelBinding{
-			"codex": {"lite": {"gpt-6-luna", "high"}, "flash": {"gpt-6-luna", "high"},
+			"codex": {"lite": {"gpt-6-luna", "high"}, "flash": {"gpt-6.1-sol", "high"},
 				"pro": {"gpt-6.1-sol", "high"}, "max": {"gpt-6-astra", "high"}},
 			"claude": {"lite": {"haiku", ""}, "flash": {"sonnet", "high"},
 				"pro": {"opus", "medium"}, "max": {"opus", "high"}},
-			"omp": {"lite": {"@normal", ""}, "flash": {"@normal", ""}, "pro": {"@slow", ""}, "max": {"@plan", ""}},
+			"omp": {"lite": {"@smol", ""}, "flash": {"@normal", ""}, "pro": {"@slow", ""}, "max": {"@plan", ""}},
 		} {
 			tier, binding, err := p.Select(agent, tc.complexity, tc.phase)
 			if err != nil || tier != tc.tier || binding != bindings[tier] {
@@ -61,6 +61,7 @@ func TestForemanModelSettingsPrecedence(t *testing.T) {
 		{"codex", "simple", "normal", "flash", "global-flash", ""},
 		{"codex", "simple", "critical", "max", "repo-max", "high"},
 		{"codex", "normal", "normal", "pro", "gpt-6.1-sol", "high"},
+		{"codex", "normal", "design", "max", "repo-max", "high"},
 		{"codex", "normal", "critical", "max", "repo-max", "high"},
 		{"custom", "hard", "normal", "pro", "provider/custom", ""},
 	} {
@@ -99,6 +100,13 @@ func TestForemanModelInvalidSettings(t *testing.T) {
 		`{"foreman":{"models":{"tiers":{"pro":{"codex":{"modle":"typo"}}}}}}`,
 		`{"foreman":{"models":{"tiers":{"pro":{"codex":null}}}}}`,
 		`{"foreman":{"models":{"tiers":{"pro":{"custom":{"effort":"high"}}}}}}`,
+		`{"foreman":{"models":{"offload":null}}}`,
+		`{"foreman":{"models":{"offload":{"agent":"OMP"}}}}`,
+		`{"foreman":{"models":{"offload":{"from":"claude"}}}}`,
+		`{"foreman":{"models":{"offload":{"tiers":["ultra"]}}}}`,
+		`{"foreman":{"models":{"offload":{"weeklyUsedPercent":120}}}}`,
+		`{"foreman":{"models":{"offload":{"weeklyUsedPercent":null}}}}`,
+		`{"foreman":{"models":{"offload":{"threshold":70}}}}`,
 	} {
 		t.Run(body, func(t *testing.T) {
 			repo := t.TempDir()
@@ -117,5 +125,50 @@ func TestForemanModelInvalidLookup(t *testing.T) {
 		if _, _, err := p.Select(args[0], args[1], args[2]); err == nil {
 			t.Fatalf("accepted invalid lookup: %v", args)
 		}
+	}
+}
+
+func TestForemanModelOffload(t *testing.T) {
+	p := defaultForemanModels()
+	used := func(v float64) *float64 { return &v }
+	for _, tc := range []struct {
+		agent, tier string
+		weekly      *float64
+		status      string
+		reason      string
+		model       string
+	}{
+		{"claude", "flash", used(82), "applied", "weekly-quota-above-threshold", "@normal"},
+		{"codex", "lite", used(71), "applied", "weekly-quota-above-threshold", "@smol"},
+		{"claude", "flash", used(70), "not-applied", "weekly-quota-below-threshold", ""},
+		{"claude", "flash", nil, "not-applied", "weekly-quota-unknown", ""},
+		{"claude", "max", used(99), "not-applied", "tier-not-offloaded", ""},
+		{"claude", "pro", used(99), "not-applied", "tier-not-offloaded", ""},
+		{"omp", "flash", used(99), "not-applied", "agent-not-offloaded", ""},
+		{"custom", "flash", used(99), "not-applied", "agent-not-offloaded", ""},
+	} {
+		d, binding := p.SelectOffload(tc.agent, tc.tier, tc.weekly)
+		if d.Status != tc.status || d.Reason != tc.reason || binding.Model != tc.model || d.Threshold != 70 {
+			t.Fatalf("%+v: %+v %+v", tc, d, binding)
+		}
+	}
+
+	t.Setenv("BABYSIT_STATE_DIR", t.TempDir())
+	repo := t.TempDir()
+	writeModelSettings(t, filepath.Join(repo, ".babysit", "settings.json"),
+		`{"foreman":{"models":{"offload":{"tiers":["flash","pro"],"weeklyUsedPercent":50}}}}`)
+	p, err := LoadForemanModels(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d, b := p.SelectOffload("claude", "pro", used(60)); d.Status != "applied" || b.Model != "@slow" || p.Offload.Agent != "omp" {
+		t.Fatalf("overlay offload: %+v %+v", d, b)
+	}
+	writeModelSettings(t, filepath.Join(repo, ".babysit", "settings.json"), `{"foreman":{"models":{"offload":{"agent":""}}}}`)
+	if p, err = LoadForemanModels(repo); err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := p.SelectOffload("claude", "flash", used(99)); d.Reason != "offload-disabled" {
+		t.Fatalf("disabled offload: %+v", d)
 	}
 }

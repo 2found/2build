@@ -34,21 +34,43 @@ has been removed; use Orca settings for new worker routes.
 ## Task complexity
 
 Use `../semantic-decision/SKILL.md` kind `task-complexity` with this rubric to
-classify each assignment from its requirement, plan, and acceptance commands;
-weak evidence stays `normal`. A child or recheck does not inherit the parent's
-`hard` label: record the concrete risk in that assignment before selecting `hard`.
-Classify parent planning and composed integration or
-delivery tasks from their own scope, not whichever child finished last. Ticket
-size and repository profile do not select model tiers. Normalize legacy task
-complexity `critical` to `hard`; reserve `critical` for the phase class below.
+classify each assignment from its requirement, plan, and acceptance commands.
+Classify the assignment's **own diff**, not its project, domain or parent: a UI,
+docs, onboarding, SDK or test ticket inside a billing project is still `normal`.
+A child or recheck does not inherit the parent's `hard` label. Weak evidence
+stays `normal`. Ticket size and repository profile do not select model tiers.
+Normalize legacy task complexity `critical` to `hard`; reserve `critical` for
+the phase class below.
 
+| Complexity | Use for                                                                                              |
+| ---------- | ---------------------------------------------------------------------------------------------------- |
+| `simple`   | an obvious local docs/config edit, or a tiny isolated change with no new contract and no new state   |
+| `normal`   | ordinary implementation work, including new modules, APIs, schemas, UI and work spanning services     |
+| `hard`     | the diff itself changes one named invariant below, where a mistake ships a real loss                  |
 
-| Complexity | Use for                                                                                                                   |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `simple`   | an obvious local docs/config edit, or a tiny isolated change with no new contract and no new state                        |
-| `normal`   | ordinary implementation work                                                                                              |
-| `hard`     | security, auth, money, irreversible or live-data migration, distributed concurrency, a cross-system architecture decision |
+`hard` needs exactly one `--hard-reason` on `bbs foreman route`, and the CLI
+rejects anything else (money, auth, security, live-data or concurrency):
 
+| `--hard-reason` | The assignment's own diff…                                                         |
+| --------------- | ---------------------------------------------------------------------------------- |
+| `money`         | debits, credits, prices, refunds or a ledger                                        |
+| `auth`          | login, sessions, tokens, OAuth or permission checks                                 |
+| `security`      | secrets, sandboxing, SSRF/injection boundaries or tenant isolation                  |
+| `live-data`     | migrates, backfills or deletes production data irreversibly                         |
+| `concurrency`   | locks, idempotency, retries or ordering across processes                             |
+
+The invariant must be the ticket's core deliverable, not a touchpoint. Calling
+an existing payment, auth or lock API, rendering ledger data, adding a field to
+a guarded table, or writing a reversible additive migration is `normal`.
+"Touches several services", "new architecture", "important to the product",
+"the project is about billing" and "large" are not reasons: architecture is
+decided in basic design, and size is split by topology.
+
+Hard is rare by design: expect about one ticket in seven, never more than one
+in five. When a phase plan has more, split each hard invariant into its own
+small ticket so the surrounding work (UI, API surface, wiring, tests) stays
+`normal` and runs on `flash`; record the split in the phase plan. When unsure
+between `normal` and `hard`, choose `normal`: review and QA still gate it.
 
 ## Assignment routing
 
@@ -57,14 +79,14 @@ the task complexity, its phase class and the selected agent.
 The CLI owns complexity-to-tier routing; settings can override it. `normal` names both a
 task complexity and a phase class; neither is a model tier.
 
-Routine work should stay in `lite`/`flash`/`pro`; reserve `pro`/`max` for assignments
-with evidenced difficulty or importance. A `critical` phase class alone does not imply
-`max`. Use `normal` for an unclassified assignment; with no difficulty or
+Routine work should stay in `lite`/`flash`/`pro`; `max` is for basic design
+(`design` phase class) and `hard` tickets only. A `critical` phase class alone does
+not imply `max`. Use `normal` for an unclassified assignment; with no difficulty or
 importance signal, the built-in policy falls back to `flash`.
 
 | Assignment                                                                         | Phase class |
 | ---------------------------------------------------------------------------------- | ----------- |
-| Basic design: architecture, prototype, release-phase plan, design review           | `critical`  |
+| Basic design: architecture, prototype, release-phase plan, design review           | `design`    |
 | Ticket worker: one session for the ticket's whole loop and every follow-up on it   | `critical`  |
 | Diagnosis of a ticket's repeated failure                                           | `critical`  |
 | Mechanical re-verification of recorded checks on unchanged code                    | `normal`    |
@@ -74,11 +96,12 @@ importance signal, the built-in policy falls back to `flash`.
 | Finish audits, restoration and cleanup in a fresh session                          | `normal`    |
 
 A ticket worker is `critical` because it owns its ticket plan and landing review;
-implementation rides the same session instead of buying a cold start on a
-cheaper model. Its task complexity still separates a `simple` ticket (`flash`
-built in) from a `hard` one (`max`). To make routine ticket workers cheaper,
-override `routing.normal.critical`, knowing it also moves normal-complexity
-project planning. The mechanical re-verification exception applies only to
+implementation rides the same session instead of buying a cold start. Built in,
+`simple` and `normal` tickets run on `flash`, each agent's implementation
+workhorse, and only `hard` tickets — security, money, live
+data, cross-system logic — reach `max`. Basic design is its own `design` class
+(`max` unless the design is `simple`), so overriding `routing.normal.critical`
+no longer moves project planning. The mechanical re-verification exception applies only to
 executing recorded checks. Reviewing changed code, assessing new findings or
 issuing a fresh judgment remains code review, even when the dispatch is called
 a recheck.
@@ -90,7 +113,8 @@ Read the effective policy (defaults merged with global then repo settings):
 ```bash
 bbs foreman model --dir "$REPO" --json
 bbs foreman model --dir "$REPO" --agent <selected-agent> \
-  --complexity <simple|normal|hard> --phase-class <normal|critical> --json
+  --complexity <simple|normal|hard> --phase-class <normal|critical|design> \
+  [--quota [--host <host-id>]] --json
 ```
 
 The lookup returns `agent`, `complexity`, `phaseClass`, `selectedTier`, `model`
@@ -128,13 +152,34 @@ Precedence is repo > global > built-in defaults, merged per field. Example:
 }
 ```
 
-`routing` maps `simple|normal|hard` × `normal|critical` to `lite|flash|pro|max`.
+`routing` maps `simple|normal|hard` × `normal|critical|design` to `lite|flash|pro|max`.
 `tiers` maps each tier and agent ID to `model` and optional `effort`. Omitted
 fields inherit; `"effort": ""` clears an inherited effort. Model IDs and effort
 values are opaque native identifiers, validated by the selected launch transport.
 Missing files use defaults; malformed settings, unknown policy keys or empty
 models fail with the settings path. Other settings namespaces are ignored.
 These are routing policy, not vendor capability or price claims.
+
+### Quota offload
+
+For a new worker route, add `--quota` to the lookup. It reads the destination
+host's Orca `quotaSnapshots` for the selected agent and, when the agent is in
+`offload.from` (built in: `claude`, `codex`), the tier is in `offload.tiers`
+(built in: `lite`, `flash`), and the highest authoritative week-long window is
+above `offload.weeklyUsedPercent` (built in: `70`), returns `offload.agent`
+(built in: `omp`) with that agent's binding for the same tier. `pro` and `max`
+work stays on the selected agent. The result's `offload` object records the
+decision, reason and observed weekly usage; persist it in the route handoff and
+pass the returned agent to `bbs foreman route --agent`. Unknown quota, or an
+offload agent Orca does not report enabled and runnable, never offloads.
+Offload is decided once per new route: resumes and follow-ups keep the ticket's
+recorded agent. Disable it with `"offload": {"agent": ""}`.
+
+```json
+{ "foreman": { "models": { "offload": {
+  "agent": "omp", "from": ["claude", "codex"],
+  "tiers": ["lite", "flash"], "weeklyUsedPercent": 70 } } } }
+```
 
 Resolve configured aliases against the live native binding. For OMP, read the
 selected role's binding; its provider/model/effort belong to that role.

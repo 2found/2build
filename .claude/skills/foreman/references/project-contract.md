@@ -8,7 +8,7 @@ review and delivery unit; a closed worker/worktree is never proof of delivery.
 Before phase tickets, worktrees, or production dispatch:
 
 1. Foreman has written the clarified `requirement.md` (SKILL.md step 1).
-   Dispatch the basic-design worker on the critical route in the parent
+   Dispatch the basic-design worker on the design route in the parent
    checkout to run `plan-draft` and, for user-facing work, `design-ui`,
    producing:
 

@@ -22,6 +22,7 @@ type RouteRequest struct {
 	TaskComplexity         string
 	PhaseClass             string
 	SelectedTier           string
+	HardReason             string
 	OverrideProvenance     string
 	PinnedModelProvenance  string
 	PinnedEffortProvenance string
@@ -42,6 +43,7 @@ type RouteEvidence struct {
 	Complexity             string `json:"complexity,omitempty"`
 	PhaseClass             string `json:"phaseClass,omitempty"`
 	SelectedTier           string `json:"selectedTier,omitempty"`
+	HardReason             string `json:"hardReason,omitempty"`
 	OverrideProvenance     string `json:"overrideProvenance,omitempty"`
 	PinnedModel            string `json:"pinnedModel,omitempty"`
 	PinnedModelProvenance  string `json:"pinnedModelProvenance,omitempty"`
@@ -52,6 +54,10 @@ type RouteEvidence struct {
 	ObservedAt             string `json:"observedAt,omitempty"`
 }
 
+// HardReasons are the only risks that justify hard complexity. Domain,
+// service count, UI breadth and project importance are not on the list.
+var HardReasons = map[string]bool{"money": true, "auth": true, "security": true, "live-data": true, "concurrency": true}
+
 // ResolveRoute applies explicit intent, then a compatible recorded route, then
 // the Orca effective default. Missing discovery blocks only a new unpinned
 // route; explicit and pinned routes keep working for older Orca versions.
@@ -61,6 +67,10 @@ func ResolveRoute(req RouteRequest, discovery *orca.AgentDiscovery, discoveryErr
 	case "", "lite", "flash", "pro", "max":
 	default:
 		return RouteEvidence{}, fmt.Errorf("unknown selected-tier %q; use lite, flash, pro or max", req.SelectedTier)
+	}
+	req.HardReason = strings.TrimSpace(req.HardReason)
+	if complexity := strings.TrimSpace(req.TaskComplexity); (complexity == "hard" || complexity == "critical") && !req.ExactSession && !HardReasons[req.HardReason] {
+		return RouteEvidence{}, fmt.Errorf("hard complexity needs --hard-reason naming the invariant this assignment itself changes: money, auth, security, live-data or concurrency; otherwise classify it normal")
 	}
 	if req.ExactSession && req.PinnedAgent == "" {
 		return RouteEvidence{}, fmt.Errorf("exact-session resume requires its recorded agent route")
@@ -89,6 +99,7 @@ func ResolveRoute(req RouteRequest, discovery *orca.AgentDiscovery, discoveryErr
 		Complexity:             strings.TrimSpace(req.TaskComplexity),
 		PhaseClass:             strings.TrimSpace(req.PhaseClass),
 		SelectedTier:           strings.TrimSpace(req.SelectedTier),
+		HardReason:             req.HardReason,
 		OverrideProvenance:     strings.TrimSpace(req.OverrideProvenance),
 		PinnedModel:            strings.TrimSpace(req.PinnedModel),
 		PinnedModelProvenance:  strings.TrimSpace(req.PinnedModelProvenance),

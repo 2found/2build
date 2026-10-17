@@ -244,3 +244,30 @@ func TestAssessQuotaUnknownEvidenceNeverDefers(t *testing.T) {
 		t.Fatalf("missing discovery = %+v", got)
 	}
 }
+
+func TestResolveRouteHardNeedsNamedInvariant(t *testing.T) {
+	base := RouteRequest{ExplicitAgent: "codex", TaskComplexity: "hard", PhaseClass: "critical", SelectedTier: "max"}
+	for _, reason := range []string{"", "architecture", "important", "cross-system"} {
+		req := base
+		req.HardReason = reason
+		if _, err := ResolveRoute(req, nil, orca.ErrNoAgentDiscovery); err == nil || !strings.Contains(err.Error(), "--hard-reason") {
+			t.Fatalf("hard route with reason %q: %v", reason, err)
+		}
+	}
+	req := base
+	req.TaskComplexity = "critical" // legacy spelling of hard
+	if _, err := ResolveRoute(req, nil, orca.ErrNoAgentDiscovery); err == nil {
+		t.Fatal("legacy critical complexity skipped the hard-reason check")
+	}
+	req = base
+	req.HardReason = " money "
+	got, err := ResolveRoute(req, nil, orca.ErrNoAgentDiscovery)
+	if err != nil || got.HardReason != "money" {
+		t.Fatalf("hard route = %+v, %v", got, err)
+	}
+	req = base
+	req.TaskComplexity = "normal"
+	if _, err := ResolveRoute(req, nil, orca.ErrNoAgentDiscovery); err != nil {
+		t.Fatalf("normal route needs no reason: %v", err)
+	}
+}

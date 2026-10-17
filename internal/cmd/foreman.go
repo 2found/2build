@@ -52,9 +52,10 @@ const foremanUsage = `Usage:
   bbs foreman spawn [<id>] [--dir <path>] [--command <text>] [--agent <name>]
                     [--model <id>] [--effort <level>] [--auto]
   bbs foreman ensure <id>
-  bbs foreman model [--agent <id>] [--complexity <simple|normal|hard>] [--phase-class <normal|critical>]
-                    [--dir <repo-or-worktree>] [--json]
-                    (with --agent, omitted complexity/phase-class default to normal)
+  bbs foreman model [--agent <id>] [--complexity <simple|normal|hard>] [--phase-class <normal|critical|design>]
+                    [--quota [--host <host-id>]] [--dir <repo-or-worktree>] [--json]
+                    (with --agent, omitted complexity/phase-class default to normal;
+                     --quota reads Orca quota and may offload the worker to another agent)
   bbs foreman worker-command (--prompt <text> [--skill <name>] | --startup-only) [--agent <id>] [--pinned-agent <id>]
                             [--pinned-model <id>] [--pinned-effort <level>] [--host <host-id>] [--exact-session] [--dir <path>]
                             [--model <id>] [--effort <level>]
@@ -64,6 +65,7 @@ const foremanUsage = `Usage:
                     [--pinned-model <id>] [--pinned-effort <level>]
                     [--host <host-id>] [--exact-session]
                     [--complexity <value>] [--phase-class <value>]
+                    [--hard-reason <money|auth|security|live-data|concurrency>] (required with --complexity hard)
                     [--selected-tier <lite|flash|pro|max>] [--override-provenance <source>]
                     [--pinned-model-provenance <source>] [--pinned-effort-provenance <source>]
   bbs foreman route verify --ticket <ticket> --task <task> --agent <id>
@@ -213,7 +215,7 @@ func foremanFlags(args []string) (id string, kv map[string]string, err error) {
 			return "", nil, fmt.Errorf("foreman: unexpected argument '%s'", a)
 		}
 		key := strings.TrimPrefix(a, "--")
-		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "exact-session" || key == "startup-only" || key == "rate-limited" || key == "supervised" || key == "request" { // the boolean flags
+		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "exact-session" || key == "startup-only" || key == "rate-limited" || key == "supervised" || key == "request" || key == "quota" { // the boolean flags
 			kv[key] = "1"
 			continue
 		}

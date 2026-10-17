@@ -82,7 +82,7 @@ require '## Assignment routing' "$REF"
 require 'launch.effective' "$REF"
 require 'came back short' "$REF"
 require 'an obvious local docs/config edit' "$REF"
-require 'security, auth, money' "$REF"
+require 'money, auth, security, live-data or concurrency' "$REF"
 require 'complexity `critical` to `hard`' "$REF"
 require 'explicit ticket-specific user selection first, then a valid persisted' "$REF"
 require 'config changes alone do not change it' "$REF"
@@ -115,15 +115,15 @@ policy = json.loads(Path(sys.argv[2]).read_text())
 
 
 assert policy["routing"] == {
-    "simple": {"normal": "lite",  "critical": "flash"},
-    "normal": {"normal": "flash", "critical": "pro"},
-    "hard":   {"normal": "pro",   "critical": "max"},
+    "simple": {"normal": "lite",  "critical": "flash", "design": "pro"},
+    "normal": {"normal": "flash", "critical": "flash", "design": "max"},
+    "hard":   {"normal": "pro",   "critical": "max",   "design": "max"},
 }, policy["routing"]
 assert policy["tiers"] == {
     "lite":  {"codex": {"model": "gpt-6-luna", "effort": "high"},
               "claude": {"model": "haiku"},
-              "omp": {"model": "@normal"}},
-    "flash": {"codex": {"model": "gpt-6-luna", "effort": "high"},
+              "omp": {"model": "@smol"}},
+    "flash": {"codex": {"model": "gpt-6.1-sol", "effort": "high"},
               "claude": {"model": "sonnet", "effort": "high"},
               "omp": {"model": "@normal"}},
     "pro":   {"codex": {"model": "gpt-6.1-sol", "effort": "high"},
@@ -133,14 +133,16 @@ assert policy["tiers"] == {
               "claude": {"model": "opus", "effort": "high"},
               "omp": {"model": "@plan"}},
 }, policy["tiers"]
+assert policy["offload"] == {"agent": "omp", "from": ["claude", "codex"],
+                             "tiers": ["lite", "flash"], "weeklyUsedPercent": 70}, policy["offload"]
 print("foreman model policy defaults: ok")
 
 text = Path(sys.argv[1]).read_text()
 rows = [[cell.strip().strip('`') for cell in line.strip('|').split('|')]
         for line in text.splitlines() if line.startswith('|')]
-phases = {r[0]: r[1] for r in rows if len(r) == 2 and r[1] in ('critical', 'normal')}
+phases = {r[0]: r[1] for r in rows if len(r) == 2 and r[1] in ('critical', 'normal', 'design')}
 assert phases == {
-    'Basic design: architecture, prototype, release-phase plan, design review': 'critical',
+    'Basic design: architecture, prototype, release-phase plan, design review': 'design',
     "Ticket worker: one session for the ticket's whole loop and every follow-up on it": 'critical',
     "Diagnosis of a ticket's repeated failure": 'critical',
     'Mechanical re-verification of recorded checks on unchanged code': 'normal',

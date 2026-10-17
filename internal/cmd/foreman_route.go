@@ -90,7 +90,7 @@ func resolveForemanRouteWithDiscovery(kv map[string]string, discovery *orca.Agen
 		Model: kv["model"], Effort: kv["effort"],
 		DestinationHost: kv["host"], ExactSession: kv["exact-session"] != "",
 		TaskComplexity: kv["complexity"], PhaseClass: kv["phase-class"],
-		SelectedTier: kv["selected-tier"], OverrideProvenance: kv["override-provenance"],
+		SelectedTier: kv["selected-tier"], HardReason: kv["hard-reason"], OverrideProvenance: kv["override-provenance"],
 		PinnedModelProvenance:  kv["pinned-model-provenance"],
 		PinnedEffortProvenance: kv["pinned-effort-provenance"],
 	}, discovery, discoveryErr)
