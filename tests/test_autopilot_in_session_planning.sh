@@ -127,10 +127,10 @@ assert policy["tiers"] == {
               "claude": {"model": "sonnet", "effort": "high"},
               "omp": {"model": "@normal"}},
     "pro":   {"codex": {"model": "gpt-6.1-sol", "effort": "high"},
-              "claude": {"model": "opus", "effort": "high"},
+              "claude": {"model": "opus", "effort": "medium"},
               "omp": {"model": "@slow"}},
     "max":   {"codex": {"model": "gpt-6-astra", "effort": "high"},
-              "claude": {"model": "opus", "effort": "max"},
+              "claude": {"model": "opus", "effort": "high"},
               "omp": {"model": "@plan"}},
 }, policy["tiers"]
 print("foreman model policy defaults: ok")

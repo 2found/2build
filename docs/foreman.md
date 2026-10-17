@@ -8,7 +8,7 @@ Foreman is a toolkit and advisor for the coding agent that runs it, not a script
 
 Foreman requires [Orca](https://www.onorca.dev) with orchestration enabled. It selects a worker's agent from an explicit choice, a compatible phase pin, or Orca's configured default on the destination host. Legacy 2build YAML agent/provider/model/effort preferences are retired and ignored.
 
-2build selects the worker's model and effort from task complexity (`simple`, `normal`, or `hard`) and phase class. Planning, design, and review are `critical` phases; implementation, QA, and delivery are `normal` phases. The policy maps these combinations to `lite`, `flash`, `pro`, or `max` tiers, each with model bindings for the selected agent; for Claude these are `haiku`, `sonnet`, `opus`, and `opus` at `max` effort. Simple tasks in normal phases get `lite`. Explicit phase overrides and valid persisted resume routes take precedence.
+2build selects the worker's model and effort from task complexity (`simple`, `normal`, or `hard`) and phase class. Planning, design, and review are `critical` phases; implementation, QA, and delivery are `normal` phases. The policy maps these combinations to `lite`, `flash`, `pro`, or `max` tiers, each with model bindings for the selected agent; for Claude these are `haiku`, `sonnet`, `opus` at `medium` effort, and `opus` at `high` effort. Simple tasks in normal phases get `lite`. Explicit phase overrides and valid persisted resume routes take precedence.
 
 Inspect the effective policy or look up one selection from your project directory:
 

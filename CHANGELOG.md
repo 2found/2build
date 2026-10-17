@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.99.1 — 2026-10-17
+
+### Changed
+
+- **Cheaper Claude Foreman tiers** — the default `pro` tier for Claude is now
+  `opus` at `medium` effort (was `high`), and `max` is `opus` at `high`
+  (was `max`). Codex and omp bindings are unchanged. Override per tier with
+  `foreman.models.tiers` in `settings.json`.
+- **Browser hygiene** — `browse` gains a section: use the automation's own
+  browser, quit it with its own close (never `kill`), and check what still uses
+  a profile before reaping it. `setup-project` writes the pointer bullet and
+  `harness-audit` checks for it.
+
 ## 1.99.0 — 2026-10-17
 
 ### Added

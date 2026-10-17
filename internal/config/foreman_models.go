@@ -27,13 +27,13 @@ func defaultForemanModels() ForemanModels {
 			"normal": {"normal": "flash", "critical": "pro"},
 			"hard":   {"normal": "pro", "critical": "max"},
 		},
-		// Claude spans four distinct tiers: haiku, sonnet, opus, opus at max
+		// Claude spans four distinct tiers: haiku, sonnet, opus, opus at high
 		// effort. Agents without a cheaper model bind lite to their flash model.
 		Tiers: map[string]map[string]ModelBinding{
 			"lite":  {"codex": {"gpt-6-luna", "high"}, "claude": {"haiku", ""}, "omp": {"@normal", ""}},
 			"flash": {"codex": {"gpt-6-luna", "high"}, "claude": {"sonnet", "high"}, "omp": {"@normal", ""}},
-			"pro":   {"codex": {"gpt-6.1-sol", "high"}, "claude": {"opus", "high"}, "omp": {"@slow", ""}},
-			"max":   {"codex": {"gpt-6-astra", "high"}, "claude": {"opus", "max"}, "omp": {"@plan", ""}},
+			"pro":   {"codex": {"gpt-6.1-sol", "high"}, "claude": {"opus", "medium"}, "omp": {"@slow", ""}},
+			"max":   {"codex": {"gpt-6-astra", "high"}, "claude": {"opus", "high"}, "omp": {"@plan", ""}},
 		},
 	}
 }
