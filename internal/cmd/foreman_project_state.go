@@ -63,6 +63,7 @@ type projectChild struct {
 	Repos     []projectRepo    `json:"repos"`
 	Problems  []string         `json:"problems"`
 	Progress  *projectProgress `json:"progress,omitempty"`
+	landed    bool
 }
 
 // A surface is the phase commit as checked out in its integration worktree

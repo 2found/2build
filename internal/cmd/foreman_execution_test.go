@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -608,5 +609,27 @@ func TestSealAndReadinessAgreeOnMissingGate(t *testing.T) {
 	}
 	if err := projectSealChild(child); err == nil || !strings.Contains(err.Error(), "checkpoint --refresh") {
 		t.Fatalf("seal on a v1 checkpoint = %v, want the refresh command", err)
+	}
+}
+
+// A landed child's snapshot is the record: a shared input its own phase
+// rewrote (the workflow file, here its plan) must not reopen it, while the
+// same edit before land does.
+func TestLandedChildSealIgnoresLaterInputs(t *testing.T) {
+	parent, child, _ := executionFixture(t)
+	mustWrite(t, filepath.Join(child.Home(), "plan.md"), "edited before land\n")
+	if s, _ := projectRead(parent); !slices.Contains(s.Blockers, "child ready: evidence: changed since seal") {
+		t.Fatalf("pre-land edit not caught: %+v", s.Blockers)
+	}
+
+	parent, child, _ = verifiedExecution(t)
+	m, _ := ticket.ReadManifest(child.ManifestPath())
+	m.Repos[0].Worktree = filepath.Join(t.TempDir(), "removed")
+	if err := ticket.WriteManifest(child.ManifestPath(), m.Ticket, m.Title, m.Repos); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(child.Home(), "plan.md"), "edited after land\n")
+	if s, err := projectRead(parent); err != nil || !s.Ready {
+		t.Fatalf("landed child reopened: %+v %v", s.Blockers, err)
 	}
 }

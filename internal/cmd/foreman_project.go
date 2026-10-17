@@ -148,7 +148,9 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 			if c.ArtifactsOnly != (len(seal.Artifacts) > 0) {
 				child.Problems = append(child.Problems, "seal does not match approved delivery type")
 			}
-			child.Problems = append(child.Problems, validateProjectSeal(cs, seal)...)
+			problems, landed := validateProjectSeal(cs, seal)
+			child.Problems = append(child.Problems, problems...)
+			child.landed = landed
 		}
 		var progress projectProgress
 		if readProjectJSON(filepath.Join(cs.Home(), "progress.json"), &progress) == nil {
@@ -167,6 +169,10 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 		}
 	}
 	for _, child := range s.Children {
+		if child.landed {
+			// Its phase commit composed and verified both sides.
+			continue
+		}
 		for _, dependency := range child.BlockedBy {
 			for _, upstream := range s.Children {
 				if upstream.ID != dependency {
@@ -235,45 +241,53 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 	return s, nil
 }
 
-func validateProjectSeal(st *ticket.Store, seal projectSeal) []string {
+// validateProjectSeal reports what invalidates a child's seal, and whether the
+// child has landed: every checkout it was cut in moved off its base (its phase
+// landed into it) or was removed. A landed child's snapshot is the record, so
+// later edits to shared inputs (a workflow its own phase rewrote) and repairs
+// to its dependencies no longer reopen it.
+func validateProjectSeal(st *ticket.Store, seal projectSeal) ([]string, bool) {
 	problems := []string{}
 	if len(seal.Artifacts) > 0 {
-		return validateArtifactSeal(st, seal)
+		return validateArtifactSeal(st, seal), false
 	}
 	if seal.Version != 1 || seal.Ticket != st.Env.Ticket || len(seal.Repos) == 0 {
-		return []string{"invalid seal"}
-	}
-	inputs, _, err := projectChildInputs(st)
-	if err != nil {
-		problems = append(problems, "evidence: "+err.Error())
-	} else if inputs != seal.Inputs {
-		problems = append(problems, "evidence: changed since seal")
+		return []string{"invalid seal"}, false
 	}
 	m, err := ticket.ReadManifest(st.ManifestPath())
 	if err != nil || len(m.Repos) != len(seal.Repos) {
-		return append(problems, "manifest changed or unavailable")
+		return append(problems, "manifest changed or unavailable"), false
 	}
+	landed := true
 	for _, r := range seal.Repos {
 		mr := m.FindRepo(func(m ticket.Repo) bool { return m.Canonical == r.Canonical && m.Branch == r.Branch })
 		if mr == nil {
 			problems = append(problems, "manifest changed")
+			landed = false
 			continue
 		}
 		if gitOutIn(r.Canonical, "rev-parse", "--verify", "-q", ticketSnapshotRef(st.Env.Ticket)+"^{commit}") != r.Head {
 			problems = append(problems, "snapshot changed or unavailable: "+ticketSnapshotRef(st.Env.Ticket))
 		}
-		// Work edited after the seal is unverified. Once the checkout moved
-		// off the commit it was cut from (its phase landed into it) or was
-		// removed, the snapshot is the record.
+		// Work edited after the seal is unverified.
 		if mr.Worktree != "" {
 			if fi, err := os.Stat(mr.Worktree); err == nil && fi.IsDir() && gitOutIn(mr.Worktree, "rev-parse", "--verify", "-q", "HEAD^{commit}") == r.BaseHead {
+				landed = false
 				if tree, err := worktreeTree(mr.Worktree); err != nil || tree != treeOf(r.Canonical, r.Head) {
 					problems = append(problems, "worktree changed since seal: "+mr.Worktree)
 				}
 			}
 		}
 	}
-	return problems
+	if !landed {
+		inputs, _, err := projectChildInputs(st)
+		if err != nil {
+			problems = append(problems, "evidence: "+err.Error())
+		} else if inputs != seal.Inputs {
+			problems = append(problems, "evidence: changed since seal")
+		}
+	}
+	return problems, landed && len(problems) == 0
 }
 
 func projectCheckPassed(ev projectEvidence, criterion, kind string) bool {
