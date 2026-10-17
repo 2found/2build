@@ -133,8 +133,10 @@ func (c *Client) HoldMailbox(run, terminal string) (bool, error) {
 	return result.DeliveryID != "", nil
 }
 
-// SendMessage enqueues a durable message for a terminal or Run address.
-func (c *Client) SendMessage(to, subject, body string) error {
-	_, err := c.run("orchestration", "send", "--to", to, "--subject", subject, "--body", body)
+// SendMessage enqueues a durable message for a terminal or Run address, sent
+// as from: a caller outside any Orca terminal (the launchd watcher) has no
+// sender of its own, and Orca refuses the send without one.
+func (c *Client) SendMessage(from, to, subject, body string) error {
+	_, err := c.run("orchestration", "send", "--from", from, "--to", to, "--subject", subject, "--body", body)
 	return err
 }

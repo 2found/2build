@@ -485,7 +485,11 @@ func batchWake(client *orca.Client, r foreman.Record, b foremanBatch, summary st
 	instruction := summary + ". Run `bbs foreman batch show " + r.ID + "` (batch, attention and each project's next steps), then consume the Orca Delivery."
 	note := ""
 	if run := batchRun(b); run != "" {
-		if err := client.SendMessage("run:"+run, "bbs foreman batch", summary); err != nil {
+		handle, err := client.Ref(foremanTerm(client, r))
+		if err == nil {
+			err = client.SendMessage(handle, "run:"+run, "bbs foreman batch", summary)
+		}
+		if err != nil {
 			note = " (orca message failed: " + err.Error() + ")"
 		}
 	}
@@ -521,7 +525,7 @@ func batchHold(client *orca.Client, r foreman.Record, b foremanBatch) {
 		return
 	}
 	notice := fmt.Sprintf("batch %s (%d tasks) is supervised by bbs foreman watch; it wakes you when the batch settles or needs you", b.ID, len(b.Tasks))
-	if client.SendMessage("run:"+run, "bbs foreman batch", notice) == nil {
+	if client.SendMessage(handle, "run:"+run, "bbs foreman batch", notice) == nil {
 		_, _ = client.HoldMailbox(run, handle)
 	}
 }

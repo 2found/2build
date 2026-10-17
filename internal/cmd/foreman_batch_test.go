@@ -84,6 +84,9 @@ elif cmd == ["orchestration", "check"] and "--peek" in args:
 elif cmd == ["orchestration", "check"]:
     out({"deliveryId": "delivery-1", "count": w["mail"]} if w["mail"] else {"count": 0})
 elif cmd == ["orchestration", "send"]:
+    # The watcher runs outside any terminal: Orca needs an explicit sender.
+    if arg("--from") != "term_0":
+        fail("no_active_sender_terminal")
     w["mail"] += 1
     json.dump(w, open(` + pyQuote(f.state) + `, "w"))
     out({"message": {"id": "msg-%d" % w["mail"]}})
@@ -221,7 +224,7 @@ func TestBatchWakesForemanOnceWhenAllSettle(t *testing.T) {
 		t.Fatalf("settled wake = %q", line)
 	}
 	sends := f.sends(t)
-	if len(sends) != 2 || !strings.HasPrefix(sends[0], "orchestration send --to run:run-1") ||
+	if len(sends) != 2 || !strings.HasPrefix(sends[0], "orchestration send --from term_0 --to run:run-1") ||
 		!strings.Contains(sends[1], "bbs foreman batch show fm-batch") {
 		t.Fatalf("wake sends = %v", sends)
 	}
