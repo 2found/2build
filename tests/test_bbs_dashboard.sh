@@ -20,7 +20,12 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-BBS_DASHBOARD="$SCRIPT_DIR/bbs"
+# Built with bbs_noembed: a ./bbs from a checkout that once ran the web build
+# embeds the SPA, and then the default invocation serves forever instead of
+# failing on the missing web/dist this suite asserts.
+BBS_TEST_BIN="$(mktemp -d)"
+( cd "$SCRIPT_DIR" && go build -tags bbs_noembed -o "$BBS_TEST_BIN/bbs" ./cmd/bbs ) || { echo "FAIL: go build" >&2; exit 1; }
+BBS_DASHBOARD="$BBS_TEST_BIN/bbs"
 [ -x "$BBS_DASHBOARD" ] || { echo "FAIL: $BBS_DASHBOARD not executable" >&2; exit 1; }
 
 PASS=0

@@ -1,3 +1,5 @@
+//go:build !bbs_noembed
+
 // Package webui carries the built dashboard SPA inside the binary.
 //
 // It exists because the two halves of babysit ship separately: `brew install
@@ -9,6 +11,9 @@
 // The directory is a placeholder in a normal `go build`: only .keep is in it,
 // so FS reports false and callers fall back to web/dist on disk. Release builds
 // populate it — see the before-hooks in .goreleaser.yaml.
+//
+// The bbs_noembed tag drops the embed so dashboard test suites get the on-disk
+// behavior even in a checkout where a web build left index.html in dist/.
 package webui
 
 import (

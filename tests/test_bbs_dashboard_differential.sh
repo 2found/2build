@@ -17,7 +17,9 @@ trap 'rm -rf "$WORK"' EXIT
 
 # Build the Go binary; expose as bbs-dashboard via argv0 symlink.
 BIN="$WORK/bin"; mkdir -p "$BIN"
-( cd "$ROOT" && go build -o "$BIN/bbs" ./cmd/bbs )
+# bbs_noembed: an embedded SPA (left by a local web build) moves data.js out
+# of web/dist, which is where this harness reads it.
+( cd "$ROOT" && go build -tags bbs_noembed -o "$BIN/bbs" ./cmd/bbs )
 ln -sf bbs "$BIN/bbs-dashboard"
 GO="$BIN/bbs-dashboard"
 

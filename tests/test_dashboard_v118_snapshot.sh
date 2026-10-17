@@ -12,7 +12,12 @@
 
 set -u
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DASH="$SCRIPT_DIR/bbs"
+# Built with bbs_noembed: a ./bbs from a checkout that once ran the web build
+# embeds the SPA, and then the default invocation serves forever instead of
+# failing on the missing web/dist this suite asserts.
+BBS_TEST_BIN="$(mktemp -d)"
+( cd "$SCRIPT_DIR" && go build -tags bbs_noembed -o "$BBS_TEST_BIN/bbs" ./cmd/bbs ) || { echo "FAIL: go build" >&2; exit 1; }
+DASH="$BBS_TEST_BIN/bbs"
 [ -x "$DASH" ] || { echo "FAIL: $DASH not executable" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "FAIL: jq required" >&2; exit 1; }
 command -v node >/dev/null 2>&1 || { echo "FAIL: node required to eval data.js" >&2; exit 1; }
