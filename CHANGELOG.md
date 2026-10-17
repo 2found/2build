@@ -1,5 +1,57 @@
 # Changelog
 
+## 1.99.0 — 2026-10-17
+
+### Added
+
+- **Phase-based Foreman projects** — Foreman splits a project into release
+  phases. Each ticket runs its whole autopilot loop (plan, approve, implement,
+  review, QA) in one worker session, and Foreman wakes once per phase batch.
+  Plans sized S/M are self-approved by the worker; L plans are approved by Foreman.
+- **One git flow, no configuration** — autopilot never commits, pushes or opens
+  a PR. `bbs foreman seal` snapshots each ticket on `refs/bbs/tickets/<id>`.
+  `bbs foreman await` and `bbs ticket adopt` carry sealed prerequisites into a ticket.
+  `bbs foreman integrate` builds one commit per phase.
+  `bbs foreman land` fast-forwards local base to the QA'd commit. It never
+  stashes or resets, and it refuses when base moved or local edits overlap.
+- **Advisor toolkit** — `bbs contract list|pin|status|check` versions interface
+  contracts by content digest. `bbs foreman next` suggests the next steps.
+  `batch show` lists each owned project's `NEXT=` steps.
+  The watcher coalesces early attention (`--attention-window`).
+  `bbs foreman seal` accepts several tickets.
+
+### Changed
+
+- **Ticket contract v2 only** — v1 checkpoints are no longer read.
+  `recover` refuses one with `CHECKPOINT_V1` (exit 3), and `snapshot` marks it
+  with a checkpoint-refresh obligation. Docs, hooks and READMEs (including
+  translations) were swept to match HEAD.
+- **The watcher no longer compacts Foreman** at batch boundaries; the agent
+  compacts itself when its context fills.
+
+### Removed
+
+- Git-flow profiles and `BBS_FINISH` / `RIGOR` / `REVIEW_EFFORT`.
+- `bbs ticket land` / `refresh` / `serve`, `surface compose` / `revert` / `clear`
+  and branch mode. Use the phase flow above instead.
+
+### Fixed
+
+- Watcher messages are sent from the Foreman's terminal (`--from`).
+  Previously the launchd watcher's batch holds and wake messages failed with
+  `no_active_sender_terminal`, so Orca typed a mail pointer into Foreman for
+  every worker report.
+- The watcher reaches Foreman by its recorded terminal handle, because Claude
+  Code retitles its terminal. It no longer reports a live worker whose terminal
+  the user took over as lost.
+- `bbs foreman land` resolves a submodule's working tree, so a clean
+  submodule checkout is no longer refused with "local changes overlap".
+- Finish readiness no longer reopens a landed child's seal when its phase
+  rewrote a shared workflow file or repaired a dependency.
+- `bbs foreman next` waits on a ticket whose worker holds a lease, instead of
+  suggesting a duplicate dispatch. Worktree manifests record an absolute
+  canonical path, and `slug` honors `BABYSIT_HOME`.
+
 ## 1.98.1 — 2026-10-16
 
 ### Fixed
