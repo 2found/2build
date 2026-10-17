@@ -253,6 +253,9 @@ func checkoutDetached(canonical, path, commit string) error {
 }
 
 // branchCheckout returns the worktree that has branch checked out, if any.
+// A submodule's main worktree is listed as its git dir
+// (.git/modules/<name>, core.worktree pointing back), so the listed path is
+// resolved to its working tree.
 func branchCheckout(canonical, branch string) string {
 	dir := ""
 	for _, line := range strings.Split(gitOutIn(canonical, "worktree", "list", "--porcelain"), "\n") {
@@ -260,6 +263,9 @@ func branchCheckout(canonical, branch string) string {
 		case strings.HasPrefix(line, "worktree "):
 			dir = strings.TrimPrefix(line, "worktree ")
 		case line == "branch refs/heads/"+branch:
+			if top := gitOutIn(dir, "rev-parse", "--show-toplevel"); top != "" {
+				return top
+			}
 			return dir
 		}
 	}

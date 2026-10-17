@@ -130,6 +130,26 @@ func TestAdoptCarriesPrerequisiteWorkAsUncommittedChanges(t *testing.T) {
 	}
 }
 
+// A submodule lists its main worktree as the git dir; land must resolve the
+// real checkout or every phase path reads as a local edit.
+func TestBranchCheckoutResolvesASubmoduleGitDir(t *testing.T) {
+	repo, _ := snapshotRepo(t)
+	gitDir := filepath.Join(t.TempDir(), "modules", "repo")
+	if err := os.MkdirAll(filepath.Dir(gitDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(repo, ".git"), gitDir); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(repo, ".git"), "gitdir: "+gitDir+"\n")
+	runGit(t, repo, "config", "core.worktree", repo)
+	want, _ := filepath.EvalSymlinks(repo)
+	got, _ := filepath.EvalSymlinks(branchCheckout(repo, "main"))
+	if got != want {
+		t.Fatalf("branchCheckout = %q, want the working tree %q", got, want)
+	}
+}
+
 func TestFastForwardCheckoutKeepsLocalWork(t *testing.T) {
 	setup := func(t *testing.T) (repo, old, next string) {
 		repo, _ = snapshotRepo(t)
