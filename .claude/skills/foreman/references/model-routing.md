@@ -113,8 +113,7 @@ Read the effective policy (defaults merged with global then repo settings):
 ```bash
 bbs foreman model --dir "$REPO" --json
 bbs foreman model --dir "$REPO" --agent <selected-agent> \
-  --complexity <simple|normal|hard> --phase-class <normal|critical|design> \
-  [--quota [--host <host-id>]] --json
+  --complexity <simple|normal|hard> --phase-class <normal|critical|design> --json
 ```
 
 The lookup returns `agent`, `complexity`, `phaseClass`, `selectedTier`, `model`
@@ -160,26 +159,9 @@ Missing files use defaults; malformed settings, unknown policy keys or empty
 models fail with the settings path. Other settings namespaces are ignored.
 These are routing policy, not vendor capability or price claims.
 
-### Quota offload
-
-For a new worker route, add `--quota` to the lookup. It reads the destination
-host's Orca `quotaSnapshots` for the selected agent and, when the agent is in
-`offload.from` (built in: `claude`, `codex`), the tier is in `offload.tiers`
-(built in: `lite`, `flash`), and the highest authoritative week-long window is
-above `offload.weeklyUsedPercent` (built in: `70`), returns `offload.agent`
-(built in: `omp`) with that agent's binding for the same tier. `pro` and `max`
-work stays on the selected agent. The result's `offload` object records the
-decision, reason and observed weekly usage; persist it in the route handoff and
-pass the returned agent to `bbs foreman route --agent`. Unknown quota, or an
-offload agent Orca does not report enabled and runnable, never offloads.
-Offload is decided once per new route: resumes and follow-ups keep the ticket's
-recorded agent. Disable it with `"offload": {"agent": ""}`.
-
-```json
-{ "foreman": { "models": { "offload": {
-  "agent": "omp", "from": ["claude", "codex"],
-  "tiers": ["lite", "flash"], "weeklyUsedPercent": 70 } } } }
-```
+Do not switch a worker's agent from quota or usage. Pin the harness at spawn
+or adopt: `--plan-worker`, `--implement-worker`, `--qa-worker` (default: this
+Foreman's own agent). `bbs foreman model --quota` is refused.
 
 Resolve configured aliases against the live native binding. For OMP, read the
 selected role's binding; its provider/model/effort belong to that role.

@@ -48,14 +48,16 @@ const foremanUsage = `Usage:
   bbs foreman complete <parent> --foreman <id>
   bbs foreman register <id> [--dir <path>] [--workspace-title <title>] [--session <uuid>]
   bbs foreman adopt [<id>] [--agent <name>] [--auto]
+                    [--plan-worker <name>] [--implement-worker <name>] [--qa-worker <name>]
   bbs foreman heartbeat <id> [--status <status>] [--session <uuid>]
   bbs foreman spawn [<id>] [--dir <path>] [--command <text>] [--agent <name>]
                     [--model <id>] [--effort <level>] [--auto]
+                    [--plan-worker <name>] [--implement-worker <name>] [--qa-worker <name>]
+                    (workers default to this Foreman's --agent; names: claude|codex|omp|grok|cursor)
   bbs foreman ensure <id>
   bbs foreman model [--agent <id>] [--complexity <simple|normal|hard>] [--phase-class <normal|critical|design>]
-                    [--quota [--host <host-id>]] [--dir <repo-or-worktree>] [--json]
-                    (with --agent, omitted complexity/phase-class default to normal;
-                     --quota reads Orca quota and may offload the worker to another agent)
+                    [--dir <repo-or-worktree>] [--json]
+                    (with --agent, omitted complexity/phase-class default to normal)
   bbs foreman worker-command (--prompt <text> [--skill <name>] | --startup-only) [--agent <id>] [--pinned-agent <id>]
                             [--pinned-model <id>] [--pinned-effort <level>] [--host <host-id>] [--exact-session] [--dir <path>]
                             [--model <id>] [--effort <level>]
@@ -111,8 +113,12 @@ const foremanSkillName = "foreman"
 // foremanSkillPrompt always carries the durable coordinator identity. The
 // skill invocation reloads the protocol after compaction; the id prevents a
 // recovered session from guessing which foreman's inbox and claims it owns.
-func foremanSkillPrompt(prof agent.Profile, id, instruction string) string {
-	prompt := prof.SkillRef(foremanSkillName) + " --foreman-id " + id
+func foremanSkillPrompt(prof agent.Profile, rec foreman.Record, instruction string) string {
+	prompt := prof.SkillRef(foremanSkillName) + " --foreman-id " + rec.ID
+	if rec.Auto {
+		prompt += " --auto"
+	}
+	prompt += foremanWorkerPromptFlags(rec)
 	if instruction = strings.TrimSpace(instruction); instruction != "" {
 		prompt += " " + instruction
 	}
@@ -477,6 +483,9 @@ func foremanAdopt(args []string) error {
 	} else if refErr != nil && !errors.Is(refErr, orca.ErrNoTerminal) {
 		return fmt.Errorf("cannot resolve foreman %s terminal: %w", id, refErr)
 	}
+	if err := applyForemanWorkers(&r, kv); err != nil {
+		return err
+	}
 	if term.Title != title {
 		if err := client.Rename(term.Handle, title); err != nil {
 			return err
@@ -500,6 +509,7 @@ func foremanAdopt(args []string) error {
 	// own check --wait loop, so adopting a terminal guarantees one exists.
 	spawnWatcher()
 	fmt.Printf("adopted %s in %s as %s\n", id, title, agentName)
+	fmt.Println(formatForemanWorkers(r))
 	return nil
 }
 
@@ -540,6 +550,7 @@ func foremanSpawn(args []string) (string, error) {
 	}
 	return spawnForemanWithOptions(id, kv["dir"], kv["command"], foremanSpawnOptions{
 		Agent: kv["agent"], Model: kv["model"], Effort: kv["effort"],
+		PlanWorker: kv[planWorkerFlag], ImplementWorker: kv[implementWorkerFlag], QAWorker: kv[qaWorkerFlag],
 	}, kv["auto"] == "1")
 }
 
@@ -676,7 +687,8 @@ func spawnForeman(id, dir, command, agentFlag string, auto ...bool) (string, err
 }
 
 type foremanSpawnOptions struct {
-	Agent, Model, Effort string
+	Agent, Model, Effort                  string
+	PlanWorker, ImplementWorker, QAWorker string
 }
 
 func spawnForemanWithOptions(id, dir, command string, opts foremanSpawnOptions, auto ...bool) (string, error) {
@@ -725,6 +737,11 @@ func spawnForemanWithOptions(id, dir, command string, opts foremanSpawnOptions, 
 
 	if len(auto) > 0 && auto[0] {
 		r.Auto = true
+	}
+	if err := applyForemanWorkers(&r, map[string]string{
+		planWorkerFlag: opts.PlanWorker, implementWorkerFlag: opts.ImplementWorker, qaWorkerFlag: opts.QAWorker,
+	}); err != nil {
+		return "", err
 	}
 
 	// The session id is minted here rather than read back afterwards. When the
@@ -843,10 +860,7 @@ func spawnForemanWithOptions(id, dir, command string, opts foremanSpawnOptions, 
 		if err := prof.PreflightDir(dir); err != nil {
 			return "", err
 		}
-		prompt := foremanSkillPrompt(prof, id, "")
-		if r.Auto {
-			prompt += " --auto"
-		}
+		prompt := foremanSkillPrompt(prof, r, "")
 		if resumable {
 			command = prof.ResumeCommand(session, prompt)
 		} else {
@@ -875,6 +889,7 @@ func spawnForemanWithOptions(id, dir, command string, opts foremanSpawnOptions, 
 		spawnWatcher()
 	}
 	fmt.Printf("%s %s in %s (%s, session %s)\n", verb, id, ref, dir, session)
+	fmt.Println(formatForemanWorkers(r))
 	return id, nil
 }
 

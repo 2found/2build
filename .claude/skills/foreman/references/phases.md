@@ -118,7 +118,7 @@ again. Never resolve a conflict outside a ticket session.
 ### 3. Cumulative QA and product review
 
 Dispatch one **phase integration worker** (normal route, `standard` profile)
-in the integration worktree. It never edits code. In that session it begins
+on `--qa-worker` (default: this Foreman's harness) in the integration worktree. It never edits code. In that session it begins
 evidence with the phase named (execution.md) — the CLI derives the surfaces
 from the phase commit:
 

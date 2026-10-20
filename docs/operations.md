@@ -268,8 +268,9 @@ permission mode, so configure that session for unattended tool use before
 leaving a multi-day run.
 
 New Foreman terminals use an explicit `--agent` when requested, otherwise the
-current harness. New worker routes are owned by destination-host Orca facts; old
-BBS worker/foreman agent/provider/model/effort settings no longer affect
+current harness. Plan, implement, and QA workers follow `--plan-worker`,
+`--implement-worker`, and `--qa-worker` (default: that Foreman's harness).
+Old BBS worker/foreman agent/provider/model/effort settings no longer affect
 launches. Legacy YAML bytes remain untouched; each launch command emits one
 warning when such values are present, and `bbs config set` rejects new writes.
 Providers stay in agent-native configuration unless Orca advertises a supported

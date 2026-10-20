@@ -69,7 +69,9 @@ logs. Judge work from readiness JSON, verdicts and handoff paths.
 Use [worker routing](references/worker-routing.md) before **every worker launch
 or session reuse**: task complexity, model tier, launch settings and receipt
 checks. Classify each assignment from its own scope; do not inherit the last
-ticket's complexity.
+ticket's complexity. Pass `--agent` from `--plan-worker` / `--implement-worker`
+/ `--qa-worker` on this invocation (default: your own harness). Never switch
+an agent because quota is high.
 
 Follow [the preamble](../references/preamble.md) and
 [Auto-Decision Framework](../references/auto-decision-framework.md). Shared refs
@@ -82,8 +84,9 @@ parks the one ticket or phase that needs it while independent work continues.
 
 - **New project**: read [kickoff](references/kickoff.md) — initialize and
   claim the parent, clarify the requirement (questions to the human in one
-  batch, now), have one worker produce the basic design and phase plan, get it
-  approved.
+  batch, now), have one `--plan-worker` produce the basic design and phase
+  plan, get it approved. Ticket sessions use `--implement-worker`; phase QA
+  uses `--qa-worker`.
 - **Resume** (a wake after compaction is one): `bbs foreman batch show` or
   `bbs foreman next` names the first unmet step; continue it without
   replacing live workers or replaying completed work

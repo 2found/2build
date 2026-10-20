@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	"github.com/2found/2build/internal/config"
-	"github.com/2found/2build/internal/foreman"
-	"github.com/2found/2build/internal/orca"
 )
 
 func TestForemanModelLookupFromNestedRepoAndWorktree(t *testing.T) {
@@ -55,7 +53,7 @@ func TestForemanModelPolicyAndErrors(t *testing.T) {
 		}
 	})
 	var got config.ForemanModels
-	if err := json.Unmarshal([]byte(out), &got); err != nil || got.Tiers["flash"]["codex"].Model != "gpt-6.1-sol" || got.Offload.Agent != "omp" {
+	if err := json.Unmarshal([]byte(out), &got); err != nil || got.Tiers["flash"]["codex"].Model != "gpt-6.1-sol" {
 		t.Fatalf("policy output %s: %v", out, err)
 	}
 	for _, args := range [][]string{
@@ -131,72 +129,5 @@ func TestForemanModelMissingClassificationHonorsRepoOverride(t *testing.T) {
 	}
 	if got["selectedTier"] != "pro" || got["model"] != "repo-model" || got["effort"] != "low" {
 		t.Fatalf("missing classification ignored repo override: %s", out)
-	}
-}
-
-func TestForemanModelQuotaOffload(t *testing.T) {
-	t.Setenv("BABYSIT_STATE_DIR", t.TempDir())
-	t.Chdir(t.TempDir())
-	yes, no := true, false
-	weekly := func(used float64) foreman.QuotaAdmission {
-		return foreman.QuotaAdmission{Status: "available", Pools: []foreman.QuotaPoolEvidence{{Windows: []foreman.QuotaWindowEvidence{
-			{Name: "5h", UsedPercent: 100, WindowMinutes: 300}, {Name: "week", UsedPercent: used, WindowMinutes: 10080},
-		}}}}
-	}
-	ompAgent := func(runnable *bool) *orca.AgentDiscovery {
-		return &orca.AgentDiscovery{Agents: []orca.DiscoveredAgent{{ID: "omp", Enabled: &yes, Runnable: runnable}}}
-	}
-	original := foremanModelQuota
-	t.Cleanup(func() { foremanModelQuota = original })
-	for _, tc := range []struct {
-		name, phase string
-		quota       foreman.QuotaAdmission
-		discovery   *orca.AgentDiscovery
-		agent       string
-		model       string
-		reason      string
-	}{
-		{"hot week offloads ticket", "critical", weekly(82), ompAgent(&yes), "omp", "@normal", "weekly-quota-above-threshold"},
-		{"5h window alone stays", "critical", weekly(40), ompAgent(&yes), "claude", "sonnet", "weekly-quota-below-threshold"},
-		{"design stays on max", "design", weekly(95), ompAgent(&yes), "claude", "opus", "tier-not-offloaded"},
-		{"unknown quota stays", "critical", foreman.QuotaAdmission{Status: "unknown"}, ompAgent(&yes), "claude", "sonnet", "weekly-quota-unknown"},
-		{"omp not runnable stays", "critical", weekly(95), ompAgent(&no), "claude", "sonnet", "offload-agent-unavailable"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			foremanModelQuota = func(agent, host string) (foreman.QuotaAdmission, *orca.AgentDiscovery) {
-				if agent != "claude" || host != "host-a" {
-					t.Fatalf("quota read for %s@%s", agent, host)
-				}
-				return tc.quota, tc.discovery
-			}
-			out := captureStdout(t, func() {
-				if err := foremanModel([]string{"--agent", "claude", "--phase-class", tc.phase, "--quota", "--host", "host-a", "--json"}); err != nil {
-					t.Fatal(err)
-				}
-			})
-			var got struct {
-				Agent, Model, SelectedTier string
-				Offload                    config.OffloadDecision
-			}
-			if err := json.Unmarshal([]byte(out), &got); err != nil {
-				t.Fatal(err)
-			}
-			if got.Agent != tc.agent || got.Model != tc.model || got.Offload.Reason != tc.reason || got.Offload.From != "claude" {
-				t.Fatalf("%s", out)
-			}
-		})
-	}
-	// Without --quota the lookup stays offline and reports no offload.
-	foremanModelQuota = func(string, string) (foreman.QuotaAdmission, *orca.AgentDiscovery) {
-		t.Fatal("offline lookup read quota")
-		return foreman.QuotaAdmission{}, nil
-	}
-	out := captureStdout(t, func() {
-		if err := foremanModel([]string{"--agent", "claude", "--phase-class", "critical"}); err != nil {
-			t.Fatal(err)
-		}
-	})
-	if strings.Contains(out, "offload") || !strings.Contains(out, `"sonnet"`) {
-		t.Fatalf("offline lookup = %s", out)
 	}
 }

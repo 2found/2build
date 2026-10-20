@@ -16,7 +16,9 @@ This is operational detail for the four-step Foreman flow, not a second loop.
    from `--foreman-id <id>`, or choose a stable project id for a fresh run.
    Run `bbs foreman adopt "$FOREMAN_ID"` before other mutations; babysit detects
    its actual agent. If detection is unavailable, pass `--agent <current-agent>`.
-   A bare `bbs foreman adopt` recovers the existing binding on continuation.
+   Pass `--plan-worker`, `--implement-worker`, and `--qa-worker` when the
+   invocation named them; omitted means this Foreman's own harness. A bare
+   `bbs foreman adopt` recovers the existing binding on continuation.
    Adoption failure is `BLOCKED`; never use `register` or borrow a live id.
 3. Append `--auto` only when explicitly requested. Adoption persists it; read
    recorded `auto` on resume. It delegates project design review, not scope,

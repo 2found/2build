@@ -13,16 +13,6 @@ import (
 type ForemanModels struct {
 	Routing map[string]map[string]string       `json:"routing"`
 	Tiers   map[string]map[string]ModelBinding `json:"tiers"`
-	Offload Offload                            `json:"offload"`
-}
-
-// Offload moves a new cheap-tier worker off an agent whose weekly quota runs
-// hot onto Agent, which is billed elsewhere. An empty Agent disables it.
-type Offload struct {
-	Agent             string   `json:"agent"`
-	From              []string `json:"from"`
-	Tiers             []string `json:"tiers"`
-	WeeklyUsedPercent float64  `json:"weeklyUsedPercent"`
 }
 
 type ModelBinding struct {
@@ -47,7 +37,6 @@ func defaultForemanModels() ForemanModels {
 			"pro":   {"codex": {"gpt-6.1-sol", "high"}, "claude": {"opus", "medium"}, "omp": {"@slow", ""}},
 			"max":   {"codex": {"gpt-6-astra", "high"}, "claude": {"opus", "high"}, "omp": {"@plan", ""}},
 		},
-		Offload: Offload{Agent: "omp", From: []string{"claude", "codex"}, Tiers: []string{"lite", "flash"}, WeeklyUsedPercent: 70},
 	}
 }
 
@@ -99,9 +88,6 @@ func (p *ForemanModels) overlay(data []byte) error {
 	}
 	for section, raw := range sections {
 		if section == "offload" {
-			if err := p.overlayOffload(raw); err != nil {
-				return err
-			}
 			continue
 		}
 		var entries map[string]map[string]json.RawMessage
@@ -165,55 +151,6 @@ func (p *ForemanModels) overlay(data []byte) error {
 	return nil
 }
 
-// overlayOffload merges per field; `"agent": ""` turns offload off.
-func (p *ForemanModels) overlayOffload(data []byte) error {
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(data, &fields); err != nil || fields == nil {
-		return fmt.Errorf("foreman.models.offload must be an object")
-	}
-	for field, raw := range fields {
-		switch field {
-		case "agent":
-			var agent string
-			if err := json.Unmarshal(raw, &agent); err != nil || (agent != "" && !validAgentName(agent)) {
-				return fmt.Errorf("offload.agent must be an agent name or \"\"")
-			}
-			p.Offload.Agent = agent
-		case "from":
-			var agents []string
-			if err := json.Unmarshal(raw, &agents); err != nil {
-				return fmt.Errorf("offload.from must be a list of agent names")
-			}
-			for _, agent := range agents {
-				if !validAgentName(agent) {
-					return fmt.Errorf("offload.from: invalid agent name %q", agent)
-				}
-			}
-			p.Offload.From = agents
-		case "tiers":
-			var tiers []string
-			if err := json.Unmarshal(raw, &tiers); err != nil {
-				return fmt.Errorf("offload.tiers must be a list of tiers")
-			}
-			for _, tier := range tiers {
-				if p.Tiers[tier] == nil {
-					return fmt.Errorf("offload.tiers: unknown model tier %q", tier)
-				}
-			}
-			p.Offload.Tiers = tiers
-		case "weeklyUsedPercent":
-			var percent *float64
-			if err := json.Unmarshal(raw, &percent); err != nil || percent == nil || *percent < 0 || *percent > 100 {
-				return fmt.Errorf("offload.weeklyUsedPercent must be a number from 0 to 100")
-			}
-			p.Offload.WeeklyUsedPercent = *percent
-		default:
-			return fmt.Errorf("unknown offload field %q", field)
-		}
-	}
-	return nil
-}
-
 func validAgentName(agent string) bool {
 	return agent != "" && agent == strings.ToLower(strings.TrimSpace(agent))
 }
@@ -235,53 +172,4 @@ func (p ForemanModels) Select(agent, complexity, phase string) (string, ModelBin
 		return "", ModelBinding{}, fmt.Errorf("no %s model for agent %q; configure foreman.models.tiers.%s.%s in settings.json or supply an explicit phase route", tier, agent, tier, agent)
 	}
 	return tier, binding, nil
-}
-
-// OffloadDecision says whether a new worker moves to the offload agent.
-// WeeklyUsedPercent is nil when no authoritative weekly window was observed.
-type OffloadDecision struct {
-	Status            string   `json:"status"`
-	Reason            string   `json:"reason"`
-	From              string   `json:"from,omitempty"`
-	Agent             string   `json:"agent,omitempty"`
-	WeeklyUsedPercent *float64 `json:"weeklyUsedPercent,omitempty"`
-	Threshold         float64  `json:"threshold"`
-}
-
-// SelectOffload applies the offload rule to an already selected route. Unknown
-// quota never offloads; pro and max work stays on the selected agent unless
-// settings list those tiers.
-func (p ForemanModels) SelectOffload(agent, tier string, weeklyUsed *float64) (OffloadDecision, ModelBinding) {
-	o := p.Offload
-	d := OffloadDecision{Status: "not-applied", From: agent, WeeklyUsedPercent: weeklyUsed, Threshold: o.WeeklyUsedPercent}
-	switch {
-	case o.Agent == "":
-		d.Reason = "offload-disabled"
-	case agent == o.Agent || !contains(o.From, agent):
-		d.Reason = "agent-not-offloaded"
-	case !contains(o.Tiers, tier):
-		d.Reason = "tier-not-offloaded"
-	case weeklyUsed == nil:
-		d.Reason = "weekly-quota-unknown"
-	case *weeklyUsed <= o.WeeklyUsedPercent:
-		d.Reason = "weekly-quota-below-threshold"
-	default:
-		binding, ok := p.Tiers[tier][o.Agent]
-		if !ok {
-			d.Reason = "no-offload-binding"
-			return d, ModelBinding{}
-		}
-		d.Status, d.Reason, d.Agent = "applied", "weekly-quota-above-threshold", o.Agent
-		return d, binding
-	}
-	return d, ModelBinding{}
-}
-
-func contains(values []string, value string) bool {
-	for _, candidate := range values {
-		if candidate == value {
-			return true
-		}
-	}
-	return false
 }

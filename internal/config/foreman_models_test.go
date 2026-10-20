@@ -100,13 +100,6 @@ func TestForemanModelInvalidSettings(t *testing.T) {
 		`{"foreman":{"models":{"tiers":{"pro":{"codex":{"modle":"typo"}}}}}}`,
 		`{"foreman":{"models":{"tiers":{"pro":{"codex":null}}}}}`,
 		`{"foreman":{"models":{"tiers":{"pro":{"custom":{"effort":"high"}}}}}}`,
-		`{"foreman":{"models":{"offload":null}}}`,
-		`{"foreman":{"models":{"offload":{"agent":"OMP"}}}}`,
-		`{"foreman":{"models":{"offload":{"from":"claude"}}}}`,
-		`{"foreman":{"models":{"offload":{"tiers":["ultra"]}}}}`,
-		`{"foreman":{"models":{"offload":{"weeklyUsedPercent":120}}}}`,
-		`{"foreman":{"models":{"offload":{"weeklyUsedPercent":null}}}}`,
-		`{"foreman":{"models":{"offload":{"threshold":70}}}}`,
 	} {
 		t.Run(body, func(t *testing.T) {
 			repo := t.TempDir()
@@ -128,47 +121,17 @@ func TestForemanModelInvalidLookup(t *testing.T) {
 	}
 }
 
-func TestForemanModelOffload(t *testing.T) {
-	p := defaultForemanModels()
-	used := func(v float64) *float64 { return &v }
-	for _, tc := range []struct {
-		agent, tier string
-		weekly      *float64
-		status      string
-		reason      string
-		model       string
-	}{
-		{"claude", "flash", used(82), "applied", "weekly-quota-above-threshold", "@normal"},
-		{"codex", "lite", used(71), "applied", "weekly-quota-above-threshold", "@smol"},
-		{"claude", "flash", used(70), "not-applied", "weekly-quota-below-threshold", ""},
-		{"claude", "flash", nil, "not-applied", "weekly-quota-unknown", ""},
-		{"claude", "max", used(99), "not-applied", "tier-not-offloaded", ""},
-		{"claude", "pro", used(99), "not-applied", "tier-not-offloaded", ""},
-		{"omp", "flash", used(99), "not-applied", "agent-not-offloaded", ""},
-		{"custom", "flash", used(99), "not-applied", "agent-not-offloaded", ""},
-	} {
-		d, binding := p.SelectOffload(tc.agent, tc.tier, tc.weekly)
-		if d.Status != tc.status || d.Reason != tc.reason || binding.Model != tc.model || d.Threshold != 70 {
-			t.Fatalf("%+v: %+v %+v", tc, d, binding)
-		}
-	}
-
+func TestForemanModelIgnoresOffloadSettings(t *testing.T) {
 	t.Setenv("BABYSIT_STATE_DIR", t.TempDir())
 	repo := t.TempDir()
 	writeModelSettings(t, filepath.Join(repo, ".babysit", "settings.json"),
-		`{"foreman":{"models":{"offload":{"tiers":["flash","pro"],"weeklyUsedPercent":50}}}}`)
+		`{"foreman":{"models":{"offload":{"agent":"omp","weeklyUsedPercent":50}}}}`)
 	p, err := LoadForemanModels(repo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d, b := p.SelectOffload("claude", "pro", used(60)); d.Status != "applied" || b.Model != "@slow" || p.Offload.Agent != "omp" {
-		t.Fatalf("overlay offload: %+v %+v", d, b)
-	}
-	writeModelSettings(t, filepath.Join(repo, ".babysit", "settings.json"), `{"foreman":{"models":{"offload":{"agent":""}}}}`)
-	if p, err = LoadForemanModels(repo); err != nil {
-		t.Fatal(err)
-	}
-	if d, _ := p.SelectOffload("claude", "flash", used(99)); d.Reason != "offload-disabled" {
-		t.Fatalf("disabled offload: %+v", d)
+	tier, binding, err := p.Select("claude", "normal", "critical")
+	if err != nil || tier != "flash" || binding.Model != "sonnet" {
+		t.Fatalf("offload settings must not change routing: %s %+v %v", tier, binding, err)
 	}
 }

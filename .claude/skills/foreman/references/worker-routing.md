@@ -9,12 +9,11 @@ then the destination-host Orca default; BBS preferences do not select an agent.
 ## Resolve and launch
 
 Classify task complexity and phase class using the canonical contract. Select
-an agent from explicit intent, a compatible ticket pin, or destination-host Orca
-discovery, then obtain model/effort and tier with
-`bbs foreman model --dir "$REPO" --agent <selected-agent> --complexity <simple|normal|hard> --phase-class <normal|critical|design> --quota --json`.
-When the lookup's `offload.status` is `applied`, its `agent` replaces the
-selected agent: pass it as `--agent` to the route (see
-[quota offload](model-routing.md#quota-offload)).
+an agent from `--plan-worker` (basic design), `--implement-worker` (ticket
+sessions), or `--qa-worker` (phase QA / integration). Omitted means this
+Foreman's own harness. Then obtain model/effort and tier with
+`bbs foreman model --dir "$REPO" --agent <selected-agent> --complexity <simple|normal|hard> --phase-class <normal|critical|design> --json`.
+Do not pass `--quota` and do not replace the selected agent from usage.
 Use the assignment repo/worktree, not the coordinator repo in a multi-repo run.
 Explicit ticket overrides and valid persisted resume routes take precedence;
 skip the policy lookup when resuming an exact recorded session. Pass the

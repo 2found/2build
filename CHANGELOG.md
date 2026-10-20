@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.102.0 — 2026-10-20
+
+### Changed
+
+- **Explicit Foreman worker harnesses** — `bbs foreman spawn` / `adopt`
+  take `--plan-worker`, `--implement-worker`, and `--qa-worker`
+  (`claude|codex|omp|grok|cursor`). Omitted means this Foreman's own
+  harness. Quota-driven OMP offload (`bbs foreman model --quota`,
+  `foreman.models.offload`, usage > 70%) is removed; leftover `offload`
+  settings are ignored.
+
 ## 1.101.0 — 2026-10-20
 
 ### Added

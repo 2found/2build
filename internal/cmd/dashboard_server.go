@@ -589,7 +589,10 @@ type spawnReq struct {
 	Command string `json:"command"`
 	// Agent is optional: omitted means resolve from config, which is what the
 	// dashboard's spawn button sends.
-	Agent string `json:"agent"`
+	Agent           string `json:"agent"`
+	PlanWorker      string `json:"plan_worker"`
+	ImplementWorker string `json:"implement_worker"`
+	QAWorker        string `json:"qa_worker"`
 }
 
 func (s *dashServer) handleSpawnForeman(w http.ResponseWriter, r *http.Request) {
@@ -604,7 +607,9 @@ func (s *dashServer) handleSpawnForeman(w http.ResponseWriter, r *http.Request) 
 		writeErr(w, http.StatusBadRequest, "dir is required — a foreman is bound to one project folder")
 		return
 	}
-	id, err := spawnForeman(req.ID, req.Dir, req.Command, req.Agent)
+	id, err := spawnForemanWithOptions(req.ID, req.Dir, req.Command, foremanSpawnOptions{
+		Agent: req.Agent, PlanWorker: req.PlanWorker, ImplementWorker: req.ImplementWorker, QAWorker: req.QAWorker,
+	})
 	if err != nil {
 		// Spawn failures are the human's to read: Orca missing, app closed,
 		// id already registered. All of them are 400-class — the server is
@@ -710,7 +715,7 @@ func (s *dashServer) wake(id, msg string) wakeResult {
 	if err != nil {
 		return wakeResult{"unreachable", err.Error()}
 	}
-	prompt := foremanSkillPrompt(prof, id, msg)
+	prompt := foremanSkillPrompt(prof, rec, msg)
 	if err := client.SendEnter(foremanTerm(client, rec), prompt); err != nil {
 		if errors.Is(err, orca.ErrNoTerminal) {
 			foreman.MarkUnreachable(id)

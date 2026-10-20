@@ -133,8 +133,7 @@ assert policy["tiers"] == {
               "claude": {"model": "opus", "effort": "high"},
               "omp": {"model": "@plan"}},
 }, policy["tiers"]
-assert policy["offload"] == {"agent": "omp", "from": ["claude", "codex"],
-                             "tiers": ["lite", "flash"], "weeklyUsedPercent": 70}, policy["offload"]
+assert "offload" not in policy, policy
 print("foreman model policy defaults: ok")
 
 text = Path(sys.argv[1]).read_text()

@@ -656,7 +656,7 @@ func watchSend(client *orca.Client, r foreman.Record, instruction string) (strin
 	if err != nil {
 		return "", err
 	}
-	prompt := foremanSkillPrompt(prof, r.ID, instruction)
+	prompt := foremanSkillPrompt(prof, r, instruction)
 	if err := client.SendEnter(foremanTerm(client, r), prompt); err != nil {
 		foreman.MarkUnreachable(r.ID)
 		return "", err

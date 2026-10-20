@@ -51,7 +51,8 @@ design review sees.
 Read [project contract](project-contract.md),
 [execution evidence](execution.md) and
 [phases](phases.md). Dispatch one basic-design worker on the
-**design** route in the parent checkout to produce the architecture
+**design** route in the parent checkout, using `--plan-worker`
+(default: this Foreman's harness), to produce the architecture
 (`design.md`), one prototype of the whole product (`prototype.html`, N/A with
 interfaces and examples for non-UI work), `plan.md`, `manifest.md` and
 `project.json` with its `phases` — sized, ordered and release-safe per

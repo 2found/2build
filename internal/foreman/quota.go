@@ -155,21 +155,3 @@ func containsFold(values []string, value string) bool {
 	}
 	return false
 }
-
-// WeeklyUsedPercent is the highest usage across the week-long windows of the
-// assessed pools, or nil when the admission holds no authoritative evidence.
-func WeeklyUsedPercent(quota QuotaAdmission) *float64 {
-	if quota.Status != "available" && quota.Status != "deferred" {
-		return nil
-	}
-	var highest *float64
-	for _, pool := range quota.Pools {
-		for _, window := range pool.Windows {
-			if window.WindowMinutes == 7*24*60 && (highest == nil || window.UsedPercent > *highest) {
-				used := window.UsedPercent
-				highest = &used
-			}
-		}
-	}
-	return highest
-}

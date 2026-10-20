@@ -73,10 +73,17 @@ type Record struct {
 	ManualCommand bool `yaml:"manual_command,omitempty"`
 	// Auto delegates project design review to Foreman. Unlike child review,
 	// this requires an explicit --auto and survives restart/adoption.
-	Auto       bool   `yaml:"auto,omitempty"`
-	Status     string `yaml:"status"`
-	Heartbeat  string `yaml:"heartbeat"`
-	Completion string `yaml:"completion,omitempty"`
+	Auto bool `yaml:"auto,omitempty"`
+	// PlanWorker, ImplementWorker and QAWorker pin the harness for the
+	// basic-design worker, ticket implement sessions, and phase QA. Empty
+	// means the Foreman's own Agent. These are explicit operator choices,
+	// not quota-driven substitutions.
+	PlanWorker      string `yaml:"plan_worker,omitempty"`
+	ImplementWorker string `yaml:"implement_worker,omitempty"`
+	QAWorker        string `yaml:"qa_worker,omitempty"`
+	Status          string `yaml:"status"`
+	Heartbeat       string `yaml:"heartbeat"`
+	Completion      string `yaml:"completion,omitempty"`
 	// Unreachable is the RFC3339 stamp of the last poke that could not be
 	// delivered to this foreman's workspace, cleared on the next one that
 	// lands. It is a separate field from Status because the two answer
