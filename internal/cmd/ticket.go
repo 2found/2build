@@ -39,10 +39,15 @@ func newTicketCmd() *cobra.Command {
 			// unknown flag and ran anyway: `ticket ensure --help` created a
 			// ticket, and `ticket approval --help` published an approval. Help
 			// must be a read-only query, decided before any verb dispatches.
-			for _, arg := range args[1:] {
-				if arg == "-h" || arg == "--help" {
-					ticketUsage()
-					os.Exit(0)
+			// dag and lint carry their own usage line, so they keep it.
+			switch args[0] {
+			case "dag", "lint":
+			default:
+				for _, arg := range args[1:] {
+					if arg == "-h" || arg == "--help" {
+						ticketUsage()
+						os.Exit(0)
+					}
 				}
 			}
 			switch args[0] {

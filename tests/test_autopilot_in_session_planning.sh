@@ -125,7 +125,7 @@ assert policy["tiers"] == {
               "omp": {"model": "@smol"}},
     "flash": {"codex": {"model": "gpt-6.1-sol", "effort": "high"},
               "claude": {"model": "sonnet", "effort": "high"},
-              "omp": {"model": "@normal"}},
+              "omp": {"model": ""}},
     "pro":   {"codex": {"model": "gpt-6.1-sol", "effort": "high"},
               "claude": {"model": "opus", "effort": "medium"},
               "omp": {"model": "@slow"}},
