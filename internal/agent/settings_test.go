@@ -56,6 +56,23 @@ func TestOMPRejectsUnknownModelRoles(t *testing.T) {
 	}
 }
 
+// The mismatch message must name what the caller asked for and what the agent
+// actually supports; swapping them told a grok caller to use "anthropic".
+func TestProviderMismatchNamesBothProviders(t *testing.T) {
+	p, err := ByName("grok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Provider = "anthropic"
+	err = p.ValidateSettings()
+	if err == nil {
+		t.Fatal("grok accepted a provider it cannot use")
+	}
+	if msg := err.Error(); !strings.Contains(msg, `provider "anthropic"`) || !strings.Contains(msg, "native provider is xai") {
+		t.Fatalf("message names the wrong providers: %s", msg)
+	}
+}
+
 func TestUnsupportedSettingsFailBeforeLaunch(t *testing.T) {
 	for _, tc := range []struct{ agent, provider, effort string }{
 		{"grok", "openai", ""}, {"cursor", "anthropic", ""},

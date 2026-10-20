@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.102.2 — 2026-10-21
+
+### Fixed
+
+- **Provider-mismatch error named the wrong providers** — `agent.ValidateSettings`
+  printed the agent's native provider twice and dropped the caller's request
+  (`provider "xai"; its native provider is anthropic` for a grok profile asked
+  for anthropic). The message now names what was requested and what the agent
+  supports, in that order.
+
 ## 1.102.1 — 2026-10-21
 
 ### Fixed

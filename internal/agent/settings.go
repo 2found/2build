@@ -22,7 +22,7 @@ func (p Profile) ValidateSettings() error {
 			provider = "cursor"
 		}
 		if p.Provider != "" && p.Provider != provider {
-			return fmt.Errorf("agent %s cannot select provider %q; its native provider is %s", p.Name, provider, p.Provider)
+			return fmt.Errorf("agent %s cannot select provider %q; its native provider is %s", p.Name, p.Provider, provider)
 		}
 	case "omp":
 		// omp resolves @-prefixed model names as role aliases, and only three
