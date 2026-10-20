@@ -70,9 +70,9 @@ for c in brew claude; do
   fi
 done
 
-# Stub brew/claude/codex that record their argv instead of doing anything.
+# Stub brew/claude/codex/omp that record their argv instead of doing anything.
 STUBS="$T/stubs"; mkdir -p "$STUBS"
-for c in brew claude codex; do
+for c in brew claude codex omp; do
   printf '#!/bin/sh\necho "%s $*" >> "$STUB_LOG"\nexit ${STUB_RC:-0}\n' "$c" > "$STUBS/$c"
   chmod +x "$STUBS/$c"
 done
@@ -499,6 +499,19 @@ grep -qx 'codex plugin marketplace upgrade babysit' "$T/stub.log" || CMP_MSG="$C
 grep -qx 'codex plugin add bbs@babysit' "$T/stub.log" || CMP_MSG="$CMP_MSG CODEX-PLUGIN-SKIPPED;"
 grep -q 'Restart the affected coding agent' "$T/g.out" || CMP_MSG="$CMP_MSG no-restart-line;"
 report "update-from-a-checkout-updates-an-installed-codex-plugin"
+
+# OMP's marketplace plugin lives under ~/.omp, separate from Claude/Codex.
+new_case; prep_clones "1.0.0\n" "2.0.0\n"
+HOME_OMP="$T/c$N/home"; mkdir -p "$HOME_OMP/.omp/plugins/cache/plugins/babysit___bbs___1.100.0"
+CMP_MSG=""; : > "$T/stub.log"
+( cd "$BD" && env -i PATH="$STUBS:$SANDPATH" HOME="$HOME_OMP" STUB_LOG="$T/stub.log" \
+    BABYSIT_DIR="$BD" BABYSIT_STATE_DIR="$S2" \
+    "$BD/bin/bbs" update >"$T/g.out" 2>"$T/g.err" ); grc=$?
+[ "$grc" = 0 ] || CMP_MSG="exit=$grc want 0 [$(cat "$T/g.err")];"
+grep -qx 'omp plugin marketplace update babysit' "$T/stub.log" || CMP_MSG="$CMP_MSG OMP-MARKETPLACE-SKIPPED;"
+grep -qx 'omp plugin upgrade bbs@babysit' "$T/stub.log" || CMP_MSG="$CMP_MSG OMP-PLUGIN-SKIPPED;"
+grep -q 'Restart the affected coding agent' "$T/g.out" || CMP_MSG="$CMP_MSG no-restart-line;"
+report "update-from-a-checkout-updates-an-installed-omp-plugin"
 
 # Present but not driveable: naming it is the whole point — silence here is
 # what let the skills half drift two releases behind the binary.

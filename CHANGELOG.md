@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.101.0 — 2026-10-20
+
+### Added
+
+- **`bbs install omp`** — OMP is a first-class plugin harness. `package.json`
+  declares `hooks/omp.ts` as an extension and `skills/` symlinks the canonical
+  pack so [omp plugins](https://omp.sh/docs/plugins) load both. Auto-detect
+  includes `omp` on PATH; `bbs update` refreshes an installed `bbs@babysit`
+  marketplace plugin. Invoke `/autopilot` (no `bbs:` prefix).
+
 ## 1.100.0 — 2026-10-18
 
 ### Changed

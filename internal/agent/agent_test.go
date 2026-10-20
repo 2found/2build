@@ -342,9 +342,9 @@ func TestForemanResumeRequiresAnExactConversationIdentity(t *testing.T) {
 	}
 }
 
-// omp reaches babysit's skills through skills.customDirectories, which is a
-// FLAT list — the skills come out bare. A `/bbs:autopilot` prompt sent there
-// resolves to no skill at all, and the worker starts cleanly and does nothing.
+// omp plugin skills are a FLAT list — they come out bare. A `/bbs:autopilot`
+// prompt sent there resolves to no skill at all, and the worker starts cleanly
+// and does nothing.
 func TestSkillRefFollowsEachAgentsNamespacing(t *testing.T) {
 	for _, tc := range []struct{ name, want string }{
 		{"claude", "/bbs:autopilot"},
@@ -374,7 +374,7 @@ func TestPreflightNamesTheFixForEveryAgent(t *testing.T) {
 	}{
 		{"claude", []string{"claude.com"}},
 		{"grok", []string{"grok plugin install"}},
-		{"omp", []string{"skills.customDirectories", "/autopilot, not /bbs:autopilot"}},
+		{"omp", []string{"omp.sh", "omp plugin install bbs@babysit", "/autopilot, not /bbs:autopilot"}},
 		{"codex", []string{"developers.openai.com/codex", "codex plugin add bbs@babysit"}},
 	} {
 		p, err := ByName(tc.name)
@@ -393,15 +393,21 @@ func TestPreflightNamesTheFixForEveryAgent(t *testing.T) {
 	}
 }
 
-// omp's install hint used to be `omp plugin install <git-url>`, which reports
-// success under --dry-run and then fails for real with "package.json not
-// found". Naming a fix that does not work is worse than naming none.
-func TestOmpInstallHintDoesNotNameThePluginInstaller(t *testing.T) {
+// omp used to be told `omp plugin install <git-url>`, which was an npm-shaped
+// installer and failed with "package.json not found". The marketplace form is
+// the supported install; do not revive the git-url shortcut in the hint.
+func TestOmpInstallHintNamesMarketplacePlugin(t *testing.T) {
 	p, err := ByName("omp")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(p.Install, "omp plugin install") {
-		t.Errorf("omp hint names the npm-shaped installer, which fails on a Claude plugin repo:\n%s", p.Install)
+	if !strings.Contains(p.Install, "omp plugin marketplace add 2found/2build") {
+		t.Errorf("omp hint missing marketplace add:\n%s", p.Install)
+	}
+	if !strings.Contains(p.Install, "omp plugin install bbs@babysit") {
+		t.Errorf("omp hint missing marketplace install:\n%s", p.Install)
+	}
+	if strings.Contains(p.Install, "github:") || strings.Contains(p.Install, "customDirectories") {
+		t.Errorf("omp hint still names a non-plugin install path:\n%s", p.Install)
 	}
 }

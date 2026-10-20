@@ -47,7 +47,7 @@ brew install 2found/2build/bbs
 bbs install
 ```
 
-`bbs install` 自动检测 Claude Code、Codex 和 Antigravity。OMP、Grok 和其他兼容 agent 请参见 [skill 安装指南](docs/install.md#omp-grok-and-other-compatible-agents)。也可用 `bbs install claude`、`bbs install codex` 或 `bbs install antigravity` 选择一个。安装后重启 agent。没有 Homebrew 时使用 [release archive](docs/install.md#release-archives-macos-or-linux)；Windows 使用 WSL。
+`bbs install` 自动检测 Claude Code、Codex、Antigravity 和 OMP。Grok 和其他兼容 agent 请参见 [skill 安装指南](docs/install.md#grok-and-other-compatible-agents)。也可用 `bbs install claude`、`bbs install codex`、`bbs install antigravity` 或 `bbs install omp` 选择一个。安装后重启 agent。没有 Homebrew 时使用 [release archive](docs/install.md#release-archives-macos-or-linux)；Windows 使用 WSL。
 
 </details>
 

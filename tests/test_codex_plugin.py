@@ -34,11 +34,13 @@ def test_manifests_match_release_version() -> None:
     version = (ROOT / "VERSION").read_text().strip()
     codex = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text())
     claude = json.loads((ROOT / ".claude-plugin" / "marketplace.json").read_text())
+    omp = json.loads((ROOT / "package.json").read_text())
     assert codex["name"] == "bbs"
     assert codex["skills"] == "./.claude/skills"
     assert codex["version"] == version
     assert claude["metadata"]["version"] == version
     assert claude["plugins"][0]["version"] == version
+    assert omp["version"] == version
 
 
 if __name__ == "__main__":

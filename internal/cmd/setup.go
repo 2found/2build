@@ -47,6 +47,7 @@ Install the babysit CLI: build ./bbs, symlink it into ~/.claude/ and
   bbs install claude              Claude Code only
   bbs install codex               Codex only
   bbs install antigravity         Antigravity only
+  bbs install omp                 OMP only
 
 For development against this checkout, register its local plugin:
 
@@ -55,6 +56,9 @@ For development against this checkout, register its local plugin:
 or:
   codex plugin marketplace add <path-to-this-repo>
   codex plugin add bbs@babysit
+or:
+  omp plugin marketplace add <path-to-this-repo>
+  omp plugin install bbs@babysit
 
   --dry-run    Show what would be done without making changes
   --full       Run all steps + print the plugin registration commands
@@ -410,15 +414,16 @@ Codex CLI:
 Grok Build:
   grok plugin install https://github.com/2found/2build
 
-OMP hooks (skills are configured separately; see docs/operations.md):
-  omp --extension "%[1]s/hooks/omp.ts"
+OMP:
+  omp plugin marketplace add %[1]s
+  omp plugin install bbs@babysit
 
 Hook prerequisite: bbs on PATH (or bbs in ~/.local/bin).
 `, c.projectDir)
 	}
 
 	fmt.Fprint(c.out, "\nBabysit bins installed.\n\n")
-	fmt.Fprintf(c.out, "Skills:      %d available — run bbs install (or bbs install claude|codex|antigravity)\n", len(skillNames))
+	fmt.Fprintf(c.out, "Skills:      %d available — run bbs install (or bbs install claude|codex|antigravity|omp)\n", len(skillNames))
 	fmt.Fprintf(c.out, "             local checkout: /plugin marketplace add %s && /plugin install bbs@babysit\n", c.projectDir)
 	if len(c.installed) > 0 {
 		sort.Strings(c.installed)

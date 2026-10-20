@@ -150,6 +150,17 @@ func runUpgrade(args []string) error {
 			fmt.Fprintln(os.Stderr, hintCodexSkills())
 		}
 	}
+	switch driveable, ok := upgradeOmpPlugin(); {
+	case ok:
+		pluginDone = true
+	case driveable:
+		fmt.Fprintln(os.Stderr, "  The CLI upgraded, but the OMP plugin did not — re-run the command above.")
+	default:
+		if ompPluginCached() {
+			fmt.Fprintln(os.Stderr, "An OMP marketplace plugin is installed but `omp` is not on PATH — the skills half is still stale.")
+			fmt.Fprintln(os.Stderr, hintOmpSkills())
+		}
+	}
 	if updated, err := upgradeAntigravityPlugin(); err != nil {
 		fmt.Fprintln(os.Stderr, "Antigravity update failed: "+err.Error())
 		partial = true
@@ -297,7 +308,7 @@ func upgradeExternal(babysit string) error {
 	case driveable:
 		failed = true
 	default:
-		if !codexPluginCached() {
+		if !codexPluginCached() && !ompPluginCached() {
 			manual = append(manual, hintSkills())
 		}
 	}
@@ -310,6 +321,16 @@ func upgradeExternal(babysit string) error {
 	default:
 		if codexPluginCached() {
 			manual = append(manual, hintCodexSkills())
+		}
+	}
+	switch driveable, ok := upgradeOmpPlugin(); {
+	case ok:
+		done = append(done, "skills")
+	case driveable:
+		failed = true
+	default:
+		if ompPluginCached() {
+			manual = append(manual, hintOmpSkills())
 		}
 	}
 	if updated, err := upgradeAntigravityPlugin(); err != nil {
@@ -400,6 +421,8 @@ const pluginCmds = "claude plugin marketplace update babysit && claude plugin up
 
 const codexPluginCmds = "codex plugin marketplace upgrade babysit && codex plugin add bbs@babysit"
 
+const ompPluginCmds = "omp plugin marketplace update babysit && omp plugin upgrade bbs@babysit"
+
 // hintSkills names the command that refreshes the skill pack for the plugin
 // shape this machine has.
 func hintSkills() string {
@@ -437,6 +460,39 @@ func codexPluginCached() bool {
 		return false
 	}
 	return isDir(filepath.Join(home, ".codex", "plugins", "cache", "babysit"))
+}
+
+func ompPluginCached() bool {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return false
+	}
+	if b, err := os.ReadFile(filepath.Join(home, ".omp", "plugins", "installed_plugins.json")); err == nil && strings.Contains(string(b), "bbs@babysit") {
+		return true
+	}
+	matches, _ := filepath.Glob(filepath.Join(home, ".omp", "plugins", "cache", "plugins", "babysit___bbs___*"))
+	return len(matches) > 0
+}
+
+func upgradeOmpPlugin() (driveable, ok bool) {
+	if !ompPluginCached() || !hasCmd("omp") {
+		return false, false
+	}
+	fmt.Println("→ Updating the babysit plugin (omp)...")
+	err := runVisible("omp", "plugin", "marketplace", "update", "babysit")
+	if err == nil {
+		err = runVisible("omp", "plugin", "upgrade", "bbs@babysit")
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "omp plugin update failed — see the output above, then run:")
+		fmt.Fprintln(os.Stderr, "    "+ompPluginCmds)
+		return true, false
+	}
+	return true, true
+}
+
+func hintOmpSkills() string {
+	return "  Skills: " + ompPluginCmds
 }
 
 func hintCodexSkills() string {

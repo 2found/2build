@@ -48,7 +48,7 @@ brew install 2found/2build/bbs
 bbs install
 ```
 
-`bbs install` auto-detects Claude Code, Codex and Antigravity. For OMP, Grok and other compatible agents, follow the [skill installation guide](docs/install.md#omp-grok-and-other-compatible-agents). Use `bbs install claude`, `bbs install codex`, or `bbs install antigravity` to select one. Restart that agent after installation. Without Homebrew, use a [release archive](docs/install.md#release-archives-macos-or-linux); on Windows, use WSL.
+`bbs install` auto-detects Claude Code, Codex, Antigravity and OMP. For Grok and other compatible agents, follow the [skill installation guide](docs/install.md#grok-and-other-compatible-agents). Use `bbs install claude`, `bbs install codex`, `bbs install antigravity`, or `bbs install omp` to select one. Restart that agent after installation. Without Homebrew, use a [release archive](docs/install.md#release-archives-macos-or-linux); on Windows, use WSL.
 
 </details>
 

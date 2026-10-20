@@ -288,17 +288,15 @@ Two things it does not own:
   |-------|-------------------------------|--------------|
   | `claude` | the plugin marketplace | `/bbs:autopilot` |
   | `grok` | `grok plugin install https://github.com/2found/2build` | `/bbs:autopilot` |
-  | `omp` | `omp config set skills.customDirectories '["$HOME/.claude/plugins/marketplaces/babysit/.claude/skills"]'` | `/autopilot` |
+  | `omp` | `omp plugin marketplace add 2found/2build && omp plugin install bbs@babysit` | `/autopilot` |
   | `codex` | `codex plugin marketplace add 2found/2build && codex plugin add bbs@babysit` | `$bbs:autopilot` |
   | `cursor` | make the skills available under `.cursor/skills` or `.agents/skills` | `/autopilot` |
 
   `bbs foreman worker-command` preflights the binary and names the per-agent
   fix; the install itself is on the operator. Pass `--skill autopilot` rather
-  than writing the prompt by hand — **omp reaches its skills through a flat
-  directory list, so they have no `bbs:` namespace**, while Codex uses a `$`
-  sigil. A hard-coded `/bbs:autopilot` resolves incorrectly for both. (`omp plugin install <git-url>`
-  looks like the fix and is not: it reports success under `--dry-run` and then
-  fails for real, being an npm-shaped installer rather than a plugin store.)
+  than writing the prompt by hand — **omp plugin skills are a flat list, so they
+  have no `bbs:` namespace**, while Codex uses a `$`
+  sigil. A hard-coded `/bbs:autopilot` resolves incorrectly for both.
   A flat list also bounds what `skill://` can address: one skill directory, no
   `..`. Anything a skill names outside its own directory — the shared
   `references/` one level up, a sibling skill, a pack-level doc — is silently

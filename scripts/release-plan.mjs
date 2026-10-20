@@ -31,8 +31,9 @@ export function sourceVersion() {
   const version = readFileSync("VERSION", "utf8").trim();
   const marketplace = JSON.parse(readFileSync(".claude-plugin/marketplace.json", "utf8"));
   const codex = JSON.parse(readFileSync(".codex-plugin/plugin.json", "utf8"));
-  if ([marketplace.metadata.version, marketplace.plugins[0].version, codex.version].some(v => v !== version))
-    throw new Error("VERSION must match both plugin manifests (CLAUDE.md four-field rule)");
+  const omp = JSON.parse(readFileSync("package.json", "utf8"));
+  if ([marketplace.metadata.version, marketplace.plugins[0].version, codex.version, omp.version].some(v => v !== version))
+    throw new Error("VERSION must match Claude, Codex and OMP plugin manifests (CLAUDE.md version-field rule)");
   return version;
 }
 

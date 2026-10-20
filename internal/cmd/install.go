@@ -15,10 +15,10 @@ const babysitMarketplace = "2found/2build"
 
 func newInstallCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:       "install [claude|codex|antigravity]",
+		Use:       "install [claude|codex|antigravity|omp]",
 		Short:     "install 2build into one harness, or all detected harnesses",
-		Long:      "Install 2build for the current user. With no argument, detect Claude Code, Codex and Antigravity from PATH, Antigravity config directories, and Codex/Antigravity apps. Claude Code and Codex require their CLI on PATH. Restart the affected harness after installation.",
-		ValidArgs: []string{"claude", "codex", "antigravity"},
+		Long:      "Install 2build for the current user. With no argument, detect Claude Code, Codex, Antigravity and OMP from PATH, Antigravity config directories, and Codex/Antigravity apps. Claude Code, Codex and OMP require their CLI on PATH. Restart the affected harness after installation.",
+		ValidArgs: []string{"claude", "codex", "antigravity", "omp"},
 		Args:      cobra.MatchAll(cobra.MaximumNArgs(1), cobra.OnlyValidArgs),
 		RunE: func(_ *cobra.Command, args []string) error {
 			home, err := os.UserHomeDir()
@@ -30,13 +30,15 @@ func newInstallCmd() *cobra.Command {
 				targets = installedHarnesses(home)
 			}
 			if len(targets) == 0 {
-				return fmt.Errorf("no supported harness detected — install Claude Code, Codex or Antigravity, then run 'bbs install'; or specify 'bbs install <harness>'")
+				return fmt.Errorf("no supported harness detected — install Claude Code, Codex, Antigravity or OMP, then run 'bbs install'; or specify 'bbs install <harness>'")
 			}
 			var failures []string
 			for _, target := range targets {
 				fmt.Printf("→ Installing 2build for %s...\n", target)
 				if target == "antigravity" {
 					err = installAntigravity(home)
+				} else if target == "omp" {
+					err = installOmpPlugin()
 				} else {
 					err = installMarketplacePlugin(target)
 				}
@@ -64,6 +66,7 @@ func installedHarnesses(home string) []string {
 	}{
 		{"claude", "", []string{"claude"}, nil},
 		{"codex", "Codex", []string{"codex"}, nil},
+		{"omp", "", []string{"omp"}, nil},
 		{"antigravity", "Antigravity", []string{"antigravity", "agy"}, []string{".gemini/antigravity", ".gemini/antigravity-cli"}},
 	} {
 		detected := false
@@ -132,6 +135,70 @@ func installMarketplacePlugin(harness string) error {
 	}
 	return nil
 }
+
+// OMP's marketplace list is not JSON. Re-running `plugin install` fails when
+// the plugin is already present, so refresh uses `upgrade` in that case.
+// See https://omp.sh/docs/plugins .
+func installOmpPlugin() error {
+	if !hasCmd("omp") {
+		return fmt.Errorf("omp CLI is not on PATH — install/enable its CLI, then run 'bbs install omp'")
+	}
+	list := exec.Command("omp", "plugin", "marketplace", "list")
+	list.Stderr = os.Stderr
+	out, err := list.Output()
+	if err != nil {
+		return fmt.Errorf("omp plugin marketplace list failed: %w — check that your harness supports plugins", err)
+	}
+	if marketplaceNameListed(out, "babysit") {
+		if err := runVisible("omp", "plugin", "marketplace", "update", "babysit"); err != nil {
+			return fmt.Errorf("omp plugin marketplace update babysit: %w", err)
+		}
+	} else if err := runVisible("omp", "plugin", "marketplace", "add", babysitMarketplace); err != nil {
+		return fmt.Errorf("omp plugin marketplace add %s: %w", babysitMarketplace, err)
+	}
+	if ompPluginInstalled() {
+		if err := runVisible("omp", "plugin", "upgrade", "bbs@babysit"); err != nil {
+			return fmt.Errorf("omp plugin upgrade bbs@babysit: %w", err)
+		}
+		return nil
+	}
+	if err := runVisible("omp", "plugin", "install", "bbs@babysit"); err != nil {
+		return fmt.Errorf("omp plugin install bbs@babysit: %w", err)
+	}
+	return nil
+}
+
+func marketplaceNameListed(out []byte, name string) bool {
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == name {
+			return true
+		}
+	}
+	return false
+}
+
+func ompPluginInstalled() bool {
+	out, err := exec.Command("omp", "plugin", "list", "--json").Output()
+	if err != nil {
+		return false
+	}
+	var result struct {
+		Marketplace []struct {
+			ID string `json:"id"`
+		} `json:"marketplace"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil {
+		return strings.Contains(string(out), "bbs@babysit")
+	}
+	for _, plugin := range result.Marketplace {
+		if plugin.ID == "bbs@babysit" {
+			return true
+		}
+	}
+	return false
+}
+
 
 // Antigravity's plugin layout keeps skills and their sibling references
 // together. See https://antigravity.google/docs/plugins/ . Do not copy Claude

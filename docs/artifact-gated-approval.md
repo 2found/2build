@@ -25,24 +25,17 @@ links it into `~/.local/bin`).
 | Claude Code | Plugin auto-discovers `hooks/hooks.json` | snake_case input; native deny JSON |
 | Codex | Plugin auto-discovers `hooks/hooks.json` | snake_case input; native deny JSON |
 | Grok Build | Plugin loads `hooks/hooks.json` | camelCase input; native deny JSON |
-| OMP | Load `hooks/omp.ts` as an extension | `tool_call` / `tool_result` / `session_start` / `session_stop`; native block result |
+| OMP | Plugin loads `hooks/omp.ts` via `package.json` `omp.extensions` | `tool_call` / `tool_result` / `session_start` / `session_stop`; native block result |
 
 The command manifest calls `bbs hooks <name>` directly — no shell syntax, so
 the same manifest works under POSIX shells, PowerShell, and cmd. Hooks are
 compiled subcommands; there are no per-hook scripts, so older callers that
 invoked a `bin/hooks/<name>` path must switch to `bbs hooks <name>`.
 
-For OMP, skills configuration alone does **not** activate these hooks:
-
-```sh
-omp --extension "/absolute/path/to/babysit/hooks/omp.ts"
-```
-
-For persistent discovery, put a symlink to that file in
-`~/.omp/agent/extensions/babysit.ts`. The adapter resolves its real file
-location, so the symlink doesn't break script lookup. Avoid loading it twice.
-Restart the agent after updating its installed plugin/extension; editing this
-checkout does not update an existing marketplace cache.
+For OMP, `bbs install omp` (or `omp plugin install bbs@babysit`) loads both
+skills and the extension. Restart the agent after installing or upgrading;
+`/reload-plugins` refreshes skills but not extension modules. Avoid loading
+`hooks/omp.ts` a second time via `--extension` or `~/.omp/agent/extensions`.
 
 ## Release behavior
 

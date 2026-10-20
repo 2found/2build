@@ -15,11 +15,10 @@
 //     recorded against it that it has never heard of — a later resume would
 //     hand it an id it cannot find. See MintsSessionID and SessionDir.
 //   - Not every agent namespaces skills the same way. claude and grok read
-//     babysit's plugin manifest and expose `bbs:autopilot`; omp finds skills
-//     through `skills.customDirectories`, which is a flat list, so the same
-//     skill is bare `autopilot` there. Codex keeps the `bbs:` namespace but
-//     invokes skills with `$` instead of `/`. See SkillSigil, SkillPrefix and
-//     SkillRef.
+//     babysit's plugin manifest and expose `bbs:autopilot`; omp plugin skills
+//     are a flat list, so the same skill is bare `autopilot` there. Codex
+//     keeps the `bbs:` namespace but invokes skills with `$` instead of `/`.
+//     See SkillSigil, SkillPrefix and SkillRef.
 //
 // New dispatches use explicit launch intent or Orca discovery. A recovered
 // session always uses the agent recorded when it was created.
@@ -144,21 +143,12 @@ var profiles = map[string]Profile{
 		// --continue unambiguous. Verified by round-trip on omp v18.0.6.
 		Session: "", Resume: "--resume",
 		SessionDir: "--session-dir", Continue: "--continue",
-		// omp discovers Claude *user* and *project* skills but not Claude
-		// *plugin* skills, and skills reached through customDirectories are a
-		// FLAT list — they come out bare, not namespaced. So a `/bbs:autopilot`
-		// prompt resolves to nothing here while `/autopilot` works.
+		// omp plugin skills are a FLAT list — they come out bare, not namespaced.
+		// A `/bbs:autopilot` prompt resolves to nothing here while `/autopilot` works.
 		SkillSigil: "/", SkillPrefix: "",
-		// `omp plugin install <git-url>` looks like the fix and is not: it is an
-		// npm-shaped installer and fails with "package.json not found" on a
-		// Claude plugin repo (--dry-run reports success anyway, which is what
-		// makes it a trap). customDirectories is the verified fix, and it points
-		// at the marketplace checkout rather than plugins/cache/<version>
-		// because that path is stable across upgrades.
-		Install: "install omp, then point it at babysit's skills: " +
-			`omp config set skills.customDirectories '["$HOME/.claude/plugins/marketplaces/babysit/.claude/skills"]' ` +
-			"(omp does not scan ~/.claude/plugins, so without this the worker comes up and " +
-			"then cannot resolve its own prompt; note omp exposes them bare — /autopilot, not /bbs:autopilot)",
+		Install: "install omp: https://omp.sh, then install babysit: " +
+			"omp plugin marketplace add 2found/2build && omp plugin install bbs@babysit " +
+			"(omp exposes skills bare — /autopilot, not /bbs:autopilot)",
 	},
 	"codex": {
 		Name: "codex", Bin: "codex",

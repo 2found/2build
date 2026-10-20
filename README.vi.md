@@ -48,7 +48,7 @@ brew install 2found/2build/bbs
 bbs install
 ```
 
-`bbs install` tự phát hiện Claude Code, Codex và Antigravity. Với OMP, Grok và agent tương thích khác, xem [hướng dẫn cài skill](docs/install.md#omp-grok-and-other-compatible-agents). Chọn riêng bằng `bbs install claude`, `bbs install codex` hoặc `bbs install antigravity`. Khởi động lại agent sau khi cài. Không có Homebrew thì dùng [archive từ release](docs/install.md#release-archives-macos-or-linux); trên Windows, dùng WSL.
+`bbs install` tự phát hiện Claude Code, Codex, Antigravity và OMP. Với Grok và agent tương thích khác, xem [hướng dẫn cài skill](docs/install.md#grok-and-other-compatible-agents). Chọn riêng bằng `bbs install claude`, `bbs install codex`, `bbs install antigravity` hoặc `bbs install omp`. Khởi động lại agent sau khi cài. Không có Homebrew thì dùng [archive từ release](docs/install.md#release-archives-macos-or-linux); trên Windows, dùng WSL.
 
 </details>
 

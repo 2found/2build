@@ -17,13 +17,14 @@ agent that supports Claude Code skills. Orca is not needed for Autopilot.
    For a missing CLI, use Homebrew below if available, otherwise a verified
    release archive. Do not require Go, Node, a source checkout or Orca for a
    release install. Windows users should run the CLI and coding agent in WSL.
-3. For Claude Code/Codex, check the harness CLI is on PATH and supports
+3. For Claude Code/Codex/OMP, check the harness CLI is on PATH and supports
    `plugin` commands. A desktop app alone is insufficient. If missing, report
    the exact prerequisite and let the user enable/install that harness's CLI;
    do not silently install the pack for a different agent.
-4. Run `bbs install claude`, `bbs install codex`, or `bbs install antigravity`
-   for those harnesses. For OMP, Grok or another compatible agent, use the
-   [compatible-agent installation path](#omp-grok-and-other-compatible-agents).
+4. Run `bbs install claude`, `bbs install codex`, `bbs install antigravity`,
+   or `bbs install omp` for those harnesses. For Grok or another compatible
+   agent, use the
+   [compatible-agent installation path](#grok-and-other-compatible-agents).
    Installation must exit successfully. If a command
    fails, fix a recoverable local issue and retry for that target, or report the
    failed command and the missing prerequisite.
@@ -35,7 +36,8 @@ agent that supports Claude Code skills. Orca is not needed for Autopilot.
    | Claude Code | `claude plugin list --json` shows `bbs@babysit` installed and enabled. |
    | Codex | `codex plugin list --json` shows 2build installed and enabled; do not confuse an available marketplace listing with an installed plugin. |
    | Antigravity | Its managed plugin has `plugin.json`, `skills/autopilot/SKILL.md` and `skills/references/preamble.md` in the locations below. |
-   | OMP / Grok / other compatible agents | The agent discovers `autopilot/SKILL.md` and can read the sibling `references/preamble.md` by filesystem path. |
+   | OMP | `omp plugin list --json` shows `bbs@babysit` installed. |
+   | Grok / other compatible agents | The agent discovers `autopilot/SKILL.md` and can read the sibling `references/preamble.md` by filesystem path. |
 
 6. Tell the user to restart the affected agent and supply its first invocation:
    Claude Code/Grok `/bbs:autopilot`, Codex `$bbs:autopilot`, OMP `/autopilot`;
@@ -52,16 +54,16 @@ verified first run. The user's existing agent/model account supplies inference;
 ## Install into your harness
 
 ```bash
-bbs install                 # auto-detect Claude Code, Codex and Antigravity
+bbs install                 # auto-detect Claude Code, Codex, Antigravity and OMP
 bbs install claude          # Claude Code only
 bbs install codex           # Codex only
 bbs install antigravity     # Antigravity only
-```
+bbs install omp             # OMP only
 
 Detection checks CLI executables, Antigravity's `.gemini/antigravity*`
 directories, and Codex / Antigravity macOS apps. Leftover `~/.claude` or
 `~/.gemini/config` directories are not treated as an installed harness.
-Claude Code and Codex require their CLI on PATH:
+Claude Code, Codex and OMP require their CLI on PATH:
 `bbs install` registers the 2build marketplace and installs `bbs@babysit`.
 The marketplace keeps its legacy ID `babysit` for compatibility; the source is
 `2found/2build`. An existing marketplace is refreshed, so rerunning the command is supported.
@@ -78,21 +80,23 @@ workflows, scripts and data, and only replaces bundles marked as managed by
 `bbs install`. This installs skills; it does not port Claude's hooks or add
 Antigravity worker dispatch to Foreman.
 
+OMP uses the same marketplace (`babysit` from `2found/2build`) through
+[omp plugins](https://omp.sh/docs/plugins). `bbs install omp` adds the catalog
+and installs `bbs@babysit`; a rerun refreshes the catalog and upgrades the
+plugin. Skills load from the plugin's `skills/` directory (a symlink to
+`.claude/skills`); `hooks/omp.ts` loads as the plugin extension. Invoke
+`/autopilot` — OMP does not apply the `bbs:` skill prefix.
+
 For 2build development, `go run ./cmd/bbs setup --full` builds the CLI and
 prints the commands for registering the checkout as a local marketplace.
 
-### OMP, Grok and other compatible agents
+### Grok and other compatible agents
 
 Install the `bbs` CLI using [Homebrew](#macos--homebrew-primary) or a
 [release archive](#release-archives-macos-or-linux), then load the skills through
-your agent's own mechanism. `bbs install` currently automates the three harnesses
-listed above; it does not install OMP or Grok.
+your agent's own mechanism. `bbs install` automates Claude Code, Codex,
+Antigravity and OMP; it does not install Grok.
 
-- **OMP:** add the absolute path to this repository's `.claude/skills` directory
-  to `skills.customDirectories`, preserving any existing entries. A downloaded
-  source archive or existing plugin checkout also supplies that directory.
-  Invoke `/autopilot`. See [agent skill discovery](operations.md#which-coding-agent-runs-the-work)
-  for configuration details.
 - **Grok:** run `grok plugin install https://github.com/2found/2build`, restart,
   then invoke `/bbs:autopilot`.
 - **Other agents supporting Claude Code skills:** make the complete
@@ -114,7 +118,7 @@ core bins are now Go and ship inside this one binary, reachable as `bbs <sub>`:
 
 | You run | Runs | What it does |
 |---------|------|--------------|
-| `bbs install [claude\|codex\|antigravity]` | `install` | install the skill pack for one harness or all detected harnesses |
+| `bbs install [claude\|codex\|antigravity\|omp]` | `install` | install the skill pack for one harness or all detected harnesses |
 | `bbs config …` (alias `bbs-config`) | `config` | read/write `~/.babysit/config.yaml` |
 | `bbs ticket …` | `ticket` | ticket identity core (`env`, `resolve`, `set-verdict`, `verdict-status`, `session`, `board`) — see the strangler note below |
 | `bbs update` | `update` | update the active CLI installation, an additional Homebrew copy when one is installed, and installed harness plugins; `update check` probes for a newer release |
@@ -254,8 +258,8 @@ yet. New callers should use `bbs secrets …`.
 ## For maintainers: cutting a release
 
 Changing `VERSION` and pushing to `main` triggers the release pipeline. Keep the
-Claude marketplace's `metadata.version` and `plugins[0].version`, and the Codex
-plugin's `version`, in the same commit. A push that retains an existing version
+Claude marketplace's `metadata.version` and `plugins[0].version`, the Codex
+plugin's `version`, and `package.json`'s `version`, in the same commit. A push that retains an existing version
 is a no-op; CI does not generate versions from commit messages.
 
 CI validates the mirrors and runs the full test workflow before tagging the

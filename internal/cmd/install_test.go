@@ -61,6 +61,79 @@ func TestInstallMarketplace(t *testing.T) {
 	}
 }
 
+func TestInstallOmp(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell stubs")
+	}
+	bin := buildTestBBS(t)
+	for _, tc := range []struct {
+		name, list, plugins, want string
+	}{
+		{
+			name:     "fresh",
+			list:     "Configured Marketplaces:\n",
+			plugins:  `{"npm":[],"marketplace":[]}`,
+			want:     "plugin marketplace list\nplugin marketplace add 2found/2build\nplugin list --json\nplugin install bbs@babysit\n",
+		},
+		{
+			name:     "registered",
+			list:     "Configured Marketplaces:\n\n  babysit  2found/2build\n",
+			plugins:  `{"npm":[],"marketplace":[]}`,
+			want:     "plugin marketplace list\nplugin marketplace update babysit\nplugin list --json\nplugin install bbs@babysit\n",
+		},
+		{
+			name:     "installed",
+			list:     "  babysit  /src\n",
+			plugins:  `{"npm":[],"marketplace":[{"id":"bbs@babysit"}]}`,
+			want:     "plugin marketplace list\nplugin marketplace update babysit\nplugin list --json\nplugin upgrade bbs@babysit\n",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			installTestFile(t, filepath.Join(dir, "bin", "omp"), `#!/bin/sh
+echo "$*" >> "$HOME/calls"
+case "$*" in
+"plugin marketplace list") printf '%s' "$OMP_LIST" ;;
+"plugin list --json") printf '%s' "$OMP_PLUGINS" ;;
+esac
+`, 0o755)
+			command := exec.Command(bin, "install", "omp")
+			command.Dir = dir
+			command.Env = []string{
+				"HOME=" + dir,
+				"PATH=" + filepath.Join(dir, "bin"),
+				"OMP_LIST=" + tc.list,
+				"OMP_PLUGINS=" + tc.plugins,
+			}
+			out, err := command.CombinedOutput()
+			if err != nil {
+				t.Fatalf("install: %v: %s", err, out)
+			}
+			calls, _ := os.ReadFile(filepath.Join(dir, "calls"))
+			if string(calls) != tc.want {
+				t.Fatalf("calls = %q, want %q", calls, tc.want)
+			}
+		})
+	}
+}
+
+func TestInstalledHarnessesDetectsOmp(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell stubs")
+	}
+	dir := t.TempDir()
+	installTestFile(t, filepath.Join(dir, "bin", "omp"), "#!/bin/sh\n", 0o755)
+	t.Setenv("PATH", filepath.Join(dir, "bin"))
+	found := installedHarnesses(dir)
+	for _, name := range found {
+		if name == "omp" {
+			return
+		}
+	}
+	t.Fatalf("omp on PATH not detected: %v", found)
+}
+
+
 func TestInstallDetectionAndPartialFailure(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("shell stubs")

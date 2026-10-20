@@ -46,7 +46,7 @@ brew install 2found/2build/bbs
 bbs install
 ```
 
-`bbs install` は Claude Code、Codex、Antigravity を自動検出します。OMP、Grok、その他の対応 agent は [skill 導入ガイド](docs/install.md#omp-grok-and-other-compatible-agents)を参照してください。1 つだけなら `bbs install claude`、`bbs install codex`、`bbs install antigravity` を使います。導入後は agent を再起動してください。Homebrew がない場合は [release archive](docs/install.md#release-archives-macos-or-linux)、Windows では WSL を使います。
+`bbs install` は Claude Code、Codex、Antigravity、OMP を自動検出します。Grok とその他の対応 agent は [skill 導入ガイド](docs/install.md#grok-and-other-compatible-agents)を参照してください。1 つだけなら `bbs install claude`、`bbs install codex`、`bbs install antigravity`、`bbs install omp` を使います。導入後は agent を再起動してください。Homebrew がない場合は [release archive](docs/install.md#release-archives-macos-or-linux)、Windows では WSL を使います。
 
 </details>
 

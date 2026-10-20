@@ -7,7 +7,8 @@ This profile covers `2found/2build`, base `main`, under the one
 ## Version, notes and normal delivery
 
 `VERSION`, `.claude-plugin/marketplace.json` (`metadata.version` and
-`plugins[0].version`) and `.codex-plugin/plugin.json` (`version`) change in
+`plugins[0].version`), `.codex-plugin/plugin.json` (`version`) and
+`package.json` (`version`) change in
 one commit. Use a prepared version if present; otherwise derive semver from
 the public CLI/skill contract changes. Tag `v<version>`. Update `CHANGELOG.md`
 from the previous published stable tag, then regenerate the Soot pack with

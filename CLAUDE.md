@@ -297,7 +297,7 @@ a crash.
 ## Install
 
 ```
-go run ./cmd/bbs setup --full       # builds bbs → ~/.local/bin/, prints Claude Code and Codex plugin commands
+go run ./cmd/bbs setup --full       # builds bbs → ~/.local/bin/, prints Claude Code, Codex and OMP plugin commands
 go run ./cmd/bbs setup --uninstall
 ```
 
@@ -309,20 +309,25 @@ with [RELEASE.md](RELEASE.md) for the complete delivery and post-release contrac
 runtime; its workflow guard restores original workflow states afterward.
 Autopilot still stops at its existing QA handoff and does not invoke release.
 
-When bumping the version (any change to `VERSION`), **always update both plugin manifests in the same commit: `.claude-plugin/marketplace.json` for Claude Code and `.codex-plugin/plugin.json` for Codex**. The plugin loaders use those files to detect upgrades — a stale version can leave users on old skills.
+When bumping the version (any change to `VERSION`), **always update the plugin
+manifests in the same commit: `.claude-plugin/marketplace.json` for Claude Code,
+`.codex-plugin/plugin.json` for Codex, and `package.json` for OMP**. The plugin
+loaders use those files to detect upgrades — a stale version can leave users on
+old skills.
 
-Four fields must stay in sync across both plugin ecosystems:
+Five fields must stay in sync across plugin ecosystems:
 
 | File | Field | Plugin |
 |------|-------|--------|
-| `VERSION` | bare version string, e.g. `1.4.2` | both |
+| `VERSION` | bare version string, e.g. `1.4.2` | all |
 | `.claude-plugin/marketplace.json` | `metadata.version` | Claude Code |
 | `.claude-plugin/marketplace.json` | `plugins[0].version` | Claude Code |
 | `.codex-plugin/plugin.json` | `version` | Codex |
+| `package.json` | `version` | OMP |
 
-Quick check: `grep -r "version" .claude-plugin/ .codex-plugin/ VERSION` — all four should show the same value. CI enforces this too: `.github/workflows/release.yml` fails the run when they disagree, rather than shipping a plugin that misreports its own version.
+Quick check: `grep -r "version" .claude-plugin/ .codex-plugin/ package.json VERSION` — all five should show the same value. CI enforces this too: `.github/workflows/release.yml` fails the run when they disagree, rather than shipping a plugin that misreports its own version.
 
-**Bumping VERSION on `main` is the release.** `release.yml` validates all four
+**Bumping VERSION on `main` is the release.** `release.yml` validates all five
 version fields, calls the full test workflow, then tags the verified source.
 Dependent distribution jobs build the four CLI archives (with the dashboard
 embedded), the 2build pack and versioned docs/download metadata, commit the

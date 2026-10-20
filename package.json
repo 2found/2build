@@ -1,0 +1,12 @@
+{
+  "name": "@2found/bbs",
+  "version": "1.101.0",
+  "description": "Give your coding agent a goal. 2build plans, builds, reviews and verifies, with progress saved on disk.",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/2found/2build",
+  "repository": "https://github.com/2found/2build",
+  "omp": {
+    "extensions": ["./hooks/omp.ts"]
+  }
+}
