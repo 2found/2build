@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **OMP `normal` workers launched dead** — the `flash` tier bound OMP to
+  `@normal`, which is not one of omp's role aliases (`@smol`, `@slow`,
+  `@plan`). Every normal-complexity ticket worker printed
+  `Model "@normal" not found` and exited with `No model selected`. The `flash`
+  binding for OMP is now empty, so `--model` is omitted and omp uses its own
+  configured default; `agent.ValidateSettings` rejects any other unknown
+  `@role` before the terminal is created instead of letting the pane die.
+
+- **`bbs foreman spawn --dir` through a symlink** — Orca keys a worktree by the
+  path it indexed, so `repo add` registered `/private/tmp/x` while
+  `terminal create --worktree path:/tmp/x` selected nothing and answered
+  `selector_not_found`. `orca.Create` now resolves the directory before
+  registering and selecting it.
+
 ## 1.102.0 — 2026-10-20
 
 ### Changed

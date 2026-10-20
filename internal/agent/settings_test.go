@@ -34,6 +34,28 @@ func TestLaunchSettingsUseNativeFlags(t *testing.T) {
 	}
 }
 
+// omp has exactly three role aliases. @normal shipped in the tier table and
+// killed every normal-complexity worker at startup; the launch must refuse an
+// unknown alias instead of letting the pane die on "No model selected".
+func TestOMPRejectsUnknownModelRoles(t *testing.T) {
+	p, err := ByName("omp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, model := range []string{"@smol", "@slow", "@plan", "@SMOL", "deepseek-v4.1-flash", ""} {
+		p.Model = model
+		if err := p.ValidateSettings(); err != nil {
+			t.Errorf("rejected valid model %q: %v", model, err)
+		}
+	}
+	for _, model := range []string{"@normal", "@fast", "@"} {
+		p.Model = model
+		if err := p.ValidateSettings(); err == nil {
+			t.Errorf("accepted unknown omp role %q", model)
+		}
+	}
+}
+
 func TestUnsupportedSettingsFailBeforeLaunch(t *testing.T) {
 	for _, tc := range []struct{ agent, provider, effort string }{
 		{"grok", "openai", ""}, {"cursor", "anthropic", ""},

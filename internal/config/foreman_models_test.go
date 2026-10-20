@@ -34,7 +34,7 @@ func TestForemanModelDefaults(t *testing.T) {
 				"pro": {"gpt-6.1-sol", "high"}, "max": {"gpt-6-astra", "high"}},
 			"claude": {"lite": {"haiku", ""}, "flash": {"sonnet", "high"},
 				"pro": {"opus", "medium"}, "max": {"opus", "high"}},
-			"omp": {"lite": {"@smol", ""}, "flash": {"@normal", ""}, "pro": {"@slow", ""}, "max": {"@plan", ""}},
+			"omp": {"lite": {"@smol", ""}, "flash": {"", ""}, "pro": {"@slow", ""}, "max": {"@plan", ""}},
 		} {
 			tier, binding, err := p.Select(agent, tc.complexity, tc.phase)
 			if err != nil || tier != tc.tier || binding != bindings[tier] {

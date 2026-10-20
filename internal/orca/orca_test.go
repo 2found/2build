@@ -318,6 +318,35 @@ func TestCreateReturnsHandleAndRegistersRepo(t *testing.T) {
 	}
 }
 
+// Orca indexes the real path, so create must not hand it a symlink: on macOS
+// /tmp is one, and the mismatch surfaced as selector_not_found only after the
+// repo was successfully added under the resolved path.
+func TestCreateResolvesASymlinkedCwd(t *testing.T) {
+	c, log := fakeWithTerminals(t)
+	real, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	if _, err := c.Create(CreateOpts{Title: "bbs foreman fm-a", Cwd: link, Command: "claude"}); err != nil {
+		t.Fatal(err)
+	}
+	calls := readLog(t, log)
+	if strings.Contains(calls, link) {
+		t.Errorf("create passed the symlinked path to orca:\n%s", calls)
+	}
+	if !strings.Contains(calls, "repo add --path "+real+" --json") {
+		t.Errorf("create did not register the resolved path:\n%s", calls)
+	}
+	if !strings.Contains(calls, "--worktree path:"+real) {
+		t.Errorf("create did not select the resolved worktree:\n%s", calls)
+	}
+}
+
 func TestNotifyWritesWorktreeComment(t *testing.T) {
 	c, log := fakeWithTerminals(t)
 

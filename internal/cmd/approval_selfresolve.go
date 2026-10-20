@@ -59,17 +59,24 @@ const (
 //   - "role" is an ARIA attribute. That same prototype contains 37, every one
 //     of them role="tab" / role="img" / role="dialog" / role="link".
 //   - "session" is a Claude Code session and ~/.babysit/sessions/.
+//   - "checkout" is a git checkout. "greenfield checkout at HEAD" is how a
+//     ticket plan describes a clean worktree; the payment sense is written
+//     "checkout page", "checkout flow", "cart checkout". Two agents in one
+//     run grepped this list by hand and reworded their rubric to avoid it.
 //
-// So these three require context — "bearer", "access token", "user role" —
-// while every genuine money/auth/data phrase stays a bare match. Nothing is
-// exempted: the auth path is still caught, it is just spelled the way an auth
-// path is actually written.
+// So these require context — "bearer", "access token", "user role", "checkout
+// page" — while every genuine money/auth/data phrase stays a bare match.
+// Nothing is exempted: the auth path is still caught, it is just spelled the
+// way an auth path is actually written.
 var floorPattern = regexp.MustCompile(`(?i)\b(` + strings.Join([]string{
 	// money
 	"payment", "payments", "billing", "invoice", "invoices", "charge", "charges",
-	"refund", "refunds", "checkout", "subscription", "subscriptions", "stripe",
+	"refund", "refunds", "subscription", "subscriptions", "stripe",
 	"paypal", "paywall", "payout", "payouts", "currency", "credit card",
 	"purchase", "purchases", "coupon", "discount",
+	"checkout page", "checkout flow", "checkout screen", "checkout form",
+	"checkout button", "checkout step", "cart checkout", "payment checkout",
+	"billing checkout",
 	"price change", "pricing page", "update price", "prices",
 	// auth
 	"auth", "authentication", "authorization", "authenticate", "authenticates",

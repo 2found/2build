@@ -98,6 +98,8 @@ func TestFloorDoesNotTripOnPresentationVocabulary(t *testing.T) {
 		`the dialog is role="dialog" with role="img" on the thumbnail`,
 		"one worker per Claude Code session, listed under ~/.babysit/sessions/",
 		"the sessions column shows which foreman owns the workspace",
+		"the plan starts from a greenfield checkout at HEAD 33c66d8",
+		"workers may run `git checkout -b feat/x` inside their own worktree",
 	}
 	for _, s := range misses {
 		if got := floorHits(s); len(got) > 0 {
@@ -119,6 +121,8 @@ func TestFloorStillCatchesTheGenuineAuthPaths(t *testing.T) {
 		"adds role-based access to the settings page",
 		"the pricing page gains an annual toggle",
 		"an operator can update price on the plan row",
+		"the checkout page adds a saved-card form",
+		"a new checkout flow charges the saved card on submit",
 	}
 	for _, s := range hits {
 		if got := floorHits(s); len(got) == 0 {

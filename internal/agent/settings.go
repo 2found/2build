@@ -22,7 +22,20 @@ func (p Profile) ValidateSettings() error {
 			provider = "cursor"
 		}
 		if p.Provider != "" && p.Provider != provider {
-			return fmt.Errorf("agent %s cannot select provider %q; its native provider is %s", p.Name, p.Provider, provider)
+			return fmt.Errorf("agent %s cannot select provider %q; its native provider is %s", p.Name, provider, p.Provider)
+		}
+	case "omp":
+		// omp resolves @-prefixed model names as role aliases, and only three
+		// exist. An alias it does not know is not a soft miss: the launch prints
+		// `Model "@x" not found`, falls back to "No model selected" and exits,
+		// so an unattended worker dies before it reads its prompt. Catching it
+		// here turns that silent death into one line the foreman can act on.
+		if strings.HasPrefix(p.Model, "@") {
+			switch strings.ToLower(p.Model) {
+			case "@smol", "@slow", "@plan":
+			default:
+				return fmt.Errorf("agent omp has no model role %q; use @smol, @slow or @plan, or omit the model to use omp's default", p.Model)
+			}
 		}
 	}
 	if p.Name == "cursor" && p.Effort != "" {

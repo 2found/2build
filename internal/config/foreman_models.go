@@ -30,10 +30,14 @@ func defaultForemanModels() ForemanModels {
 			"hard":   {"normal": "pro", "critical": "max", "design": "max"},
 		},
 		// Flash is each agent's implementation workhorse: sonnet, gpt-6.1-sol,
-		// OMP's normal role. Max is opus/astra/OMP's plan role.
+		// OMP's normal role. omp spells only three roles as model aliases —
+		// @smol, @slow and @plan — and `--model @normal` is a hard startup
+		// error ("Model @normal not found", then "No model selected"), so the
+		// normal role is expressed by omitting --model and letting omp use its
+		// configured default.
 		Tiers: map[string]map[string]ModelBinding{
 			"lite":  {"codex": {"gpt-6-luna", "high"}, "claude": {"haiku", ""}, "omp": {"@smol", ""}},
-			"flash": {"codex": {"gpt-6.1-sol", "high"}, "claude": {"sonnet", "high"}, "omp": {"@normal", ""}},
+			"flash": {"codex": {"gpt-6.1-sol", "high"}, "claude": {"sonnet", "high"}, "omp": {"", ""}},
 			"pro":   {"codex": {"gpt-6.1-sol", "high"}, "claude": {"opus", "medium"}, "omp": {"@slow", ""}},
 			"max":   {"codex": {"gpt-6-astra", "high"}, "claude": {"opus", "high"}, "omp": {"@plan", ""}},
 		},

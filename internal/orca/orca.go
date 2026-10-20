@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -148,15 +149,27 @@ type CreateOpts struct {
 // its runtime handle. It does not create a git worktree — foreman owns
 // isolation via `bbs ticket ensure --mode=worktree`.
 func (c *Client) Create(o CreateOpts) (string, error) {
+	// Orca keys a worktree by the real path it indexed. Handing it the same
+	// directory through a symlink registers one entry and selects another, and
+	// `terminal create` answers an opaque selector_not_found: on macOS /tmp is
+	// a symlink to /private/tmp, so every `--dir /tmp/…` failed this way even
+	// though `repo add` had just succeeded. Resolve first; a path that cannot
+	// be resolved is passed through and left for Orca to judge.
+	cwd := o.Cwd
+	if cwd != "" {
+		if resolved, err := filepath.EvalSymlinks(cwd); err == nil {
+			cwd = resolved
+		}
+	}
 	// Register the repo if Orca does not already track it. add is a no-op
 	// when the path is already known; a failure here is not fatal because
 	// the path may already be an Orca worktree.
-	if o.Cwd != "" {
-		_, _ = c.run("repo", "add", "--path", o.Cwd)
+	if cwd != "" {
+		_, _ = c.run("repo", "add", "--path", cwd)
 	}
 	args := []string{"terminal", "create", "--title", o.Title}
-	if o.Cwd != "" {
-		args = append(args, "--worktree", "path:"+o.Cwd)
+	if cwd != "" {
+		args = append(args, "--worktree", "path:"+cwd)
 	}
 	if o.Command != "" {
 		args = append(args, "--command", o.Command)
