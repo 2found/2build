@@ -35,6 +35,16 @@ func newTicketCmd() *cobra.Command {
 				ticketUsage()
 				os.Exit(2)
 			}
+			// The bash original hand-parsed argv, so a subcommand ignored an
+			// unknown flag and ran anyway: `ticket ensure --help` created a
+			// ticket, and `ticket approval --help` published an approval. Help
+			// must be a read-only query, decided before any verb dispatches.
+			for _, arg := range args[1:] {
+				if arg == "-h" || arg == "--help" {
+					ticketUsage()
+					os.Exit(0)
+				}
+			}
 			switch args[0] {
 			case "-h", "--help", "help":
 				ticketUsage()

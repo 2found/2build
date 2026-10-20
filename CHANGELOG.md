@@ -4,6 +4,13 @@
 
 ### Fixed
 
+- **`--help` ran the command or errored** — `bbs foreman <verb> --help` answered
+  `--help needs a value` (exit 1) because the verb flags are hand-parsed, and
+  `bbs ticket <sub> --help` ignored the flag and executed the subcommand: a
+  help probe on `ensure` created a ticket, and one on `approval` published an
+  approval a Foreman then had to drop. Both dispatchers now answer help before
+  any verb runs.
+
 - **OMP `normal` workers launched dead** — the `flash` tier bound OMP to
   `@normal`, which is not one of omp's role aliases (`@smol`, `@slow`,
   `@plan`). Every normal-complexity ticket worker printed

@@ -166,3 +166,46 @@ func TestWorkerStartupCannotOverrideExactSessionSettings(t *testing.T) {
 		t.Fatalf("conflicting exact-session settings emitted a launch command: %q", out)
 	}
 }
+
+// Verb flags are hand-parsed, so `model --help` used to answer "--help needs a
+// value" (exit 1) instead of printing usage. Asking a verb how it works is a
+// read-only query.
+func TestForemanVerbHelpPrintsUsage(t *testing.T) {
+	for _, verb := range []string{"model", "spawn", "route", "worker-command", "land"} {
+		var err error
+		out := captureStdout(t, func() {
+			err = dispatchForeman([]string{verb, "--help"})
+		})
+		if err != nil {
+			t.Fatalf("%s --help returned an error: %v", verb, err)
+		}
+		if !strings.Contains(out, "bbs foreman") {
+			t.Fatalf("%s --help printed no usage: %q", verb, out)
+		}
+	}
+}
+
+// `ticket <sub> --help` must never run the subcommand: help on `ensure`
+// created a ticket, and help on `approval` published an approval.
+func TestTicketSubcommandHelpIsReadOnly(t *testing.T) {
+	if sub := os.Getenv("BBS_TEST_TICKET_HELP"); sub != "" {
+		cmd := newTicketCmd()
+		cmd.SetArgs([]string{sub, "--help"})
+		_ = cmd.Execute()
+		return
+	}
+	for _, sub := range []string{"ensure", "approval", "set-status", "claim"} {
+		cmd := exec.Command(os.Args[0], "-test.run=^TestTicketSubcommandHelpIsReadOnly$")
+		cmd.Env = append(os.Environ(), "BBS_TEST_TICKET_HELP="+sub)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("ticket %s --help exited non-zero: %v: %s", sub, err, out)
+		}
+		if !strings.Contains(string(out), "Subcommands:") {
+			t.Fatalf("ticket %s --help printed no usage: %s", sub, out)
+		}
+		if strings.Contains(string(out), "TICKET=") || strings.Contains(string(out), "published") {
+			t.Fatalf("ticket %s --help ran the subcommand: %s", sub, out)
+		}
+	}
+}
