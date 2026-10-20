@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.102.1 — 2026-10-21
 
 ### Fixed
 
@@ -24,6 +24,11 @@
   `terminal create --worktree path:/tmp/x` selected nothing and answered
   `selector_not_found`. `orca.Create` now resolves the directory before
   registering and selecting it.
+
+- **The tool floor blocked `git checkout`** — `checkout` alone matched the
+  floor's payment vocabulary, so a Foreman (or worker) reading a git command
+  was refused. The phrase now needs payment context (`checkout page`, `flow`,
+  `form`, …), the same shape as the other floor entries.
 
 ## 1.102.0 — 2026-10-20
 
