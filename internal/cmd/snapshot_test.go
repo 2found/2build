@@ -108,6 +108,33 @@ func TestMergeCommitsReportsConflictsPerSnapshot(t *testing.T) {
 	}
 }
 
+// A ticket whose worktree moved onto a newer base after its first seal must
+// still compose with that base when both touch the same lines.
+func TestResealAfterBaseMovedComposesWithTheNewBase(t *testing.T) {
+	repo, wts := snapshotRepo(t, "a")
+	wt := wts["a"]
+	mustWrite(t, filepath.Join(wt, "new.txt"), "new\n")
+	first, err := sealTicketSnapshot(wt, "a", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(repo, "shared.txt"), "one\ntwo\nthree\nbase\n")
+	runGit(t, repo, "commit", "-qam", "base moves")
+	runGit(t, wt, "merge", "-q", "--ff-only", "main")
+	mustWrite(t, filepath.Join(wt, "shared.txt"), "one\ntwo\nthree\nbase\nticket\n")
+	resealed, err := sealTicketSnapshot(wt, "a", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := gitOutIn(repo, "rev-parse", "main")
+	if !gitOKIn(repo, "merge-base", "--is-ancestor", first, resealed) || !gitOKIn(repo, "merge-base", "--is-ancestor", base, resealed) {
+		t.Fatal("reseal dropped the previous snapshot or the moved base from its parents")
+	}
+	if _, _, conflicts, err := mergeCommits(repo, base, []string{resealed}); err != nil || len(conflicts) != 0 {
+		t.Fatalf("reseal on a moved base does not compose: %v %v", conflicts, err)
+	}
+}
+
 func TestAdoptCarriesPrerequisiteWorkAsUncommittedChanges(t *testing.T) {
 	_, wts := snapshotRepo(t, "a", "b")
 	mustWrite(t, filepath.Join(wts["a"], "api.txt"), "contract\n")

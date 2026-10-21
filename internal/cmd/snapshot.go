@@ -111,8 +111,12 @@ func sealTicketSnapshot(dir, ticketID string, adopted []string) (string, error) 
 	parents := []string{}
 	if prev != "" {
 		parents = append(parents, prev)
-	} else if head := gitOutIn(dir, "rev-parse", "--verify", "-q", "HEAD^{commit}"); head != "" {
-		parents = append(parents, head)
+	}
+	// HEAD joins like an adopted commit: a worktree moved onto a newer base
+	// since its last seal must carry that base, or composition merges against
+	// the old cut point and conflicts with the base's own changes.
+	if head := gitOutIn(dir, "rev-parse", "--verify", "-q", "HEAD^{commit}"); head != "" {
+		adopted = append([]string{head}, adopted...)
 	}
 	for _, a := range adopted {
 		covered := false
