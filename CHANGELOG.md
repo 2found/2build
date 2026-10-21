@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.102.3 — 2026-10-21
+
+### Fixed
+
+- **`docs/install.md` was one unclosed code block** — the 1.101.0 edit that
+  added `bbs install omp` dropped the fence closing the harness command block,
+  so GitHub and the 2build site rendered everything after it as source text and
+  the page lost its heading anchors. The fence is restored; the docs artifact
+  is rebuilt.
+
 ## 1.102.2 — 2026-10-21
 
 ### Fixed

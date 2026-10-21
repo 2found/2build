@@ -59,6 +59,7 @@ bbs install claude          # Claude Code only
 bbs install codex           # Codex only
 bbs install antigravity     # Antigravity only
 bbs install omp             # OMP only
+```
 
 Detection checks CLI executables, Antigravity's `.gemini/antigravity*`
 directories, and Codex / Antigravity macOS apps. Leftover `~/.claude` or
