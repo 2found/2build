@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.104.0 — 2026-10-24
+
+### Added
+
+- **Proportional gates** — a ticket whose `review-pr` or `qa` gate is missing or
+  stale can be sealed with `bbs foreman seal <ticket>... --waive <review-pr|qa>[,...]
+  --reason "<text>"`; the waiver is recorded and shown as a note, never a blocker.
+- **`bbs foreman evidence <parent> --phase <id> --carry --from <attempt-id>[,...]
+  --reason "<text>" [--except <AC-ids>]`** carries a phase's passed checks forward
+  to a re-integrated phase subject. Phase readiness now counts the union of current
+  passed records. Autopilot and Foreman skill docs describe proportional gates.
+
 ## 1.103.1 — 2026-10-24
 
 ### Fixed
