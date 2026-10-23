@@ -35,11 +35,15 @@ requirement → basic design ⇒ human review → phase 1: tickets ∥ → integ
    every later worker message becomes another wake.
 2. **One ticket is one worker session.** A single autopilot Dispatch runs the
    ticket's whole loop — plan, plan approval, await and adopt prerequisites,
-   implement, review, QA — on one model without stopping between steps, and
-   every follow-up for that ticket (repair, refresh, redirect) returns to the
-   same session while it lives. Never split a ticket's steps across agents:
-   a fresh worker re-reads requirement, plan, code and history on a cold
-   prompt cache. Prefer fewer, larger tickets (`M`–`L`) for the same reason.
+   implement, review, QA — on one model without stopping between steps.
+   Questions and plan reviews go to the live session while it works. Never
+   split a ticket's steps across agents: a fresh worker re-reads requirement,
+   plan, code and history on a cold prompt cache. Prefer fewer, larger tickets
+   (`M`–`L`) for the same reason. The session ends when it reports done: the
+   watcher closes its terminal as soon as the Dispatch settles (an idle agent
+   costs memory and, after about 54 minutes, tokens in auto-compaction), so a
+   follow-up (repair, refresh, redirect) for a finished ticket goes to a
+   **fresh** session in the same worktree.
 
 **Foreman stays light.** Your context holds the goal, the accepted design, the
 phase plan, the DAG and durable ids — never worker transcripts, diffs or test
@@ -109,16 +113,19 @@ On a settled batch wake:
    passes, in one call. A gap goes back to **that ticket's session** as a
    follow-up:
 
-   | Trigger | Follow-up on the ticket's own session |
+   | Trigger | Follow-up on a fresh session in the ticket worktree |
    |---|---|
    | verification gap, review/QA finding, phase QA failure, phase does not compose | `repair` naming the exact evidence |
    | a prerequisite was resealed, or now passes after `AWAIT=not-ready`; a pinned contract changed | `refresh` |
    | a parked plan approval was answered | `redirect` |
    | `BLOCKED` after the worker's own retry budget | fresh read-only critical diagnosis worker, then `repair` |
 
-   Then decide each session's owner: reuse it for an immediate follow-up,
-   retain it (`worker-retain`) while its phase can still send it back, release
-   it otherwise.
+   A settled worker is already shut down (`bbs foreman watch` closes its
+   terminal at settle; config `foreman_keep_settled_workers: true` opts out), so
+   there is no owner to decide: start the follow-up on a fresh worker in the
+   ticket worktree, and make its spec point at the ticket's handoffs
+   (`bbs ticket` handoff paths, `plan.md`, the last report) so the cold start
+   is cheap. `worker-retain` is for explicit debugging only.
 3. **Advance every phase that is ready** — `bbs foreman next` lists them:
    open the next phase while the previous one waits on its release
    (**pipeline one phase deep**; a phase cannot integrate until the earlier

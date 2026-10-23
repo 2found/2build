@@ -86,9 +86,9 @@ Before phase tickets, worktrees, or production dispatch:
    after two redirects Foreman approves with named conditions or parks the
    ticket. A floor/hold/grant refusal that Foreman's authority cannot clear,
    or a decision that reopens accepted scope, parks the ticket: the worker
-   reports `NEEDS_CONTEXT`, Foreman retains the session, relays the pending
+   reports `NEEDS_CONTEXT`, the ticket parks, Foreman relays the pending
    approval through the preamble's channel, lists it under `Remaining`, and
-   resumes the session with `redirect` once it resolves. Material
+   resumes it with a `redirect` on a fresh session once it resolves. Material
    scope/design changes reopen the parent checkpoint for the affected tickets
    only; unaffected work continues.
 

@@ -58,6 +58,10 @@ const configHeader = `# babysit configuration — edit freely, changes take effe
 #                                 #   is only the missed-event/restart backup.
 #                                 #   bbs foreman watch --status-interval
 #                                 #   overrides it for that watcher.
+# foreman_keep_settled_workers: false   # true = leave a worker's terminal open after its
+#                                 # Dispatch settles. Default: bbs foreman watch
+#                                 # closes it at once (follow-ups go to a fresh
+#                                 # session; an idle agent costs memory and tokens).
 # ─── Workspaces ──────────────────────────────────────────────────────
 # workspaces:               # managed by bbs config workspace; repo paths,
 #                           # roles, metadata, and harness version live here.

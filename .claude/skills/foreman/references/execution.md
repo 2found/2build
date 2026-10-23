@@ -164,7 +164,7 @@ ongoing waits, never a timer. Expiry is not failure or a reason to inspect a
 worker; Orca owns runtime state and runtime.md defines reconciliation triggers.
 
 A ticket session repairs its own failures first: autopilot's repair loop, then
-Foreman's `repair` follow-ups into the same session. When the ticket reports the
+Foreman's `repair` follow-ups into a fresh session in the same worktree. When the ticket reports the
 same blocker `BLOCKED` after its retry budget, dispatch a fresh read-only
 diagnosis worker on the critical route with the failure evidence — a context
 that has not already failed three times is the point — then send its findings

@@ -72,6 +72,9 @@ type batchMember struct {
 	// for the whole stall budget is reported lost instead of waited on
 	// forever — nothing else would ever settle it.
 	Unseen string `json:"unseen,omitempty"`
+	// Closed is set once the watcher has dealt with this settled Dispatch's
+	// agent terminal (closed it, or found nothing to close).
+	Closed bool `json:"closed,omitempty"`
 }
 
 func batchPath(id string) string { return filepath.Join(watchDir(), id+".batch.json") }
@@ -252,6 +255,9 @@ func printBatchState(b foremanBatch) {
 		if m.Unseen != "" {
 			line += " UNSEEN_SINCE=" + m.Unseen
 		}
+		if m.Closed {
+			line += " WORKER_CLOSED=1"
+		}
 		fmt.Println(line)
 	}
 	for _, key := range append(slices.Clone(b.Reported), b.Owed...) {
@@ -284,12 +290,13 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 		}
 		m.Dispatch, m.Status, m.Run = state.ID, state.Status, state.RunID
 	}
+	closeLines := batchCloseSettled(client, r, b, o)
 	if b.settled() == len(b.Tasks) {
-		return []string{batchFinish(client, r, b, now)}
+		return append(closeLines, batchFinish(client, r, b, now))
 	}
 	batchHold(client, r, *b)
 
-	var lines, attention []string
+	lines, attention := closeLines, []string(nil)
 	questions, questionIDs, questionsRead := b.Questions, b.QuestionIDs, false
 	if handle, err := client.Ref(foremanTerm(client, r)); err == nil {
 		if n, ids, err := client.PendingMessagesFor(handle, "question,escalation"); err == nil {

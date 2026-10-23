@@ -37,8 +37,11 @@ capability, Task ID and Dispatch ID; never reconstruct authority from env/ticket
   not a terminal report. `--files-modified` / `--report-path` name real artifacts.
 - A `Continue Dispatch <id>` prompt is the watcher's idle nudge: resume the
   assignment, or send its pending `worker_done` if it is already complete.
-- A ticket session can receive a follow-up Dispatch (`repair`, `refresh`,
-  `redirect`, `deliver`) after its `worker_done`. Its new injected preamble
+- A worker is shut down when it reports done (the watcher closes its terminal
+  at settle), so a follow-up Dispatch (`repair`, `refresh`, `redirect`,
+  `deliver`) normally starts a fresh session in the ticket worktree and reads
+  the ticket's handoffs. Should a session survive (opt-out or `worker-retain`
+  for debugging) and receive one after its `worker_done`, its new injected preamble
   carries new Task and Dispatch IDs: apply this lifecycle to it afresh, keep
   the context you already hold, re-read the durable state the follow-up
   names, and never reuse settled IDs.

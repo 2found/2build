@@ -33,8 +33,9 @@ evidence and lifecycle signal are current and its worktree holds no code
 change; seal its artifacts (`bbs foreman seal "$CHILD" --file`). If any code
 changed, use the code-bearing path instead.
 
-Keep the ticket's worker session until its phase lands: a phase QA failure or
-a phase that does not compose comes back to that session as a `repair`.
+A ticket's worker is shut down when it reports done; a phase QA failure or a
+phase that does not compose comes back as a `repair` on a fresh session in the
+ticket worktree, pointed at the ticket's handoffs.
 
 ### When the phase lands
 

@@ -16,6 +16,11 @@ type Worker struct {
 	// handle to type into, yet its agent may still be working. A released
 	// terminal is never live.
 	Live bool
+	// Terminal is the agent terminal's handle even when Handle is blank
+	// (a settled worker's terminal is user_owned/retained and stays open).
+	Terminal string
+	// Status is the Dispatch's own status (dispatched, completed, failed, ...).
+	Status string
 }
 
 // ExitedWorkers reads the fleet's agent verdict (not merely PTY liveness).
@@ -89,6 +94,8 @@ func (c *Client) Workers(run string) ([]Worker, error) {
 			workers = append(workers, Worker{
 				Dispatch: worker.DispatchID,
 				Handle:   handle,
+				Terminal: worker.AgentTerminalHandle,
+				Status:   worker.DispatchStatus,
 				Exited:   worker.Projection.Liveness.Verdict == "exited" || (settled && terminalGone),
 				Live:     worker.Projection.Liveness.Verdict == "live" && worker.TerminalState != "released",
 			})

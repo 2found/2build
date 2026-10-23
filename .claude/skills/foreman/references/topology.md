@@ -156,8 +156,8 @@ unverifiable workers retain capacity (`RESOURCE_HELD`); never release by age.
 Retry proven stopped Tasks through their failed Dispatch, preserving worktrees
 and checkpoints. Release settled leases with
 `bbs foreman resource release "$RESOURCE_LEASE"`, clear `pointers.resource_lease`,
-and reserve the next Task's profile before reusing a worker. A retained idle
-ticket session holds no lease.
+and reserve the next Task's profile before reusing a worker. A settled ticket session
+holds no lease.
 
 ## Worker envelope
 

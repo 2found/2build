@@ -114,7 +114,11 @@ rule after a failed launch, then release the resource lease.
 
 ### Reuse a ticket session
 
-Every follow-up on a ticket (`repair`, `refresh`, `redirect`, `deliver`) goes to
+A settled worker's terminal is closed by the watcher, so this applies only to a
+session that is still live (watcher opted out with `foreman_keep_settled_workers`,
+or an explicit `worker-retain` for debugging). Otherwise start a fresh worker in
+the ticket worktree and point its spec at the ticket's handoffs. A follow-up on
+a ticket (`repair`, `refresh`, `redirect`, `deliver`) goes to
 that ticket's existing session when Orca proves it reusable; it inherits the
 ticket route, so skip model lookup and route resolution. Reuse only when the
 previous Dispatch on that terminal settled with an accepted report, the handle
@@ -172,5 +176,5 @@ route a recorded session through today's effective default. For a new Dispatch,
 reuse a compatible ticket pin; otherwise resolve the destination-host default.
 Never change a live worker's model. Every Dispatch, including a follow-up on a
 reused session, reserves its own lease and releases it at settlement; whether
-the session is then reused, retained or released is the ownership decision in
-SKILL.md.
+the session is then closed is automatic: the watcher shuts a worker down when
+its Dispatch settles (SKILL.md).

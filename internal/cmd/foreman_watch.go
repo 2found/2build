@@ -103,6 +103,10 @@ type watchOpts struct {
 	// together (L plan reviews from tickets that started together) costs the
 	// Foreman one wake, not one each.
 	attentionWindow time.Duration
+	// keepSettled (config foreman_keep_settled_workers) leaves a settled
+	// worker's terminal open; by default the watcher closes it as soon as
+	// its Dispatch settles.
+	keepSettled bool
 }
 
 func watchDir() string { return filepath.Join(identity.BabysitHome(), "watch") }
@@ -231,6 +235,9 @@ func watchOptsFrom(kv map[string]string) (watchOpts, error) {
 			return o, errors.New("foreman watch: --nudge needs text to send")
 		}
 		o.nudge = v
+	}
+	if v, ok := config.Get("foreman_keep_settled_workers"); ok {
+		o.keepSettled = strings.EqualFold(strings.TrimSpace(v), "true")
 	}
 	o.once = kv["once"] == "1"
 	o.supervised = kv["supervised"] == "1"

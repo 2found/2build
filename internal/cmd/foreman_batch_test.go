@@ -31,6 +31,12 @@ type batchWorld struct {
 	Mail      int               `json:"mail"`
 	Exited    []string          `json:"exited"`
 	Panes     map[string]string `json:"panes"`
+	// Extra are additional worker-list rows (other dispatches of the Run),
+	// NoTerm lists tasks whose row has no agent terminal handle, and
+	// CloseFails makes `terminal close` error.
+	Extra      []map[string]any `json:"extra,omitempty"`
+	NoTerm     []string         `json:"noterm,omitempty"`
+	CloseFails bool             `json:"close_fails,omitempty"`
 }
 
 type batchFixture struct {
@@ -70,6 +76,8 @@ elif cmd == ["terminal", "list"]:
     out({"terminals": [{"handle": "term_0", "title": "bbs foreman", "connected": True, "worktreePath": "/repo"}]})
 elif cmd == ["terminal", "send"] and w["pane_down"] and arg("--terminal") == "term_0":
     fail("terminal not connected")
+elif cmd == ["terminal", "close"] and w.get("close_fails"):
+    fail("close failed")
 elif cmd == ["terminal", "read"]:
     out({"terminal": {"tail": w["panes"].get(arg("--terminal"), "").splitlines()}})
 elif cmd == ["orchestration", "dispatch-show"]:
@@ -93,10 +101,11 @@ elif cmd == ["orchestration", "send"]:
 elif cmd == ["orchestration", "worker-list"]:
     rows = [{"dispatchId": ctx(t), "dispatchStatus": s,
              "terminalState": "released" if t in w["released"] else ("retained" if t in w["taken"] else "active"),
-             "agentTerminalHandle": "term_w_" + t,
+             "agentTerminalHandle": "" if t in w.get("noterm", []) else "term_w_" + t,
              "resource": {"retainedReason": "user_takeover"} if t in w["taken"] else None,
              "projection": {"liveness": {"verdict": "exited" if ctx(t) in w["exited"] else "live"}}}
             for t, s in w["dispatch"].items() if t not in w["missing"]]
+    rows += w.get("extra") or []
     out({"workers": rows, "page": {"hasMore": False}})
 else:
     out({})
@@ -166,6 +175,13 @@ func (f *batchFixture) start(t *testing.T, tasks ...string) {
 	f.sends(t)
 }
 
+func (f *batchFixture) tickClosing(t *testing.T, now time.Time) string {
+	t.Helper()
+	o := batchWatchOpts()
+	o.keepSettled = false
+	return watchTick(f.client, f.record, o, now)
+}
+
 func (f *batchFixture) tick(t *testing.T, now time.Time) string {
 	t.Helper()
 	return watchTick(f.client, f.record, batchWatchOpts(), now)
@@ -174,6 +190,8 @@ func (f *batchFixture) tick(t *testing.T, now time.Time) string {
 func batchWatchOpts() watchOpts {
 	o := testWatchOpts()
 	o.workerIdle, o.workerNudges = 10*time.Minute, 2
+	// Settled-worker closing has its own tests; the rest assert on quiet ticks.
+	o.keepSettled = true
 	return o
 }
 
@@ -642,5 +660,86 @@ func TestBatchAttentionWindowCoalescesEarlyWakes(t *testing.T) {
 	}
 	if line := tick(3); strings.Contains(line, "WOKE") {
 		t.Fatalf("delivered attention woke again: %q", line)
+	}
+}
+
+// closes returns every `terminal close` call logged so far.
+func (f *batchFixture) closes(t *testing.T) []string {
+	t.Helper()
+	data, _ := os.ReadFile(f.log)
+	var out []string
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "terminal close") {
+			out = append(out, line)
+		}
+	}
+	return out
+}
+
+func extraRow(dispatch, status, handle string) map[string]any {
+	return map[string]any{"dispatchId": dispatch, "dispatchStatus": status, "terminalState": "active",
+		"agentTerminalHandle": handle, "projection": map[string]any{"liveness": map[string]any{"verdict": "live"}}}
+}
+
+// A settled member's agent terminal closes at once, even when Orca blanks
+// its handle as a user takeover; running members, other Dispatches of the
+// Run, the Foreman and a terminal shared with an open Dispatch stay.
+func TestBatchClosesSettledWorkerTerminalsOnly(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.start(t, "task-a", "task-b", "task-c", "task-d")
+	t.Setenv("ORCA_TERMINAL_HANDLE", "term_w_task-d")
+	f.world.Dispatch["task-a"] = "completed"
+	f.world.Dispatch["task-c"] = "failed"
+	f.world.Dispatch["task-d"] = "completed" // its terminal is the caller's own
+	f.world.Taken = []string{"task-a"}
+	f.world.Extra = []map[string]any{
+		extraRow("ctx-foreign", "completed", "term_foreign"),
+		extraRow("ctx-reuse", "dispatched", "term_w_task-c"), // shared with an open Dispatch
+	}
+	f.save(t)
+	line := f.tickClosing(t, time.Now())
+	if !strings.Contains(line, "CLOSED-WORKER task-a (term_w_task-a)") {
+		t.Fatalf("line = %q", line)
+	}
+	closes := f.closes(t)
+	if len(closes) != 1 || !strings.Contains(closes[0], "--terminal term_w_task-a") {
+		t.Fatalf("closes = %v", closes)
+	}
+	b, _ := loadBatch(f.record.ID)
+	if !b.Tasks[0].Closed || b.Tasks[1].Closed {
+		t.Fatalf("closed flags = %+v", b.Tasks)
+	}
+	// Done once: a later tick does not close it again.
+	f.tickClosing(t, time.Now().Add(time.Minute))
+	if n := len(f.closes(t)); n != 1 {
+		t.Fatalf("closed again: %d calls", n)
+	}
+}
+
+func TestBatchCloseSkipsMissingHandleAndSurvivesOrcaError(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.start(t, "task-a", "task-b")
+	f.world.Dispatch["task-a"] = "completed"
+	f.world.Dispatch["task-b"] = "completed"
+	f.world.NoTerm = []string{"task-a"}
+	f.world.CloseFails = true
+	f.save(t)
+	line := f.tickClosing(t, time.Now())
+	if !strings.Contains(line, "CLOSE-WORKER-FAILED task-b") || !strings.Contains(line, "WOKE fm-batch") {
+		t.Fatalf("a close error blocked the wake: %q", line)
+	}
+	if closes := f.closes(t); len(closes) != 1 || strings.Contains(closes[0], "task-a") {
+		t.Fatalf("closes = %v", closes)
+	}
+}
+
+func TestBatchKeepSettledLeavesTerminalOpen(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.start(t, "task-a", "task-b")
+	f.world.Dispatch["task-a"] = "completed"
+	f.save(t)
+	f.tick(t, time.Now())
+	if closes := f.closes(t); len(closes) != 0 {
+		t.Fatalf("closes = %v", closes)
 	}
 }

@@ -12,7 +12,7 @@ readiness. Preserve
 each ticket's `pointers.workflow`.
 
 For each ticket: **select its route once → launch its ticket worker → await the
-batch → lightly verify → reuse, retain or release the session → finish**. The
+batch → lightly verify → finish (the worker is shut down when it reports done; a follow-up starts a fresh session)**. The
 ticket worker follows autopilot's **Foreman ticket assignment** contract:
 
 | Loop step (one session) | Boundary |
@@ -63,32 +63,34 @@ floor, a `bbs foreman hold`, a spent grant bound, or a material deviation from
 accepted scope or a shared contract — also goes to Foreman. Foreman answers
 whatever its own authority covers (scope it accepted, contract choices within
 the parent design). What only a human can approve **parks** that ticket: the
-worker reports `NEEDS_CONTEXT` with the published approval, Foreman retains
-its session, records the decision under `Remaining` in the parent report and
+worker reports `NEEDS_CONTEXT` with the published approval, the ticket parks,
+Foreman records the decision under `Remaining` in the parent report and
 relays it through the preamble's channel, and the rest of the DAG continues.
-When the approval resolves, a `redirect` follow-up resumes the parked session.
+When the approval resolves, a `redirect` follow-up starts a fresh session in
+the ticket worktree.
 
 ### Ticket session ownership
 
-The ticket session is the ticket's single writer for the ticket's whole life.
-After every accepted report, decide its next owner before acknowledging the
-Delivery (Orca completion accounting):
+The ticket session is the ticket's single writer while it works: questions and
+plan reviews go to the live session. A worker that sends `worker_done` is shut
+down at once — the watcher closes its terminal when the Dispatch settles
+(succeeded, failed or abandoned), because a follow-up to a finished worker
+almost never happens and an idle agent costs memory and tokens. Opt out with
+config `foreman_keep_settled_workers: true`; `worker-retain` is for explicit
+debugging only. Land closes any terminal still left in the phase's worktrees.
 
-1. **Reuse** for an immediate follow-up on the same ticket — a `repair`
-   (verification gap, review/QA finding, heavy/integration failure, a phase
-   that does not compose), a `refresh` (a prerequisite changed or settled
-   after this ticket stopped waiting for it) or a `redirect` (a parked or
-   redirected plan was answered): create the
-   follow-up Task and start it on the session's exact terminal
-   ([reuse launch](worker-routing.md#reuse-a-ticket-session)).
-2. **Retain** (`worker-retain`) when the ticket is parked or passed but still
-   waits on something that will send it back — a human approval, a
-   prerequisite's repair after `AWAIT=not-ready`, consolidated heavy QA, or
-   its phase's integration and cumulative QA, whose failures come back to it
-   as `repair`s. Keep at
-   most `FOREMAN_MAX_WORKERS` retained idle ticket sessions; release the
-   oldest beyond that.
-3. **Release** otherwise, and always at ticket close-out.
+After every accepted report, the next owner is therefore always a **fresh
+session**:
+
+1. **Follow-up** — a `repair` (verification gap, review/QA finding,
+   heavy/integration failure, a phase that does not compose), a `refresh` (a
+   prerequisite changed or settled after this ticket stopped waiting for it)
+   or a `redirect` (a parked or redirected plan was answered): create the
+   follow-up Task and start a fresh worker in the ticket worktree on the
+   ticket's recorded route. The spec points at the ticket's handoffs (numbered
+   handoff paths, `plan.md`, the last report and verdicts) so the new session
+   recovers from durable state without re-reading the codebase.
+2. **Nothing** otherwise; the ticket closes with its phase.
 
 Release the Dispatch's resource lease on every settlement; a reused session
 reserves a fresh one. A follow-up for a ticket whose session is gone or not
@@ -163,7 +165,7 @@ Ticket workers run on `plan`/`standard` profiles. A check needing a heavy profil
 assignment names it deferred, the worker runs every other check, records
 `DEFERRED_HEAVY=<profile>: <checks>` in its handoff and
 `pointers.deferred_heavy`, and leaves the `qa` verdict open; dependents may
-build on it once its review passes. Retain that ticket session; Foreman then
+build on it once its review passes. Foreman then
 dispatches one **consolidated heavy QA** per profile covering every ticket
 waiting on it:
 

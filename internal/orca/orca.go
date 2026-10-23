@@ -318,6 +318,16 @@ func (c *Client) Close(title string) error {
 	return err
 }
 
+// CloseHandle closes the terminal tab with this exact handle. Unlike Close it
+// never resolves a title, so it cannot reach a different terminal.
+func (c *Client) CloseHandle(handle string) error {
+	if handle == "" {
+		return errors.New("close needs a terminal handle")
+	}
+	_, err := c.run("terminal", "close", "--terminal", handle, "--tab")
+	return err
+}
+
 // Ref resolves a terminal title to its live handle, or ErrNoTerminal when
 // no open terminal carries it. It is the read a caller uses to decide
 // whether a recorded terminal is still there — probing with a Send would
