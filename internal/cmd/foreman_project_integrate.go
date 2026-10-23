@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/2found/2build/internal/orca"
 	"github.com/2found/2build/internal/ticket"
 )
 
@@ -314,8 +317,8 @@ func projectLandCommand(st *ticket.Store, kv map[string]string) error {
 			return err
 		}
 		projectEvent(st, "phase_landed", p.ID, "", p.Subject)
-		removed, kept := projectRemovePhaseWorktrees(st, s, p, c)
-		printV2Envelope(map[string]interface{}{"phase": p.ID, "landed": c.Repos, "removed_worktrees": removed, "kept_worktrees": kept})
+		removed, kept, closed := projectRemovePhaseWorktrees(st, s, p, c)
+		printV2Envelope(map[string]interface{}{"phase": p.ID, "landed": c.Repos, "removed_worktrees": removed, "kept_worktrees": kept, "closed_terminals": closed})
 		return nil
 	})
 }
@@ -378,17 +381,12 @@ func fastForwardCheckout(dir, ref, old, new string) error {
 // projectRemovePhaseWorktrees drops the integration worktree and every
 // ticket worktree whose content still equals its sealed snapshot — the
 // snapshot ref keeps that work. Anything else is kept and reported.
-func projectRemovePhaseWorktrees(st *ticket.Store, s projectSnapshot, p projectPhaseState, c *projectCandidate) (removed, kept []string) {
+func projectRemovePhaseWorktrees(st *ticket.Store, s projectSnapshot, p projectPhaseState, c *projectCandidate) (removed, kept, closed []string) {
 	removed, kept = []string{}, []string{}
+	type target struct{ canonical, path, branch string }
+	var targets []target
 	drop := func(canonical, path, branch string) {
-		if _, err := gitPlumb(canonical, nil, "worktree", "remove", "--force", path); err != nil {
-			kept = append(kept, path)
-			return
-		}
-		removed = append(removed, path)
-		if branch != "" {
-			_, _ = gitPlumb(canonical, nil, "branch", "-D", branch)
-		}
+		targets = append(targets, target{canonical, path, branch})
 	}
 	for _, r := range c.Repos {
 		if _, err := os.Stat(r.Worktree); err == nil {
@@ -418,7 +416,66 @@ func projectRemovePhaseWorktrees(st *ticket.Store, s projectSnapshot, p projectP
 			drop(sealed.Canonical, mr.Worktree, sealed.Branch)
 		}
 	}
-	return removed, kept
+	// The phase's ticket sessions and its QA worker were kept only for
+	// repairs; once it lands nothing reuses them, so their agents go with
+	// their worktrees instead of holding memory until someone closes them.
+	paths := make([]string, 0, len(targets))
+	for _, t := range targets {
+		paths = append(paths, t.path)
+	}
+	closed = closeLandedWorkerTerminals(paths)
+	for _, t := range targets {
+		if _, err := gitPlumb(t.canonical, nil, "worktree", "remove", "--force", t.path); err != nil {
+			kept = append(kept, t.path)
+			continue
+		}
+		removed = append(removed, t.path)
+		if t.branch != "" {
+			_, _ = gitPlumb(t.canonical, nil, "branch", "-D", t.branch)
+		}
+	}
+	return removed, kept, closed
+}
+
+// closeLandedWorkerTerminals closes every Orca terminal working in paths and
+// returns their handles. Best effort: without Orca there is nothing to close,
+// and the caller's own terminal is never closed.
+var closeLandedWorkerTerminals = func(paths []string) []string {
+	closed := []string{}
+	if len(paths) == 0 {
+		return closed
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	client, err := orca.PreflightContext(ctx)
+	if err != nil {
+		return closed
+	}
+	terms, err := client.Terminals()
+	if err != nil {
+		return closed
+	}
+	want := map[string]bool{}
+	for _, path := range paths {
+		want[physicalPath(path)] = true
+	}
+	self := os.Getenv("ORCA_TERMINAL_HANDLE")
+	for _, t := range terms {
+		if t.Handle == "" || t.Handle == self || t.WorktreePath == "" || !want[physicalPath(t.WorktreePath)] {
+			continue
+		}
+		if client.Close(t.Handle) == nil {
+			closed = append(closed, t.Handle)
+		}
+	}
+	return closed
+}
+
+func physicalPath(path string) string {
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		return real
+	}
+	return filepath.Clean(path)
 }
 
 func short(sha string) string {

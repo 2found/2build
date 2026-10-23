@@ -97,8 +97,19 @@ func integratePhase(t *testing.T, st *ticket.Store, phase string) projectCandida
 	return envelope.Data
 }
 
+// landClosed is the worktree list the last landPhase asked Orca to close
+// terminals in; tests never reach the developer's real Orca.
+var landClosed []string
+
 func landPhase(t *testing.T, st *ticket.Store, phase string) error {
 	t.Helper()
+	original := closeLandedWorkerTerminals
+	t.Cleanup(func() { closeLandedWorkerTerminals = original })
+	landClosed = nil
+	closeLandedWorkerTerminals = func(paths []string) []string {
+		landClosed = paths
+		return []string{}
+	}
 	var err error
 	captureStdout(t, func() { err = projectLandCommand(st, map[string]string{"phase": phase}) })
 	return err

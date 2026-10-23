@@ -25,11 +25,12 @@ a phase that does not compose comes back to that session as a `repair`.
 
 `bbs foreman land "$PARENT" --phase "$K"` fast-forwards base and removes the
 phase's integration worktree and every ticket worktree whose content still
-equals its sealed snapshot (the snapshot ref keeps that work). Before it runs,
-close what the phase's workers own in those worktrees, then:
+equals its sealed snapshot (the snapshot ref keeps that work). It first closes
+every Orca terminal in those worktrees (`closed_terminals`) — the ticket
+sessions and phase QA worker were kept only for repairs — never its caller's:
 
 ```bash
-bbs foreman land "$PARENT" --phase "$K" --json   # removed_worktrees / kept_worktrees
+bbs foreman land "$PARENT" --phase "$K" --json   # removed_worktrees / kept_worktrees / closed_terminals
 BABYSIT_TICKET="$CHILD" bbs ticket set-status done   # each ticket of the phase
 ```
 

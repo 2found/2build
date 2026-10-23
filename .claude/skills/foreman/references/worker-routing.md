@@ -3,8 +3,9 @@
 Read the canonical contract in [model routing](references/model-routing.md)
 for task/phase classification, tiers, ticket overrides and OMP role bindings.
 For Orca-supervised Foreman Dispatches, this reference owns worker agent
-selection and resume. New routes use explicit intent, a compatible ticket pin,
-then the destination-host Orca default; BBS preferences do not select an agent.
+selection and resume. New routes use explicit intent (`--plan-worker` / `--implement-worker` /
+`--qa-worker`, default this Foreman's harness) or a compatible ticket pin; BBS
+preferences do not select an agent.
 
 ## Resolve and launch
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -210,6 +211,9 @@ func TestPhasedProjectReleasesPhaseByPhase(t *testing.T) {
 	}
 	if _, err := os.Stat(cand.Repos[0].Worktree); err == nil {
 		t.Fatal("phase worktree kept after landing")
+	}
+	if !slices.Contains(landClosed, cand.Repos[0].Worktree) {
+		t.Fatalf("land did not close the phase worktree's terminals: %v", landClosed)
 	}
 	s, _ = projectRead(st)
 	if p := s.Phases[0]; p.State != "delivered" {
