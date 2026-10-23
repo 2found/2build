@@ -122,7 +122,8 @@ The bbs watcher waits and supervises:
    message plus a prompt naming the batch. To stop Orca typing a mail pointer
    into Foreman per worker report, it keeps Foreman's Delivery unacknowledged
    until that wake; an Orca mail pointer that still arrives mid-batch gets
-   `batch show` and, with no attention, the turn ends without consuming.
+   `batch show` and, with no attention, the turn ends without consuming —
+   no `check`, no ack, no reply to a stray heartbeat.
 3. On that prompt run `bbs foreman batch show "$FOREMAN_ID"`; it ends with
    each owned project's `NEXT=` steps.
    `BATCH_STATE=settled` (failures included): consume with Orca `check` until

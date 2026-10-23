@@ -27,7 +27,12 @@ requirement → basic design ⇒ human review → phase 1: tickets ∥ → integ
    the whole batch has settled; early only for what cannot wait (an `L` plan
    review, a worker question, a worker that exited, stalled or was lost), and
    attention arriving close together shares one wake. Never poll, wait in a
-   loop or check on workers in between.
+   loop or check on workers in between. Workers report to bbs, not to you:
+   the Task spec forbids heartbeat/status mail
+   ([worker-lifecycle.md](references/worker-lifecycle.md)). An Orca mail
+   pointer mid-batch gets `bbs foreman batch show` only; with no attention,
+   end the turn without `check` or an ack — acking re-arms Orca's pointer, so
+   every later worker message becomes another wake.
 2. **One ticket is one worker session.** A single autopilot Dispatch runs the
    ticket's whole loop — plan, plan approval, await and adopt prerequisites,
    implement, review, QA — on one model without stopping between steps, and

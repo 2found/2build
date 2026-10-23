@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.103.1 — 2026-10-24
+
+### Fixed
+
+- **Foreman woke on every worker heartbeat** — Orca's injected preamble tells
+  each supervised worker to send a `heartbeat` every 5 minutes to the Run
+  mailbox, and the Foreman worker transport told workers to follow it, so Orca
+  typed a mail pointer into Foreman for each one and every heartbeat cost a
+  full Foreman wake. The worker transport now forbids `heartbeat`/`status`
+  mail under Foreman: liveness is the bbs watcher's, progress goes to
+  `bbs foreman progress`, and a worker reaches Foreman only through `ask` for
+  a decision outside the accepted plan, `escalation` for a blocker, and its one
+  `worker_done`, which `bbs foreman batch` collects into one wake per batch.
+  A stray mail pointer mid-batch gets `batch show` only — no `check`, no ack,
+  since acking re-arms Orca's pointer.
+
 ## 1.103.0 — 2026-10-23
 
 ### Changed

@@ -19,7 +19,17 @@ capability, Task ID and Dispatch ID; never reconstruct authority from env/ticket
   Bus/coordinator failure returns the shared preamble's structured NEEDS_CONTEXT.
 - Follow the lifecycle for the whole Dispatch, not each nested skill. Read
   follow-ups with `orca orchestration check` at checkpoints and before
-  completion; follow the injected heartbeat cadence.
+  completion.
+- **Send no `heartbeat` or `status` mail** — this overrides the preamble's
+  5-minute cadence. Every message to the Run mailbox types a pointer into
+  Foreman and burns a wake; liveness is the bbs watcher's (pane + Dispatch,
+  Orca only warns on a missing heartbeat) and progress goes to
+  `bbs foreman progress`. Foreman hears from a worker only through `ask` for a
+  decision outside the accepted plan or assignment (an `L` plan review, an
+  out-of-plan finding, a scope or contract change), `escalation` for a blocker
+  it cannot resolve, and the one `worker_done`, which `bbs foreman batch`
+  collects into one wake per batch. Anything the plan already decides, the
+  worker decides and records in its handoff.
 - Persist handoff/verdicts, then send exactly one `worker_done` via injected
   `orca orchestration send`, with both lifecycle IDs and a three-sentence
   did/found/left summary. Use `--outcome succeeded` for DONE/DONE_WITH_CONCERNS,

@@ -264,6 +264,8 @@ if grep -q 'live injected Orca preamble is authoritative' "$PREAMBLE" \
    && grep -q 'whole Dispatch, not each nested skill' "$PREAMBLE" \
    && grep -q 'both lifecycle IDs' "$PREAMBLE" \
    && grep -q -- '--outcome failed' "$PREAMBLE" \
+   && grep -q 'Send no `heartbeat` or `status` mail' "$PREAMBLE" \
+   && ! grep -q 'follow the injected heartbeat cadence' "$PREAMBLE" \
    && ! grep -q 'MAILBOX=off' "$PREAMBLE"; then
   ok "worker-uses-injected-orca-lifecycle"
 else
