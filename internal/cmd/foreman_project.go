@@ -145,6 +145,7 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 			child.Problems = append(child.Problems, "verification: seal required before delivery or cleanup")
 		} else {
 			child.Repos = seal.Repos
+			child.Waiver = seal.Waiver
 			if c.ArtifactsOnly != (len(seal.Artifacts) > 0) {
 				child.Problems = append(child.Problems, "seal does not match approved delivery type")
 			}
@@ -301,7 +302,49 @@ func projectCheckPassed(ev projectEvidence, criterion, kind string) bool {
 	return false
 }
 
-func projectSealChild(st *ticket.Store) error {
+// sealWaivable splits readiness reason codes into what a waiver cannot cover
+// and the state of each waived gate. Only a gate that is missing or stale can
+// be waived: a BLOCKED/failed verdict, a limited result or unresolved material
+// findings recorded by review-pr still stop the seal.
+func sealWaivable(codes, waive []string) (rest []string, states map[string]string) {
+	states = map[string]string{}
+	for _, code := range codes {
+		gate, why, _ := strings.Cut(code, ":")
+		if slices.Contains(waive, gate) && (why == "missing" || strings.HasPrefix(why, "stale_")) {
+			if why == "missing" || states[gate] == "" {
+				states[gate] = strings.SplitN(why, "_", 2)[0]
+			}
+			continue
+		}
+		rest = append(rest, code)
+	}
+	return rest, states
+}
+
+func parseSealWaiver(kv map[string]string) ([]string, error) {
+	if kv["waive"] == "" {
+		if kv["reason"] != "" {
+			return nil, fmt.Errorf("--reason belongs to --waive")
+		}
+		return nil, nil
+	}
+	if strings.TrimSpace(kv["reason"]) == "" {
+		return nil, fmt.Errorf("--waive needs --reason \"<why the gate is not needed>\"")
+	}
+	var gates []string
+	for _, g := range strings.Split(kv["waive"], ",") {
+		g = strings.TrimSpace(g)
+		if g != "review-pr" && g != "qa" {
+			return nil, fmt.Errorf("--waive takes review-pr and/or qa, not %q", g)
+		}
+		if !slices.Contains(gates, g) {
+			gates = append(gates, g)
+		}
+	}
+	return gates, nil
+}
+
+func projectSealChild(st *ticket.Store, waive []string, reason string) error {
 	return withLock(st, func() error {
 		inputs, owners, err := projectChildInputs(st)
 		if err != nil {
@@ -326,7 +369,16 @@ func projectSealChild(st *ticket.Store) error {
 				return err
 			}
 			if !ready.Ready {
-				return fmt.Errorf("child not verified: %v", ready.ReasonCodes)
+				rest, states := sealWaivable(ready.ReasonCodes, waive)
+				if len(rest) > 0 {
+					return fmt.Errorf("child not verified: %v; if the gates are not needed or the work was verified in its handoff, seal with --waive <review-pr|qa>[,<gate>] --reason \"<text>\" (only missing or stale gates can be waived)", rest)
+				}
+				w := &projectWaiver{Gates: []string{}, Reason: strings.TrimSpace(reason), At: isoNow(), States: states}
+				for gate := range states {
+					w.Gates = append(w.Gates, gate)
+				}
+				slices.Sort(w.Gates)
+				seal.Waiver = w
 			}
 			cut := gitOutIn(r.Worktree, "rev-parse", "--verify", "-q", "HEAD^{commit}")
 			if cut == "" || gitOutIn(r.Worktree, "branch", "--show-current") != r.Branch {
@@ -426,7 +478,11 @@ func foremanProjectCommand(verb string, args []string) error {
 		if kv["file"] != "" {
 			return projectSealArtifacts(st, kv["file"])
 		}
-		return projectSealChild(st)
+		waive, err := parseSealWaiver(kv)
+		if err != nil {
+			return err
+		}
+		return projectSealChild(st, waive, kv["reason"])
 	case "evidence":
 		return projectEvidenceCommand(st, kv)
 	case "progress":
@@ -481,12 +537,14 @@ func foremanSealMany(args []string) error {
 	if len(ids) <= 1 {
 		return foremanProjectCommand("seal", append(ids, args...))
 	}
-	if len(args) > 0 {
-		return fmt.Errorf("seal: --file seals one evidence-only ticket at a time")
+	for _, a := range args {
+		if a == "--file" {
+			return fmt.Errorf("seal: --file seals one evidence-only ticket at a time")
+		}
 	}
 	failed := 0
 	for _, id := range ids {
-		if err := foremanProjectCommand("seal", []string{id}); err != nil {
+		if err := foremanProjectCommand("seal", append([]string{id}, args...)); err != nil {
 			failed++
 			fmt.Printf("NOT_SEALED=%s %v\n", id, err)
 			continue

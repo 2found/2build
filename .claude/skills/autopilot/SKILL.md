@@ -5,7 +5,12 @@ description: "Deliver one ticket end-to-end from a requirement or accepted plan 
 # autopilot
 A **goal proxy**: the skill owns init — durable ticket state, requirement,
 plan — and the harness's work loop owns execution (`/goal` where supported),
-with persisted `review-pr`/`qa` verdicts as the terminal condition. Keep
+with persisted `review-pr`/`qa` verdicts as the terminal condition. Gates
+are proportional: a simple or docs-only ticket, or a follow-up already
+verified on its final tree, may be sealed by `foreman` with
+`bbs foreman seal --waive` and a reason, so record them when you can (a
+follow-up should end by recording both on the final tree) but do not invent
+work to satisfy them. Keep
 state on disk; safe to re-enter until a terminal status prints.
 **Autopilot is an assistant, not an orchestrator.** It works on the checkout
 it was started in and never manages its own git topology: no branch cutting,
@@ -510,9 +515,12 @@ does not replace normal cleanup.
 - Disk state must always be enough for a cold session to resume — but disk is
   the backup, not the brain; in a live session use everything already learned.
 - Full reasoning depth at every step; requirement and plan are single-pass on
-  wording, not on thinking. `review-pr` and `qa` are the strict gates — the
+  wording, not on thinking. `review-pr` and `qa` are the gates — the
   evidence `bbs autopilot verification record` accepts for them is what the
-  push/PR hook and `foreman seal` enforce. `review-pr` only reports findings,
+  push/PR hook and `foreman seal` check. They are proportional: Foreman may
+  seal a simple or already-verified ticket with `--waive` and a reason, so
+  re-record them after any change when you can, but a missing gate is a
+  concern to report, not a reason to stall. `review-pr` only reports findings,
   so recording its gate is yours: unresolved material findings go in
   `unresolved_findings`, and `set-verdict` refuses both gate names.
 - Git scope is exactly: `git init` plus its empty initial commit on an

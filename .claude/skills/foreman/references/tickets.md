@@ -198,6 +198,13 @@ the exact evidence. Changed inputs invalidate gates.
 | A parked plan approval was resolved | `redirect` on the parked session |
 | Ticket reported `BLOCKED` after its own retry budget | Fresh read-only **critical** diagnosis worker, then `repair` with its findings |
 
+A `repair` or other follow-up spec should end with "record the `review-pr` and
+`qa` gates on the final tree", so a waiver (`bbs foreman seal --waive`,
+[delivery](delivery.md)) stays the exception rather than the way a worker
+skips its gates. If a worker still did not re-record them but its handoff
+shows the verification, seal with `--waive` and a reason instead of launching
+a worker only to re-stamp gates.
+
 As soon as a ticket passes, seal it (`bbs foreman seal`, several tickets in
 one call): its uncommitted tree
 becomes the snapshot its phase is built from. Nothing about a ticket is

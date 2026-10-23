@@ -134,6 +134,24 @@ evidence for the same phase (product-review.md). The CLI rejects evidence for a
 phase that is not ready, a worktree that is not clean at the phase commit, or
 a stale subject.
 
+A small repair after phase QA does not restart the phase's QA. After the
+repair's ticket is resealed and the phase is integrated again, carry the checks
+that already passed on the earlier phase commit and re-test only the criteria
+the repair touched:
+
+```bash
+bbs foreman evidence "$PARENT" --phase "$K" --carry --from "$INT_ATTEMPT,$PRODUCT_ATTEMPT" \
+  --reason "repair touched only X" [--except AC-2.1,AC-2.2]
+```
+
+`--carry` writes current-subject evidence from the passed checks of the named
+attempts of the same phase (never failed ones, never another phase's), minus
+`--except`, with provenance, and readiness shows it as carried. Run a normal
+`--begin` attempt for the excepted criteria; fresh and carried checks together
+satisfy the cumulative check. Carrying is Foreman's judgment: if the repair
+could affect a criterion, except it. A repair that touches shared code gets a
+full fresh attempt.
+
 QA failure → `repair` follow-ups on the owning ticket sessions, then reseal,
 integrate again (a new commit) and run a fresh attempt. After three failed
 attempts on the same blocker, park the phase and escalate; independent work

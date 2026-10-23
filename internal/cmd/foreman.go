@@ -41,8 +41,13 @@ const foremanUsage = `Usage:
                                          (publish the phase's human release approval)
   bbs foreman release <parent> --phase <id> --file receipt.json
                                          (record a release-prd verdict for the phase)
-  bbs foreman seal <child>...            preserve verified tickets' work before their phase integrates
+  bbs foreman seal <child>... [--waive <review-pr|qa>[,<gate>] --reason <text>]
+                                         preserve verified tickets' work before their phase integrates
+                                         (--waive seals despite a missing or stale gate; recorded as a note)
   bbs foreman evidence <parent> --phase <id> --begin --file spec.json
+  bbs foreman evidence <parent> --phase <id> --carry --from <attempt-id>[,<attempt-id>] --reason <text> [--except <AC-id,...>]
+                                         (carry earlier passed checks of this phase onto the current subject;
+                                         re-test the excepted criteria with a normal --begin attempt)
   bbs foreman evidence <parent> --attempt <id> --file results.json
   bbs foreman progress <ticket> --file progress.json
   bbs foreman complete <parent> --foreman <id>
@@ -230,7 +235,7 @@ func foremanFlags(args []string) (id string, kv map[string]string, err error) {
 			return "", nil, fmt.Errorf("foreman: unexpected argument '%s'", a)
 		}
 		key := strings.TrimPrefix(a, "--")
-		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "exact-session" || key == "startup-only" || key == "rate-limited" || key == "supervised" || key == "request" || key == "quota" { // the boolean flags
+		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "carry" || key == "exact-session" || key == "startup-only" || key == "rate-limited" || key == "supervised" || key == "request" || key == "quota" { // the boolean flags
 			kv[key] = "1"
 			continue
 		}

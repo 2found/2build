@@ -52,6 +52,15 @@ type projectSeal struct {
 	Repos     []projectRepo     `json:"repos"`
 	Owners    []string          `json:"owners"`
 	Artifacts map[string]string `json:"artifacts,omitempty"`
+	// Waiver records review-pr/qa gates Foreman sealed without; a note, never a blocker.
+	Waiver *projectWaiver `json:"waiver,omitempty"`
+}
+
+type projectWaiver struct {
+	Gates  []string          `json:"gates"`
+	Reason string            `json:"reason"`
+	At     string            `json:"at"`
+	States map[string]string `json:"states"` // gate -> missing | stale
 }
 
 type projectChild struct {
@@ -63,6 +72,7 @@ type projectChild struct {
 	Repos     []projectRepo    `json:"repos"`
 	Problems  []string         `json:"problems"`
 	Progress  *projectProgress `json:"progress,omitempty"`
+	Waiver    *projectWaiver   `json:"waiver,omitempty"`
 	landed    bool
 }
 
@@ -83,6 +93,8 @@ type projectCheck struct {
 	ExitCode  *int     `json:"exit_code"`
 	Log       string   `json:"log"`
 	Digest    string   `json:"digest,omitempty"`
+	// CarriedFrom is the earlier attempt this passed check was carried from.
+	CarriedFrom string `json:"carried_from,omitempty"`
 }
 
 type projectFinding struct {
@@ -109,6 +121,17 @@ type projectEvidence struct {
 	Runtime string `json:"runtime,omitempty"`
 	// Phase scopes the receipt to one release increment of a phased project.
 	Phase string `json:"phase,omitempty"`
+	// Carried is set on a record built by `foreman evidence --carry`.
+	Carried *projectCarry `json:"carried,omitempty"`
+}
+
+// projectCarry is the provenance of checks carried forward from earlier
+// attempts of the same phase (a different, older subject).
+type projectCarry struct {
+	From        []string `json:"from"`
+	FromSubject []string `json:"from_subjects"`
+	Reason      string   `json:"reason"`
+	Except      []string `json:"except,omitempty"`
 }
 
 type projectCoverage struct {

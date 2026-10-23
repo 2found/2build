@@ -54,3 +54,6 @@ repositories/
 .babysit/
 .repos/
 dev/
+
+# Local operator build of bbs (go build -o .build-local/bbs ./cmd/bbs)
+/.build-local/

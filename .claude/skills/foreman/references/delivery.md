@@ -13,6 +13,21 @@ A ticket is sealable when:
   (it checks content-bound evidence, an active attempt, and staleness);
 - every prerequisite it adopted is itself sealed at that snapshot.
 
+Gates are proportional, not a ritual: Foreman judges. A simple or docs-only
+ticket, or a `repair` whose handoff already shows the tests, build and review
+done on the final tree, may be sealed without re-stamping the gates:
+
+```bash
+bbs foreman seal "$CHILD" --waive review-pr,qa --reason "docs only; checked in handoff"
+```
+
+`--waive` accepts `review-pr`, `qa` or both and covers only a gate that is
+**missing or stale**. It never overrides a BLOCKED/failed verdict, a limited
+result, unresolved material findings, a manifest or snapshot change. The
+waiver (gates, state, reason, time) is stored in the seal and shown as a note
+in `bbs foreman snapshot` and `readiness`: a concern to report, never a
+blocker. Prefer a real gate when it is cheap; a waiver is the exception.
+
 An evidence-only child is sealable when its workflow verdict, acceptance
 evidence and lifecycle signal are current and its worktree holds no code
 change; seal its artifacts (`bbs foreman seal "$CHILD" --file`). If any code

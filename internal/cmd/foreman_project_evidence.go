@@ -157,6 +157,9 @@ func projectEvidenceCommand(st *ticket.Store, kv map[string]string) error {
 		if s.Contract == nil || (kv["begin"] == "1" && len(s.Dispatch) > 0) {
 			return fmt.Errorf("project not ready: %v", s.Dispatch)
 		}
+		if kv["carry"] == "1" {
+			return projectEvidenceCarry(st, s, kv)
+		}
 		if kv["begin"] == "1" {
 			var spec struct {
 				Kind     string `json:"kind"`
@@ -268,6 +271,94 @@ func projectEvidenceCommand(st *ticket.Store, kv map[string]string) error {
 		printV2Envelope(map[string]interface{}{"evidence": ev, "problems": projectEvidenceProblems(st, s, ev, true)})
 		return nil
 	})
+}
+
+// projectEvidenceCarry records current-subject evidence made of checks that
+// already passed in earlier attempts of the same phase, so a small repair
+// after phase QA re-tests only what it touched. Failed checks are never
+// carried; one record is written per evidence kind found in the sources.
+func projectEvidenceCarry(st *ticket.Store, s projectSnapshot, kv map[string]string) error {
+	phase, reason := kv["phase"], strings.TrimSpace(kv["reason"])
+	if projectPhaseIndex(s, phase) < 0 || kv["from"] == "" || reason == "" {
+		return fmt.Errorf("evidence --carry needs --phase <id> --from <attempt-id>[,<attempt-id>] --reason \"<text>\" [--except <AC-id,...>]")
+	}
+	if reasons := projectPhaseReasons(s, "verify", phase); len(reasons) > 0 {
+		return fmt.Errorf("phase not ready to verify: %v", reasons)
+	}
+	var except []string
+	for _, id := range strings.Split(kv["except"], ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			except = append(except, id)
+		}
+	}
+	k := projectPhaseIndex(s, phase)
+	byKind := map[string]*projectEvidence{}
+	var kinds, skipped []string
+	for _, id := range strings.Split(kv["from"], ",") {
+		id = strings.TrimSpace(id)
+		if !idRe.MatchString(id) {
+			return fmt.Errorf("invalid source attempt id %q", id)
+		}
+		var src projectEvidence
+		if err := readProjectJSON(filepath.Join(st.Home(), "project-evidence", id+".json"), &src); err != nil {
+			return fmt.Errorf("source attempt %s has no recorded results: %w", id, err)
+		}
+		if src.Phase != phase {
+			return fmt.Errorf("source attempt %s belongs to phase %q, not %q", id, src.Phase, phase)
+		}
+		if src.Kind != "integration" && src.Kind != "product" {
+			return fmt.Errorf("source attempt %s is %s evidence; only integration and product checks carry", id, src.Kind)
+		}
+		ev := byKind[src.Kind]
+		if ev == nil {
+			now := time.Now().UTC().Format(time.RFC3339Nano)
+			ev = &projectEvidence{Version: 1, ID: newInvocationID(), Kind: src.Kind, Producer: src.Producer, Phase: phase, Started: now, Finished: now,
+				Surfaces: []projectSurface{}, Checks: []projectCheck{}, Findings: []projectFinding{}, Carried: &projectCarry{Reason: reason, Except: except}}
+			ev.Subject = projectEvidenceSubject(s, *ev)
+			if c := s.Phases[k].Candidate; c != nil {
+				for _, r := range c.Repos {
+					ev.Surfaces = append(ev.Surfaces, projectSurface{Dir: r.Worktree, Ref: phaseCandidateRef(st.Env.Ticket, phase), Head: r.Commit, BaseRef: r.Base, BaseHead: r.BaseHead})
+				}
+			}
+			byKind[src.Kind] = ev
+			kinds = append(kinds, src.Kind)
+		}
+		ev.Carried.From = append(ev.Carried.From, src.ID)
+		ev.Carried.FromSubject = append(ev.Carried.FromSubject, src.Subject)
+		for _, check := range src.Checks {
+			label := check.Criterion + "/" + check.Kind
+			switch {
+			case slices.Contains(except, check.Criterion):
+				skipped = append(skipped, label+" (excepted)")
+			case !projectCheckPassed(src, check.Criterion, check.Kind) || len(check.Command) == 0:
+				skipped = append(skipped, label+" (not passed in "+src.ID+")")
+			case slices.ContainsFunc(ev.Checks, func(c projectCheck) bool { return c.Criterion == check.Criterion && c.Kind == check.Kind }):
+			default:
+				check.CarriedFrom = src.ID
+				ev.Checks = append(ev.Checks, check)
+			}
+		}
+	}
+	var out []projectEvidence
+	for _, kind := range kinds {
+		ev := byKind[kind]
+		if len(ev.Checks) == 0 {
+			return fmt.Errorf("nothing to carry for %s evidence: no passed check outside --except", kind)
+		}
+		if p := projectEvidenceProblems(st, s, *ev, false); len(p) > 0 {
+			return fmt.Errorf("cannot carry: %v", p)
+		}
+		out = append(out, *ev)
+	}
+	for _, ev := range out {
+		body, _ := json.MarshalIndent(ev, "", "  ")
+		if err := writeProjectImmutable(filepath.Join(st.Home(), "project-evidence", ev.ID+".json"), body); err != nil {
+			return err
+		}
+		projectEvent(st, "verification_carried", ev.ID, ev.Producer, ev.Kind)
+	}
+	printV2Envelope(map[string]interface{}{"carried": out, "not_carried": skipped})
+	return nil
 }
 
 func writeProjectImmutable(path string, body []byte) error {

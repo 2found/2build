@@ -43,6 +43,8 @@ type projectPhaseState struct {
 	Evidence []string         `json:"evidence"`
 	Releases []projectRelease `json:"releases"`
 	Problems []string         `json:"problems"`
+	// Notes are transparency lines (seal waivers, carried evidence); never blockers.
+	Notes []string `json:"notes,omitempty"`
 
 	Sealed, Integrated, Delivered, Released bool `json:"-"`
 	// Failed counts ROLLED_BACK/PARTIAL receipts; LastFailed is true while
@@ -214,10 +216,21 @@ func projectPhaseProgress(st *ticket.Store, s *projectSnapshot) {
 				p.Problems = append(p.Problems, "no child bound to "+seed)
 			}
 		}
+		for _, child := range children {
+			if w := child.Waiver; w != nil {
+				p.Notes = append(p.Notes, fmt.Sprintf("child %s sealed without %s (%s) on %s: %s", child.ID, strings.Join(w.Gates, ", "), projectWaiverStates(w), w.At, w.Reason))
+			}
+		}
 		latest := map[string]projectEvidence{}
+		current := map[string][]projectEvidence{}
 		for _, ev := range s.Evidence {
-			if ev.Phase == p.ID && ev.Subject == p.Subject && projectTimeAfter(ev.Finished, latest[ev.Kind].Finished) {
-				latest[ev.Kind] = ev
+			if ev.Phase == p.ID && ev.Subject == p.Subject {
+				if ev.State == "passed" {
+					current[ev.Kind] = append(current[ev.Kind], ev)
+				}
+				if projectTimeAfter(ev.Finished, latest[ev.Kind].Finished) {
+					latest[ev.Kind] = ev
+				}
 			}
 		}
 		p.Integrated = p.Sealed
@@ -238,6 +251,18 @@ func projectPhaseProgress(st *ticket.Store, s *projectSnapshot) {
 				}
 			default:
 				p.Evidence = append(p.Evidence, ev.ID)
+				// A fresh partial attempt and a carried record together
+				// satisfy the cumulative check below.
+				for _, other := range current[kind] {
+					if other.ID != ev.ID && (other.Carried != nil || ev.Carried != nil) {
+						p.Evidence = append(p.Evidence, other.ID)
+					}
+				}
+			}
+			for _, other := range current[kind] {
+				if c := other.Carried; c != nil {
+					p.Notes = append(p.Notes, fmt.Sprintf("%s evidence %s carries checks from %s: %s", kind, other.ID, strings.Join(c.From, ","), c.Reason))
+				}
 			}
 		}
 		// Phase QA is cumulative: every criterion owned by phases ≤ k.
@@ -246,12 +271,12 @@ func projectPhaseProgress(st *ticket.Store, s *projectSnapshot) {
 				continue
 			}
 			for _, kind := range ac.Checks {
-				if !projectCheckPassed(latest["integration"], ac.ID, kind) {
+				if !projectCheckPassedAny(current["integration"], ac.ID, kind) {
 					p.Integrated = false
 					p.Problems = append(p.Problems, "criterion "+ac.ID+": missing "+kind)
 				}
 			}
-			if s.Contract.ProductReview && !projectCheckPassed(latest["product"], ac.ID, "product") {
+			if s.Contract.ProductReview && !projectCheckPassedAny(current["product"], ac.ID, "product") {
 				p.Integrated = false
 				p.Problems = append(p.Problems, "criterion "+ac.ID+": missing product")
 			}
@@ -638,4 +663,23 @@ func projectReleaseLowered(st *ticket.Store) []string {
 	}
 	slices.Sort(lowered)
 	return lowered
+}
+
+// projectCheckPassedAny reads the union of the current passed records of one
+// kind: fresh partial attempts and carried records add up.
+func projectCheckPassedAny(evs []projectEvidence, criterion, kind string) bool {
+	for _, ev := range evs {
+		if projectCheckPassed(ev, criterion, kind) {
+			return true
+		}
+	}
+	return false
+}
+
+func projectWaiverStates(w *projectWaiver) string {
+	var parts []string
+	for _, g := range w.Gates {
+		parts = append(parts, g+" "+w.States[g])
+	}
+	return strings.Join(parts, ", ")
 }

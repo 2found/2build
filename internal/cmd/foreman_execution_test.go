@@ -50,7 +50,7 @@ func projectFixture(t *testing.T) (*ticket.Store, *ticket.Store, string) {
 			t.Fatal(err)
 		}
 	}
-	if err := projectSealChild(child); err != nil {
+	if err := projectSealChild(child, nil, ""); err != nil {
 		t.Fatal(err)
 	}
 	parent := storeForTicket(env, "parent")
@@ -610,7 +610,7 @@ func TestSealAndReadinessAgreeOnMissingGate(t *testing.T) {
 	if childSealable(child) {
 		t.Fatal("childSealable with qa missing")
 	}
-	if err := projectSealChild(child); err == nil || !strings.Contains(err.Error(), "qa") {
+	if err := projectSealChild(child, nil, ""); err == nil || !strings.Contains(err.Error(), "qa") {
 		t.Fatalf("seal with qa missing = %v, want refusal naming qa", err)
 	}
 
@@ -618,7 +618,7 @@ func TestSealAndReadinessAgreeOnMissingGate(t *testing.T) {
 	if childSealable(child) {
 		t.Fatal("childSealable on a v1 checkpoint")
 	}
-	if err := projectSealChild(child); err == nil || !strings.Contains(err.Error(), "checkpoint --refresh") {
+	if err := projectSealChild(child, nil, ""); err == nil || !strings.Contains(err.Error(), "checkpoint --refresh") {
 		t.Fatalf("seal on a v1 checkpoint = %v, want the refresh command", err)
 	}
 }
