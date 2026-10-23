@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.105.0 — 2026-10-24
+
+### Changed
+
+- **Foreman closes a worker's terminal as soon as its Dispatch settles** — the
+  batch watcher now shuts down the worker's agent terminal at done instead of
+  leaving it idle. Follow-ups go to a fresh session; `worker-retain` is for
+  debugging only. Set `foreman_keep_settled_workers: true` to keep the old
+  behaviour (default false). Foreman skill docs describe the new rule.
+
 ## 1.104.0 — 2026-10-24
 
 ### Added
