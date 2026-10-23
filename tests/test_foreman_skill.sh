@@ -83,8 +83,8 @@ has_all "ticket-runs-whole-loop-in-one-session" \
   'CONFLICT=' 'no separate' 'approval self-resolve'
 
 has_all "ticket-session-ownership" \
-  '### Ticket session ownership' 'Reuse' 'Retain' 'Release' \
-  '`worker-retain`' 'retained idle' 'never send a follow-up to a session whose Dispatch is' \
+  '### Ticket session ownership' 'fresh' 'session' \
+  '`worker-retain`' 'foreman_keep_settled_workers' 'shut' \
   '`repair`' '`refresh`' '`redirect`' '`deliver`' \
   '### Reuse a ticket session' '--terminal "$TICKET_TERMINAL"' '`transport-matched`' \
   'Never reuse one ticket' 'holds no lease'
