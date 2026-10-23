@@ -15,28 +15,28 @@
 class Bbs < Formula
   desc "2build CLI — Go multicall for config, env, slug, ticket, and more"
   homepage "https://github.com/2found/2build"
-  version "1.103.0"
+  version "1.103.1"
   license "MIT"
 
   on_macos do
     on_arm do
       url "https://github.com/2found/2build/releases/download/v#{version}/bbs_#{version}_darwin_arm64.tar.gz"
-      sha256 "2870a44b25244408230ad123616bc2e4ad81c62b2083ddf4bd8099dc94cc80a3"
+      sha256 "768693445f5df2adcd3ec381b18d718b2dc579379d28bfb511e4eb1a153be882"
     end
     on_intel do
       url "https://github.com/2found/2build/releases/download/v#{version}/bbs_#{version}_darwin_amd64.tar.gz"
-      sha256 "ef5753817fcc9a445395e896a5b56f87c7086edcc921829e64ff6c055a4af8d2"
+      sha256 "4269cbb0cd91b0a327e71da1e6b00358118dba3d6596e7a5dfbe734c46095564"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/2found/2build/releases/download/v#{version}/bbs_#{version}_linux_arm64.tar.gz"
-      sha256 "3fd93303146ab5a3a5edff83d9e1ce26478ea15dc506f192ef0c8dcdbf3daa8e"
+      sha256 "49a89e0f63cff1540b495fb24f0852ff93bb85643aceedc1ffc56f9a7e1aeb4a"
     end
     on_intel do
       url "https://github.com/2found/2build/releases/download/v#{version}/bbs_#{version}_linux_amd64.tar.gz"
-      sha256 "d420a3e1d763dcddbf0011a91e6a7ce1c3f0b77165e093e2ae02c8f336e2df57"
+      sha256 "e0bbbe7a3eb08766542301647ddfee076bef48cd298061fd89939bbb0c4cc97e"
     end
   end
 
