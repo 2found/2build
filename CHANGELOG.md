@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.103.0 — 2026-10-23
+
+### Changed
+
+- **`bbs foreman land` closes the phase's worker agents** — the Orca
+  terminals in the worktrees it removes (ticket sessions, phase QA worker) are
+  closed before removal and listed as `closed_terminals`, so claude/codex/omp
+  sessions kept for repairs stop holding memory once the phase lands. Kept
+  worktrees and the caller's own terminal are untouched; without Orca it is a
+  no-op.
+
 ## 1.102.3 — 2026-10-21
 
 ### Fixed
