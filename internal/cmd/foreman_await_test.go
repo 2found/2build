@@ -2,14 +2,12 @@ package cmd
 
 import (
 	"bytes"
-	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/2found/2build/internal/identity"
-	"github.com/2found/2build/internal/orca"
 )
 
 // scriptedProbe returns each prerequisite's states in order, repeating the
@@ -138,12 +136,22 @@ func TestParsePrereqs(t *testing.T) {
 	}
 }
 
-// Orca restarting under a waiting dependent is a wait, not a failed
-// prerequisite: the phase must not report BLOCKED for the runtime's hiccup.
-func TestLiveProbeWaitsWhileOrcaIsUnreachable(t *testing.T) {
-	probe := liveProbe(func() (*orca.Client, error) { return nil, errors.New("orca is not responding") }, t.TempDir(), identity.Env{})
-	if s := probe(prereq{"bs-a", "task-a"}); s.State != "waiting" || !strings.Contains(s.Reason, "orca unreachable") {
-		t.Fatalf("state = %+v", s)
+// A prerequisite Task that is unreadable or not launched yet is a wait; one
+// whose Dispatch failed is not-ready.
+func TestLiveProbeWaitsOnAnUnlaunchedTask(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.world.Dispatch["task-new"] = ""
+	f.world.Dispatch["task-bad"] = "failed"
+	f.save(t)
+	probe := liveProbe(t.TempDir(), identity.Env{})
+	if s := probe(prereq{"bs-a", "task-gone"}); s.State != "waiting" || !strings.Contains(s.Reason, "task unreadable") {
+		t.Fatalf("unknown task = %+v", s)
+	}
+	if s := probe(prereq{"bs-a", "task-new"}); s.State != "waiting" || s.Reason != "not dispatched yet" {
+		t.Fatalf("unlaunched task = %+v", s)
+	}
+	if s := probe(prereq{"bs-a", "task-bad"}); s.State != "not-ready" {
+		t.Fatalf("failed task = %+v", s)
 	}
 }
 
@@ -153,8 +161,7 @@ func TestLiveProbeRetriesAFailingReadinessRead(t *testing.T) {
 	f := newBatchFixture(t, "codex")
 	f.world.Dispatch["task-a"] = "completed"
 	f.save(t)
-	connect := func() (*orca.Client, error) { return f.client, nil }
-	probe := liveProbe(connect, filepath.Join(t.TempDir(), "missing"), identity.Env{})
+	probe := liveProbe(filepath.Join(t.TempDir(), "missing"), identity.Env{})
 	for i := 1; i < awaitReadinessAttempts; i++ {
 		if s := probe(prereq{"bs-a", "task-a"}); s.State != "waiting" || !strings.Contains(s.Reason, "readiness") {
 			t.Fatalf("attempt %d = %+v", i, s)

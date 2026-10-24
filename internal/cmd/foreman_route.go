@@ -32,9 +32,6 @@ type launchHandoff struct {
 }
 
 func foremanRoute(args []string) error {
-	if len(args) > 0 && args[0] == "verify" {
-		return foremanRouteVerify(args[1:])
-	}
 	_, kv, err := foremanFlags(args)
 	if err != nil {
 		return err
@@ -94,59 +91,6 @@ func resolveForemanRouteWithDiscovery(kv map[string]string, discovery *orca.Agen
 		PinnedModelProvenance:  kv["pinned-model-provenance"],
 		PinnedEffortProvenance: kv["pinned-effort-provenance"],
 	}, discovery, discoveryErr)
-}
-
-func foremanRouteVerify(args []string) error {
-	_, kv, err := foremanFlags(args)
-	if err != nil {
-		return err
-	}
-	for _, key := range []string{"ticket", "task", "agent"} {
-		if strings.TrimSpace(kv[key]) == "" {
-			return fmt.Errorf("foreman route verify: --%s is required", key)
-		}
-	}
-	evidence := launchHandoff{Ticket: kv["ticket"], Task: kv["task"]}
-	if kv["rate-limited"] != "" {
-		evidence.Verification = "rate-limited"
-		evidence.Reason = "worker-start returned a rate-limit response; re-read quota snapshots before retry"
-		path, err := appendForemanHandoff(kv["ticket"], kv["task"], "launch", evidence)
-		if err != nil {
-			return fmt.Errorf("foreman route verify: cannot persist launch evidence: %w", err)
-		}
-		evidence.Handoff = path
-		return json.NewEncoder(os.Stdout).Encode(evidence)
-	}
-	if strings.TrimSpace(kv["receipt-file"]) == "" {
-		return fmt.Errorf("foreman route verify: needs --receipt-file <json> or --rate-limited")
-	}
-	raw, err := os.ReadFile(kv["receipt-file"])
-	if err != nil {
-		return fmt.Errorf("foreman route verify: read receipt: %w", err)
-	}
-	receipt, verifyErr := orca.ValidateLaunchReceipt(raw, orca.LaunchRequest{
-		AgentID: kv["agent"], HostID: kv["host"], Model: kv["model"], Effort: kv["effort"],
-		TerminalHandle: kv["terminal"],
-	})
-	if verifyErr != nil {
-		evidence.Verification = "mismatch"
-		evidence.Reason = verifyErr.Error()
-	} else {
-		evidence.Verification = "matched"
-		if receipt.TerminalHandle != "" {
-			evidence.Verification = "transport-matched"
-		}
-		evidence.Receipt = &receipt
-	}
-	path, err := appendForemanHandoff(kv["ticket"], kv["task"], "launch", evidence)
-	if err != nil {
-		return fmt.Errorf("foreman route verify: cannot persist launch evidence: %w", err)
-	}
-	evidence.Handoff = path
-	if err := json.NewEncoder(os.Stdout).Encode(evidence); err != nil {
-		return err
-	}
-	return verifyErr
 }
 
 // appendForemanHandoff writes one numbered ticket handoff under the normal

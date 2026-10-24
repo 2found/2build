@@ -159,6 +159,28 @@ Exercise the application like a user and leave reproducible evidence.
    `STATUS: BLOCKED`; a passing product flow does not excuse a leaked
    automation fleet.
 
+## Executor mode
+An assignment that names this mode, a matrix path and a run number (autopilot
+§ Current-session gates) runs only the mechanical part: step 2 (boot/probe the
+target, ownership ledger), the check commands the matrix lists, step 5 for the
+assigned cases, step 7's final primary-journey pass when assigned, and step 8.
+Use the browser session name the assignment gives. Edit no code, run no git,
+write no gate, verdict or `set-review`; a failure is reported, never fixed.
+Write the full run report — per case: steps, observed result, evidence paths;
+per check: argv, cwd, exit code, log path — to
+`bbs ticket path evidence --skill qa --name run-<n>.md --write`, and the
+checks as `verification record` JSON beside it (`run-<n>.json`,
+[verification.md](../autopilot/references/verification.md)). Return only:
+```text
+STATUS: DONE | BLOCKED
+CASES: <n passed>/<n run>; failed: <case ids or none>
+FAILURES: <one line per failed case: id — observed vs expected — evidence path>
+RUBRIC: <proposed grades from what was executed>
+REPORT: <run-<n>.md path> <run-<n>.json path>
+CLEANUP: <owned resources stopped and verified; retained ones named>
+```
+`BLOCKED` means the run itself could not execute (target down, missing
+credential, tool failure), named in `FAILURES`.
 ## Case design
 One case = user journey + expected observable + evidence — *as a user, do
 `<steps>` → observe `<result>`*, not a component check. The **primary

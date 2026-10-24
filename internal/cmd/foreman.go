@@ -75,9 +75,8 @@ const foremanUsage = `Usage:
                     [--hard-reason <money|auth|security|live-data|concurrency>] (required with --complexity hard)
                     [--selected-tier <lite|flash|pro|max>] [--override-provenance <source>]
                     [--pinned-model-provenance <source>] [--pinned-effort-provenance <source>]
-  bbs foreman route verify --ticket <ticket> --task <task> --agent <id>
-                           [--host <host-id>] [--model <id>] [--effort <level>] [--terminal <handle>]
-                           [--receipt-file <json>] [--rate-limited]
+  bbs foreman task create|launch|show|list|done|ask|answer|abandon ...
+                    (bbs-owned assignments: Tasks, their Dispatches and worker questions)
   bbs foreman resource <status|reserve|release> ...
   bbs foreman batch <id> --tasks <task,task,...>
   bbs foreman batch show <id>
@@ -199,6 +198,8 @@ func dispatchForeman(args []string) error {
 		return foremanAwait(rest)
 	case "route":
 		return foremanRoute(rest)
+	case "task":
+		return foremanTask(rest)
 	case "model":
 		return foremanModel(rest)
 	case "watch":
@@ -235,7 +236,7 @@ func foremanFlags(args []string) (id string, kv map[string]string, err error) {
 			return "", nil, fmt.Errorf("foreman: unexpected argument '%s'", a)
 		}
 		key := strings.TrimPrefix(a, "--")
-		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "carry" || key == "exact-session" || key == "startup-only" || key == "rate-limited" || key == "supervised" || key == "request" || key == "quota" { // the boolean flags
+		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "carry" || key == "exact-session" || key == "startup-only" || key == "open" || key == "spec" || key == "created-terminal" || key == "supervised" || key == "request" || key == "quota" { // the boolean flags
 			kv[key] = "1"
 			continue
 		}

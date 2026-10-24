@@ -5,7 +5,9 @@ The only writer of `review-pr` and `qa` gate evidence and of their
 is refused with `CHECKPOINT_V1` (`recover` included; `snapshot` still renders
 its facts but lists a lone `checkpoint` obligation); migrate it once with
 `bbs autopilot checkpoint --refresh --ticket <id>` and never convert old
-evidence. Run the real review-pr and qa skills in the current session.
+evidence. Run the real review-pr and qa skills in the current session; QA's mechanical
+execution may go to its executor subagent (SKILL.md § Current-session gates),
+whose `run-<n>.json` feeds `record`.
 
 Never commit for a gate: the subject is the working tree's content, untracked
 files included. Capture it **before** verification:

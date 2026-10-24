@@ -18,7 +18,7 @@ should get smaller or faster without changing behavior.
    Current-session gates (`review-pr`, `qa`) policy (applies fixes to the
    working tree), bracketed by
    `bbs autopilot verification begin --gate review-pr` and `record`.
-4. Run `qa` in the same session (or the strongest equivalent fallback) and
+4. Run `qa` under the same policy (or the strongest equivalent fallback) and
    confirm behavior matches the recorded baseline, bracketed by
    `bbs autopilot verification begin --gate qa` and `record`.
 5. Apply autopilot's **Repair until the final change passes** loop. Both gates

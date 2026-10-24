@@ -64,7 +64,7 @@ func foremanResourceStatus(args []string) error {
 	}
 	// status is the reconcile entry point every foreman wake runs, so the
 	// cross-check lives here rather than in skill prose a caller can skip: a
-	// lease whose Dispatch Orca proves terminal is released on the spot.
+	// lease whose Dispatch has settled is released on the spot.
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	c, _ := orca.PreflightContext(ctx)
@@ -84,17 +84,17 @@ func foremanResourceStatus(args []string) error {
 }
 
 // Reconciliation is global and runs before admission, even if the original
-// foreman vanished. No Orca I/O happens while the broker lock is held.
+// foreman vanished. No Orca I/O happens while the broker lock is held. Orca
+// is needed only to see whether an open Dispatch's worker exited; without it
+// those leases are held.
 func reconcileResourceLeases(ctx context.Context, b *foreman.ResourceBroker, leases []foreman.ResourceLease, c *orca.Client, now time.Time) []string {
 	if len(leases) == 0 {
 		return nil
 	}
-	if c == nil || !c.Orchestration() {
-		fmt.Fprintln(os.Stderr, "RESOURCE_RECOVERY=unavailable; existing worker reservations held")
-		return nil
-	}
 	var released []string
-	fleets := map[string]map[string]bool{}
+	var terms []orca.Terminal
+	termsErr := errors.New("Orca runtime unavailable")
+	termsRead := false
 	lastChecked := ""
 	defer func() {
 		if lastChecked != "" {
@@ -108,17 +108,14 @@ func reconcileResourceLeases(ctx context.Context, b *foreman.ResourceBroker, lea
 			break
 		}
 		lastChecked = lease.ID
-		d, err := c.DispatchStateFor(lease.Task)
+		dispatch, status, err := taskDispatchState(lease.Task)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "RESOURCE_HELD=%s REASON=%v\n", lease.ID, err)
-			if errors.Is(err, context.DeadlineExceeded) {
-				break
-			}
 			continue
 		}
 		// The terminal attempt observed before reserve belongs to the previous
 		// generation, not the worker this reservation is about to launch.
-		unstarted := d.ID == "" || d.ID == lease.PreviousDispatch
+		unstarted := dispatch == "" || dispatch == lease.PreviousDispatch
 		reclaim := false
 		if unstarted {
 			lastReserved := lease.AcquiredAt
@@ -130,27 +127,33 @@ func reconcileResourceLeases(ctx context.Context, b *foreman.ResourceBroker, lea
 			heartbeat, heartbeatErr := time.Parse(time.RFC3339, owner.Heartbeat)
 			stale := errors.Is(ownerErr, os.ErrNotExist) || (ownerErr == nil && (heartbeatErr != nil || now.Sub(heartbeat) >= foreman.StaleAfter))
 			reclaim = err == nil && now.Sub(acquired) >= foreman.StaleAfter && stale
-		} else if dispatchTerminal(d.Status) {
+		} else if dispatchTerminal(status) {
 			reclaim = true
-		} else if d.RunID != "" {
-			exited, checked := fleets[d.RunID]
-			if !checked {
-				exited, err = c.ExitedWorkers(d.RunID)
-				fleets[d.RunID] = exited
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "RESOURCE_HELD=%s REASON=%v\n", lease.ID, err)
-				}
+		} else {
+			if !termsRead && c != nil {
+				terms, termsErr = c.Terminals()
 			}
-			if exited[d.ID] {
-				// Stop targets an exact generation, never the Task's replacement.
-				if err := c.StopExitedWorker(d.ID); err != nil {
+			termsRead = true
+			if termsErr != nil {
+				fmt.Fprintf(os.Stderr, "RESOURCE_HELD=%s REASON=%v\n", lease.ID, termsErr)
+				continue
+			}
+			task, _ := foreman.LoadTask(lease.Task)
+			if w, ok := taskWorkerFor(task.DispatchByID(dispatch), terms, now); ok && w.Exited {
+				// Fence the exact generation, never the Task's replacement.
+				_, err := foreman.UpdateTask(lease.Task, func(t *foreman.Task) error {
+					if cur := t.Current(); cur == nil || cur.ID != dispatch {
+						return fmt.Errorf("dispatch %s was superseded", dispatch)
+					}
+					return t.Current().Settle(foreman.DispatchFailed, "worker exited without reporting")
+				})
+				if err != nil {
 					fmt.Fprintf(os.Stderr, "RESOURCE_HELD=%s REASON=%v\n", lease.ID, err)
 					continue
 				}
-				settled, err := c.DispatchStateFor(lease.Task)
-				reclaim = err == nil && settled.ID == d.ID && dispatchTerminal(settled.Status)
+				reclaim = true
 			} else {
-				fmt.Fprintf(os.Stderr, "RESOURCE_HELD=%s DISPATCH=%s REASON=worker live or unverifiable\n", lease.ID, d.ID)
+				fmt.Fprintf(os.Stderr, "RESOURCE_HELD=%s DISPATCH=%s REASON=worker live or unverifiable\n", lease.ID, dispatch)
 			}
 		}
 		if reclaim {
@@ -164,17 +167,10 @@ func reconcileResourceLeases(ctx context.Context, b *foreman.ResourceBroker, lea
 	return released
 }
 
-// dispatchTerminal mirrors the terminal half of Orca's dispatch_contexts
-// status enum. 'pending', 'dispatched', and "" (no dispatch record) are all
-// not terminal. A missing Dispatch is handled separately with launch grace
+// dispatchTerminal is a settled Dispatch. "dispatched" and "" (no Dispatch
+// yet) are not; a missing Dispatch is handled separately with launch grace
 // and owner liveness evidence.
-func dispatchTerminal(status string) bool {
-	switch status {
-	case "completed", "failed", "circuit_broken":
-		return true
-	}
-	return false
-}
+func dispatchTerminal(status string) bool { return foreman.DispatchSettled(status) }
 
 func foremanResourceReserve(args []string) error {
 	id, kv, err := foremanFlags(args)
@@ -209,16 +205,13 @@ func foremanResourceReserve(args []string) error {
 	defer cancel()
 	c, _ := orca.PreflightContext(ctx)
 	previous := ""
-	quotaEligible := false
-	if c != nil && c.Orchestration() {
-		d, err := c.DispatchStateFor(kv["task"])
-		if err != nil {
-			return fmt.Errorf("resource reserve: cannot inspect task: %w", err)
-		}
-		quotaEligible = d.ID == "" || d.Status == "pending" || dispatchTerminal(d.Status)
-		if dispatchTerminal(d.Status) {
-			previous = d.ID
-		}
+	dispatch, dispatchStatus, err := taskDispatchState(kv["task"])
+	if err != nil {
+		return fmt.Errorf("resource reserve: cannot inspect task: %w", err)
+	}
+	quotaEligible := dispatch == "" || dispatchTerminal(dispatchStatus)
+	if dispatchTerminal(dispatchStatus) {
+		previous = dispatch
 	}
 	released := reconcileResourceLeases(ctx, broker, before.Leases, c, time.Now())
 	var quota foreman.QuotaAdmission
@@ -227,12 +220,6 @@ func foremanResourceReserve(args []string) error {
 	switch {
 	case quotaEligible:
 		quota, accounts, accountStatus = foremanQuotaSnapshot(c, kv["agent"], kv["host"], time.Now().UTC())
-	case c == nil || !c.Orchestration():
-		quota, accounts, accountStatus = foremanQuotaSnapshot(c, kv["agent"], kv["host"], time.Now().UTC())
-		if c != nil && quota.Status != "unknown" {
-			quota.Status = "unknown"
-			quota.Reason = "orchestration-capability-unavailable"
-		}
 	default:
 		quota = foreman.QuotaAdmission{
 			Status: "unknown", Reason: "dispatch-not-new-admission", Agent: kv["agent"],

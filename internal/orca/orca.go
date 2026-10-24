@@ -36,9 +36,8 @@ var (
 // zero value cannot run anything.
 type Client struct {
 	bin string
-	// caps is what the runtime advertised at Preflight. Read once rather than
-	// per call: it changes only when the app restarts, and the surface it gates
-	// (see orchestration.go) is on the hot path of a foreman's monitor loop.
+	// caps is what the runtime advertised at Preflight, read once: it changes
+	// only when the app restarts.
 	caps []string
 	ctx  context.Context
 	// callTimeout bounds each command when set, so one hung CLI call cannot
@@ -64,7 +63,7 @@ func Preflight() (*Client, error) {
 	return PreflightContext(context.Background())
 }
 
-// PreflightContext bounds resource reconciliation without shortening mailbox
+// PreflightContext bounds resource reconciliation without shortening long
 // waits elsewhere. The same deadline covers all commands on this client.
 func PreflightContext(ctx context.Context) (*Client, error) {
 	bin, err := lookPath()
@@ -121,11 +120,22 @@ func (c *Client) ready() error {
 	if !st.Runtime.Reachable {
 		return errors.New("runtime not reachable")
 	}
-	// The advertised capability list is what gates the orchestration surface.
-	// An older Orca simply does not list it, and the caller falls back to the
-	// pane monitor rather than failing — foreman has to stay usable there.
+	// The advertised capability list gates optional surfaces (agent
+	// discovery, quota snapshots). An older Orca simply does not list them.
 	c.caps = st.Runtime.Capabilities
 	return nil
+}
+
+// Supports reports whether the runtime advertised a capability at Preflight.
+// The list is read once, at status time: it changes only when the app
+// restarts.
+func (c *Client) Supports(capability string) bool {
+	for _, have := range c.caps {
+		if have == capability {
+			return true
+		}
+	}
+	return false
 }
 
 // Terminal is one live Orca terminal.
@@ -460,7 +470,7 @@ func (c *Client) run(args ...string) (json.RawMessage, error) {
 		ctx = context.Background()
 	}
 	// A slow worker probe must not consume the entire reconciliation budget
-	// and starve later leases. Ordinary mailbox clients have no deadline.
+	// and starve later leases. Unbounded clients (agent launch) have no deadline.
 	if _, bounded := ctx.Deadline(); bounded {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 2*time.Second)

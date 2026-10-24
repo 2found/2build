@@ -419,25 +419,44 @@ func projectCompletionSubject(s projectSnapshot) string {
 
 func projectCleanupProblems(st *ticket.Store, s projectSnapshot) []string {
 	problems := []string{}
-	doc := ticket.ReadDoc(st.IndexPath())
-	if run := doc.Get("pointers.orca_run"); run != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		client, err := orca.PreflightContext(ctx)
-		if err != nil {
-			problems = append(problems, "cleanup: Orca runtime unavailable")
-		} else {
-			workers, err := client.ExitedWorkers(run)
-			if err != nil {
-				problems = append(problems, "cleanup: worker state unknown")
-			} else {
-				for _, id := range sortedBoolKeys(workers) {
-					if !workers[id] {
-						problems = append(problems, "cleanup: worker "+id+" remains live or unverified")
-					}
+	owned := map[string]bool{st.Env.Ticket: true}
+	for _, child := range s.Children {
+		owned[child.ID] = true
+	}
+	var live map[string]bool
+	for _, task := range foreman.ListTasks("") {
+		if !owned[task.Ticket] {
+			continue
+		}
+		for _, d := range task.Dispatches {
+			if !foreman.DispatchSettled(d.Status) {
+				problems = append(problems, "cleanup: dispatch "+d.ID+" is still open")
+				continue
+			}
+			if !d.OwnsTerminal || d.Terminal == "" {
+				continue
+			}
+			if live == nil {
+				live = map[string]bool{}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				client, err := orca.PreflightContext(ctx)
+				var terms []orca.Terminal
+				if err == nil {
+					terms, err = client.Terminals()
+				}
+				cancel()
+				if err != nil {
+					problems = append(problems, "cleanup: worker terminals unverifiable: Orca runtime unavailable")
+					live[""] = true
+				}
+				for _, term := range terms {
+					live[term.Handle] = true
 				}
 			}
+			if live[d.Terminal] {
+				problems = append(problems, "cleanup: worker terminal "+d.Terminal+" of "+d.ID+" remains open")
+			}
 		}
-		cancel()
 	}
 	var resources struct {
 		Version        int                     `json:"version"`

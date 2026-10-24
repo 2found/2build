@@ -1,34 +1,27 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"time"
 
-	"github.com/2found/2build/internal/orca"
+	"github.com/2found/2build/internal/foreman"
 )
 
-// runWorkerReportGate applies only to the calling Orca terminal. The hook
-// never guesses a handle from cwd, a ticket, or a focused sibling terminal.
+// runWorkerReportGate applies only to the calling Orca terminal: it blocks a
+// Stop while a Foreman Dispatch launched into this exact terminal is still
+// open. The hook never guesses a Dispatch from cwd, a ticket, or a sibling
+// terminal, and needs no Orca call: bbs owns the Dispatch record.
 func runWorkerReportGate(stdout io.Writer) {
-	terminal := os.Getenv("ORCA_TERMINAL_HANDLE")
-	if terminal == "" {
+	t, d := foreman.DispatchForTerminal(os.Getenv("ORCA_TERMINAL_HANDLE"))
+	if d == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-	defer cancel()
-	dispatch, err := orca.PendingWorkerDispatch(ctx, terminal)
-	if err == nil && dispatch == "" {
-		return
-	}
-	var reason string
-	if err != nil {
-		reason = fmt.Sprintf("Cannot verify this Orca worker's report: %v. Restore access to the same Orca runtime and retry. Preserve the handoff; do not claim delivery or invent a Dispatch.", err)
-	} else {
-		reason = fmt.Sprintf("Orca Dispatch %s is still active. Before stopping, read coordinator follow-ups and report the actual terminal outcome with worker_done using the exact command and authority in your injected Orca preamble. Persist the handoff first; use --outcome failed if the work is incomplete. A nested skill finishing does not finish the Dispatch. If you already sent the report, inspect its receipt and follow Orca's recovery contract instead of sending a duplicate. Do not wait for a separate Foreman reply.", dispatch)
+	reason := fmt.Sprintf("Foreman Task %s (Dispatch %s) is still open. Before stopping, persist the handoff and report the actual outcome once: `bbs foreman task done %s --dispatch %s --outcome succeeded|failed --summary \"<did; found; left>\"` (failed when the work is incomplete). A nested skill finishing does not finish the Task. Do not wait for a separate Foreman reply.", t.ID, d.ID, t.ID, d.ID)
+	if pending := foreman.PendingQuestions([]string{t.ID}); len(pending) > 0 {
+		q := pending[0]
+		reason = fmt.Sprintf("Foreman Task %s has your unanswered question %s. Keep waiting with `bbs foreman task ask %s --resume %s`; never ask it again.", t.ID, q.ID, t.ID, q.ID)
 	}
 	// Recheck on every Stop, including stop_hook_active continuations: that
 	// flag is not evidence of a report. Interrupt/cancellation remains native.

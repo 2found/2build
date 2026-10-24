@@ -380,7 +380,8 @@ the assignment, report the mismatch to Foreman before work; never select a
 replacement model or start a worker to fix it.
 Keep each assigned skill in this session on its launched model; never delegate
 the whole ticket, dispatch sibling Tasks or switch models. The review skill's
-internal analysis fan-out remains allowed under Current-session gates below.
+internal analysis fan-out and the QA executor subagent remain allowed under
+Current-session gates below.
 Work beyond the ticket — another ticket's files or contracts, scope one
 coherent plan cannot hold, a scope change — is a handoff to Foreman with a
 proposed split or change request, never absorbed silently. This explicit envelope takes
@@ -389,8 +390,10 @@ ordinary direct autopilot invocations retain the full current-session loop.
 
 ### Current-session gates (`review-pr`, `qa`)
 Applies to every workflow's `review-pr` and `qa` steps, without an opt-in
-flag. Both gates run in this session, on the session's model: no autopilot
+flag. Both gates are judged in this session, on the session's model: no autopilot
 step is ever dispatched to a child, a second session, or an external process.
+The one delegation is QA's mechanical execution (item 2), which hands
+back evidence, never a verdict.
 1. **Run review in the current session.** Always load and execute the real
    `review-pr --fix` skill in the current autopilot session, on the session's
    model. Never dispatch the whole review skill to a native child or external
@@ -402,15 +405,30 @@ step is ever dispatched to a child, a second session, or an external process.
    resolved effort; if the current session cannot provide the required
    fan-out, record `BLOCKED` rather than delegating the whole skill or silently
    lowering review effort.
-2. **Run QA in this session too.** After the review pass and its fixes, load
-   and execute the real `qa` skill here and run the checks yourself — no child
-   dispatch, no per-harness model selection, no worker to wait on. A gate is
-   exactly where you want an auditable bill and an auditable context, and
-   handing verification to an agent the run cannot see gives up both. If the
-   session lacks what a check needs (no browser, no runnable target), the
-   skill's named fallback applies and the limitation is recorded; a missing
-   capability is never a fabricated PASS and never a reason to spin up a
-   child.
+2. **Judge QA here; execute it in one cheaper subagent.** After the review
+   pass and its fixes, load the real `qa` skill here and own its judgment:
+   load context, choose the code-level checks and write the case matrix
+   (`qa` steps 1 and 3–4, the check commands listed in the matrix rather than
+   run), triage failures and fix them (step 6), and grade and persist the
+   verdict. Driving the browser, running the matrix and its checks, and
+   screenshots and logs (`qa` steps 2, 3's runs, 5, 7–8) cost most of a QA
+   run's tokens and need no judgment, so they go to **one foreground
+   executor subagent** in `qa` **Executor mode**, on the harness's
+   mid-tier model: Claude Code `model: "sonnet"`; elsewhere the advertised
+   model one tier below the session's, or inherited when the subagent tool
+   has no model selector. Its assignment carries the `qa` skill path, the
+   ticket id and absolute repo/ticket paths, the matrix path, the target
+   URL/env, the run number, the cases to run, and the browser session name you
+   chose and entered in the cleanup ledger. It edits no code, runs no git and
+   writes no gate or verdict; it returns only the Executor-mode block, and you
+   read its report file only for the failures you triage. After a fix (and
+   the review it re-opens), run a new executor on the failed and affected
+   cases plus the final primary-journey pass. Record the executor's model,
+   runs and report paths in the checkpoint. Run the whole QA in this session
+   only when the harness has no subagent tool or the executor cannot reach
+   the target, and record why. If the session lacks what a check needs (no
+   browser, no runnable target), the skill's named fallback applies and the
+   limitation is recorded; a missing capability is never a fabricated PASS.
 3. **Run one mutating gate at a time:** finish the current-session
    `review-pr --fix` pass and its fixes before starting `qa`. Never run
    either gate concurrently with implementation or with the other gate. The
@@ -498,7 +516,8 @@ On every terminal path — success, `NEEDS_CONTEXT`, `BLOCKED`, or a failed step
 that can still run cleanup — close owned resources and wait for exit before
 printing the status block. `qa`/`browse` must perform their own scoped
 finalizers; autopilot reads their `CLEANUP:` evidence and then closes anything
-started by other steps. Do not leave a server or browser running for review:
+started by other steps. A QA executor that returns without a `CLEANUP:` line
+(crash, timeout) leaves its named browser session and target to you. Do not leave a server or browser running for review:
 durable screenshots/logs are the handoff. Never use broad
 `pkill`/`killall`, `agent-browser close --all`, or simulator-wide shutdown for
 routine cleanup; preserve resources whose ownership is uncertain.

@@ -116,23 +116,6 @@ esac`)
 	}
 }
 
-func TestValidateLaunchReceiptRequiresMatchingEffectiveSettings(t *testing.T) {
-	raw := []byte(`{"ok":true,"result":{"dispatchId":"ctx-1","state":"ready","stage":"input_accepted","launch":{"effective":{"agent":"codex","hostId":"host-a","model":"tier-model","effort":"high"}}}}`)
-	got, err := ValidateLaunchReceipt(raw, LaunchRequest{AgentID: "codex", HostID: "host-a", Model: "tier-model", Effort: "high"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.DispatchID != "ctx-1" || got.Effective.Model == nil || *got.Effective.Model != "tier-model" {
-		t.Fatalf("receipt = %+v", got)
-	}
-	if _, err := ValidateLaunchReceipt(raw, LaunchRequest{AgentID: "codex", HostID: "host-a", Model: "other"}); err == nil {
-		t.Fatal("effective model mismatch was accepted")
-	}
-	if _, err := ValidateLaunchReceipt([]byte(`{"dispatchId":"ctx-1","state":"ready","stage":"input_accepted"}`), LaunchRequest{AgentID: "codex"}); err == nil {
-		t.Fatal("missing effective receipt was accepted")
-	}
-}
-
 func TestQuotaSnapshotsRequireAdvertisedCapability(t *testing.T) {
 	log := fakeOrca(t, `case "$1" in
   status) echo '{"ok":true,"result":{"runtime":{"reachable":true,"capabilities":["agent.discovery.v1"]}}}' ;;

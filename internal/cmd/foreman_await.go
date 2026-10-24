@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/2found/2build/internal/identity"
-	"github.com/2found/2build/internal/orca"
 	"github.com/2found/2build/internal/ticket"
 )
 
@@ -20,8 +19,8 @@ const foremanAwaitUsage = `Usage:
                     [--timeout <sec>] [--interval <sec>]
 
 Run by a Foreman phase worker, in its own session, between its plan checkpoint
-and its first edit. Blocks until every prerequisite phase has settled: its Orca
-Dispatch completed and its ticket passes readiness for review (or for push,
+and its first edit. Blocks until every prerequisite phase has settled: its
+Task's Dispatch completed and its ticket passes readiness for review (or for push,
 when the phase recorded deferred heavy checks in pointers.deferred_heavy).
 
 When every prerequisite is ready, their work (each a snapshot of the
@@ -35,8 +34,8 @@ Prints one PREREQ line per prerequisite and a final AWAIT line:
   AWAIT=not-ready  exit 3  a prerequisite settled without passing; report it
   AWAIT=timeout    exit 4  still running; run the same command again
 
-Orca being unreachable, or a readiness read failing fewer than three times in a
-row, is still waiting. --timeout defaults to 540 seconds so one call fits an agent's foreground
+A Task not dispatched yet, or a readiness read failing fewer than three times
+in a row, is still waiting. --timeout defaults to 540 seconds so one call fits an agent's foreground
 command limit; --interval (default 20) is the poll period.
 `
 
@@ -49,7 +48,6 @@ command limit; --interval (default 20) is the poll period.
 type prereq struct{ ticket, task string }
 
 const (
-	awaitCallTimeout       = 30 * time.Second
 	awaitReadinessAttempts = 3
 )
 
@@ -82,25 +80,6 @@ func foremanAwait(args []string) error {
 	if err != nil {
 		return err
 	}
-	// A runtime without Dispatch inspection can never answer; Orca merely
-	// being down (restarting, app relaunching) is a wait, not a failure.
-	var client *orca.Client
-	if c, err := orca.Preflight(); err == nil {
-		if !c.Orchestration() {
-			return fmt.Errorf("foreman await: %w", orca.ErrNoOrchestration)
-		}
-		client = c.WithCallTimeout(awaitCallTimeout)
-	}
-	connect := func() (*orca.Client, error) {
-		if client == nil {
-			c, err := orca.Preflight()
-			if err != nil {
-				return nil, err
-			}
-			client = c.WithCallTimeout(awaitCallTimeout)
-		}
-		return client, nil
-	}
 	primary := baseOpsPrimary("foreman await")
 	if primary == "" {
 		os.Exit(2)
@@ -109,7 +88,7 @@ func foremanAwait(args []string) error {
 	// watcher if it died, or nobody wakes the Foreman when the batch settles.
 	ensureWatcher()
 	env := resolveProject()
-	probe := liveProbe(connect, primary, env)
+	probe := liveProbe(primary, env)
 	adopt := func(heads []string) ([]string, error) {
 		dir := gitOutIn("", "rev-parse", "--show-toplevel")
 		if dir == "" {
@@ -243,7 +222,7 @@ func awaitPrereqs(prereqs []prereq, probe prereqProbe, adopt adoptFunc, timeout,
 		case "conflict":
 			fmt.Fprintln(out, "NEXT=resolve the conflict markers in each CONFLICT file (keep both sides' intent), then continue; never commit")
 		case "not-ready":
-			fmt.Fprintln(out, "NEXT=do not edit yet; report worker_done BLOCKED naming the prerequisite — Foreman sends this session a refresh when it is repaired")
+			fmt.Fprintln(out, "NEXT=do not edit yet; report `bbs foreman task done --outcome failed` (BLOCKED) naming the prerequisite — Foreman starts a refresh when it is repaired")
 		default:
 			fmt.Fprintln(out, "NEXT=run the same command again")
 		}
@@ -259,26 +238,22 @@ func describePrereq(s prereqState) string {
 	return d
 }
 
-// liveProbe reads one prerequisite's settlement: the Orca Dispatch first, so
+// liveProbe reads one prerequisite's settlement: its Task's Dispatch first, so
 // readiness is only judged once its worker has stopped writing, then the same
 // readiness evaluator land uses against the ticket's own worktree.
-func liveProbe(connect func() (*orca.Client, error), primary string, env identity.Env) prereqProbe {
+func liveProbe(primary string, env identity.Env) prereqProbe {
 	readinessErrors := map[string]int{}
 	return func(p prereq) prereqState {
-		c, err := connect()
-		if err != nil {
-			return prereqState{State: "waiting", Reason: "orca unreachable: " + firstLineOf(err.Error())}
-		}
-		d, err := c.DispatchStateFor(p.task)
+		id, status, err := taskDispatchState(p.task)
 		switch {
 		case err != nil:
-			return prereqState{State: "waiting", Reason: "dispatch unreadable: " + firstLineOf(err.Error())}
-		case d.ID == "":
+			return prereqState{State: "waiting", Reason: "task unreadable: " + firstLineOf(err.Error())}
+		case id == "":
 			return prereqState{State: "waiting", Reason: "not dispatched yet"}
-		case !dispatchTerminal(d.Status):
-			return prereqState{State: "waiting", Reason: "dispatch " + d.Status}
-		case d.Status != "completed":
-			return prereqState{State: "not-ready", Reason: "dispatch " + d.Status}
+		case !dispatchTerminal(status):
+			return prereqState{State: "waiting", Reason: "dispatch " + status}
+		case status != "completed":
+			return prereqState{State: "not-ready", Reason: "dispatch " + status}
 		}
 		ready, reasons, _, err := ticketV2Readiness(primary, env, p.ticket, "review")
 		if err != nil {
