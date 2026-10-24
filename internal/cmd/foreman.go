@@ -500,23 +500,8 @@ func foremanAdopt(args []string) error {
 	if err := applyForemanWorkers(&r, kv); err != nil {
 		return err
 	}
-	if term.Title != title {
-		if err := client.Rename(term.Handle, title); err != nil {
-			return err
-		}
-	}
-
-	r.Owner = currentUser()
-	r.ProjectDir = dir
-	r.WorkspaceDir = dir
-	r.WorkspaceRef = term.Handle
-	r.WorkspaceTitle = title
-	r.Agent = agentName
 	r.Auto = r.Auto || kv["auto"] == "1"
-	r.Status = "working"
-	r.Heartbeat = foreman.Now()
-	r.Unreachable = ""
-	if err := foreman.Save(r); err != nil {
+	if err := bindForemanTerminal(client, &r, term, dir, agentName); err != nil {
 		return err
 	}
 	// Check-in: the watcher is the out-of-session fallback for this foreman's
@@ -525,6 +510,73 @@ func foremanAdopt(args []string) error {
 	fmt.Printf("adopted %s in %s as %s\n", id, title, agentName)
 	fmt.Println(formatForemanWorkers(r))
 	return nil
+}
+
+// bindForemanTerminal points r at term: it names the terminal "bbs foreman <id>"
+// and saves the record. Adopt and the batch auto-rebind share it, so both
+// leave the same binding behind.
+func bindForemanTerminal(client *orca.Client, r *foreman.Record, term orca.Terminal, dir, agentName string) error {
+	title := "bbs foreman " + r.ID
+	if term.Title != title {
+		if err := client.Rename(term.Handle, title); err != nil {
+			return err
+		}
+	}
+	r.Owner = currentUser()
+	r.ProjectDir = dir
+	r.WorkspaceDir = dir
+	r.WorkspaceRef = term.Handle
+	r.WorkspaceTitle = title
+	r.Agent = agentName
+	r.Status = "working"
+	r.Heartbeat = foreman.Now()
+	r.Unreachable = ""
+	return foreman.Save(*r)
+}
+
+// rebindForemanToCurrent runs from the Foreman's own terminal (`foreman batch`).
+// After an Orca restart the record still names a dead terminal and the watcher
+// skips it; the live terminal re-binds it here. A recorded terminal that is
+// still open and is a different one is never stolen.
+func rebindForemanToCurrent(client *orca.Client, r foreman.Record) foreman.Record {
+	h := os.Getenv("ORCA_TERMINAL_HANDLE")
+	if h == "" || h == r.WorkspaceRef || r.ManualCommand {
+		return r
+	}
+	terms, err := client.Terminals()
+	if err != nil {
+		return r
+	}
+	for _, t := range terms {
+		if (r.WorkspaceRef != "" && t.Handle == r.WorkspaceRef) || (r.WorkspaceTitle != "" && t.Title == r.WorkspaceTitle) {
+			if t.Handle != h {
+				fmt.Printf("warning: foreman %s is bound to another open Orca terminal (%s); not rebinding — run `bbs foreman adopt %s` there or retire it\n", r.ID, t.Handle, r.ID)
+			}
+			return r
+		}
+	}
+	term, err := client.CurrentTerminal()
+	if err != nil {
+		return r
+	}
+	agentName := agent.Normalize(r.Agent)
+	if agentName == "" || agentName == "unknown" {
+		agentName = agent.Normalize(term.AgentIdentity)
+	}
+	if agentName == "" || agentName == "unknown" {
+		agentName = agent.Normalize(agent.Detect().Agent)
+	}
+	dir := r.ProjectDir
+	if dir == "" {
+		dir = term.WorktreePath
+	}
+	nr := r
+	if err := bindForemanTerminal(client, &nr, term, dir, agentName); err != nil {
+		fmt.Printf("warning: foreman %s could not rebind to this terminal: %v\n", r.ID, err)
+		return r
+	}
+	fmt.Printf("rebound foreman %s to this Orca terminal (%s); the old one was closed\n", r.ID, term.Handle)
+	return nr
 }
 
 func foremanHeartbeat(args []string) error {

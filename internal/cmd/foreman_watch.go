@@ -82,6 +82,9 @@ type watchState struct {
 	// Stalled records that the budget ran out and was reported, so the loop says
 	// it once rather than every interval.
 	Stalled bool `json:"stalled,omitempty"`
+	// OrphanWarned is the batch id whose ORPHANED-BATCH line was printed, so
+	// the loop says it once per batch rather than every interval.
+	OrphanWarned string `json:"orphan_warned,omitempty"`
 }
 
 type watchOpts struct {
@@ -340,7 +343,11 @@ func foremanWatch(args []string) (err error) {
 		if err != nil {
 			return err
 		}
-		if len(targets) == 0 {
+		orphans := orphanedBatchLines(targets, id)
+		for _, line := range orphans {
+			fmt.Println(line)
+		}
+		if len(targets) == 0 && len(orphans) == 0 && !anyOpenBatch(id) {
 			// Nothing to watch is a terminal condition, not an error: the
 			// foreman finished and its terminal closed, which is the outcome
 			// the batch was aiming for. This is also the check-out half of the
@@ -407,6 +414,42 @@ func ensureWatcher() {
 	}
 	release()
 	spawnWatcher()
+}
+
+// orphanedBatchLines names foremen that handed over a batch but whose terminal
+// is not open, so watchTargets skipped them: without it their wake never comes
+// and nothing says why. One line per batch, remembered in the watch state.
+func orphanedBatchLines(targets []foreman.Record, id string) []string {
+	watched := map[string]bool{}
+	for _, t := range targets {
+		watched[t.ID] = true
+	}
+	var records []foreman.Record
+	if id != "" {
+		if r, err := foreman.Load(id); err == nil {
+			records = []foreman.Record{r}
+		}
+	} else {
+		records = foreman.List()
+	}
+	var lines []string
+	for _, r := range records {
+		if watched[r.ID] || r.ManualCommand || strings.EqualFold(r.Status, "done") {
+			continue
+		}
+		b, ok := loadBatch(r.ID)
+		if !ok || !b.open() {
+			continue
+		}
+		s := watchLoad(r.ID)
+		if s.OrphanWarned == b.ID {
+			continue
+		}
+		s.OrphanWarned = b.ID
+		watchSave(r.ID, s)
+		lines = append(lines, fmt.Sprintf("ORPHANED-BATCH foreman=%s batch=%s — its Orca terminal is not open, so the batch is not watched; run `bbs foreman adopt %s` from the Foreman's terminal", r.ID, b.ID, r.ID))
+	}
+	return lines
 }
 
 // watchTargets is the set to poll: one named foreman, or every registered one

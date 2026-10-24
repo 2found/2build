@@ -100,6 +100,9 @@ parks the one ticket or phase that needs it while independent work continues.
   `bbs foreman next` names the first unmet step; continue it without
   replacing live workers or replaying completed work
   ([runtime](references/runtime.md) for cold recovery).
+  After an Orca restart `bbs foreman batch` rebinds a dead terminal binding
+  itself; `bbs foreman adopt <id>` is the manual fix (the watcher prints
+  `ORPHANED-BATCH` when it is needed).
 
 ## The wake loop
 

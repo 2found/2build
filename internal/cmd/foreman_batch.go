@@ -196,6 +196,7 @@ func foremanBatchCommand(args []string) error {
 	if !c.Orchestration() {
 		return fmt.Errorf("foreman batch: %w", orca.ErrNoOrchestration)
 	}
+	r = rebindForemanToCurrent(c, r)
 	prev, _ := loadBatch(id)
 	carried := map[string]batchMember{}
 	if prev.open() {

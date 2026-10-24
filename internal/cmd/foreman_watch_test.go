@@ -591,3 +591,33 @@ func callLog(t *testing.T, path string) string {
 	}
 	return string(b)
 }
+
+// A Foreman whose terminal is gone but whose batch is open is reported, once
+// per batch, instead of being skipped in silence.
+func TestWatchReportsOrphanedBatchOnce(t *testing.T) {
+	client, r, _, _ := watchFixture(t)
+	r.ID, r.WorkspaceRef, r.WorkspaceTitle = "fm-orphan", "term_dead", "bbs gone"
+	if err := foreman.Save(r); err != nil {
+		t.Fatal(err)
+	}
+	if err := saveBatch(r.ID, foremanBatch{ID: "fm-orphan-1", Tasks: []batchMember{{Task: "t1"}}}); err != nil {
+		t.Fatal(err)
+	}
+	targets, err := watchTargets(client, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := orphanedBatchLines(targets, "")
+	if len(lines) != 1 || !strings.HasPrefix(lines[0], "ORPHANED-BATCH foreman=fm-orphan batch=fm-orphan-1") || !strings.Contains(lines[0], "bbs foreman adopt fm-orphan") {
+		t.Fatalf("got %q", lines)
+	}
+	if again := orphanedBatchLines(targets, ""); len(again) != 0 {
+		t.Fatalf("repeated for the same batch: %q", again)
+	}
+	if err := saveBatch(r.ID, foremanBatch{ID: "fm-orphan-2", Tasks: []batchMember{{Task: "t1"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if next := orphanedBatchLines(targets, ""); len(next) != 1 {
+		t.Fatalf("a new batch should warn again: %q", next)
+	}
+}

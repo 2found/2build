@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/orca"
 )
 
 // fakeOrcaFor stands up a stub `orca` and returns its call log plus the file
@@ -757,5 +758,53 @@ func TestResumeKeepsTheRecordedDirWhenNoneIsGiven(t *testing.T) {
 	rec, _ := foreman.Load("fm-a")
 	if rec.WorkspaceDir != bound {
 		t.Errorf("resume re-pointed the foreman: %q, want %q", rec.WorkspaceDir, bound)
+	}
+}
+
+// After an Orca restart the record names a dead terminal; the batch handover,
+// which runs inside the live Foreman terminal, rebinds it like adopt does.
+func TestBatchRebindsForemanWithDeadBinding(t *testing.T) {
+	log, _ := fakeOrcaFor(t, "active agent")
+	setFakeCurrent(t, log, "claude", "/repo")
+	t.Setenv("ORCA_TERMINAL_HANDLE", "term_current")
+	if err := foreman.Save(foreman.Record{ID: "fm-dead", Agent: "claude", ProjectDir: "/repo", WorkspaceDir: "/repo",
+		WorkspaceRef: "term_dead", WorkspaceTitle: "bbs foreman fm-dead"}); err != nil {
+		t.Fatal(err)
+	}
+	client, err := orca.Preflight()
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, _ := foreman.Load("fm-dead")
+	var got foreman.Record
+	out := captureStdout(t, func() { got = rebindForemanToCurrent(client, r) })
+	if got.WorkspaceRef != "term_current" || !strings.Contains(out, "rebound foreman fm-dead") {
+		t.Fatalf("not rebound: %+v\n%s", got, out)
+	}
+	if saved, _ := foreman.Load("fm-dead"); saved.WorkspaceRef != "term_current" || saved.WorkspaceTitle != "bbs foreman fm-dead" {
+		t.Fatalf("rebind not persisted: %+v", saved)
+	}
+}
+
+func TestBatchKeepsLiveBindingOfAnotherTerminal(t *testing.T) {
+	log, _ := fakeOrcaFor(t, "bbs foreman fm-live")
+	setFakeCurrent(t, log, "claude", "/repo")
+	t.Setenv("ORCA_TERMINAL_HANDLE", "term_current")
+	if err := foreman.Save(foreman.Record{ID: "fm-live", Agent: "claude", ProjectDir: "/repo",
+		WorkspaceRef: "term_0", WorkspaceTitle: "bbs foreman fm-live"}); err != nil {
+		t.Fatal(err)
+	}
+	client, err := orca.Preflight()
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, _ := foreman.Load("fm-live")
+	var got foreman.Record
+	out := captureStdout(t, func() { got = rebindForemanToCurrent(client, r) })
+	if got.WorkspaceRef != "term_0" || !strings.Contains(out, "warning") {
+		t.Fatalf("stole a live binding or stayed silent: %+v\n%s", got, out)
+	}
+	if strings.Contains(readCalls(t, log), "terminal rename") {
+		t.Fatal("renamed a terminal it must not touch")
 	}
 }
