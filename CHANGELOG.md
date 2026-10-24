@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.106.0 — 2026-10-25
+
+### Fixed
+
+- **Foreman rebinds a dead terminal on batch handover** — when a batch is handed
+  to a new coordinator whose recorded terminal no longer exists, Foreman rebinds
+  to a live one instead of stalling, and the watcher reports `ORPHANED-BATCH`
+  when it finds a batch with no live owner.
+- **A settled worker whose terminal was lost in an Orca restart counts as cleaned
+  up** — Orca reports such a dispatch as `release_unknown`, which made finish
+  readiness refuse forever. A completed or failed dispatch has nothing left to
+  run, so it now counts as exited like retained/released.
+
 ## 1.105.0 — 2026-10-24
 
 ### Changed
