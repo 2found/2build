@@ -34,7 +34,8 @@ func TestExitedWorkersReadsEveryPageInExplicitRun(t *testing.T) {
 }
 
 // A settled dispatch whose terminal was reused by a later dispatch (retained)
-// or already closed (released) has no liveness row left to read — its
+// or already closed (released), or lost in an Orca restart (release_unknown),
+// has no liveness row left to read — its
 // projection is unverifiable forever even though the dispatch itself is done.
 // Those workers count as exited; live and genuinely unverifiable active
 // workers still block foreman finish readiness.
@@ -45,6 +46,9 @@ func TestExitedWorkersCountsSettledDispatchWithGoneTerminal(t *testing.T) {
 	}{
 		{name: "completed retained terminal", status: "completed", terminal: "retained", verdict: "unverifiable", exited: true},
 		{name: "failed released terminal", status: "failed", terminal: "released", verdict: "unverifiable", exited: true},
+		{name: "completed terminal lost in Orca restart", status: "completed", terminal: "release_unknown", verdict: "unverifiable", exited: true},
+		{name: "failed terminal lost in Orca restart", status: "failed", terminal: "release_unknown", verdict: "unverifiable", exited: true},
+		{name: "active dispatch with lost terminal", status: "dispatched", terminal: "release_unknown", verdict: "unverifiable"},
 		{name: "live worker", status: "dispatched", terminal: "active", verdict: "live"},
 		{name: "unverifiable active worker", status: "dispatched", terminal: "active", verdict: "unverifiable"},
 		{name: "settled dispatch in live terminal", status: "completed", terminal: "active", verdict: "live"},

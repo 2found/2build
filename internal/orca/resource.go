@@ -82,8 +82,11 @@ func (c *Client) Workers(run string) ([]Worker, error) {
 			// (retained) or already closed (released) cannot still be running:
 			// its liveness row is gone with the terminal, which projects as
 			// "unverifiable" even though the dispatch itself is completed.
+			// release_unknown is the same case after an Orca restart: the
+			// recorded terminal no longer resolves, so release cannot prove the
+			// process gone, but a settled dispatch has nothing left to run.
 			settled := worker.DispatchStatus == "completed" || worker.DispatchStatus == "failed"
-			terminalGone := worker.TerminalState == "retained" || worker.TerminalState == "released"
+			terminalGone := worker.TerminalState == "retained" || worker.TerminalState == "released" || worker.TerminalState == "release_unknown"
 			// A context-only Dispatch (native-terminal launch) is always
 			// retained with no resource row while its agent still works, so
 			// only a released or user-taken-over terminal loses its handle.
