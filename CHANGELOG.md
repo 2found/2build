@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.108.1 — 2026-10-25
+
+### Added
+
+- **`todo.md`** — backlog for re-measuring Foreman token cost after the
+  prompt-cache changes, with the baseline pointer and expected metrics.
+
 
 ## 1.108.0 — 2026-10-25
 
