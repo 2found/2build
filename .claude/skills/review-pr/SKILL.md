@@ -8,8 +8,9 @@ How to execute:
 1. Resolve the effort level and flags from the invocation (§0).
 2. Take that level's template from §2 and expand every `<…>` reference into the
    matching fragment from §1 (and the §3 appendix for each flag that was set).
-3. Append §4's babysit decision adapter to the assembled prompt for medium
-   effort and above (low keeps its two-turn hunk-only contract).
+3. Append §4's babysit decision adapter and §5's subagent model routing to the
+   assembled prompt for medium effort and above (low keeps its two-turn
+   hunk-only contract).
 4. Send the assembled prompt **word for word** — never paraphrase, summarize,
    reorder, or "improve" it. These strings are tuned; edits change behavior.
 
@@ -367,4 +368,26 @@ and verification gaps to choose deepen/sufficient. A deepen choice adds one
 focused check for the named gap; unresolved material findings still block.
 Use the calling LLM for the default provider and for Cloudflare failures or
 uncertainty. Do not change user configuration or execution permissions.
+```
+
+## 5. Subagent model routing (medium and above)
+
+Append this policy after §4. It sets only the model the subagent tool runs
+each subagent on; the angle prompts stay word for word. Tiers are relative to
+the models the harness advertises, so the policy is harness-neutral.
+
+```text
+Subagent model routing. When you launch a subagent, pick its model tier by
+role:
+- light — Reuse, Simplification, Efficiency and Conventions finders.
+- mid — correctness angles (A–E), the Altitude finder, every Phase 2 verifier
+  and the sweep finder.
+The final synthesis and any --fix edits stay in this session.
+light is the smallest model the subagent tool advertises; mid is the tier
+between it and the top tier (Claude Code: model "haiku" / "sonnet"). Never
+route above this session's model: if the session already runs at or below a
+tier, inherit. When the subagent tool has no model selector, or advertises a
+single model, inherit for every role. Never let routing drop a finder or a
+vote: if a routed model is unavailable, rerun that subagent on the inherited
+model.
 ```

@@ -476,13 +476,14 @@ func TestWatchTargetsSkipClosedWorkspaces(t *testing.T) {
 
 func TestWatchOptsDefaultsAndValidation(t *testing.T) {
 	// watchOptsFrom reads foreman_status_interval from the global config, so
-	// isolate it: no file means the documented 3600-second default.
+	// isolate it: no file means the documented 3300-second default, just
+	// inside a one-hour prompt cache.
 	t.Setenv("BABYSIT_STATE_DIR", t.TempDir())
 	o, err := watchOptsFrom(map[string]string{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o.idle != time.Hour || o.interval != time.Minute || o.statusInterval != time.Hour || o.nudge != "check status" || o.maxNudges != 3 {
+	if o.idle != 55*time.Minute || o.interval != time.Minute || o.statusInterval != 55*time.Minute || o.nudge != "check status" || o.maxNudges != 3 {
 		t.Errorf("unexpected defaults: %+v", o)
 	}
 	o, err = watchOptsFrom(map[string]string{"idle": "90", "status-interval": "45", "nudge": "status?", "once": "1"})
@@ -549,7 +550,7 @@ func TestWatchDefaultWaitDoesNotNudgeBeforeReminder(t *testing.T) {
 	}
 	now := time.Now()
 	watchTick(client, r, o, now)
-	for _, elapsed := range []time.Duration{10 * time.Minute, 30 * time.Minute, 59 * time.Minute} {
+	for _, elapsed := range []time.Duration{10 * time.Minute, 30 * time.Minute, 54 * time.Minute} {
 		if line := watchTick(client, r, o, now.Add(elapsed)); line != "" {
 			t.Fatalf("quiet wait triggered early audit at %s: %s", elapsed, line)
 		}
@@ -557,8 +558,8 @@ func TestWatchDefaultWaitDoesNotNudgeBeforeReminder(t *testing.T) {
 	if strings.Contains(callLog(t, log), "terminal send") {
 		t.Fatal("quiet wait sent an early status prompt")
 	}
-	if line := watchTick(client, r, o, now.Add(time.Hour)); !strings.HasPrefix(line, "NUDGED") {
-		t.Fatalf("expected hourly reminder, got %q", line)
+	if line := watchTick(client, r, o, now.Add(55*time.Minute)); !strings.HasPrefix(line, "NUDGED") {
+		t.Fatalf("expected the reminder inside the hour cache, got %q", line)
 	}
 }
 

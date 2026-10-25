@@ -12,6 +12,7 @@ import (
 	"github.com/2found/2build/internal/agent"
 	"github.com/2found/2build/internal/foreman"
 	"github.com/2found/2build/internal/orca"
+	"github.com/2found/2build/internal/ticket"
 )
 
 const foremanTaskUsage = `Usage:
@@ -22,6 +23,7 @@ const foremanTaskUsage = `Usage:
   bbs foreman task list [<foreman-id>] [--open]
   bbs foreman task done <task> --outcome succeeded|failed --summary <text>
                         [--dispatch <id>] [--report-path <path>] [--files-modified <a,b>]
+                        [--no-gate <why>]
   bbs foreman task ask <task> (--body <question> | --resume <question-id>) [--timeout <sec>]
   bbs foreman task answer <task> --id <question-id> (--body <text> | --body-file <path>)
   bbs foreman task abandon <task> --reason <text>
@@ -31,8 +33,13 @@ Dispatch. bbs keeps both on disk: Orca only hosts the worker's terminal.
 launch starts the agent with ` + "`orca agent launch`" + ` (or types the assignment into
 --terminal, a live session or one you created with ` + "`orca terminal create`" + `) and
 records the launch evidence on the ticket. The worker reports with done, asks
-with ask (it blocks until answered or --timeout, default 540s), and sends
-nothing else.
+with ask (it blocks until answered or --timeout, default 540s, capped below
+the prompt-cache TTL), and sends nothing else.
+
+A succeeded done for a ticket-session kind (ticket, repair, refresh,
+redirect) is refused until the ticket passes readiness (review, or light when
+heavy checks are deferred), so a missing gate is fixed by the warm session
+that owns it, not by a cold follow-up. --no-gate <why> reports anyway.
 `
 
 // taskWorkerExitGrace keeps a just-launched worker whose agent Orca has not
@@ -271,6 +278,9 @@ func printTask(t foreman.Task) {
 		if d.Reason != "" {
 			line += " REASON=" + strconv.Quote(d.Reason)
 		}
+		if d.Gate != "" {
+			line += " GATE=" + strconv.Quote(d.Gate)
+		}
 	} else {
 		line += " STATUS=pending"
 	}
@@ -310,6 +320,10 @@ func foremanTaskDone(args []string) error {
 			return fmt.Errorf("foreman task done: --report-path: %w", err)
 		}
 	}
+	gate, err := taskDoneGateFor(id, kv)
+	if err != nil {
+		return err
+	}
 	t, err := foreman.UpdateTask(id, func(t *foreman.Task) error {
 		d := t.Current()
 		if kv["dispatch"] != "" {
@@ -325,6 +339,9 @@ func foremanTaskDone(args []string) error {
 			return err
 		}
 		d.Summary, d.ReportPath = kv["summary"], kv["report-path"]
+		if gate != "" {
+			d.Gate = gate
+		}
 		if files := kv["files-modified"]; files != "" {
 			d.FilesModified = strings.Split(files, ",")
 		}
@@ -338,12 +355,69 @@ func foremanTaskDone(args []string) error {
 	return nil
 }
 
+// gatedTaskKinds are the Task kinds that end a ticket session: their worker
+// owns the ticket's gates, so it reports success only once they pass.
+var gatedTaskKinds = map[string]bool{"ticket": true, "repair": true, "refresh": true, "redirect": true}
+
+// taskDoneGate judges a ticket's readiness for task done: "ready",
+// "light-ready", or "" with reasons. Tests replace it.
+var taskDoneGate = func(t string) (string, []string, error) {
+	primary := baseOpsPrimary("foreman task done")
+	if primary == "" {
+		return "", nil, fmt.Errorf("no primary checkout")
+	}
+	env, err := ticket.ResolveProject()
+	if err != nil {
+		return "", nil, err
+	}
+	ready, reasons, _, err := ticketV2Readiness(primary, env, t, "review")
+	if err != nil {
+		return "", nil, err
+	}
+	state, reasons := ticketReportState(primary, env, t, ready, reasons)
+	return state, reasons, nil
+}
+
+// taskDoneGateFor returns the gate verdict to record on a succeeded report,
+// or refuses it while the ticket is not ready. A retried report for an
+// already-settled Dispatch is not judged again, and a readiness read that
+// fails is recorded as unverified rather than blocking the report.
+func taskDoneGateFor(id string, kv map[string]string) (string, error) {
+	if kv["outcome"] != "succeeded" {
+		return "", nil
+	}
+	t, err := foreman.LoadTask(id)
+	if err != nil {
+		return "", fmt.Errorf("foreman task done: %w", err)
+	}
+	if !gatedTaskKinds[t.Kind] || t.Ticket == "" {
+		return "", nil
+	}
+	if d := t.Current(); d != nil && foreman.DispatchSettled(d.Status) {
+		return "", nil
+	}
+	if why := strings.TrimSpace(kv["no-gate"]); why != "" {
+		return "skipped: " + why, nil
+	}
+	state, reasons, err := taskDoneGate(t.Ticket)
+	switch {
+	case err != nil:
+		return "unverified: " + firstLineOf(err.Error()), nil
+	case state != "":
+		return state, nil
+	}
+	fmt.Println("GATE=not-ready")
+	fmt.Println("REASONS=" + strings.Join(reasons, ","))
+	fmt.Println("NEXT=you still hold this ticket's context: record the missing gates (review-pr, qa) on the final tree and run done again; --no-gate \"<why>\" only when a gate cannot apply, --outcome failed when the work did not land")
+	return "", fmt.Errorf("foreman task done: ticket %s is not ready: %s", t.Ticket, strings.Join(reasons, ","))
+}
+
 func foremanTaskAsk(args []string) error {
 	id, kv, err := taskArgs("ask", args)
 	if err != nil {
 		return err
 	}
-	timeout, err := awaitSeconds(kv, "timeout", 540)
+	timeout, err := awaitSeconds(kv, "timeout", blockingWaitSeconds())
 	if err != nil {
 		return err
 	}

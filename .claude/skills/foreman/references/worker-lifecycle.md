@@ -17,7 +17,9 @@ terminal and worktree: there is no orchestration skill to load, no Run to
 join, and no heartbeat.
 
 - **Ask** with `bbs foreman task ask <task> --body "<question>"`; no
-  `AskUserQuestion` in a worker. It blocks until Foreman answers (default 540s).
+  `AskUserQuestion` in a worker. It blocks until Foreman answers (default 540s,
+  shorter for an agent whose prompt cache lives five minutes, so each re-run
+  resumes warm).
   Exit 4 with `QUESTION_PENDING=<id>` leaves the question pending: keep
   waiting with `--resume <id>`, never a new ask. Ask only for a decision
   outside the accepted plan or assignment (an `L` plan review, an out-of-plan
@@ -32,7 +34,12 @@ join, and no heartbeat.
   for DONE/DONE_WITH_CONCERNS, `failed` when ending as BLOCKED/NEEDS_CONTEXT.
   A pending ask is not a report. `--report-path` / `--files-modified` name
   real artifacts. A retried identical report is harmless; a contradicting one
-  is refused.
+  is refused. For a ticket session (Task kind `ticket`, `repair`, `refresh`,
+  `redirect`) a `succeeded` report is refused with `GATE=not-ready` and the
+  missing readiness reasons until the ticket passes readiness: you still hold
+  the context, so record the missing gates (`review-pr`, `qa`) on the final
+  tree and report again. `--no-gate "<why>"` only for a gate that cannot
+  apply; `--outcome failed` when the work did not land.
 - A `Continue Task <id>` prompt is the watcher's idle nudge: resume the
   assignment, or run its pending `task done` if it is already complete.
 - A worker is shut down when it reports (the watcher closes its terminal at
@@ -44,8 +51,9 @@ join, and no heartbeat.
   durable state the follow-up names, and never report for a settled Dispatch.
 - After reporting, end the turn and idle. Foreman reads
   `bbs ticket verdict-status`; the report does not substitute for a verdict.
-  A `task done` error is a reporting failure: keep the artifacts and return
-  the shared preamble's structured NEEDS_CONTEXT, never invent a Dispatch.
+  Any other `task done` error is a reporting failure: keep the artifacts and
+  return the shared preamble's structured NEEDS_CONTEXT, never invent a
+  Dispatch.
 
 The `worker-report-gate` Stop hook blocks a Stop while a Dispatch launched
 into this terminal is still open (or its question is unanswered) and names

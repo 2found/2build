@@ -86,7 +86,7 @@ const foremanUsage = `Usage:
                     [--status-interval <sec>] [--nudge <text>] [--max-nudges <n>] [--once]
                     [--worker-idle <sec>] [--worker-nudges <n>] [--attention-window <sec>]
                     [--supervised]
-                    (--status-interval defaults to config foreman_status_interval, 3600;
+                    (--status-interval defaults to config foreman_status_interval, 3300;
                      --attention-window, default 120: early wakes arriving within it share one;
                      --supervised: the launchd/systemd form — stands by behind a running
                      watcher and exits 0 once no batch is open)

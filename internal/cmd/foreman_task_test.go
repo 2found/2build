@@ -44,14 +44,14 @@ else:
 	return "fm-task", log
 }
 
-func createTask(t *testing.T, foremanID string) string {
+func createTask(t *testing.T, foremanID string, extra ...string) string {
 	t.Helper()
 	spec := filepath.Join(t.TempDir(), "spec.md")
 	if err := os.WriteFile(spec, []byte("Run autopilot for bs-child.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	out := captureStdout(t, func() {
-		if err := foremanTask([]string{"create", foremanID, "--ticket", "bs-child", "--spec-file", spec}); err != nil {
+		if err := foremanTask(append([]string{"create", foremanID, "--ticket", "bs-child", "--spec-file", spec}, extra...)); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -111,6 +111,81 @@ func TestForemanTaskLaunchAndReport(t *testing.T) {
 	}
 	if id, status, _ := taskDispatchState(task); id != task+".d1" || status != foreman.DispatchCompleted {
 		t.Fatalf("state = %s %s", id, status)
+	}
+}
+
+// A ticket session reports success only once its ticket passes readiness, so
+// the warm worker records a missing gate instead of a cold follow-up. Other
+// kinds, failures, --no-gate and an unreadable gate are not blocked.
+func TestForemanTaskDoneGatesTicketSessions(t *testing.T) {
+	fm, _ := taskFixture(t)
+	verdict, reasons, gateErr := "", []string{"missing_review"}, error(nil)
+	old := taskDoneGate
+	taskDoneGate = func(string) (string, []string, error) { return verdict, reasons, gateErr }
+	t.Cleanup(func() { taskDoneGate = old })
+	launch := func(task string) {
+		captureStdout(t, func() {
+			if err := foremanTask([]string{"launch", task, "--agent", "codex", "--worktree", t.TempDir()}); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	done := func(task string, extra ...string) (string, error) {
+		var err error
+		out := captureStdout(t, func() {
+			err = foremanTask(append([]string{"done", task, "--outcome", "succeeded", "--summary", "s"}, extra...))
+		})
+		return out, err
+	}
+	gateOf := func(task string) string {
+		tk, _ := foreman.LoadTask(task)
+		return tk.Current().Gate
+	}
+
+	task := createTask(t, fm, "--kind", "ticket")
+	launch(task)
+	out, err := done(task)
+	if err == nil || !strings.Contains(out, "GATE=not-ready") || !strings.Contains(out, "REASONS=missing_review") {
+		t.Fatalf("not-ready done: %v %q", err, out)
+	}
+	if id, status, _ := taskDispatchState(task); status != foreman.DispatchOpen {
+		t.Fatalf("refused done settled %s as %s", id, status)
+	}
+	verdict = "light-ready"
+	if _, err := done(task); err != nil || gateOf(task) != "light-ready" {
+		t.Fatalf("ready done: %v gate=%q", err, gateOf(task))
+	}
+	// A retry for the settled Dispatch is not judged again.
+	verdict = ""
+	if _, err := done(task); err != nil {
+		t.Fatalf("retried done: %v", err)
+	}
+
+	skipped := createTask(t, fm, "--kind", "repair")
+	launch(skipped)
+	if _, err := done(skipped, "--no-gate", "docs only"); err != nil || gateOf(skipped) != "skipped: docs only" {
+		t.Fatalf("no-gate done: %v gate=%q", err, gateOf(skipped))
+	}
+
+	unverified := createTask(t, fm, "--kind", "refresh")
+	launch(unverified)
+	gateErr = os.ErrNotExist
+	if _, err := done(unverified); err != nil || !strings.HasPrefix(gateOf(unverified), "unverified: ") {
+		t.Fatalf("unreadable gate: %v gate=%q", err, gateOf(unverified))
+	}
+	gateErr = nil
+
+	for _, extra := range [][]string{{"--kind", "phase-qa"}, nil} {
+		other := createTask(t, fm, extra...)
+		launch(other)
+		if _, err := done(other); err != nil || gateOf(other) != "" {
+			t.Fatalf("ungated kind %v: %v gate=%q", extra, err, gateOf(other))
+		}
+	}
+	failed := createTask(t, fm, "--kind", "ticket")
+	launch(failed)
+	if err := foremanTask([]string{"done", failed, "--outcome", "failed", "--summary", "x"}); err != nil {
+		t.Fatalf("failed done: %v", err)
 	}
 }
 
@@ -207,5 +282,26 @@ func seedTask(t *testing.T, id, dispatch, status, terminal string, launched time
 	data, _ := json.Marshal(task)
 	if err := os.WriteFile(filepath.Join(dir, "task.json"), data, 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A settled batch member's line carries its report, so Foreman reads a whole
+// wake from one batch show; a running member carries none.
+func TestBatchLineCarriesTheSettledReport(t *testing.T) {
+	taskFixture(t)
+	seedTask(t, "task-r", "task-r.d1", foreman.DispatchCompleted, "term_r", time.Now())
+	if _, err := foreman.UpdateTask("task-r", func(tk *foreman.Task) error {
+		tk.Kind = "ticket"
+		tk.Current().Summary, tk.Current().Gate = "built it", "ready"
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got := settledReport(batchMember{Task: "task-r", Dispatch: "task-r.d1", Status: foreman.DispatchCompleted})
+	if got != ` TICKET=bs-a KIND=ticket GATE="ready" SUMMARY="built it"` {
+		t.Fatalf("settled line = %q", got)
+	}
+	if got := settledReport(batchMember{Task: "task-r", Dispatch: "task-r.d1", Status: foreman.DispatchOpen}); got != "" {
+		t.Fatalf("running line = %q", got)
 	}
 }

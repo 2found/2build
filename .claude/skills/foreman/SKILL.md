@@ -21,27 +21,53 @@ requirement → basic design ⇒ human review → phase 1: tickets ∥ → integ
 
 ## Two hard rules: they are what makes this cheap
 
-1. **Wake rarely.** Every wake re-reads your whole context, so wakes — not
-   worker count — dominate cost. Launch a phase's tickets as one batch, hand it
-   to `bbs foreman batch` and **end the turn**. The watcher wakes you once when
-   the whole batch has settled; early only for what cannot wait (an `L` plan
-   review, a worker question, a worker that exited, stalled or was lost), and
-   attention arriving close together shares one wake. Never poll, wait in a
-   loop or check on workers in between. Workers report to bbs, not to you
-   (`bbs foreman task done` / `task ask`), and send no status messages
+Token cost is context size × turns, discounted by the prompt cache: a turn
+that resumes inside the cache lifetime (one hour for Claude Code, five minutes
+for most others; config `foreman_cache_ttl`) reads its whole context at a
+tenth of the input price, and one that resumes after it, or in a fresh
+session, pays for the whole context again at up to twice the price. Both rules
+keep work on warm context.
+
+1. **Wake rarely, and warm.** Every wake re-reads your whole context, so wakes
+   — not worker count — dominate cost. Launch a phase's tickets as one batch,
+   hand it to `bbs foreman batch` and **end the turn**. The watcher wakes you
+   once when the whole batch has settled; early only for what cannot wait (an
+   `L` plan review, a worker question, a worker that exited, stalled or was
+   lost), and attention arriving close together shares one wake. Never poll,
+   wait in a loop or check on workers in between. Workers report to bbs, not
+   to you (`bbs foreman task done` / `task ask`), and send no status messages
    ([worker-lifecycle.md](references/worker-lifecycle.md)); there is no
-   mailbox to drain or acknowledge.
-2. **One ticket is one worker session.** A single autopilot Dispatch runs the
-   ticket's whole loop — plan, plan approval, await and adopt prerequisites,
-   implement, review, QA — on one model without stopping between steps.
-   Questions and plan reviews go to the live session while it works. Never
-   split a ticket's steps across agents: a fresh worker re-reads requirement,
-   plan, code and history on a cold prompt cache. Prefer fewer, larger tickets
-   (`M`–`L`) for the same reason. The session ends when it reports done: the
-   watcher closes its terminal as soon as the Dispatch settles (an idle agent
-   costs memory and, after about 54 minutes, tokens in auto-compaction), so a
-   follow-up (repair, refresh, redirect) for a finished ticket goes to a
-   **fresh** session in the same worktree.
+   mailbox to drain or acknowledge. Through a long batch the watcher types a
+   one-line **keep-warm** before your cache expires: reply `ok` and end the
+   turn, with no command. Inside a wake every tool call is another full read
+   of your context, so chain commands into as few calls as the work allows.
+2. **One context, one session.** A worker session pays once to load its
+   context — requirement, plan, the code it touches — and every later turn
+   reads it from cache. A new session pays that load again: in measured runs
+   (2026-10) each extra ticket or follow-up cost about 2M input-equivalent
+   tokens (ramp-up, its own review subagents and QA) against about 6M for a
+   median whole ticket. So:
+   - A single autopilot Dispatch runs a ticket's whole loop — plan, plan
+     approval, await and adopt prerequisites, implement, review, QA — on one
+     model without stopping between steps. Questions and plan reviews go to
+     the live session while it works. Never split a ticket's steps across
+     agents.
+   - **Split by context, not by size.** Work on one module, one set of files
+     or one interface still being shaped is one ticket and one long session,
+     even when it is large: auto-compaction carries a long session, nothing
+     carries a cold one. Split only where contexts are disjoint, joined by an
+     interface frozen before either side starts
+     ([topology](references/topology.md#split-by-context)). Couplings cost
+     sessions: in the same runs half the tickets needed a second session to
+     refresh or repair against a sibling that edited the same files.
+   - The session ends when it reports done: the watcher closes its terminal as
+     soon as the Dispatch settles (an idle agent costs memory and, after about
+     54 minutes, tokens in auto-compaction). So its gates must pass while it is
+     still warm — `bbs foreman task done` refuses a ticket session (`--kind
+     ticket|repair|refresh|redirect` on `task create`) until the ticket's
+     readiness passes — and a follow-up for a finished ticket goes to a
+     **fresh** session in the same worktree, carrying every gap that ticket
+     has at once.
 
 **Foreman stays light.** Your context holds the goal, the accepted design, the
 phase plan, the DAG and durable ids — never worker transcripts, diffs or test
@@ -107,8 +133,9 @@ parks the one ticket or phase that needs it while independent work continues.
 
 On a settled batch wake:
 
-1. `bbs foreman batch show "$FOREMAN_ID"` (every member's state, report
-   summary path via `bbs foreman task show`, and any pending question).
+1. `bbs foreman batch show "$FOREMAN_ID"` (every member's state with its
+   ticket, kind, gate verdict, summary and report path, and any pending
+   question; no `task show` per member needed).
 2. **Judge each ticket** from `bbs ticket verdict-status`, its readiness JSON
    and handoff paths — not by redoing its review or tests. Seal every one that
    passes, in one call. A gap goes back to **that ticket's session** as a
@@ -124,9 +151,11 @@ On a settled batch wake:
    A settled worker is already shut down (`bbs foreman watch` closes its
    terminal at settle; config `foreman_keep_settled_workers: true` opts out), so
    there is no owner to decide: start the follow-up on a fresh worker in the
-   ticket worktree, and make its spec point at the ticket's handoffs
-   (`bbs ticket` handoff paths, `plan.md`, the last report) so the cold start
-   is cheap.
+   ticket worktree (`task create --kind repair|refresh|redirect`), and make
+   its spec point at the ticket's handoffs (`bbs ticket` handoff paths,
+   `plan.md`, the last report) so the cold start is cheap. One ticket gets one
+   follow-up per wake: merge its repair and refresh triggers into one spec
+   rather than paying two cold starts.
 3. **Advance every phase that is ready** — `bbs foreman next` lists them:
    open the next phase while the previous one waits on its release
    (**pipeline one phase deep**; a phase cannot integrate until the earlier

@@ -24,12 +24,18 @@ ticket worker follows autopilot's **Foreman ticket assignment** contract:
 | Implement | Code and focused checks, left uncommitted |
 | Review | `review-pr --fix` at `medium` effort (`low` only for `simple` tickets) |
 | QA | `qa` with the repair loop; deferred heavy checks only recorded |
-| Report | Readiness, handoff and exactly one `bbs foreman task done`; no commit, push or PR |
+| Report | Readiness, handoff and exactly one `bbs foreman task done`, which refuses success until readiness passes; no commit, push or PR |
 
 The route is chosen once per ticket (phase class `critical`, because the session
 owns its own planning and review) and reused by every follow-up; see
-[model routing](model-routing.md#assignment-routing). Each assignment
-includes the accepted parent artifacts, the ticket requirement/seed, size and
+[model routing](model-routing.md#assignment-routing). Create its Task with
+`--kind ticket` (`repair`, `refresh` or `redirect` for a follow-up) so `task
+done` holds the session to its gates. Each assignment includes the ticket's
+**slice** of the accepted parent artifacts — the design sections, plan and
+manifest rows it owns, by path and heading, with the whole documents linked
+for lookup rather than read up front: whatever a worker reads first it re-reads
+from cache on every later turn, and whole parent documents measured about 35k
+tokens of each worker's base context — the ticket requirement/seed, size and
 acceptance IDs, its prerequisites as `<ticket>:<task>` pairs (bbs Task ids),
 owned files and contracts, review effort, deferred heavy checks, selected
 route, resource lease and required evidence, plus the
@@ -86,10 +92,13 @@ session**:
    heavy/integration failure, a phase that does not compose), a `refresh` (a
    prerequisite changed or settled after this ticket stopped waiting for it)
    or a `redirect` (a parked or redirected plan was answered): create the
-   follow-up Task and start a fresh worker in the ticket worktree on the
-   ticket's recorded route. The spec points at the ticket's handoffs (numbered
-   handoff paths, `plan.md`, the last report and verdicts) so the new session
-   recovers from durable state without re-reading the codebase.
+   follow-up Task (`--kind repair|refresh|redirect`) and start a fresh worker
+   in the ticket worktree on the ticket's recorded route. The spec points at
+   the ticket's handoffs (numbered handoff paths, `plan.md`, the last report
+   and verdicts) so the new session recovers from durable state without
+   re-reading the codebase. Several triggers for one ticket in the same wake
+   — a review finding and a prerequisite refresh — go into **one** follow-up,
+   so the ticket pays one cold start, not one per trigger.
 2. **Nothing** otherwise; the ticket closes with its phase.
 
 Release the Dispatch's resource lease on every settlement; a reused session
@@ -126,7 +135,7 @@ The bbs watcher waits and supervises:
 3. On that prompt run `bbs foreman batch show "$FOREMAN_ID"`; it ends with
    each owned project's `NEXT=` steps.
    `BATCH_STATE=settled` (failures included): read each member's report
-   (`bbs foreman task show <task>`), then verify, decide
+   from its line (ticket, kind, gate, summary, report path), then verify, decide
    each session's owner, advance every phase that is ready (phases.md) and
    hand the next batch — tickets, integration, QA or release workers — over in
    the same wake.
@@ -200,9 +209,12 @@ the exact evidence. Changed inputs invalidate gates.
 A `repair` or other follow-up spec should end with "record the `review-pr` and
 `qa` gates on the final tree", so a waiver (`bbs foreman seal --waive`,
 [delivery](delivery.md)) stays the exception rather than the way a worker
-skips its gates. If a worker still did not re-record them but its handoff
-shows the verification, seal with `--waive` and a reason instead of launching
-a worker only to re-stamp gates.
+skips its gates; `task done` refuses a gated kind's success until they pass,
+so a missing gate is fixed by the warm session instead of a cold one. A member
+whose line shows `GATE="skipped: …"` or `GATE="unverified: …"` gets the
+light verification below before it is sealed. If a worker still did not
+re-record them but its handoff shows the verification, seal with `--waive` and
+a reason instead of launching a worker only to re-stamp gates.
 
 As soon as a ticket passes, seal it (`bbs foreman seal`, several tickets in
 one call): its uncommitted tree

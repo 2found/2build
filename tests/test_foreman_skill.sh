@@ -59,10 +59,12 @@ has_all "global-weighted-admission" \
 
 has_all "ticket-slice-sizing" \
   'independent, testable unit' \
-  'Never split' 'coherent change across siblings' \
+  'Never' 'split one module across siblings' \
   'sub-ticket needing its own worktree' 'returns' \
-  'one worker' 'up to `L`' 'prefer fewer, larger tickets' \
-  'split inside a worker' 'Phase 1 is a walking skeleton' '2–5 tickets per phase'
+  'one worker' 'up to `L`' 'split inside a worker' 'Phase 1 is a walking skeleton' \
+  '## Split by context' 'Same context → one ticket' 'Disjoint contexts → separate tickets' \
+  'Order alone is not a seam' 'One ticket per independent context in the phase' \
+  'Split by context, not by size' 'only where the invariant owns its own files'
 
 has_all "autopilot-worker-execution-envelope" \
   '`AGENT_ROLE=orca`' 'already spawned' \
@@ -78,7 +80,7 @@ else
 fi
 
 has_all "ticket-runs-whole-loop-in-one-session" \
-  'One ticket is one worker session' 'select its route once' \
+  'One context, one session' 'select its route once' \
   'every follow-up' 'without stopping between steps' 'Adopt prerequisites' \
   'CONFLICT=' 'no separate' 'approval self-resolve'
 
@@ -94,6 +96,11 @@ has_all "plan-approval-by-ticket-size" \
   'the worker self-approves as' 'Foreman reviews and approves' 'Foreman approves' \
   'Exit 4 (rubric)' 'Exit 3 (floor) or 5 (hold/grant)' 'parks the' \
   'Never implement on an unapproved plan record' 'after two redirects'
+
+has_all "ticket-session-cache-economics" \
+  'Wake rarely, and warm' 'keep-warm' 'reply `ok`' 'chain commands' \
+  'ticket|repair|refresh|redirect`' 'GATE=not-ready' 'carrying every gap' \
+  'merge its repair and refresh triggers into one spec' 'manifest rows it owns, by path and heading'
 
 has_all "whole-phase-one-wake" \
   'one wake per phase' 'Dependent tickets therefore launch' \

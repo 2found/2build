@@ -69,7 +69,11 @@ decided in basic design, and size is split by topology.
 Hard is rare by design: expect about one ticket in seven, never more than one
 in five. When a phase plan has more, split each hard invariant into its own
 small ticket so the surrounding work (UI, API surface, wiring, tests) stays
-`normal` and runs on `flash`; record the split in the phase plan. When unsure
+`normal` and runs on `flash` — but only where the invariant owns its own files
+behind a frozen interface; one that shares files with its surroundings stays
+one `hard` ticket, since the second session would reload the same context
+([split by context](topology.md#split-by-context)). Record the split in the
+phase plan. When unsure
 between `normal` and `hard`, choose `normal`: review and QA still gate it.
 
 ## Assignment routing

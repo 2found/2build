@@ -305,15 +305,19 @@ responsibilities, not topology or sibling orchestration.
 
 An open Foreman Dispatch (`bbs foreman task show <task> --spec`) assigns either one
 **project ticket** — one ticket of a release phase, in its own worktree — or a
-**follow-up** on a ticket this session already ran. Either way the whole assignment runs in this
-session on its launched model; that continuity is why Foreman sends a ticket's
-follow-ups back here instead of to a fresh worker.
+**follow-up** on an existing ticket. Either way the whole assignment runs in this
+session on its launched model: everything it loads stays warm in the prompt
+cache for every later step, while a new session would load it all again. A
+follow-up normally arrives in a fresh session and recovers from the ticket's
+handoffs, not by re-exploring the code.
 
 A ticket assignment runs the ticket's whole loop without stopping between
 steps and ends when the ticket is ready for its phase's integration:
 
 1. **Plan.** Run `plan-draft` scoped by the ticket seed/requirement and the
-   accepted parent plan and design, which constrain it; reuse a current ticket
+   accepted parent plan and design, which constrain it — read the sections the
+   assignment names for this ticket, not the whole parent documents, since
+   every later turn re-reads what you load first; reuse a current ticket
    plan on resume; an XS ticket skips this step and step 2. Plan against the
    prerequisites' accepted contracts and their `plan.md`; their code may not
    exist yet. For each interface contract the ticket builds against
@@ -360,8 +364,11 @@ steps and ends when the ticket is ready for its phase's integration:
 6. **Report.** Require `bbs ticket readiness --action review --json` (`push`
    when heavy checks are deferred), persist the checkpoint, handoff and gate
    evidence per `references/verification.md`, and report exactly once with
-   `bbs foreman task done`. Record workflow completion only when review, QA and
-   readiness are all current. Never commit, push or open a PR.
+   `bbs foreman task done`; it re-checks readiness and refuses success with
+   `GATE=not-ready` and the missing reasons, which this session fixes and then
+   reports again — a later session would have to reload everything you hold.
+   Record workflow completion only when review, QA and readiness are all
+   current. Never commit, push or open a PR.
 
 A follow-up carries a new Dispatch and names its kind and trigger evidence:
 `repair` fixes the named findings or failures, `refresh` re-runs steps 3–4
@@ -448,9 +455,23 @@ back evidence, never a verdict.
    Lacking required browser/runtime access, return that limitation, not a
    fabricated PASS.
    Record the ticket's starting revision before implementation and pass the
-   complete ticket diff as the review target: the working tree against that
-   revision, untracked files included. Adopted prerequisite work is context,
-   not this ticket's diff.
+   complete ticket diff as the first review's target: the working tree against
+   that revision, untracked files included. Adopted prerequisite work is
+   context, not this ticket's diff.
+   **Re-review the fix delta, not the whole ticket.** When each review gate
+   begins, snapshot its tree without touching the index:
+   `i=$(mktemp -u); GIT_INDEX_FILE=$i git read-tree HEAD && GIT_INDEX_FILE=$i git add -A && GIT_INDEX_FILE=$i git write-tree; rm -f "$i"`.
+   Once that review's report is persisted, store the printed tree with
+   `bbs ticket set-pointer review_tree <tree>`. A later review on the same
+   base, requirement and plan — after `--fix`, QA fixes, or a repair Dispatch —
+   targets `git diff <review_tree> <current snapshot>` (written to a patch file
+   passed as the review target), at the resolved effort,
+   with the previous report as context: finders read callers and enclosing
+   code beyond the hunk, and every earlier finding the fixes claim to resolve
+   is checked. Its report names the `review_tree` it builds on. Review the
+   complete ticket diff again when there is no `review_tree`, when the base,
+   requirement or plan changed (refresh, adopt, rebase), or when the delta is
+   most of the ticket diff.
 5. **Accept evidence, not completion text.** Record the session model,
    reviewed revision, report, fixes, and evidence paths in the
    checkpoint/handoff. A gate owns the checkout while it runs — no editing the

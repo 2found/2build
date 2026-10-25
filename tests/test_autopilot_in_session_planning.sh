@@ -155,6 +155,20 @@ assert phases == {
 }, phases
 PY
 
+# --- gate cost contracts: delta re-review and tiered review subagents --------
+VERIFY="$ROOT/.claude/skills/autopilot/references/verification.md"
+REVIEW="$ROOT/.claude/skills/review-pr/SKILL.md"
+require 'Re-review the fix delta, not the whole ticket.' "$SKILL"
+require 'bbs ticket set-pointer review_tree <tree>' "$SKILL"
+require 'GIT_INDEX_FILE=$i git write-tree' "$SKILL"
+require 'answers `verification subject changed` and fails the attempt' "$VERIFY"
+require 'The file takes exactly these three keys' "$VERIFY"
+require 'returns its ID as `data.id`' "$VERIFY"
+require '## 5. Subagent model routing (medium and above)' "$REVIEW"
+require 'light — Reuse, Simplification, Efficiency and Conventions finders.' "$REVIEW"
+require 'route above this session'"'"'s model' "$REVIEW"
+require 'When the subagent tool has no model selector' "$REVIEW"
+
 # --- no README still advertises the removed flags ---------------------------
 for f in "$ROOT"/README.md "$ROOT"/README.zh.md "$ROOT"/README.ja.md "$ROOT"/README.ko.md "$ROOT"/README.vi.md; do
   forbid '--planner' "$f"

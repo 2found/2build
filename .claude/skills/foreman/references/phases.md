@@ -35,8 +35,10 @@ reviewer checks:
   expand/contract across phases, never a destructive change in the phase that
   still needs the old shape; no rewrite of a large table in a deploy-time
   migration.
-- **2–5 tickets per phase, each `M` or `L`** on the size rubric, so one phase
-  keeps several workers busy for hours. Tickets in one phase have disjoint file
+- **One ticket per independent context in the phase**, each up to `L` on the
+  size rubric ([split by context](topology.md#split-by-context)): a phase that
+  changes one module is one ticket, and a phase spanning several modules runs
+  one ticket per module in parallel. Tickets in one phase have disjoint file
   ownership and interface-first contracts named in the manifest; a dependency
   inside a phase is an explicit `blocked_by` edge the dependent awaits in
   session, which adopts the prerequisite's sealed work. A dependency on an

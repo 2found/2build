@@ -11,12 +11,8 @@ under that phase's ticket.
    verdicts and revert, run end to end by **one worker session**, which can
    work for hours or days. Any size on the
    [size rubric](../references/ticket-size-rubric.md) up to `L` is a valid
-   ticket; every ticket boundary costs a cold session, a seal and a full
-   review/QA cycle, so **prefer fewer, larger tickets**. Split only along a real
-   seam: a dependency another ticket needs first, work that genuinely runs in
-   parallel, a separately verifiable and revertible outcome, or scope one
-   coherent plan cannot hold (unrelated journeys or subsystems). Never split
-   one coherent change across siblings merely to widen the DAG, and never
+   ticket; draw boundaries by [context, not size](#split-by-context). Never
+   split one module across siblings merely to widen the DAG, and never
    split inside a worker. A worker that finds its ticket beyond one coherent plan, or a
    sub-ticket needing its own worktree, returns the proposed split to Foreman
    for approval against accepted scope, bidirectional linkage and DAG
@@ -82,6 +78,44 @@ under that phase's ticket.
    `refresh` (it runs `bbs ticket adopt <prerequisite>` and re-verifies) in
    dependency order, only at settled boundaries. Never adopt into a live
    writer's tree or accept gates for untested content.
+
+## Split by context
+
+A ticket boundary is a prompt-cache boundary. A worker session's cost is
+dominated by re-reading its context every turn, which the cache serves at a
+tenth of the input price; a new session pays again to load the requirement,
+plan and code, then runs its own review and QA cycle. In measured runs
+(2026-10, 135 worker sessions) each extra session cost about 2M
+input-equivalent tokens against about 6M for a median whole ticket, and 34 of
+66 tickets needed one — nearly all to refresh or repair against a sibling that
+edited the same files or reshaped an interface it consumed. So a boundary goes
+where contexts separate:
+
+- **Same context → one ticket.** One module, package or subsystem; the same
+  files; a producer and its consumer while their interface is still being
+  shaped; a migration and the code that reads it; a screen and the endpoint
+  built only for it. Keep them in one ticket and one long session even when
+  that makes it `L`: auto-compaction carries a long session, and the plan,
+  code and fixtures it loaded stay warm for every later step.
+- **Disjoint contexts → separate tickets.** Different modules that share at
+  most an interface frozen in the basic design (a contract, schema or API
+  shape) before either starts, each separately testable and revertible. They
+  run in parallel without either reading the other's code.
+- **Order alone is not a seam.** A `blocked_by` pair in the same module is one
+  ticket working in order, not a dependent that waits, adopts and re-verifies.
+  Split a dependency only when the dependent works in another module against
+  the prerequisite's frozen interface.
+- **Parallelism buys a cold start only on disjoint code.** Two workers in one
+  module conflict, refresh and repeat each other's exploration; that costs
+  more than the wall time saved.
+- **Size is not a seam.** Scope one coherent plan cannot hold is the
+  exception, and it splits along module lines, never into steps of one change.
+
+Across phases, a later ticket on a module an earlier ticket built names that
+ticket's handoff, `plan.md` and last report in its spec, so its worker loads
+the module's decisions from a summary instead of re-deriving them from code.
+When the manifest gives two tickets of one phase the same files, merge them
+before the phase opens instead of sequencing them.
 
 ## Resource admission
 

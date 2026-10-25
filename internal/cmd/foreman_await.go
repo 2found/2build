@@ -36,7 +36,9 @@ Prints one PREREQ line per prerequisite and a final AWAIT line:
 
 A Task not dispatched yet, or a readiness read failing fewer than three times
 in a row, is still waiting. --timeout defaults to 540 seconds so one call fits an agent's foreground
-command limit; --interval (default 20) is the poll period.
+command limit, shortened to end a minute inside the agent's prompt-cache
+lifetime (config foreman_cache_ttl) so the re-run reads the cache; --interval
+(default 20) is the poll period.
 `
 
 // Dependent phases launch in the same batch as their prerequisites and wait
@@ -72,7 +74,7 @@ func foremanAwait(args []string) error {
 	if err != nil {
 		return fmt.Errorf("foreman await: %w\n%s", err, foremanAwaitUsage)
 	}
-	timeout, err := awaitSeconds(kv, "timeout", 540)
+	timeout, err := awaitSeconds(kv, "timeout", blockingWaitSeconds())
 	if err != nil {
 		return err
 	}
@@ -268,23 +270,31 @@ func liveProbe(primary string, env identity.Env) prereqProbe {
 			return prereqState{State: "not-ready", Reason: reason}
 		}
 		delete(readinessErrors, p.ticket)
-		state, reason := "", ""
-		if ready {
-			state = "ready"
-		} else if deferred := ticket.ReadDoc(storeForTicket(env, p.ticket).IndexPath()).Get("pointers.deferred_heavy"); deferred != "" {
-			if ok, _, _, err := ticketV2Readiness(primary, env, p.ticket, "light"); err == nil && ok {
-				state, reason = "light-ready", "deferred heavy: "+deferred
-			}
-		}
+		state, reasons := ticketReportState(primary, env, p.ticket, ready, reasons)
 		if state != "" {
 			snap, err := prereqSnapshot(primary, env, p.ticket)
 			if err != nil {
 				return prereqState{State: "not-ready", Reason: "snapshot: " + firstLineOf(err.Error())}
 			}
-			return prereqState{State: state, Head: snap, Reason: reason}
+			return prereqState{State: state, Head: snap, Reason: strings.Join(reasons, ",")}
 		}
 		return prereqState{State: "not-ready", Reason: strings.Join(reasons, ",")}
 	}
+}
+
+// ticketReportState is the gate a finished ticket session passes: review
+// readiness ("ready"), or light readiness when its heavy checks are deferred
+// to a consolidated run ("light-ready"). "" means not ready, with reasons.
+func ticketReportState(primary string, env identity.Env, t string, reviewReady bool, reasons []string) (string, []string) {
+	if reviewReady {
+		return "ready", nil
+	}
+	if deferred := ticket.ReadDoc(storeForTicket(env, t).IndexPath()).Get("pointers.deferred_heavy"); deferred != "" {
+		if ok, _, _, err := ticketV2Readiness(primary, env, t, "light"); err == nil && ok {
+			return "light-ready", []string{"deferred heavy: " + deferred}
+		}
+	}
+	return "", reasons
 }
 
 // readinessErrorReason renders a failed readiness run by its error envelope

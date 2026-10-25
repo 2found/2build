@@ -139,9 +139,10 @@ days if needed. Each phase is one coherent vertical slice that leaves the
 product working, sized `XS`–`L` on the
 [size rubric](../references/ticket-size-rubric.md); the size also picks who
 approves its plan (`L` plans go to Foreman). Every phase boundary costs a cold
-session and a full review/QA cycle, so prefer fewer, larger phases: split only
-for a real dependency, genuine parallelism, a separately verifiable and
-revertible outcome, or scope one coherent plan cannot hold. Order phases so the
+session and a full review/QA cycle, so prefer fewer, larger phases and split
+by context, not size: work on one module, the same files or an interface still
+being shaped stays in one row; split only where modules are disjoint behind an
+interface frozen in this plan, or for scope one coherent plan cannot hold. Order phases so the
 first usable journey lands first. Use one row per proposed phase:
 `Seed key | Outcome/scope | Size | Depends on | Owned contract/boundary | Acceptance check`.
 Dependencies reference seed keys, not fabricated runtime ticket ids. Add shared

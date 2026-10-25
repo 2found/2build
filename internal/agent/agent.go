@@ -94,6 +94,24 @@ type Profile struct {
 	TrustFile string
 	// TrustHint says how to grant that trust, named in the preflight failure.
 	TrustHint string
+	// CacheTTL is how long, in seconds, the agent's provider keeps a prompt
+	// cache entry warm between requests. A turn that resumes after it pays to
+	// rewrite the whole context instead of reading it at a tenth of the
+	// price, so waits are sized to land inside it. Zero means the common
+	// five-minute default.
+	CacheTTL int
+}
+
+// DefaultCacheTTL is the prompt-cache lifetime assumed for an agent whose
+// profile does not name one.
+const DefaultCacheTTL = 300
+
+// PromptCacheTTL is the agent's prompt-cache lifetime in seconds.
+func (p Profile) PromptCacheTTL() int {
+	if p.CacheTTL > 0 {
+		return p.CacheTTL
+	}
+	return DefaultCacheTTL
 }
 
 // profiles holds the supported CLI protocols. Provider/model/effort translation
@@ -113,6 +131,9 @@ var profiles = map[string]Profile{
 		TrustFile: ".claude.json",
 		TrustHint: "run `claude` there once and accept the trust prompt, " +
 			"or dispatch the worker from a directory you have already trusted",
+		// Claude Code sessions write one-hour cache entries
+		// (cache_creation.ephemeral_1h_input_tokens in its transcripts).
+		CacheTTL: 3600,
 	},
 	"grok": {
 		Name: "grok", Bin: "grok",

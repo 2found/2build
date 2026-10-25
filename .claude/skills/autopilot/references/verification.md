@@ -18,13 +18,16 @@ BABYSIT_TICKET="$TICKET" bbs autopilot verification begin --gate review-pr \
   --transport <harness-or-orca> --harness <harness>
 ```
 
-Use `--gate qa` for QA. The producer creates and binds a v2 attempt and returns
-its ID. Keep that ID across compaction. Never fabricate runtime handles. The
+`--gate` is exactly `review-pr` or `qa`. The producer creates and binds a v2
+attempt and returns its ID as `data.id`; while it is open the checkpoint keeps
+it as `active_attempt_id`, so it survives compaction. Never fabricate runtime handles. The
 attempt's assignment preserves the starting subject and its lifecycle preserves
-the one-writer boundary. `attempt show`/`attempt update` remain the recovery path
+the one-writer boundary: one open attempt per ticket, so record review before
+beginning QA. `attempt show`/`attempt update` remain the recovery path
 for interrupted attempts; never cancel an unproven live worker.
 
-Execute the skill and required checks, retaining real logs. Then record:
+Execute the skill and required checks, retaining real logs. Then record, from
+the ticket's checkout:
 
 ```sh
 BABYSIT_TICKET="$TICKET" bbs autopilot verification record \
@@ -39,15 +42,28 @@ BABYSIT_TICKET="$TICKET" bbs autopilot verification record \
 }
 ```
 
-For review, include its written analysis as evidence alongside executed checks;
-do not pretend reading a diff ran a test. The producer owns subject hashes,
+The file takes exactly these three keys; any other key is rejected. Each check
+needs an absolute `cwd` inside this checkout or the ticket directory, its real
+`exit_code`, and a non-empty log file; at least one check is required. Review's
+written analysis is not a field here: persist it with `set-review --body-file`,
+and list the executed checks (type-check, tests) beside it; do not pretend
+reading a diff ran a test. The producer owns subject hashes,
 attempt completion, immutable receipts, archived logs and verdict projections.
 It records failures as failures. A successful `record` command means persisted,
 not passed: re-read `bbs ticket readiness --action review --json` and require
 `data.ready: true` after both gates.
 
 If review/QA repairs changed the captured tree, begin fresh gates on the repaired tree.
-The stale attempt becomes failed; it cannot bless a changed revision. A crash
+`review-pr --fix` does exactly that whenever it applies a fix, so its `record`
+answers `verification subject changed` and fails the attempt: expected, not an
+error to debug. Begin a new review gate whose target is the fix delta
+(SKILL.md § Current-session gates, item 4), then record that one.
+The stale attempt becomes failed; it cannot bless a changed revision.
+`active attempt <id> already owns this ticket` names an open attempt: if it is
+this session's, record it (unchanged tree) or `attempt show --id <id>` and
+fail it with `attempt update --id <id> --expect-revision <rev> --json
+'{"state":"failed","failure":{"reason":"<why>"}}'`; never begin a second gate
+beside it. A crash
 after attempt completion can retry `record` with the same ID: the durable pending
 envelope is reused. Neither worker nor coordinator reconstructs old evidence as
 current. Emit structured progress at milestones/waits via `bbs foreman progress`;

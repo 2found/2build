@@ -716,3 +716,68 @@ func TestBatchKeepSettledLeavesTerminalOpen(t *testing.T) {
 		t.Fatalf("closes = %v", closes)
 	}
 }
+
+// A long batch keeps an idle Foreman's one-hour prompt cache warm: one plain
+// line (no skill prompt) a cache lifetime minus the lead after its last
+// prompt, an attention wake resets that clock, the count is capped, and a
+// five-minute-cache agent gets none.
+func TestBatchKeepsTheForemanCacheWarm(t *testing.T) {
+	t.Setenv("BABYSIT_STATE_DIR", t.TempDir()) // no foreman_cache_ttl override
+	f := newBatchFixture(t, "claude")
+	f.start(t, "task-a")
+	start := time.Now()
+	busy := 0
+	tick := func(at time.Duration) (string, []string) {
+		busy++ // the worker keeps moving, so it is never nudged
+		f.world.Panes["term_w_task-a"] = fmt.Sprintf("task-a: step %d", busy)
+		f.save(t)
+		line := f.tick(t, start.Add(at))
+		var foremanSends []string
+		for _, s := range f.sends(t) {
+			if strings.Contains(s, "--terminal term_0") {
+				foremanSends = append(foremanSends, s)
+			}
+		}
+		return line, foremanSends
+	}
+	if line, sends := tick(49 * time.Minute); line != "" || len(sends) != 0 {
+		t.Fatalf("early keep-warm: %q %v", line, sends)
+	}
+	line, sends := tick(51 * time.Minute)
+	if !strings.Contains(line, "KEEP-WARM fm-batch") || len(sends) != 1 ||
+		!strings.Contains(sends[0], "reply `ok`") || strings.Contains(sends[0], "bbs:foreman") {
+		t.Fatalf("keep-warm: %q %v", line, sends)
+	}
+	if line, sends := tick(52 * time.Minute); line != "" || len(sends) != 0 {
+		t.Fatalf("repeated keep-warm: %q %v", line, sends)
+	}
+
+	// A question wake prompts the Foreman, so the clock restarts from it.
+	f.world.Asked = map[string]string{"q-a1": "task-a"}
+	if line, _ := tick(80 * time.Minute); !strings.Contains(line, "WOKE fm-batch") {
+		t.Fatalf("question wake = %q", line)
+	}
+	if line, sends := tick(80*time.Minute + 49*time.Minute); strings.Contains(line, "KEEP-WARM") || len(sends) != 0 {
+		t.Fatalf("keep-warm right after a wake: %q %v", line, sends)
+	}
+	if line, _ := tick(80*time.Minute + 51*time.Minute); !strings.Contains(line, "KEEP-WARM") {
+		t.Fatalf("keep-warm after the wake = %q", line)
+	}
+
+	b, _ := loadBatch(f.record.ID)
+	b.KeepWarms = keepWarmMax
+	if err := saveBatch(f.record.ID, b); err != nil {
+		t.Fatal(err)
+	}
+	if line, _ := tick(10 * time.Hour); strings.Contains(line, "KEEP-WARM") {
+		t.Fatalf("keep-warm past the cap: %q", line)
+	}
+
+	short := newBatchFixture(t, "codex")
+	short.start(t, "task-a")
+	short.world.Panes["term_w_task-a"] = "task-a: later"
+	short.save(t)
+	if line := short.tick(t, time.Now().Add(2*time.Hour)); strings.Contains(line, "KEEP-WARM") {
+		t.Fatalf("five-minute cache got a keep-warm: %q", line)
+	}
+}

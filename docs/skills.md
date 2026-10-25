@@ -11,7 +11,7 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Builder | `autopilot`, `plan-draft`, `design-ui`, `implement`, `review-pr`, `test`, `qa`, `browse`, `create-pr`, `release-prd`, `semantic-decision`, `agent-first-docs` |
 | Sweeper | `sweep`, `review-pr`, `qa` |
 | Grower | `product-marketing-page` |
-| Maintainer | `maintain`, `investigate`, `qa`, `analytics-review`, `harness-audit`, `triage` |
+| Maintainer | `maintain`, `investigate`, `qa`, `analytics-review`, `token-audit`, `harness-audit`, `triage` |
 | Setup | `setup-project` |
 
 ## Archetype workflows
@@ -43,6 +43,7 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Audit security, deps, reliability, or scale and harden | `/bbs:maintain` |
 | Root-cause a bug | `/bbs:investigate` |
 | Turn babysit telemetry into ticket-ready findings | `/bbs:analytics-review` |
+| Find where session tokens and background context go, rank savings | `/bbs:token-audit` |
 | Make a bounded judgment, including whether human input is needed | `/bbs:semantic-decision` |
 | Classify and unblock a stalled/BLOCKED run | `/bbs:triage` |
 | Focused browser check | `/bbs:browse` |

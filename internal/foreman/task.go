@@ -57,6 +57,9 @@ type Dispatch struct {
 	// Reason says why a Dispatch failed without its worker's report
 	// (abandoned by Foreman, worker exited).
 	Reason string `json:"reason,omitempty"`
+	// Gate is the readiness verdict a succeeded ticket-session report passed:
+	// ready, light-ready, skipped: <why>, or unverified: <error>.
+	Gate string `json:"gate,omitempty"`
 }
 
 // Question is a worker's blocking ask. It stays pending until Foreman

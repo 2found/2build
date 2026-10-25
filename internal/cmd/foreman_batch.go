@@ -54,6 +54,11 @@ type foremanBatch struct {
 	OwedSince string   `json:"owed_since,omitempty"`
 	// WokeAt closes the batch: the settled wake was delivered.
 	WokeAt string `json:"woke_at,omitempty"`
+	// PromptedAt is the last prompt the Foreman got while this batch ran (an
+	// attention wake or a keep-warm), and KeepWarms how many keep-warms were
+	// sent; together they decide the next keep-warm.
+	PromptedAt string `json:"prompted_at,omitempty"`
+	KeepWarms  int    `json:"keep_warms,omitempty"`
 }
 
 type batchMember struct {
@@ -255,7 +260,7 @@ func printBatchState(b foremanBatch) {
 		if m.Closed {
 			line += " WORKER_CLOSED=1"
 		}
-		fmt.Println(line)
+		fmt.Println(line + settledReport(m))
 	}
 	for _, key := range append(slices.Clone(b.Reported), b.Owed...) {
 		fmt.Println("ATTENTION=" + key)
@@ -267,6 +272,39 @@ func printBatchState(b foremanBatch) {
 		fmt.Printf("QUESTION=%s TASK=%s ASKED=%s BODY=%s\n", q.ID, q.Task, q.AskedAt, strconv.Quote(q.Body))
 		fmt.Printf("ANSWER_WITH=bbs foreman task answer %s --id %s --body \"<answer>\"\n", q.Task, q.ID)
 	}
+}
+
+// settledReport carries a settled member's report onto its batch line, so one
+// batch show is the whole wake read rather than a task show per member.
+func settledReport(m batchMember) string {
+	if !dispatchTerminal(m.Status) {
+		return ""
+	}
+	t, err := foreman.LoadTask(m.Task)
+	if err != nil {
+		return ""
+	}
+	d := t.DispatchByID(m.Dispatch)
+	if d == nil {
+		return ""
+	}
+	line := " TICKET=" + orDefault(t.Ticket, "-")
+	if t.Kind != "" {
+		line += " KIND=" + t.Kind
+	}
+	if d.Gate != "" {
+		line += " GATE=" + strconv.Quote(d.Gate)
+	}
+	if d.ReportPath != "" {
+		line += " REPORT=" + d.ReportPath
+	}
+	if d.Summary != "" {
+		line += " SUMMARY=" + strconv.Quote(d.Summary)
+	}
+	if d.Reason != "" {
+		line += " REASON=" + strconv.Quote(d.Reason)
+	}
+	return line
 }
 
 func (b foremanBatch) taskIDs() []string {
@@ -390,6 +428,7 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 		}
 		b.Reported = append(b.Reported, b.Owed...)
 		b.Owed, b.OwedSince = nil, ""
+		b.PromptedAt = stamp
 	}
 	b.Questions, b.QuestionIDs = questions, questionIDs
 	return lines
@@ -484,6 +523,47 @@ func batchWake(client *orca.Client, r foreman.Record, b foremanBatch, summary st
 		return fmt.Sprintf("UNREACHABLE %s — %s", r.ID, err)
 	}
 	return fmt.Sprintf("WOKE %s — %s", r.ID, summary)
+}
+
+// Keep-warm bounds. A keep-warm is one short turn that reads the Foreman's
+// context at a tenth of the price; the cold resume it prevents rewrites that
+// context at twice the price, so a handful of keep-warms per batch pays for
+// itself many times over and an unbounded run of them would not.
+const (
+	keepWarmMinTTL = 30 * time.Minute
+	keepWarmLead   = 10 * time.Minute
+	keepWarmMax    = 8
+)
+
+// batchKeepWarm keeps an idle Foreman's prompt cache alive through a long
+// batch: once the batch has gone a cache lifetime minus keepWarmLead without
+// prompting it, the Foreman gets one plain line (not a skill prompt, which
+// would re-inject the skill) asking for a one-word reply. Agents with a short
+// cache lifetime get none: a keep-warm every few minutes costs more than the
+// cold wake it saves.
+func batchKeepWarm(client *orca.Client, r foreman.Record, b *foremanBatch, now time.Time) string {
+	ttl := promptCacheTTL(batchAgent(r))
+	if ttl < keepWarmMinTTL || b.KeepWarms >= keepWarmMax {
+		return ""
+	}
+	last, err := time.Parse(time.RFC3339, b.CreatedAt)
+	if err != nil {
+		return ""
+	}
+	if t, err := time.Parse(time.RFC3339, b.PromptedAt); err == nil && t.After(last) {
+		last = t
+	}
+	if now.Sub(last) < ttl-keepWarmLead {
+		return ""
+	}
+	text := fmt.Sprintf("Prompt-cache keep-warm from bbs foreman watch: batch %s is still running (%d/%d settled). Nothing needs you; reply `ok` and end the turn without running any command.", b.ID, b.settled(), len(b.Tasks))
+	if err := client.SendEnter(foremanTerm(client, r), text); err != nil {
+		foreman.MarkUnreachable(r.ID)
+		return fmt.Sprintf("UNREACHABLE %s — %s", r.ID, err)
+	}
+	b.PromptedAt = now.UTC().Format(time.RFC3339)
+	b.KeepWarms++
+	return fmt.Sprintf("KEEP-WARM %s — batch %s (%d/%d)", r.ID, b.ID, b.KeepWarms, keepWarmMax)
 }
 
 func batchAgent(r foreman.Record) string {

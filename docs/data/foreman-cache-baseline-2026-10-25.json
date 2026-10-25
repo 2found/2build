@@ -1,0 +1,71 @@
+{
+  "window": {
+    "since": null,
+    "until": "2026-10-25T12:00:00+00:00"
+  },
+  "workers": {
+    "sessions": 136,
+    "worktrees": 66,
+    "sessions_per_worktree_median": 1.5,
+    "sessions_per_worktree_mean": 2.06,
+    "worktrees_with_extra_session": 33,
+    "extra_sessions": 70,
+    "cost_total": 476948228,
+    "cost_read": 358457808,
+    "cost_create_1h": 118446746,
+    "cost_create_5m": 0,
+    "output_tokens": 14990413,
+    "cache_hit_ratio": 0.9837,
+    "expiry_waste_share": 0.0204,
+    "turns": 21891,
+    "cost_per_turn": 21787,
+    "base_context_median": 57800,
+    "ramp_first_25_turns_median": 489627,
+    "cost_per_session_median": 3239187,
+    "cost_per_worktree_median": 6225080,
+    "gate_refusals": 0,
+    "sessions_with_gate_refusal": 0
+  },
+  "subagents": {
+    "count": 455,
+    "cost_total": 115566315,
+    "creation_share": 0.6206,
+    "cost_per_worktree_median": 1274362
+  },
+  "foreman": {
+    "sessions": 5,
+    "cost_total": 87570864,
+    "wakes": 515,
+    "turns_per_wake_median": 3,
+    "turns_per_wake_mean": 7.9,
+    "cost_per_wake_median": 70903,
+    "cold_wake_share": 0.0971,
+    "cold_wake_cost": 18264860,
+    "by_source": {
+      "watcher": {
+        "wakes": 104,
+        "cost": 25829814,
+        "turns_median": 7.0,
+        "cost_median": 176497,
+        "cold": 22
+      },
+      "orchestration": {
+        "wakes": 331,
+        "cost": 27802102,
+        "turns_median": 3,
+        "cost_median": 52137,
+        "cold": 13
+      },
+      "other": {
+        "wakes": 80,
+        "cost": 33938949,
+        "turns_median": 9.5,
+        "cost_median": 200275,
+        "cold": 15
+      }
+    },
+    "keep_warms": 0,
+    "keep_warm_cost": 0,
+    "keep_warm_cold": 0
+  }
+}

@@ -50,14 +50,23 @@ const configHeader = `# babysit configuration — edit freely, changes take effe
 #                                 # shared by every Foreman. auto derives a
 #                                 # host CPU/RAM budget; a positive
 #                                 # value may only lower that budget.
-# foreman_status_interval: 3600   # seconds between full reconciliation ticks:
+# foreman_status_interval: 3300   # seconds between full reconciliation ticks:
 #                                 #   the Foreman skill's fallback audit and
 #                                 #   bbs foreman watch's status/idle prompt
 #                                 #   defaults share this one value. Deliveries
 #                                 #   still wake the foreman immediately; this
 #                                 #   is only the missed-event/restart backup.
-#                                 #   bbs foreman watch --status-interval
-#                                 #   overrides it for that watcher.
+#                                 #   Kept under a one-hour prompt cache so a
+#                                 #   status prompt reads the cache instead of
+#                                 #   rewriting it. bbs foreman watch
+#                                 #   --status-interval overrides it.
+# foreman_cache_ttl: auto         # seconds a prompt cache stays warm for the
+#                                 #   Foreman and its workers (auto: the
+#                                 #   agent's own — claude 3600, others 300).
+#                                 #   Blocking await/ask return before it, and
+#                                 #   the watcher keeps an idle Foreman's cache
+#                                 #   warm through a long batch when it is at
+#                                 #   least 30 minutes.
 # foreman_keep_settled_workers: false   # true = leave a worker's terminal open after its
 #                                 # Dispatch settles. Default: bbs foreman watch
 #                                 # closes it at once (follow-ups go to a fresh
@@ -269,6 +278,20 @@ func List() []byte {
 	return b
 }
 
+// ForemanCacheTTLSeconds is the configured prompt-cache lifetime override
+// (foreman_cache_ttl); 0 means "use the agent's own" (agent.PromptCacheTTL).
+func ForemanCacheTTLSeconds() (int, error) {
+	v, ok := Get("foreman_cache_ttl")
+	if !ok || strings.TrimSpace(v) == "" || strings.TrimSpace(v) == "auto" {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil || n <= 0 || int64(n) > math.MaxInt64/int64(time.Second) {
+		return 0, fmt.Errorf("config foreman_cache_ttl needs a positive number of seconds, got '%s'", v)
+	}
+	return n, nil
+}
+
 // ForemanStatusIntervalSeconds is the one configured reconciliation interval:
 // the default for `bbs foreman watch --status-interval` and the bound the
 // Foreman skill applies to its `check --wait` timeout. Absent or empty config
@@ -277,7 +300,7 @@ func List() []byte {
 // bound is what a time.Duration of whole seconds can hold — the same
 // multiplication the watcher performs.
 func ForemanStatusIntervalSeconds() (int, error) {
-	const def = 3600
+	const def = 3300
 	v, ok := Get("foreman_status_interval")
 	if !ok || strings.TrimSpace(v) == "" {
 		return def, nil

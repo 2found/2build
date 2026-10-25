@@ -24,6 +24,7 @@
     "setup-project",
     "sweep",
     "test",
+    "token-audit",
     "triage"
   ],
   "capabilities": {
@@ -222,6 +223,15 @@
           "name": "2build_test",
           "file": "test/skill.md",
           "description": "Create meaningful regression coverage, audit weak or redundant tests, and optimize test lanes using measured cost and change impact. Use for test creation, suite audits, failing-test investigation, or CI test optimization; browser journey QA stays with qa/browse."
+        }
+      ]
+    },
+    "token-audit": {
+      "skills": [
+        {
+          "name": "2build_token-audit",
+          "file": "token-audit/skill.md",
+          "description": "Audit where agent sessions spend tokens and what every session loads before work starts (skill listing, CLAUDE.md/AGENTS.md, memory), then rank savings that keep quality. Use when runs feel expensive, before tuning skills, models, effort or compaction, or to check background context bloat."
         }
       ]
     },

@@ -9,7 +9,8 @@ bbs config set telemetry local       # off | local
 bbs config set update_check true     # false silences upgrade notifications
 bbs config set auto_upgrade false    # true runs bbs update on session start
 bbs config set proactive true        # false = only run skills typed explicitly
-bbs config set foreman_status_interval 3600  # seconds between foreman reconciliation ticks
+bbs config set foreman_status_interval 3300  # seconds between foreman reconciliation ticks
+bbs config set foreman_cache_ttl auto  # prompt-cache lifetime (auto: claude 3600, others 300)
 bbs config set parallel_max_workers auto  # min(16, max(2, CPUs-2)) per Foreman
 bbs config set parallel_global_units auto  # global weighted Foreman capacity
 bbs config list                      # show saved YAML (not all effective defaults)
@@ -454,7 +455,8 @@ poking forever. Independently of the pane, every `--status-interval` it sends
 the same skill prompt as an active status check, so a busy foreman still gets
 asked; a foreman whose record says `done` leaves the watch set even while its
 terminal stays open. The status interval defaults to the configured
-`foreman_status_interval` (3600 seconds). The idle threshold defaults to that
+`foreman_status_interval` (3300 seconds, just inside a one-hour prompt cache so
+the prompt reads the cache instead of rewriting it). The idle threshold defaults to that
 same interval; `--status-interval` overrides it for that watcher and `--idle`
 can independently override the idle threshold. Status reminders trigger full
 reconciliation.
@@ -473,9 +475,21 @@ together cost one wake; `batch show` lists held items too. A wake that cannot be
 a failed member the foreman retries is followed to its new Dispatch, so the
 batch does not settle under a running retry. Workers report into the bbs task
 store, never into the foreman's terminal, so nothing else types into it while
-a batch runs. `bbs foreman batch show <id>` prints the batch state the wake refers to and
+a batch runs. `bbs foreman batch show <id>` prints the batch state the wake refers to — each
+settled member with its ticket, kind, gate verdict, summary and report — and
 then the `NEXT=` steps of every project the foreman owns, so one read covers a
 wake.
+
+A batch outlasting the Foreman's prompt cache would make its wake a cold one:
+the whole context rewritten at up to twice the input price instead of read at a
+tenth. When the cache lifetime (`foreman_cache_ttl`, default the agent's own:
+claude 3600 s, others 300 s) is at least 30 minutes, the watcher therefore
+types one plain keep-warm line (`… reply ok and end the turn …`, not a skill
+prompt) once the batch has gone that lifetime minus ten minutes without
+prompting the Foreman, at most 8 per batch. Shorter caches get none. The same
+lifetime caps the default block of `bbs foreman await` and `bbs foreman task
+ask` (540 s, or a minute inside the lifetime) so a worker's re-run after a
+timeout reads its cache.
 
 The watcher is built to outlive what goes wrong around it: every Orca call is
 bounded (60 s), a failing tick is logged as `TICK-FAILED` rather than ending
@@ -517,8 +531,8 @@ bbs foreman watch --once                # one pass, for cron
 | flag | default | what it does |
 |---|---|---|
 | `--interval <sec>` | 60 | how often to capture the pane |
-| `--idle <sec>` | effective `--status-interval` (3600) | unchanged for this long → nudge |
-| `--status-interval <sec>` | `foreman_status_interval` config (3600) | periodic status prompt, even while the pane moves |
+| `--idle <sec>` | effective `--status-interval` (3300) | unchanged for this long → nudge |
+| `--status-interval <sec>` | `foreman_status_interval` config (3300) | periodic status prompt, even while the pane moves |
 | `--lines <n>` | 40 | how much of the pane forms the fingerprint |
 | `--nudge <text>` | `check status` | what gets typed in |
 | `--max-nudges <n>` | 3 | budget before it reports `STALLED` and stops |

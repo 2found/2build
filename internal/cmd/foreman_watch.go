@@ -531,6 +531,11 @@ func watchTick(client *orca.Client, r foreman.Record, o watchOpts, now time.Time
 
 	if b, ok := loadBatch(r.ID); ok && b.open() {
 		lines := batchTick(client, r, &b, o, now)
+		if b.open() {
+			if line := batchKeepWarm(client, r, &b, now); line != "" {
+				lines = append(lines, line)
+			}
+		}
 		if err := saveBatch(r.ID, b); err != nil {
 			lines = append(lines, fmt.Sprintf("BATCH-STATE %s — %v", r.ID, err))
 		}
