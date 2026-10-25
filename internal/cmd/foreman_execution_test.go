@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -207,14 +206,16 @@ func TestProjectCompletionAndCleanedChildRecovery(t *testing.T) {
 }
 
 // stubOrcaCLI puts a fake `orca` on ORCA_CLI_COMMAND that answers preflight
-// and returns the WORKERS env payload for every orchestration call.
+// and serves $TERMINALS as `terminal list`, failing when it is unset.
 func stubOrcaCLI(t *testing.T) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "orca")
 	stub := `#!/bin/sh
 case "$1" in
- status) echo '{"ok":true,"result":{"runtime":{"reachable":true,"capabilities":["orchestration.contract.v1"]}}}' ;;
- orchestration) printf '%s\n' "$WORKERS" ;;
+ status) echo '{"ok":true,"result":{"runtime":{"reachable":true,"capabilities":[]}}}' ;;
+ terminal)
+  if [ -z "$TERMINALS" ]; then echo '{"ok":false,"error":{"message":"runtime unreachable"}}'; exit 1; fi
+  printf '{"ok":true,"result":{"terminals":%s}}\n' "$TERMINALS" ;;
 esac
 `
 	if err := os.WriteFile(path, []byte(stub), 0700); err != nil {
@@ -223,30 +224,29 @@ esac
 	t.Setenv("ORCA_CLI_COMMAND", path)
 }
 
-// A settled dispatch whose terminal was reused by a later dispatch (retained)
-// or already closed (released) has no liveness row left to read — its
-// projection is unverifiable forever even though the dispatch itself is done.
-// Completion must not wedge on that; live and genuinely unverifiable active
-// workers still block.
+// Completion needs every Dispatch of the project settled and every terminal
+// a Dispatch launched closed; a terminal it only reused belongs to its
+// creator, and an unverifiable Orca blocks rather than passes.
 func TestProjectCompleteSettledWorkerTerminals(t *testing.T) {
 	for _, tc := range []struct {
-		name, status, terminal, verdict string
-		done                            bool
+		name, status, terminals string
+		owns, done              bool
 	}{
-		{name: "retained terminal", status: "completed", terminal: "retained", verdict: "unverifiable", done: true},
-		{name: "released terminal", status: "failed", terminal: "released", verdict: "unverifiable", done: true},
-		{name: "live worker", status: "dispatched", terminal: "active", verdict: "live"},
-		{name: "unverifiable active worker", status: "dispatched", terminal: "active", verdict: "unverifiable"},
+		{name: "closed terminal", status: "completed", owns: true, terminals: `[]`, done: true},
+		{name: "reused terminal", status: "failed", terminals: `[{"handle":"term_w","agentIdentity":"codex"}]`, done: true},
+		{name: "open dispatch", status: "dispatched", owns: true, terminals: `[]`},
+		{name: "settled worker left open", status: "completed", owns: true, terminals: `[{"handle":"term_w","agentIdentity":""}]`},
+		{name: "unverifiable terminals", status: "completed", owns: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p, _, _ := executionFixture(t)
 			stubOrcaCLI(t)
-			t.Setenv("WORKERS", fmt.Sprintf(`{"ok":true,"result":{"workers":[{"dispatchId":"ctx-w","dispatchStatus":%q,"terminalState":%q,"projection":{"liveness":{"verdict":%q}}}],"page":{"hasMore":false}}}`, tc.status, tc.terminal, tc.verdict))
-			doc := ticket.ReadDoc(p.IndexPath())
-			doc.Set("pointers.orca_run", "run-fm")
-			if err := ticket.WriteDoc(p.IndexPath(), doc); err != nil {
-				t.Fatal(err)
-			}
+			t.Setenv("TERMINALS", tc.terminals)
+			task := foreman.Task{ID: "task-w", Foreman: "fm-test", Ticket: p.Env.Ticket, CreatedAt: foreman.Now(),
+				Dispatches: []foreman.Dispatch{{ID: "task-w.d1", Status: tc.status, Terminal: "term_w", OwnsTerminal: tc.owns, LaunchedAt: foreman.Now()}}}
+			mustMkdirAll(t, filepath.Join(foreman.TasksDir(), task.ID))
+			data, _ := json.Marshal(task)
+			mustWrite(t, filepath.Join(foreman.TasksDir(), task.ID, "task.json"), string(data))
 			integratePhase(t, p, "p1")
 			for _, kind := range []string{"integration", "product"} {
 				finishExecutionEvidence(t, p, executionEvidence(t, p, kind), kind, false)
@@ -258,7 +258,7 @@ func TestProjectCompleteSettledWorkerTerminals(t *testing.T) {
 			captureStdout(t, func() { err = projectComplete(p, "fm-test") })
 			if tc.done {
 				if err != nil {
-					t.Fatalf("settled worker with %s terminal wedged completion: %v", tc.terminal, err)
+					t.Fatalf("settled worker wedged completion: %v", err)
 				}
 				r, _ := foreman.Load("fm-test")
 				if r.Status != "done" {
@@ -268,7 +268,7 @@ func TestProjectCompleteSettledWorkerTerminals(t *testing.T) {
 					t.Fatal(err)
 				}
 			} else if err == nil {
-				t.Fatal("completion ignored a live or unverifiable active worker")
+				t.Fatal("completion ignored an open dispatch or an unclosed worker terminal")
 			}
 		})
 	}

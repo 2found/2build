@@ -82,30 +82,25 @@ an unwritable state directory never blocks tool execution.
 ## Worker report before stop
 
 Claude Code and Codex use the manifest's `Stop` hook; OMP uses its awaited
-`session_stop` extension event. The hook reads `ORCA_TERMINAL_HANDLE`, then
-runs `orca orchestration check --terminal <that handle> --peek --json` using
-the resolved Orca executable. It never derives worker authority from a ticket,
-parses the transcript, consumes messages, acknowledges a Delivery, or sends a
-report on the worker's behalf.
+`session_stop` extension event. The hook reads `ORCA_TERMINAL_HANDLE` and
+looks it up in the bbs task store (`$BABYSIT_HOME/tasks`): it needs no Orca
+call. It never derives worker authority from a ticket, parses the transcript,
+or reports on the worker's behalf.
 
-An active `dispatchId` blocks stopping with instructions to persist the handoff
-and use the injected `worker_done` command with the actual success/failure
-outcome. Orca settles the Dispatch on an accepted terminal report; the next
-check then allows stopping. The worker does not wait for Foreman to reply.
-Foreman still verifies the persisted evidence. An earlier Dispatch's report
-cannot satisfy a new assignment, and a rejected report leaves the gate closed.
-Explicit `consumer_fenced` or `dispatch_inactive` responses allow stopping:
-that worker no longer owns the assignment and must not send another report.
+An open Foreman Dispatch launched into this exact terminal blocks stopping
+with the `bbs foreman task done <task> --dispatch <id> --outcome …` command to
+run after persisting the handoff; a pending question blocks with its
+`task ask --resume <id>` command instead. The settled Dispatch then allows
+stopping. The worker does not wait for Foreman to reply. Foreman still verifies
+the persisted evidence. An earlier Dispatch's report cannot satisfy a new
+assignment, and a Dispatch Foreman abandoned no longer blocks: that worker no
+longer owns the assignment.
 
-Sessions without an Orca handle skip the check; a valid response with no active
-Dispatch also passes (including ordinary terminals and coordinators). Inside
-Orca, an unavailable runtime or malformed response blocks because ownership
-cannot be verified. The probe has a four-second deadline within the ten-second
-hook timeout and never launches the app. `stop_hook_active` does not bypass
-verification; every continuation checks the live binding again.
+Sessions without an Orca handle, and terminals no open Dispatch was launched
+into (ordinary terminals, coordinators), pass. `stop_hook_active` does not
+bypass the check; every continuation reads the store again.
 
-This requires a current Orca runtime that returns the worker `dispatchId` in
-`check --peek`, an installed/trusted hook, and `bbs` on the worker's PATH.
+This requires an installed/trusted hook and `bbs` on the worker's PATH.
 Host stop-continuation limits, user interrupts, process crashes, and forced
 termination remain outside the guard. Keep Foreman's reconciliation backup.
 Other agents need an equivalent blocking stop event before claiming coverage.
@@ -126,7 +121,7 @@ The gate has one registration instead of five host-specific `if` filters.
 
 ```sh
 go test ./internal/cmd -run 'TestGate|TestRunPreToolGate|TestSessionWriter|TestClassifyGateStage'
-go test ./internal/cmd ./internal/orca -run 'TestWorkerReportGate|TestPendingWorkerDispatch'
+go test ./internal/cmd ./internal/foreman -run 'TestWorkerReportGate|TestTaskDispatchLifecycle'
 bash tests/test_autopilot_v2_readiness.sh
 bash tests/test_hook_session_writer.sh
 python3 tests/test_hooks_portability.py

@@ -24,18 +24,19 @@ ticket worker follows autopilot's **Foreman ticket assignment** contract:
 | Implement | Code and focused checks, left uncommitted |
 | Review | `review-pr --fix` at `medium` effort (`low` only for `simple` tickets) |
 | QA | `qa` with the repair loop; deferred heavy checks only recorded |
-| Report | Readiness, handoff and exactly one `worker_done`; no commit, push or PR |
+| Report | Readiness, handoff and exactly one `bbs foreman task done`; no commit, push or PR |
 
 The route is chosen once per ticket (phase class `critical`, because the session
 owns its own planning and review) and reused by every follow-up; see
 [model routing](model-routing.md#assignment-routing). Each assignment
 includes the accepted parent artifacts, the ticket requirement/seed, size and
-acceptance IDs, its prerequisites as `<ticket>:<orca-task>` pairs, owned files
-and contracts, review effort, deferred heavy checks, selected route, resource
-lease and required evidence. Use the injected Orca lifecycle: the worker is
-already spawned, executes immediately, and reports exactly one `worker_done`
-per Dispatch. Missing inputs come through Orca `ask`, answered into the same
-live session — not a local human prompt.
+acceptance IDs, its prerequisites as `<ticket>:<task>` pairs (bbs Task ids),
+owned files and contracts, review effort, deferred heavy checks, selected
+route, resource lease and required evidence, plus the
+[worker lifecycle](worker-lifecycle.md): the worker is already spawned,
+executes immediately, and reports exactly one `bbs foreman task done` per
+Dispatch. Missing inputs come through `bbs foreman task ask`, answered with
+`task answer` while the same live session waits — not a local human prompt.
 
 ### Plan approval by ticket size
 
@@ -72,12 +73,11 @@ the ticket worktree.
 ### Ticket session ownership
 
 The ticket session is the ticket's single writer while it works: questions and
-plan reviews go to the live session. A worker that sends `worker_done` is shut
+plan reviews go to the live session. A worker that reports `task done` is shut
 down at once — the watcher closes its terminal when the Dispatch settles
 (succeeded, failed or abandoned), because a follow-up to a finished worker
 almost never happens and an idle agent costs memory and tokens. Opt out with
-config `foreman_keep_settled_workers: true`; `worker-retain` is for explicit
-debugging only. Land closes any terminal still left in the phase's worktrees.
+config `foreman_keep_settled_workers: true` (debugging only). Land closes any terminal still left in the phase's worktrees.
 
 After every accepted report, the next owner is therefore always a **fresh
 session**:
@@ -115,22 +115,18 @@ The bbs watcher waits and supervises:
    dependent never displaces runnable work. Never hold back ready work to
    align finish times.
 2. Launch every member, run `bbs foreman batch "$FOREMAN_ID" --tasks
-   <task,task,...>`, then **end the turn**. Do not wait, `check --wait`,
-   actively check terminals, checkpoints, git state, inbox, resource status or
+   <task,task,...>`, then **end the turn**. Do not wait, actively check
+   terminals, checkpoints, git state, inbox, resource status or
    project snapshots for progress, start a polling timer, invoke `watch --once`
    or restart a live worker. The detached `bbs foreman watch` nudges a worker
    whose pane sits idle with its Dispatch open (bounded), holds Foreman's own
-   status/stall prompts while the batch is open, and wakes Foreman with an Orca
-   message plus a prompt naming the batch. To stop Orca typing a mail pointer
-   into Foreman per worker report, it keeps Foreman's Delivery unacknowledged
-   until that wake; an Orca mail pointer that still arrives mid-batch gets
-   `batch show` and, with no attention, the turn ends without consuming —
-   no `check`, no ack, no reply to a stray heartbeat.
+   status/stall prompts while the batch is open, and wakes Foreman with one
+   prompt naming the batch. Workers report into the bbs task store, never
+   into Foreman's terminal, so nothing else types into Foreman mid-batch.
 3. On that prompt run `bbs foreman batch show "$FOREMAN_ID"`; it ends with
    each owned project's `NEXT=` steps.
-   `BATCH_STATE=settled` (failures included): consume with Orca `check` until
-   it returns no messages (`check --ack <delivery>` returns the next Delivery
-   of up to 50), processing every message before each ack, then verify, decide
+   `BATCH_STATE=settled` (failures included): read each member's report
+   (`bbs foreman task show <task>`), then verify, decide
    each session's owner, advance every phase that is ready (phases.md) and
    hand the next batch — tickets, integration, QA or release workers — over in
    the same wake.
@@ -139,9 +135,10 @@ The bbs watcher waits and supervises:
    open Dispatch with no live worker terminal through the stall budget);
    attention arriving within the watcher's `--attention-window` (2 min) is
    delivered as one wake:
-   consume the Delivery and handle only that — answer the question, or follow
-   the recovery contract for that worker (a lost Dispatch is a concrete
-   failure: fence it with `worker-stop`/`worker-abandon` before relaunching)
+   handle only that — answer each `QUESTION=` with the `ANSWER_WITH=` command
+   it prints, or recover that worker (an exited, stalled or lost Dispatch is a
+   concrete failure: `bbs foreman task abandon` it and close its terminal
+   before relaunching)
    — then re-run `bbs foreman batch` with the same Tasks plus any new ones,
    and end the turn. The watcher follows a retried Task to its new Dispatch,
    outlives Orca restarts, and any `bbs` call made by a working agent restarts
@@ -150,7 +147,7 @@ The bbs watcher waits and supervises:
    context fills. Keep durable state on disk anyway, so a wake after
    compaction recovers per [runtime](runtime.md).
 
-Process every message before acknowledging its Delivery. Judge each member from
+Judge each member from
 `bbs ticket verdict-status`, readiness JSON and the reported handoff paths; read
 worker transcripts only when those disagree. Read controls/intake before new
 dispatch or finish; `paused` or `cancelled` prevents new work. A user/status
@@ -180,9 +177,9 @@ waiting on it:
 
 ### Light verification and ticket close-out
 
-Check the expected Task/Dispatch and accepted lifecycle settlement, then the
-ticket's artifacts, plan approval record, revision and verdicts. A message alone
-is not a passing gate. For code tickets, read current review/QA evidence
+Check the expected Task/Dispatch settled `completed` for the current
+Dispatch, then the ticket's artifacts, plan approval record, revision and
+verdicts. A report alone is not a passing gate. For code tickets, read current review/QA evidence
 and `bbs ticket readiness --action review --json`;
 require `ok` and `data.ready`, and confirm each adopted prerequisite snapshot
 is still the one that prerequisite was sealed at. For evidence-only tickets,

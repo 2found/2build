@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.107.0 — 2026-10-25
+
+### Added
+
+- **QA executor mode** — autopilot's `qa` gate now keeps judgment in the
+  session (matrix, triage, fixes, verdict) and hands the mechanical runs —
+  browser driving, checks, screenshots, logs — to one mid-tier executor
+  subagent that reports evidence back. `packs/2build/qa/skill.md` gains an
+  Executor mode contract; autopilot's Current-session gates describe the split.
+- **`bbs foreman task ask` / `task done`** — workers report to Foreman through
+  `bbs foreman task` instead of raw Orca messages; autopilot's Foreman ticket
+  assignment and skill docs updated.
+- **`foreman.ErrTaskNotFound`** — `LoadTask` wraps it so callers asking "is a
+  worker running for this task" read a missing record as "not dispatched yet".
+
+### Changed
+
+- **Dispatch launch mode renamed** `worker-start` → `agent-launch` in
+  Foreman routing evidence; docs and skill references follow the Foreman
+  Dispatch naming throughout.
+
+### Fixed
+
+- **Capacity reserved before a Task record exists no longer errors** —
+  `taskDispatchState` treats a missing record as "no Dispatch yet".
+
 ## 1.106.0 — 2026-10-25
 
 ### Fixed

@@ -28,8 +28,8 @@ def test_orca_contract_is_owned_and_injected_only_by_foreman():
     assert 'references/worker-lifecycle.md' in skill('foreman')
     adapter = (SKILLS / 'foreman/references/worker-lifecycle.md').read_text()
     for contract in ('every worker Task', 'SPAWNED=true', 'AGENT_ROLE=orca',
-                     'orca orchestration ask', 'orca orchestration check',
-                     'orca orchestration send', 'exactly one `worker_done`',
+                     'bbs foreman task ask', 'bbs foreman task done',
+                     'Send no status messages',
                      'whole Dispatch, not each nested skill'):
         assert contract in adapter
 

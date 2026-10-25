@@ -129,7 +129,7 @@ func ResolveRoute(req RouteRequest, discovery *orca.AgentDiscovery, discoveryErr
 	if route.Agent == "" {
 		return RouteEvidence{}, fmt.Errorf("selected worker agent is empty")
 	}
-	route.LaunchMode = "worker-start"
+	route.LaunchMode = "agent-launch"
 	if sameIdentity(route.Agent, "omp") {
 		// Orca cannot forward OMP model/effort overrides. Start its native
 		// command in an Orca terminal, then supervise that exact terminal.
@@ -153,7 +153,7 @@ func ResolveRoute(req RouteRequest, discovery *orca.AgentDiscovery, discoveryErr
 	if !*agent.Enabled || !*agent.Runnable {
 		return RouteEvidence{}, fmt.Errorf("agent %q is not enabled and runnable on destination host %q", route.Agent, discovery.HostID)
 	}
-	if route.LaunchMode == "worker-start" {
+	if route.LaunchMode == "agent-launch" {
 		if route.Model != "" && !contains(agent.Models, route.Model) {
 			return RouteEvidence{}, fmt.Errorf("agent %q does not advertise required model %q on host %q", route.Agent, route.Model, discovery.HostID)
 		}

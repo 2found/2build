@@ -132,19 +132,20 @@ preempted.
 | `local-ml` | 4 | GPU |
 
 Reservations are global across repositories and Foremen sharing the same
-`BABYSIT_HOME`. They are keyed by Foreman and Orca Task, making a retry
+`BABYSIT_HOME`. They are keyed by Foreman and bbs Task, making a retry
 idempotent. The broker enforces the per-Foreman worker ceiling atomically as
 well as the global weighted budget. Both `reserve` and `status`, and the detached
 watcher, recover leases across all owners without waiting for a dead Foreman:
 
-- Terminal Dispatches release capacity immediately.
-- Agents proven exited by Orca's fleet view are stopped by exact Dispatch id;
-  capacity is reclaimed only after settlement is confirmed.
+- Settled Dispatches release capacity immediately.
+- An open Dispatch whose terminal shows its agent has exited (Orca's
+  `terminal list` no longer names an agent there) is settled `failed` by exact
+  Dispatch id, then its capacity is reclaimed.
 - Reservations with no new Dispatch are reclaimed after ten minutes if the
   owner's heartbeat is stale or its record is missing. Resume must heartbeat
   and repeat `reserve` immediately before launching, saving the returned id.
 - Live workers survive owner interruption and laptop sleep. Unverifiable
-  workers remain held, with `RESOURCE_HELD` diagnostics; contact loss alone
+  workers (Orca unreachable, terminal vanished) remain held, with `RESOURCE_HELD` diagnostics; contact loss alone
   cannot safely authorize another worker in their slot.
 
 Recovery prints `RELEASED_LEASE` for each reclaimed slot. Reconciliation has a
@@ -366,7 +367,8 @@ bbs foreman spawn fm-demo --agent codex --model '<your-model-id>'
 OMP worker routes return `launchMode: native-terminal`: render an idle command
 with `bbs foreman worker-command --startup-only --agent omp --model <selection>`,
 create an Orca terminal with that exact command, then call
-`orca orchestration worker-start --terminal <handle>` without launch overrides.
+`bbs foreman task launch <task> --agent omp --terminal <handle> --created-terminal`
+without launch overrides.
 `--startup-only` rejects prompts and skill selectors, so supervision delivers
 the assignment once. This preserves native aliases such as `@slow` without
 changing global OMP configuration or falling back to the native default.
@@ -377,15 +379,14 @@ recovering that pinned session; new launches use native provider configuration.
 Changed explicit settings are refused for a pinned session.
 
 Foreman routes new supervised workers through `bbs foreman route` using the
-destination host's Orca facts and persists the selected route. Receipt
-verification reads `dispatchId` and `launch.effective.agent`, and requires
-ready/accepted input. For a native OMP terminal, `route verify --terminal <handle>`
-returns `transport-matched`; null effective settings stay null. Verify the
-worker's actual session settings separately before accepting ticket work.
-A follow-up for the same ticket reuses that worker's terminal and must verify
-`transport-matched` again. After settlement, release the worker (or retain it
-while the ticket awaits heavy QA or its phase's integration QA) and close a
-native terminal only if this Foreman created it. Direct `worker-command` uses the same route policy.
+destination host's Orca facts and persists the selected route, then launches
+with `bbs foreman task launch`, which starts the agent through `orca agent
+launch --surface terminal` and verifies the agent Orca detects in the returned
+terminal (`matched`). Launching into an existing terminal (a native OMP
+terminal, or a follow-up reusing a live session) returns `transport-matched`.
+Orca reports no effective model or effort, so the worker verifies its actual
+session settings before accepting ticket work. After settlement the watcher
+closes the worker's terminal only if its Dispatch created it. Direct `worker-command` uses the same route policy.
 See [model routing](../.claude/skills/foreman/references/model-routing.md) and the
 [worker launch reference](../.claude/skills/foreman/references/worker-routing.md).
 
@@ -460,21 +461,19 @@ reconciliation.
 
 While a batch handed over with `bbs foreman batch <id> --tasks a,b` is open, the
 watcher holds those foreman prompts and supervises the batch instead: it types
-`Continue Dispatch <id>…` into a worker pane idle for `--worker-idle` with its
+`Continue Task <id>…` into a worker pane idle for `--worker-idle` with its
 Dispatch open, up to `--worker-nudges` times, then reports it stalled. It wakes
-the foreman (Orca message plus pane prompt) once when every Dispatch is terminal,
-or early for a new question (tracked by message id, so a second question after
-the first was read still wakes), an exited worker, a stall, or a lost worker —
-an open Dispatch with no worker row or live terminal for the whole stall
-budget. Early attention is held for `--attention-window` (default 120 s)
+the foreman (one pane prompt) once when every Dispatch is settled, or early for
+a new question (tracked by question id, so a second question after the first
+was answered still wakes), an exited worker (its terminal shows no agent), a
+stall, or a lost worker — an open Dispatch with no live terminal for the whole
+stall budget. Early attention is held for `--attention-window` (default 120 s)
 from the first item, so plan reviews and questions from tickets that started
 together cost one wake; `batch show` lists held items too. A wake that cannot be delivered stays owed and is retried each tick;
 a failed member the foreman retries is followed to its new Dispatch, so the
-batch does not settle under a running retry. Orca itself types a mail
-pointer into an idle coordinator for every arriving message unless its mailbox
-holds an unacknowledged Delivery, so the watcher keeps one open (seeding an
-empty mailbox with the batch notice) until the foreman's wake acknowledges it.
-`bbs foreman batch show <id>` prints the batch state the wake refers to and
+batch does not settle under a running retry. Workers report into the bbs task
+store, never into the foreman's terminal, so nothing else types into it while
+a batch runs. `bbs foreman batch show <id>` prints the batch state the wake refers to and
 then the `NEXT=` steps of every project the foreman owns, so one read covers a
 wake.
 
@@ -500,12 +499,12 @@ Windows has no supervisor; the hook restart above still applies.
 A batch normally holds every ticket of the open phases: a dependent ticket's worker waits for
 its prerequisites inside its own session with `bbs foreman await --prereqs
 <ticket>:<task>,...`, and an `L` ticket waits for Foreman's plan approval through
-`orca orchestration ask`. Both run as foreground commands bounded below the
+`bbs foreman task ask`. Both run as foreground commands bounded below the
 default 10-minute `--worker-idle` (540 s per call, then repeated), so a waiting
 worker is neither nudged nor reported stalled. `await` exits 0 with the verified
 heads to merge, 3 when a prerequisite settled without passing readiness (the
 dependent reports `BLOCKED` and Foreman later sends it a `refresh`), and 4 on
-timeout. An unreachable Orca is still waiting, and a readiness read that fails
+timeout. A prerequisite Task not launched yet is still waiting, and a readiness read that fails
 is retried twice before it counts as not-ready.
 
 ```bash

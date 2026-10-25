@@ -201,7 +201,7 @@ paths, and result in the checkpoint/handoff.
 ### Autonomous entry (`--auto`)
 `--auto` means nobody will paste a `/goal` block or answer a prompt: not a
 human, and not an orchestrator woken just to type one. A Foreman ticket
-assignment, `SPAWNED=true` and an authenticated Orca Dispatch imply it.
+assignment, `SPAWNED=true` and an open Foreman Dispatch imply it.
 Record it once with `BABYSIT_TICKET="$TICKET" bbs ticket set-pointer
 autopilot_auto true` so re-entry and resume keep it. Under it:
 
@@ -231,10 +231,11 @@ the block in the spawn prompt).
 Without `/goal` support, skip this paste/stop protocol and continue execution
 as specified above; `developer` alone never requires a `/goal` handoff.
 If `SPAWNED` is already true, you are that process: follow Autonomous entry.
-An authenticated, current Orca Dispatch preamble is equivalent evidence even
-when a legacy state echo says `SPAWNED=false`: honor the Task spec's effective
-`AGENT_ROLE=orca`, execute in this turn, and use the injected lifecycle instead
-of producing a developer `/goal` handoff.
+An open Foreman Dispatch (the launch prompt names it; `bbs foreman task show`
+confirms it) is equivalent evidence even when a legacy state echo says
+`SPAWNED=false`: honor the Task spec's effective `AGENT_ROLE=orca`, execute in
+this turn, and use the spec's worker lifecycle instead of producing a
+developer `/goal` handoff.
 For a `developer` handoff **on a harness supporting `/goal`**, the handoff
 **is the whole final message and must be the very last thing on screen** —
 nothing after it. The template and mandatory copy-paste rules below apply
@@ -309,7 +310,7 @@ responsibilities, not topology or sibling orchestration.
 
 ### Foreman ticket assignment
 
-A current, authenticated Orca Dispatch from Foreman assigns either one
+An open Foreman Dispatch (`bbs foreman task show <task> --spec`) assigns either one
 **project ticket** — one ticket of a release phase, in its own worktree — or a
 **follow-up** on a ticket this session already ran. Either way the whole assignment runs in this
 session on its launched model; that continuity is why Foreman sends a ticket's
@@ -335,8 +336,9 @@ steps and ends when the ticket is ready for its phase's integration:
    --rubric-file <path>`; exit 4 means repair the plan or rubric here, at most
    twice. `L`, or exit 3/5, a third refusal, a `needs-human`/`blocked`
    judgment, or a material deviation from accepted scope or a shared
-   contract: Orca `ask` Foreman with the artifact paths and wait in this
-   session (`--timeout-ms 540000`; on timeout `ask --resume <message-id>`).
+   contract: `bbs foreman task ask <task> --body` Foreman with the artifact
+   paths and wait in this session (exit 4 is a timeout: `ask --resume
+   <question-id>`).
    `approved` continues; a redirect is revised here and asked again; a park
    answer ends the Dispatch with `NEEDS_CONTEXT`.
    Never implement on an unapproved plan record.
@@ -364,8 +366,8 @@ steps and ends when the ticket is ready for its phase's integration:
    `qa` verdict open.
 6. **Report.** Require `bbs ticket readiness --action review --json` (`push`
    when heavy checks are deferred), persist the checkpoint, handoff and gate
-   evidence per `references/verification.md`, and send exactly one
-   `worker_done`. Record workflow completion only when review, QA and
+   evidence per `references/verification.md`, and report exactly once with
+   `bbs foreman task done`. Record workflow completion only when review, QA and
    readiness are all current. Never commit, push or open a PR.
 
 A follow-up carries a new Dispatch and names its kind and trigger evidence:
@@ -387,7 +389,8 @@ the assignment, report the mismatch to Foreman before work; never select a
 replacement model or start a worker to fix it.
 Keep each assigned skill in this session on its launched model; never delegate
 the whole ticket, dispatch sibling Tasks or switch models. The review skill's
-internal analysis fan-out remains allowed under Current-session gates below.
+internal analysis fan-out and the QA executor subagent remain allowed under
+Current-session gates below.
 Work beyond the ticket — another ticket's files or contracts, scope one
 coherent plan cannot hold, a scope change — is a handoff to Foreman with a
 proposed split or change request, never absorbed silently. This explicit envelope takes
@@ -396,8 +399,10 @@ ordinary direct autopilot invocations retain the full current-session loop.
 
 ### Current-session gates (`review-pr`, `qa`)
 Applies to every workflow's `review-pr` and `qa` steps, without an opt-in
-flag. Both gates run in this session, on the session's model: no autopilot
+flag. Both gates are judged in this session, on the session's model: no autopilot
 step is ever dispatched to a child, a second session, or an external process.
+The one delegation is QA's mechanical execution (item 2), which hands
+back evidence, never a verdict.
 1. **Run review in the current session.** Always load and execute the real
    `review-pr --fix` skill in the current autopilot session, on the session's
    model. Never dispatch the whole review skill to a native child or external
@@ -409,15 +414,30 @@ step is ever dispatched to a child, a second session, or an external process.
    resolved effort; if the current session cannot provide the required
    fan-out, record `BLOCKED` rather than delegating the whole skill or silently
    lowering review effort.
-2. **Run QA in this session too.** After the review pass and its fixes, load
-   and execute the real `qa` skill here and run the checks yourself — no child
-   dispatch, no per-harness model selection, no worker to wait on. A gate is
-   exactly where you want an auditable bill and an auditable context, and
-   handing verification to an agent the run cannot see gives up both. If the
-   session lacks what a check needs (no browser, no runnable target), the
-   skill's named fallback applies and the limitation is recorded; a missing
-   capability is never a fabricated PASS and never a reason to spin up a
-   child.
+2. **Judge QA here; execute it in one cheaper subagent.** After the review
+   pass and its fixes, load the real `qa` skill here and own its judgment:
+   load context, choose the code-level checks and write the case matrix
+   (`qa` steps 1 and 3–4, the check commands listed in the matrix rather than
+   run), triage failures and fix them (step 6), and grade and persist the
+   verdict. Driving the browser, running the matrix and its checks, and
+   screenshots and logs (`qa` steps 2, 3's runs, 5, 7–8) cost most of a QA
+   run's tokens and need no judgment, so they go to **one foreground
+   executor subagent** in `qa` **Executor mode**, on the harness's
+   mid-tier model: Claude Code `model: "sonnet"`; elsewhere the advertised
+   model one tier below the session's, or inherited when the subagent tool
+   has no model selector. Its assignment carries the `qa` skill path, the
+   ticket id and absolute repo/ticket paths, the matrix path, the target
+   URL/env, the run number, the cases to run, and the browser session name you
+   chose and entered in the cleanup ledger. It edits no code, runs no git and
+   writes no gate or verdict; it returns only the Executor-mode block, and you
+   read its report file only for the failures you triage. After a fix (and
+   the review it re-opens), run a new executor on the failed and affected
+   cases plus the final primary-journey pass. Record the executor's model,
+   runs and report paths in the checkpoint. Run the whole QA in this session
+   only when the harness has no subagent tool or the executor cannot reach
+   the target, and record why. If the session lacks what a check needs (no
+   browser, no runnable target), the skill's named fallback applies and the
+   limitation is recorded; a missing capability is never a fabricated PASS.
 3. **Run one mutating gate at a time:** finish the current-session
    `review-pr --fix` pass and its fixes before starting `qa`. Never run
    either gate concurrently with implementation or with the other gate. The
@@ -505,7 +525,8 @@ On every terminal path — success, `NEEDS_CONTEXT`, `BLOCKED`, or a failed step
 that can still run cleanup — close owned resources and wait for exit before
 printing the status block. `qa`/`browse` must perform their own scoped
 finalizers; autopilot reads their `CLEANUP:` evidence and then closes anything
-started by other steps. Do not leave a server or browser running for review:
+started by other steps. A QA executor that returns without a `CLEANUP:` line
+(crash, timeout) leaves its named browser session and target to you. Do not leave a server or browser running for review:
 durable screenshots/logs are the handoff. Never use broad
 `pkill`/`killall`, `agent-browser close --all`, or simulator-wide shutdown for
 routine cleanup; preserve resources whose ownership is uncertain.

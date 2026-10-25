@@ -35,16 +35,16 @@ has_all "one-git-flow" \
   '../references/git-flow.md' 'Committing a single ticket is an unfinished job' 'launch a phase' \
   'task complexity, model tier'
 
-has_all "live-orchestration-contract" \
-  '~/.claude/skills/orchestration/SKILL.md' 'skills get orchestration' \
-  'worker-start' 'check --wait' 'worker-release' 'request recovery'
+has_all "bbs-owned-worker-lifecycle" \
+  'worktrees and terminals only' 'bbs foreman task create' 'task launch' \
+  'agent-launch' 'task abandon' 'durable bbs records'
 
 has_all "foreman-owns-topology" \
   'bbs ticket ensure --mode=worktree' 'bbs foreman seal' 'bbs foreman integrate' \
   'bbs foreman land' 'apply' 'in dependency order'
 
 has_all "finish-cleans-worker-workspace" \
-  'terminal its Dispatch owns' 'kept_worktrees' \
+  'every Dispatch of the' 'kept_worktrees' \
   'terminal close --worktree path:<worktreePath> --all' 'never substitute' \
   'the snapshot ref keeps that work'
 
@@ -66,15 +66,15 @@ has_all "ticket-slice-sizing" \
 
 has_all "autopilot-worker-execution-envelope" \
   '`AGENT_ROLE=orca`' 'already spawned' \
-  'skips any developer `/goal`' 'worker-start --agent' \
-  'exactly one `worker_done`'
+  'skips any developer `/goal`' 'task launch' \
+  'exactly one `task done`'
 
-if grep -q 'authenticated, current Orca Dispatch preamble' "$A" \
-   && grep -q 'use the injected lifecycle instead' "$A" \
+if grep -q 'An open Foreman Dispatch' "$A" \
+   && grep -q "use the spec's worker lifecycle instead" "$A" \
    && grep -q 'developer `/goal` handoff' "$A"; then
-  ok "autopilot-accepts-orca-dispatch-envelope"
+  ok "autopilot-accepts-foreman-dispatch-envelope"
 else
-  fail "autopilot-accepts-orca-dispatch-envelope"
+  fail "autopilot-accepts-foreman-dispatch-envelope"
 fi
 
 has_all "ticket-runs-whole-loop-in-one-session" \
@@ -84,7 +84,7 @@ has_all "ticket-runs-whole-loop-in-one-session" \
 
 has_all "ticket-session-ownership" \
   '### Ticket session ownership' 'fresh' 'session' \
-  '`worker-retain`' 'foreman_keep_settled_workers' 'shut' \
+  'foreman_keep_settled_workers' 'shut' \
   '`repair`' '`refresh`' '`redirect`' '`deliver`' \
   '### Reuse a ticket session' '--terminal "$TICKET_TERMINAL"' '`transport-matched`' \
   'Never reuse one ticket' 'holds no lease'
@@ -101,7 +101,7 @@ has_all "whole-phase-one-wake" \
   'dependent never displaces runnable work' '`messages:<n>` (an `L` plan review'
 
 has_all "watcher-self-heals-lost-workers" \
-  '`lost:<task>`' 'fence it with `worker-stop`/`worker-abandon`' \
+  '`lost:<task>`' '`bbs foreman task abandon` it and close its terminal' \
   'follows a retried Task to its new Dispatch' 'never babysit it'
 
 if grep -q -- '--unblocks\|settled:<task>' "$F"; then
@@ -122,7 +122,7 @@ has_all "phase-qa-gate" \
   'every criterion of' 'cross-ticket transitions' 'that exact commit'
 
 has_all "durable-resume-and-finish" \
-  'pointers.orca_run' 'Terminal handles are routing metadata' \
+  'bbs foreman task list "$FOREMAN_ID"' 'Terminal handles are routing metadata' \
   'bbs ticket readiness --action review --json' 'bbs foreman snapshot'
 
 has_all "ensure-before-init-ordering" \
@@ -134,8 +134,8 @@ has_all "land-never-stashes" \
   'Never stash, reset or overwrite them' 'integrate` again' 'base moved since the build'
 
 has_all "native-task-list-init" \
-  'Initialize the native task list' 'parent, children' \
-  'DAG; rebuild it from ticket + Orca state'
+  'native task list from parent, children' \
+  'DAG; rebuild it from' 'ticket + task state'
 
 P="$ROOT/.claude/skills/references/preamble.md"
 if grep -q 'MUST mirror' "$P" \
@@ -168,7 +168,7 @@ has_all "goal-compaction-and-days" \
   'never resume an ambiguous'
 
 has_all "batched-wake-reconciliation" \
-  'run `bbs foreman batch' 'then \*\*end the turn\*\*' 'actively check terminals' \
+  'run `bbs foreman batch' 'then \*\*end the turn\*\*' 'Do not wait, actively check' \
   'bbs foreman batch show' '`BATCH_STATE=settled`' '`stalled:<task>`' \
   'start a polling timer' 'cold-resume boundary' 'hand it to `bbs foreman batch` and end the turn'
 
@@ -252,24 +252,23 @@ else
   fail "no-pane-or-mailbox-coordination"
 fi
 
-has_all "orca-delivery-and-settlement" \
-  'Process every message in a Delivery before acknowledging its' 'exact id' \
-  'accepted lifecycle settlement' 'reports do not complete work'
+has_all "bbs-report-and-settlement" \
+  'refused and completes nothing' 'worker exited without reporting' \
+  'the report does not substitute for a verdict'
 
 PREAMBLE="$ROOT/.claude/skills/foreman/references/worker-lifecycle.md"
-if grep -q 'live injected Orca preamble is authoritative' "$PREAMBLE" \
-   && grep -q 'orca orchestration ask' "$PREAMBLE" \
-   && grep -q 'orca orchestration check' "$PREAMBLE" \
-   && grep -q 'orca orchestration send' "$PREAMBLE" \
+if grep -q 'never to an Orca mailbox' "$PREAMBLE" \
+   && grep -q 'bbs foreman task ask' "$PREAMBLE" \
+   && grep -q 'bbs foreman task done' "$PREAMBLE" \
+   && grep -q -- '--resume <id>' "$PREAMBLE" \
    && grep -q 'whole Dispatch, not each nested skill' "$PREAMBLE" \
-   && grep -q 'both lifecycle IDs' "$PREAMBLE" \
-   && grep -q -- '--outcome failed' "$PREAMBLE" \
-   && grep -q 'Send no `heartbeat` or `status` mail' "$PREAMBLE" \
-   && ! grep -q 'follow the injected heartbeat cadence' "$PREAMBLE" \
-   && ! grep -q 'MAILBOX=off' "$PREAMBLE"; then
-  ok "worker-uses-injected-orca-lifecycle"
+   && grep -q -- '--outcome succeeded|failed' "$PREAMBLE" \
+   && grep -q 'Send no status messages' "$PREAMBLE" \
+   && ! grep -q 'orca orchestration' "$PREAMBLE" \
+   && ! grep -q 'worker_done' "$PREAMBLE"; then
+  ok "worker-uses-bbs-task-lifecycle"
 else
-  fail "worker-uses-injected-orca-lifecycle"
+  fail "worker-uses-bbs-task-lifecycle"
 fi
 
 if grep -q '"skills": "./.claude/skills"' "$ROOT/.codex-plugin/plugin.json"; then

@@ -5,12 +5,11 @@ This is operational detail for the four-step Foreman flow, not a second loop.
 
 ## Initialize Babysit and Orca
 
-1. Read `~/.claude/skills/orchestration/SKILL.md` and resolve its executable.
-   Run `ORCA skills get orchestration` with that executable before other Orca
-   commands; follow the version-matched guide. Confirm runtime reachability and
-   orchestration support. If unavailable, report `BLOCKED`; no pane polling or
-   generic subagent substitute. Recover lost mutations through request recovery
-   receipts before retrying them.
+1. Confirm the Orca runtime is reachable (`orca status --json`). Foreman uses
+   Orca only for worktrees and terminals (`orca agent launch`, `terminal
+   list/show/read/send/close/wait`); the Task/Dispatch lifecycle is bbs's own
+   (`bbs foreman task`), so no orchestration skill is loaded. If Orca is
+   unavailable, report `BLOCKED`; no generic subagent substitute.
 2. Direct skill invocation in an Orca terminal is the default entrypoint;
    `bbs foreman spawn` is optional, not a prerequisite. Resolve `FOREMAN_ID`
    from `--foreman-id <id>`, or choose a stable project id for a fresh run.
@@ -29,22 +28,23 @@ This is operational detail for the four-step Foreman flow, not a second loop.
    state with `BABYSIT_TICKET="$PARENT" bbs ticket init`. A list of independent
    requests still gets one parent. For an existing child, recover its parent;
    for a bare wake, recover assignments from `bbs foreman inbox "$FOREMAN_ID"`.
-5. Before binding a Run or changing topology, claim the parent with
+5. Before launching or changing topology, claim the parent with
    `BABYSIT_TICKET="$PARENT" bbs ticket claim "$FOREMAN_ID"`. Another owner is
    a hard fence: remain read-only and report the owner. Different parents may
    run concurrently; one parent has one mutating Foreman.
-6. Create or bind one Orca Run and persist `pointers.orca_run`. Save Task,
-   Dispatch, worktree and lease ids immediately after successful mutations.
-   Terminal handles are routing metadata, never recovery identity. Initialize the native task list from parent, children and
-   DAG; rebuild it from ticket + Orca state on cold resume.
+6. Save Task, Dispatch, worktree and lease ids immediately after successful
+   mutations; `bbs foreman task list "$FOREMAN_ID"` lists the Tasks bbs holds.
+   Terminal handles are routing metadata, never recovery identity. Initialize
+   the native task list from parent, children and DAG; rebuild it from
+   ticket + task state on cold resume.
 
 ## Persistent run and bounded reconciliation
 
 Use the harness's persistent goal facility when available. Its objective names
 the Foreman id, parent, this skill and the final completion condition. Reuse a
 compatible goal. A timeout, idle prompt, compaction or rate-limit pause is not
-project completion. Compaction is a cold-resume boundary: reload the skill,
-preamble and live Orca guide, then recover durable state.
+project completion. Compaction is a cold-resume boundary: reload the skill
+and preamble, then recover durable state.
 
 The detached `bbs foreman watch` is the external missed-event/restart backup;
 adopt/spawn start it automatically. Foreman never schedules its own status timer
@@ -57,11 +57,13 @@ Reconcile only for cold resume, an explicit status request, an external recovery
 reminder, a concrete failure, or final completion:
 
 1. Re-adopt the current session, heartbeat, re-claim the parent, read inbox and
-   controls, then bind the recorded Run. A pause/cancellation stops new dispatch.
-2. Read the relevant Tasks/Dispatches and actual worker state. On full recovery
-   use `bbs foreman resource status` to reconcile leases. Silence or an expired
-   heartbeat never proves worker exit; retry only proven failed/stopped attempts.
-   Never synthesize `worker_done` or a PASS to repair inconsistent state.
+   controls. A pause/cancellation stops new dispatch.
+2. Read the relevant Tasks/Dispatches (`bbs foreman task list --open`) and
+   actual worker terminals. On full recovery use `bbs foreman resource status`
+   to reconcile leases. Silence never proves worker exit: only a terminal whose
+   agent left does; retry only proven failed attempts (`task abandon` first).
+   Never report `task done` for a worker or synthesize a PASS to repair
+   inconsistent state.
 3. Read parent approval/artifact revision, relations, manifests, checkpoints and
    verdicts. Check `bbs foreman snapshot` delivery rows before accessing removed
    worktrees. Preserve live writers; recreate only missing safe topology.
@@ -74,12 +76,12 @@ reminder, a concrete failure, or final completion:
 Carry failure counts across retries/resumes. After three failed attempts at the
 same blocker, mark that ticket blocked and continue independent ready work.
 
-Orca enqueue is durable; its attention nudge is best-effort, not proof Foreman
-read the message. Process every message in a Delivery before acknowledging its
-exact id; let unacknowledged deliveries replay on recovery. A `worker_done` needs
-accepted lifecycle settlement for the expected Dispatch. Rejected lifecycle
-reports do not complete work. On `stop <project|ticket>`, follow the live Orca
-stop/retain protocol and preserve work unless removal was separately authorized.
+Worker reports and questions are durable bbs records: a missed wake is
+replayed from them, never lost (`bbs foreman batch show` lists pending
+questions with their answer command). A report for a superseded Dispatch is
+refused and completes nothing. On `stop <project|ticket>`, `task abandon` the
+open Dispatches, close the terminals they created and preserve work unless
+removal was separately authorized.
 
 ## Intake and DAG
 

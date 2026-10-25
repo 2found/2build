@@ -91,7 +91,7 @@ Resolve the worker bound on every fresh invocation or resume: parse
 `auto`) min(16, max(2, CPUs - 2)); an invalid value fails the command, so
 report `BLOCKED`. It is the batch size and a per-Foreman
 ceiling; every Dispatch also reserves machine-global weighted capacity before
-`worker-start`. The broker serializes admission across foremen and derives the
+`bbs foreman task launch`. The broker serializes admission across foremen and derives the
 host CPU/RAM budget. `parallel_global_units` can lower that budget, never raise
 it. Current resource pressure queues starts without stopping running workers.
 
@@ -119,13 +119,13 @@ pass its selected agent and destination host into quota admission:
 
 ```bash
 RESOURCE_OUT="$(bbs foreman resource reserve "$FOREMAN_ID" \
-  --ticket "$TICKET" --task "$ORCA_TASK_ID" --profile "$RESOURCE_PROFILE" \
+  --ticket "$TICKET" --task "$TASK" --profile "$RESOURCE_PROFILE" \
   --agent "$ROUTE_AGENT" --host "$ROUTE_HOST")"
 ```
 
 Parse `ADMISSION`, `QUOTA_STATUS`, `QUOTA_RECHECK_AT` and `LEASE`; never `eval`
 the output. `QUOTA_STATUS=deferred` means every mapped pool is fresh,
-authoritative and exhausted: keep the Task pending, do not call `worker-start`,
+authoritative and exhausted: keep the Task pending, do not launch it,
 and repeat route plus admission no earlier than `QUOTA_RECHECK_AT`. `unknown`,
 `available` and `not-applicable` retain the existing CPU/RAM and worker-count
 rules. The local `orca account list` view is advisory only; it cannot prove
@@ -134,26 +134,28 @@ worker's route or account.
 
 `queued` means leave that Task pending and dispatch other admitted work:
 resource backpressure is not a failed attempt. `reserved` means immediately
-persist the lease id as `pointers.resource_lease` on that ticket, then call
-`worker-start`. If worker creation fails or reports a rate limit, persist the
+persist the lease id as `pointers.resource_lease` on that ticket, then run
+`task launch`. If the launch fails or reports a rate limit, persist the
 launch result, release the lease before retrying, and re-read quota before a
 new admission. Keep one writer per child worktree; never exceed `FOREMAN_MAX_WORKERS`
 even when global capacity remains. The broker also checks
 `parallel_max_workers` atomically, counting current reservations rather than
 historical worker rows.
 
-A reservation is keyed by Foreman + Orca Task and is idempotent across resume.
+A reservation is keyed by Foreman + Task and is idempotent across resume.
 After an interruption or a delayed launch, heartbeat the foreman and repeat
-route plus `reserve` immediately before `worker-start`; persist the returned
+route plus `reserve` immediately before `task launch`; persist the returned
 lease id again. Each replacement reservation has a new id, so an old cleanup
 cannot release it. A launch reservation with no new Dispatch is reclaimed after
 ten minutes if its owner is stale or missing. A live Dispatch never expires
 merely because the foreman stopped heartbeating or the laptop slept.
 
-`reserve`, `status` and the detached watcher reconcile leases. They stop exited
-agents by exact Dispatch id and verify terminal state before release. Live or
-unverifiable workers retain capacity (`RESOURCE_HELD`); never release by age.
-Retry proven stopped Tasks through their failed Dispatch, preserving worktrees
+`reserve`, `status` and the detached watcher reconcile leases. A settled
+Dispatch releases its lease; an open one whose terminal shows its agent has
+exited is settled `failed` ("worker exited without reporting") by exact
+Dispatch id, then released. Live or unverifiable workers (and a terminal that
+vanished) retain capacity (`RESOURCE_HELD`); never release by age. Retry
+proven failed Tasks through a new Dispatch, preserving worktrees
 and checkpoints. Release settled leases with
 `bbs foreman resource release "$RESOURCE_LEASE"`, clear `pointers.resource_lease`,
 and reserve the next Task's profile before reusing a worker. A settled ticket session
@@ -162,7 +164,7 @@ holds no lease.
 ## Worker envelope
 
 Every worker Task spec must establish the execution envelope before naming its
-ticket work: this is a supervised Orca Dispatch, its effective
+ticket work: this is a Foreman Dispatch (Task id named), its effective
 `AGENT_ROLE=orca`, and it is already spawned. It invokes autopilot with
 `--auto`, so the worker sets its own goal where its agent can and otherwise
 works the loop directly; Foreman never types `/goal` or any prompt into a
@@ -171,7 +173,7 @@ profile Foreman reserved for this Task, and whether it is a ticket assignment
 or a follow-up (`repair`, `refresh`, `redirect`, `deliver`) on an existing
 ticket session, with the trigger evidence and the gates it invalidates. The worker invokes the installed skill
 directly in that turn, skips any developer `/goal` copy/paste handoff, uses
-Orca `ask` for a genuine User Challenge, and follows the injected lifecycle
-through exactly one `worker_done`. This statement in the Task spec is
-load-bearing because `worker-start --agent` does not expose an environment
-option; never assume a coordinator shell export reached the worker process.
+`bbs foreman task ask` for a genuine User Challenge, and follows the
+[worker lifecycle](worker-lifecycle.md) through exactly one `task done`. This
+statement in the Task spec is load-bearing because `orca agent launch` does
+not expose an environment option; never assume a coordinator shell export reached the worker process.

@@ -72,8 +72,8 @@ Before phase tickets, worktrees, or production dispatch:
      --rubric-file <path>` as this Foreman's delegate. Exit 4 (rubric) is
      repaired in session, at most twice. Exit 3 (floor) or 5 (hold/grant), a
      `needs-human` or `blocked` judgment, a third rubric refusal, or a
-     material deviation from accepted scope or a shared contract becomes an
-     Orca `ask` to Foreman, and the session waits.
+     material deviation from accepted scope or a shared contract becomes a
+     `bbs foreman task ask` to Foreman, and the session waits.
    - `L` — **Foreman approves**: the worker writes the rubric, publishes the
      plan record and asks Foreman with the artifact paths; the session waits.
 
@@ -113,7 +113,7 @@ artifacts/receipts and include every required child (UNKNOWN when unreachable):
 
 ```markdown
 # <Project title> — <parent>
-Observed at: <UTC time> | Foreman: <id> | Run: <id> | Base: <branch>
+Observed at: <UTC time> | Foreman: <id> | Base: <branch>
 Project review: <human/auto, current approval revision, artifact links>
 Execution: <verified/required tickets; running/queued/blocked counts>
 Delivery: <PENDING / LANDED / RELEASED / UNKNOWN>
@@ -130,8 +130,8 @@ Remaining: <what still has to happen, who owns it, next action>
 ```
 
 Execution, delivery and cleanup are separate axes. Derive rows from ticket/DAG,
-Orca, gate evidence and handler receipts, never terminal closure or `worker_done`
-alone. Cancelled scope still needs an accepted contract change.
+bbs Tasks, gate evidence and handler receipts, never terminal closure or a
+`task done` report alone. Cancelled scope still needs an accepted contract change.
 
 | Delivery | Required evidence, including final acceptance PASS |
 |---|---|

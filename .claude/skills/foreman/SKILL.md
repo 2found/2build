@@ -1,6 +1,6 @@
 ---
 name: foreman
-description: Autonomous Orca orchestrator for large projects — an advisor and toolkit for the coding agent running it. Clarifies the requirement, has a worker produce the basic design (architecture, prototype, plan) split into release phases for one human review, then runs each phase as parallel autopilot tickets — one worker session per ticket, plan through QA — integrates and QAs the phase cumulatively, and releases it to production before the next phase. Wakes only when a batch settles or a decision needs it. Requires Orca and its orchestration skill; use autopilot directly for one serial ticket.
+description: Autonomous Orca orchestrator for large projects — an advisor and toolkit for the coding agent running it. Clarifies the requirement, has a worker produce the basic design (architecture, prototype, plan) split into release phases for one human review, then runs each phase as parallel autopilot tickets — one worker session per ticket, plan through QA — integrates and QAs the phase cumulatively, and releases it to production before the next phase. Wakes only when a batch settles or a decision needs it. Requires Orca (worktrees and terminals only); use autopilot directly for one serial ticket.
 ---
 # foreman
 
@@ -27,12 +27,10 @@ requirement → basic design ⇒ human review → phase 1: tickets ∥ → integ
    the whole batch has settled; early only for what cannot wait (an `L` plan
    review, a worker question, a worker that exited, stalled or was lost), and
    attention arriving close together shares one wake. Never poll, wait in a
-   loop or check on workers in between. Workers report to bbs, not to you:
-   the Task spec forbids heartbeat/status mail
-   ([worker-lifecycle.md](references/worker-lifecycle.md)). An Orca mail
-   pointer mid-batch gets `bbs foreman batch show` only; with no attention,
-   end the turn without `check` or an ack — acking re-arms Orca's pointer, so
-   every later worker message becomes another wake.
+   loop or check on workers in between. Workers report to bbs, not to you
+   (`bbs foreman task done` / `task ask`), and send no status messages
+   ([worker-lifecycle.md](references/worker-lifecycle.md)); there is no
+   mailbox to drain or acknowledge.
 2. **One ticket is one worker session.** A single autopilot Dispatch runs the
    ticket's whole loop — plan, plan approval, await and adopt prerequisites,
    implement, review, QA — on one model without stopping between steps.
@@ -73,7 +71,8 @@ logs. Judge work from readiness JSON, verdicts and handoff paths.
 | Why was I refused? | `bbs foreman readiness "$PARENT" --action <dispatch\|integrate\|land\|release\|finish> [--phase <id>] --json` |
 | Full state | `bbs foreman snapshot "$PARENT" --json`, `bbs ticket dag "$PARENT" --mermaid` |
 | Seams between parallel work | `bbs contract list\|status\|check` ([contracts](../references/contracts.md)) |
-| Route and launch a worker | `bbs foreman model`, `worker-command`, `route` ([worker routing](references/worker-routing.md)) |
+| Route and launch a worker | `bbs foreman model`, `route`, `task create`, `task launch` ([worker routing](references/worker-routing.md)) |
+| Answer or stop a worker | `bbs foreman task answer <task> --id <q> --body …`, `task abandon <task> --reason …`, `task show\|list` |
 
 Use [worker routing](references/worker-routing.md) before **every worker launch
 or session reuse**: task complexity, model tier, launch settings and receipt
@@ -108,9 +107,8 @@ parks the one ticket or phase that needs it while independent work continues.
 
 On a settled batch wake:
 
-1. `bbs foreman batch show "$FOREMAN_ID"`. Consume the Orca Delivery with
-   `check` until it returns no messages, processing every message before each
-   ack.
+1. `bbs foreman batch show "$FOREMAN_ID"` (every member's state, report
+   summary path via `bbs foreman task show`, and any pending question).
 2. **Judge each ticket** from `bbs ticket verdict-status`, its readiness JSON
    and handoff paths — not by redoing its review or tests. Seal every one that
    passes, in one call. A gap goes back to **that ticket's session** as a
@@ -128,7 +126,7 @@ On a settled batch wake:
    there is no owner to decide: start the follow-up on a fresh worker in the
    ticket worktree, and make its spec point at the ticket's handoffs
    (`bbs ticket` handoff paths, `plan.md`, the last report) so the cold start
-   is cheap. `worker-retain` is for explicit debugging only.
+   is cheap.
 3. **Advance every phase that is ready** — `bbs foreman next` lists them:
    open the next phase while the previous one waits on its release
    (**pipeline one phase deep**; a phase cannot integrate until the earlier
@@ -138,7 +136,8 @@ On a settled batch wake:
    integration QA, release workers — then `bbs foreman batch` and end the turn.
 
 On an early wake, handle only the attention named — answer the question or
-plan review into the asking session, or recover that one worker — re-run
+plan review with `bbs foreman task answer` (the asking worker is blocked on
+it), or recover that one worker (`task abandon`, then relaunch) — re-run
 `bbs foreman batch` with the same Tasks plus any new ones, and end the turn.
 Plan reviews: `XS` none, `S`/`M` the worker self-approves, `L` you review the
 plan (not the code) against the goal, acceptance IDs and contracts, then

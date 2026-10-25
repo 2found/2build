@@ -146,7 +146,8 @@ heartbeat cannot replace this receipt.
 ## Progress, waits and repair
 
 Write `bbs foreman progress <ticket> --file <report.json>` at a meaningful
-milestone or wait transition. Use the actual run/Dispatch/attempt IDs:
+milestone or wait transition. Use the actual Task/Dispatch/attempt IDs
+(`run_id` carries the bbs Task id):
 
 ```json
 {"producer":"worker-id","phase":"qa","summary":"Task survives reload",

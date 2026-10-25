@@ -166,11 +166,11 @@ Foreman's own agent). `bbs foreman model --quota` is refused.
 Resolve configured aliases against the live native binding. For OMP, read the
 selected role's binding; its provider/model/effort belong to that role.
 Do not invent an OMP effort or assume provider-selection support. Use the
-route's `launchMode`: managed launches forward only advertised overrides and
-verify `launch.effective`; OMP launches use the native startup command followed
-by supervised exact-terminal reuse. Verify the reused-terminal transport receipt
-and separately compare observed session settings with the resolved native
-binding before ticket work. Unknown receipt fields remain unknown. If neither
+route's `launchMode`: `agent-launch` forwards only advertised overrides and
+verifies the launched agent; OMP launches use the native startup command
+followed by `task launch --terminal` into that exact terminal. Orca attests
+neither model nor effort, so the worker compares its observed session
+settings with the resolved route or native binding before ticket work. Unknown receipt fields remain unknown. If neither
 transport can honor a selection, stop with `BLOCKED`; do not substitute.
 
 Resolve an explicit ticket-specific user selection first, then a valid persisted

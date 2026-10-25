@@ -232,7 +232,7 @@ func TestBatchStartRejectsUnlaunchedTask(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 	err = foremanBatchCommand([]string{f.record.ID, "--tasks", "task-a,task-missing"})
-	if err == nil || !strings.Contains(err.Error(), "task task-missing not found") {
+	if err == nil || !strings.Contains(err.Error(), "task-missing has no Dispatch") {
 		t.Fatalf("unknown task err = %v", err)
 	}
 	if _, ok := loadBatch(f.record.ID); ok {

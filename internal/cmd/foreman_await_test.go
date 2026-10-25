@@ -144,7 +144,7 @@ func TestLiveProbeWaitsOnAnUnlaunchedTask(t *testing.T) {
 	f.world.Dispatch["task-bad"] = "failed"
 	f.save(t)
 	probe := liveProbe(t.TempDir(), identity.Env{})
-	if s := probe(prereq{"bs-a", "task-gone"}); s.State != "waiting" || !strings.Contains(s.Reason, "task unreadable") {
+	if s := probe(prereq{"bs-a", "task-gone"}); s.State != "waiting" || s.Reason != "not dispatched yet" {
 		t.Fatalf("unknown task = %+v", s)
 	}
 	if s := probe(prereq{"bs-a", "task-new"}); s.State != "waiting" || s.Reason != "not dispatched yet" {

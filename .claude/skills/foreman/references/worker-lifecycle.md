@@ -1,56 +1,52 @@
 # Foreman worker transport
 
 Foreman owns this adapter. Include these instructions in every worker Task
-spec alongside the live injected runtime contract; member skills do not load
-this reference. The outer worker applies the lifecycle once around its assigned
+spec (`bbs foreman task create --spec-file`); member skills do not load this
+reference. The outer worker applies the lifecycle once around its assigned
 skill, including on resume or failure.
 
-Declare `SPAWNED=true` and `AGENT_ROLE=orca` in the assignment. An authenticated
-current Dispatch overrides a stale developer/unspawned shell echo. Supply the
-blocking escalation channel and ticket/stop boundary before invoking the skill.
+Declare `SPAWNED=true` and `AGENT_ROLE=orca` in the assignment, with the Task
+id, the ticket and stop boundary, and this escalation channel. The launch
+prompt names the Task and Dispatch ids; `bbs foreman task show <task>` is the
+authority for them, never env or ticket guesses.
 
 ## Worker lifecycle
-Read `~/.claude/skills/orchestration/SKILL.md` and its version-matched guide.
-The live injected Orca preamble is authoritative for executable, handle,
-capability, Task ID and Dispatch ID; never reconstruct authority from env/tickets.
 
-- Use injected `orca orchestration ask`; no `AskUserQuestion` in a worker.
-  Timeout leaves the question pending: `--resume <message_id>`, not a new ask.
-  Bus/coordinator failure returns the shared preamble's structured NEEDS_CONTEXT.
-- Follow the lifecycle for the whole Dispatch, not each nested skill. Read
-  follow-ups with `orca orchestration check` at checkpoints and before
-  completion.
-- **Send no `heartbeat` or `status` mail** — this overrides the preamble's
-  5-minute cadence. Every message to the Run mailbox types a pointer into
-  Foreman and burns a wake; liveness is the bbs watcher's (pane + Dispatch,
-  Orca only warns on a missing heartbeat) and progress goes to
-  `bbs foreman progress`. Foreman hears from a worker only through `ask` for a
-  decision outside the accepted plan or assignment (an `L` plan review, an
-  out-of-plan finding, a scope or contract change), `escalation` for a blocker
-  it cannot resolve, and the one `worker_done`, which `bbs foreman batch`
-  collects into one wake per batch. Anything the plan already decides, the
-  worker decides and records in its handoff.
-- Persist handoff/verdicts, then send exactly one `worker_done` via injected
-  `orca orchestration send`, with both lifecycle IDs and a three-sentence
-  did/found/left summary. Use `--outcome succeeded` for DONE/DONE_WITH_CONCERNS,
-  `--outcome failed` when ending as BLOCKED/NEEDS_CONTEXT. A pending ask is
-  not a terminal report. `--files-modified` / `--report-path` name real artifacts.
-- A `Continue Dispatch <id>` prompt is the watcher's idle nudge: resume the
-  assignment, or send its pending `worker_done` if it is already complete.
-- A worker is shut down when it reports done (the watcher closes its terminal
-  at settle), so a follow-up Dispatch (`repair`, `refresh`, `redirect`,
+The worker talks to bbs, never to an Orca mailbox. Orca only hosts its
+terminal and worktree: there is no orchestration skill to load, no Run to
+join, and no heartbeat.
+
+- **Ask** with `bbs foreman task ask <task> --body "<question>"`; no
+  `AskUserQuestion` in a worker. It blocks until Foreman answers (default 540s).
+  Exit 4 with `QUESTION_PENDING=<id>` leaves the question pending: keep
+  waiting with `--resume <id>`, never a new ask. Ask only for a decision
+  outside the accepted plan or assignment (an `L` plan review, an out-of-plan
+  finding, a scope or contract change, a blocker it cannot resolve); anything
+  the plan already decides, the worker decides and records in its handoff.
+- **Send no status messages.** The bbs watcher owns liveness (pane plus
+  Dispatch state) and wakes Foreman once per batch; milestones go to
+  `bbs foreman progress` only when the assignment asks.
+- **Report once** for the whole Dispatch, not each nested skill: persist
+  handoff/verdicts, then `bbs foreman task done <task> --dispatch <id>
+  --outcome succeeded|failed --summary "<did; found; left>"`. Use `succeeded`
+  for DONE/DONE_WITH_CONCERNS, `failed` when ending as BLOCKED/NEEDS_CONTEXT.
+  A pending ask is not a report. `--report-path` / `--files-modified` name
+  real artifacts. A retried identical report is harmless; a contradicting one
+  is refused.
+- A `Continue Task <id>` prompt is the watcher's idle nudge: resume the
+  assignment, or run its pending `task done` if it is already complete.
+- A worker is shut down when it reports (the watcher closes its terminal at
+  settle), so a follow-up Dispatch (`repair`, `refresh`, `redirect`,
   `deliver`) normally starts a fresh session in the ticket worktree and reads
-  the ticket's handoffs. Should a session survive (opt-out or `worker-retain`
-  for debugging) and receive one after its `worker_done`, its new injected preamble
-  carries new Task and Dispatch IDs: apply this lifecycle to it afresh, keep
-  the context you already hold, re-read the durable state the follow-up
-  names, and never reuse settled IDs.
-- After delivery, end the dispatched turn and idle. Ordinary sessions without
-  an injected Dispatch emit no lifecycle messages. The coordinator reads
-  `bbs ticket verdict-status`; the message does not substitute for a verdict.
-  Send errors/rejections are reporting failures: retain artifacts and use
-  Orca's recovery contract, never guess a replacement Dispatch.
+  the ticket's handoffs. Should a session survive (the
+  `foreman_keep_settled_workers` debugging opt-out) and receive a new launch prompt, it carries a new Dispatch
+  id: apply this lifecycle afresh, keep the context it holds, re-read the
+  durable state the follow-up names, and never report for a settled Dispatch.
+- After reporting, end the turn and idle. Foreman reads
+  `bbs ticket verdict-status`; the report does not substitute for a verdict.
+  A `task done` error is a reporting failure: keep the artifacts and return
+  the shared preamble's structured NEEDS_CONTEXT, never invent a Dispatch.
 
-The `worker-report-gate` Stop hook checks the current assignment. A block
-requires resolving the lifecycle failure; the hook neither reports for the
-worker nor waits for a Foreman reply. A continuation is not proof of delivery.
+The `worker-report-gate` Stop hook blocks a Stop while a Dispatch launched
+into this terminal is still open (or its question is unanswered) and names
+the command to run; it neither reports for the worker nor waits for Foreman.

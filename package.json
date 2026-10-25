@@ -1,6 +1,6 @@
 {
   "name": "@2found/bbs",
-  "version": "1.106.0",
+  "version": "1.107.0",
   "description": "Give your coding agent a goal. 2build plans, builds, reviews and verifies, with progress saved on disk.",
   "type": "module",
   "license": "MIT",

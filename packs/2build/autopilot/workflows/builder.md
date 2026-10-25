@@ -49,7 +49,8 @@ no ticket/requirement, stop with `NEEDS_CONTEXT`.
    push/PR hook reads that evidence when a human pushes or opens a PR.
    Verify mode may reuse review only if its accepted evidence covers the
    current tree; otherwise run it too.
-5. Run `qa` in the same session, after review fixes are integrated, against
+5. Run `qa` under the same policy (judged in this session, its execution in
+   the QA executor subagent), after review fixes are integrated, against
    the requirement's acceptance criteria, the
    `**Verify:**` line, and the implement handoff — not just the diff. The
    `qa` skill tests this checkout: inside a ticket worktree it runs what it

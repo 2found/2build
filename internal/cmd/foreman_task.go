@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -423,9 +424,13 @@ func foremanTaskAbandon(args []string) error {
 }
 
 // taskDispatchState is a Task's current Dispatch as the watcher, await and
-// resource reconciliation read it: no Dispatch yet is ID "".
+// resource reconciliation read it: no Dispatch yet (or no Task record yet,
+// as when capacity is reserved before create) is ID "".
 func taskDispatchState(task string) (string, string, error) {
 	t, err := foreman.LoadTask(task)
+	if errors.Is(err, foreman.ErrTaskNotFound) {
+		return "", "", nil
+	}
 	if err != nil {
 		return "", "", err
 	}

@@ -6,7 +6,7 @@ Foreman is a toolkit and advisor for the coding agent that runs it, not a script
 
 ## Configure Foreman
 
-Foreman requires [Orca](https://www.onorca.dev) with orchestration enabled. It selects a worker's agent from `--plan-worker` (basic design), `--implement-worker` (ticket sessions), and `--qa-worker` (phase QA); omitted means this Foreman's own harness. Legacy 2build YAML agent/provider/model/effort preferences are retired and ignored.
+Foreman requires [Orca](https://www.onorca.dev) for worktrees and worker terminals; the Task/Dispatch lifecycle (launch, questions, reports) is bbs's own (`bbs foreman task`), so no Orca orchestration, mailbox or heartbeat is involved. It selects a worker's agent from `--plan-worker` (basic design), `--implement-worker` (ticket sessions), and `--qa-worker` (phase QA); omitted means this Foreman's own harness. Legacy 2build YAML agent/provider/model/effort preferences are retired and ignored.
 
 2build selects the worker's model and effort from task complexity (`simple`, `normal`, or `hard`) and phase class: `design` for basic design (architecture, prototype, phase plan), `critical` for ticket workers and diagnosis, `normal` for integration, QA, release and cleanup. The policy maps these combinations to `lite`, `flash`, `pro`, or `max` tiers, each with model bindings for the selected agent; for Claude these are `haiku`, `sonnet`, `opus` at `medium` effort, and `opus` at `high` effort; for Codex `gpt-6-luna`, `gpt-6.1-sol`, `gpt-6.1-sol`, `gpt-6-astra`; for OMP the `@smol`, `@slow` and `@plan` roles, with the `normal` role
 expressed by omp's own configured default (omp has no `@normal` alias).
@@ -48,7 +48,7 @@ Invoke the **Foreman skill** in your agent (the examples are skill invocations, 
 $bbs:foreman "Rebuild the request flow across web and API"
 ```
 
-Foreman initializes or resumes a parent project and binds its Orca Run, then works in three layers: the **project** (the goal and its basic design), **phases** (production release increments) and **tickets** (one worker session each).
+Foreman initializes or resumes a parent project, then works in three layers: the **project** (the goal and its basic design), **phases** (production release increments) and **tickets** (one worker session each).
 
 **Requirement and basic design.** Foreman clarifies the requirement itself — outcome, audience, scope, constraints, assumptions — and asks you only the questions that would change the architecture or the release plan, in one batch at kickoff (none under `--auto`). A basic-design worker then produces the architecture, one prototype of the whole product (or a non-UI workflow/interface design), the plan, a ticket manifest, and a **phase plan** in `project.json`: phase 1 is a walking skeleton of the first journey, every phase is safe to release on its own (dark launch, expand/contract migrations), each holds 2–5 tickets sized `M`–`L`, and each names its release mode — `ask` (you give the go), `auto` (the approved design is the go) or `none` (ships with the next phase). You review that once, before any phase starts. Explicit `--auto` delegates this review to Foreman, which checks the evidence and records the approval; it never grants a release go and cannot approve a revised contract that lowers an approved release mode.
 

@@ -20,9 +20,8 @@ An `auto` phase releases on the approved design: approving the design with
 ## 0. Initialize
 
 Read [runtime](runtime.md) for the exact bootstrap and cold-resume
-protocol. Load the live Orca orchestration guide, adopt the current Foreman
-session, initialize or recover the parent ticket, claim it, and bind its Orca
-Run. Use the supported `bbs ticket ensure` / `bbs ticket init` commands; there
+protocol. Confirm Orca is reachable, adopt the current Foreman session,
+initialize or recover the parent ticket, and claim it. Use the supported `bbs ticket ensure` / `bbs ticket init` commands; there
 is no top-level `bbs init`. Persist identifiers and checkpoints as work advances.
 
 Git has one flow and no policy to resolve ([git flow](../references/git-flow.md)):

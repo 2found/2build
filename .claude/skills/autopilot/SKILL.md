@@ -194,7 +194,7 @@ paths, and result in the checkpoint/handoff.
 ### Autonomous entry (`--auto`)
 `--auto` means nobody will paste a `/goal` block or answer a prompt: not a
 human, and not an orchestrator woken just to type one. A Foreman ticket
-assignment, `SPAWNED=true` and an authenticated Orca Dispatch imply it.
+assignment, `SPAWNED=true` and an open Foreman Dispatch imply it.
 Record it once with `BABYSIT_TICKET="$TICKET" bbs ticket set-pointer
 autopilot_auto true` so re-entry and resume keep it. Under it:
 
@@ -224,10 +224,11 @@ the block in the spawn prompt).
 Without `/goal` support, skip this paste/stop protocol and continue execution
 as specified above; `developer` alone never requires a `/goal` handoff.
 If `SPAWNED` is already true, you are that process: follow Autonomous entry.
-An authenticated, current Orca Dispatch preamble is equivalent evidence even
-when a legacy state echo says `SPAWNED=false`: honor the Task spec's effective
-`AGENT_ROLE=orca`, execute in this turn, and use the injected lifecycle instead
-of producing a developer `/goal` handoff.
+An open Foreman Dispatch (the launch prompt names it; `bbs foreman task show`
+confirms it) is equivalent evidence even when a legacy state echo says
+`SPAWNED=false`: honor the Task spec's effective `AGENT_ROLE=orca`, execute in
+this turn, and use the spec's worker lifecycle instead of producing a
+developer `/goal` handoff.
 For a `developer` handoff **on a harness supporting `/goal`**, the handoff
 **is the whole final message and must be the very last thing on screen** —
 nothing after it. The template and mandatory copy-paste rules below apply
@@ -302,7 +303,7 @@ responsibilities, not topology or sibling orchestration.
 
 ### Foreman ticket assignment
 
-A current, authenticated Orca Dispatch from Foreman assigns either one
+An open Foreman Dispatch (`bbs foreman task show <task> --spec`) assigns either one
 **project ticket** — one ticket of a release phase, in its own worktree — or a
 **follow-up** on a ticket this session already ran. Either way the whole assignment runs in this
 session on its launched model; that continuity is why Foreman sends a ticket's
@@ -328,8 +329,9 @@ steps and ends when the ticket is ready for its phase's integration:
    --rubric-file <path>`; exit 4 means repair the plan or rubric here, at most
    twice. `L`, or exit 3/5, a third refusal, a `needs-human`/`blocked`
    judgment, or a material deviation from accepted scope or a shared
-   contract: Orca `ask` Foreman with the artifact paths and wait in this
-   session (`--timeout-ms 540000`; on timeout `ask --resume <message-id>`).
+   contract: `bbs foreman task ask <task> --body` Foreman with the artifact
+   paths and wait in this session (exit 4 is a timeout: `ask --resume
+   <question-id>`).
    `approved` continues; a redirect is revised here and asked again; a park
    answer ends the Dispatch with `NEEDS_CONTEXT`.
    Never implement on an unapproved plan record.
@@ -357,8 +359,8 @@ steps and ends when the ticket is ready for its phase's integration:
    `qa` verdict open.
 6. **Report.** Require `bbs ticket readiness --action review --json` (`push`
    when heavy checks are deferred), persist the checkpoint, handoff and gate
-   evidence per `references/verification.md`, and send exactly one
-   `worker_done`. Record workflow completion only when review, QA and
+   evidence per `references/verification.md`, and report exactly once with
+   `bbs foreman task done`. Record workflow completion only when review, QA and
    readiness are all current. Never commit, push or open a PR.
 
 A follow-up carries a new Dispatch and names its kind and trigger evidence:

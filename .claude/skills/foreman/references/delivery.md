@@ -54,12 +54,11 @@ A `kept_worktrees` entry holds edits made after its seal: report it; never
 delete it. Remove one that is only held open by a stale handle with
 `bbs ticket worktree-remove <path>` (bounded NTFS open-handle retries).
 
-Archive settled output, `worker-release` the worker, release its resource lease,
-then close the ticket's Orca surfaces. `worker-release` closes only the agent
-terminal its Dispatch owns. Before bulk close, require every recorded Dispatch
-settled and `orca orchestration worker-list --run <run_id> --terminal-state active
---include-remote --json` to show no live/unverifiable worker at that path; release
-any reclaimable row first. Close only surfaces owned by the exact worktree:
+Archive settled output, release the worker's resource lease, then close the
+ticket's Orca surfaces. Before bulk close, require every Dispatch of the
+ticket's Tasks settled (`bbs foreman task list "$FOREMAN_ID"`; `task abandon` a
+stuck one first) and `orca terminal list --worktree path:<worktreePath> --json`
+to show no agent you did not launch. Close only surfaces owned by the exact worktree:
 
 ```bash
 orca terminal close --worktree path:<worktreePath> --all --json

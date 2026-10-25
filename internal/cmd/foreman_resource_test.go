@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -90,35 +89,14 @@ func TestForemanResourceRequiresRegisteredOwner(t *testing.T) {
 }
 
 // The self-heal path: status is what every foreman wake runs, so it owns the
-// lease cross-check. A proven-terminal Dispatch releases its lease; a live
-// dispatch, a task with no dispatch record, and an unreachable Orca all hold.
+// lease cross-check. A settled Dispatch releases its lease; an open Dispatch
+// whose worker cannot be checked and a fresh lease with no Task yet hold.
 func TestForemanResourceStatusReleasesTerminalLeases(t *testing.T) {
 	resourceCLIFixture(t)
-	home := os.Getenv("BABYSIT_HOME")
-	bin := filepath.Join(home, "bin")
-	if err := os.MkdirAll(bin, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// dispatch-show answers per task: task-done is terminal, task-live is
-	// still dispatched, task-none has no dispatch record at all.
-	stub := `#!/bin/sh
-case "$1" in
-  status) echo '{"ok":true,"result":{"runtime":{"reachable":true,"capabilities":["orchestration.contract.v1"]}}}' ;;
-  open) echo '{"ok":true,"result":{}}' ;;
-  orchestration)
-    case "$*" in
-      *task-done*) echo '{"ok":true,"result":{"dispatch":{"id":"ctx_1","status":"completed"}}}' ;;
-      *task-live*) echo '{"ok":true,"result":{"dispatch":{"id":"ctx_2","status":"dispatched"}}}' ;;
-      *task-none*) echo '{"ok":true,"result":{"dispatch":null}}' ;;
-      *) echo '{"ok":true,"result":{}}' ;;
-    esac ;;
-  *) echo '{"ok":true,"result":{}}' ;;
-esac
-`
-	if err := os.WriteFile(filepath.Join(bin, "orca"), []byte(stub), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("ORCA_CLI_COMMAND", filepath.Join(bin, "orca"))
+	// task-done settled, task-live still dispatched (its worker unverifiable
+	// with Orca unreachable), task-none has no Task record at all.
+	seedTask(t, "task-done", "ctx_1", "completed", "term_1", time.Now())
+	seedTask(t, "task-live", "ctx_2", "dispatched", "term_2", time.Now())
 
 	reserve := func(task string) string {
 		status, err := newResourceBroker().Reserve(foreman.ResourceRequest{ForemanID: "fm-a", Ticket: "bs-a", Task: task, Profile: "standard"}, 0)
@@ -172,24 +150,18 @@ func TestConfiguredResourceCapValidation(t *testing.T) {
 	}
 }
 
+// recoveryClient is an Orca whose `terminal list` serves $TERMINALS, or fails
+// when it is unset (Orca lost contact).
 func recoveryClient(t *testing.T) *orca.Client {
 	t.Helper()
 	home := os.Getenv("BABYSIT_HOME")
 	stub := `#!/bin/sh
-case "$1" in
- status) echo '{"ok":true,"result":{"runtime":{"reachable":true,"capabilities":["orchestration.contract.v1"]}}}' ;;
- orchestration)
- case "$2" in
- dispatch-show)
-  if [ -f "$BABYSIT_HOME/stopped" ] && [ "$STOP_RESULT" = settled ]; then
-   echo '{"ok":true,"result":{"dispatch":{"id":"ctx-zombie","run_id":"run-old","status":"failed"}}}'
-  else printf '%s\n' "$DISPATCH_RESPONSE"; fi ;;
- worker-list) printf '%s\n' "$FLEET_RESPONSE" ;;
- worker-stop)
-  touch "$BABYSIT_HOME/stopped"
-  if [ "$STOP_RESULT" = error ]; then echo '{"ok":false,"error":{"message":"stop failed"}}'; exit 1; fi
-  echo '{"ok":true,"result":{}}' ;;
- esac ;;
+case "$1 $2" in
+ "status "*) echo '{"ok":true,"result":{"runtime":{"reachable":true,"capabilities":[]}}}' ;;
+ "terminal list")
+  if [ -z "$TERMINALS" ]; then echo '{"ok":false,"error":{"message":"runtime unreachable"}}'; exit 1; fi
+  printf '{"ok":true,"result":{"terminals":%s}}\n' "$TERMINALS" ;;
+ *) echo '{"ok":true,"result":{}}' ;;
 esac
 `
 	path := filepath.Join(home, "orca-recovery")
@@ -206,20 +178,20 @@ esac
 
 func TestResourceRecoveryAfterOwnerInterruption(t *testing.T) {
 	for _, tc := range []struct {
-		name, owner, dispatch, verdict, stop string
-		age                                  time.Duration
-		released, stopped                    bool
+		name, owner, dispatch, worker string
+		age                           time.Duration
+		released                      bool
 	}{
 		{name: "abandoned launch", owner: "stale", age: time.Hour, released: true},
 		{name: "deleted owner", owner: "missing", age: time.Hour, released: true},
 		{name: "live owner still launching", owner: "live", age: time.Hour},
 		{name: "startup grace", owner: "stale", age: time.Minute},
-		{name: "live worker outlives owner", owner: "stale", age: time.Hour, dispatch: "dispatched", verdict: "live"},
-		{name: "lost contact is not exit", owner: "missing", age: time.Hour, dispatch: "dispatched", verdict: "unverifiable"},
-		{name: "zombie agent in live terminal", owner: "stale", age: time.Hour, dispatch: "dispatched", verdict: "exited", stop: "settled", released: true, stopped: true},
-		{name: "stuck worker with healthy owner", owner: "live", age: time.Hour, dispatch: "dispatched", verdict: "exited", stop: "settled", released: true, stopped: true},
-		{name: "failed stop retains capacity", owner: "stale", age: time.Hour, dispatch: "dispatched", verdict: "exited", stop: "error", stopped: true},
-		{name: "unconfirmed stop retains capacity", owner: "stale", age: time.Hour, dispatch: "dispatched", verdict: "exited", stop: "pending", stopped: true},
+		{name: "live worker outlives owner", owner: "stale", age: time.Hour, dispatch: "dispatched", worker: "live"},
+		{name: "lost contact is not exit", owner: "missing", age: time.Hour, dispatch: "dispatched", worker: "unverifiable"},
+		{name: "vanished terminal is not exit", owner: "stale", age: time.Hour, dispatch: "dispatched", worker: "gone"},
+		{name: "exited agent in live terminal", owner: "stale", age: time.Hour, dispatch: "dispatched", worker: "exited", released: true},
+		{name: "exited worker with healthy owner", owner: "live", age: time.Hour, dispatch: "dispatched", worker: "exited", released: true},
+		{name: "just launched worker", owner: "stale", age: time.Hour, dispatch: "dispatched", worker: "starting"},
 		{name: "completed worker", owner: "stale", age: time.Hour, dispatch: "completed", released: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -235,13 +207,23 @@ func TestResourceRecoveryAfterOwnerInterruption(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			response := `{"ok":true,"result":{"dispatch":null}}`
-			if tc.dispatch != "" {
-				response = fmt.Sprintf(`{"ok":true,"result":{"dispatch":{"id":"ctx-zombie","run_id":"run-old","status":%q}}}`, tc.dispatch)
+			launched := now.Add(-time.Hour)
+			if tc.worker == "starting" {
+				launched = now
 			}
-			t.Setenv("DISPATCH_RESPONSE", response)
-			t.Setenv("FLEET_RESPONSE", fmt.Sprintf(`{"ok":true,"result":{"workers":[{"dispatchId":"ctx-zombie","projection":{"liveness":{"verdict":%q}}}],"page":{"hasMore":false}}}`, tc.verdict))
-			t.Setenv("STOP_RESULT", tc.stop)
+			if tc.dispatch != "" {
+				seedTask(t, "task-zombie", "ctx-zombie", tc.dispatch, "term_z", launched)
+			}
+			switch tc.worker {
+			case "live":
+				t.Setenv("TERMINALS", `[{"handle":"term_z","agentIdentity":"codex"}]`)
+			case "exited", "starting":
+				t.Setenv("TERMINALS", `[{"handle":"term_z","agentIdentity":""}]`)
+			case "gone":
+				t.Setenv("TERMINALS", `[]`)
+			default:
+				t.Setenv("TERMINALS", "")
+			}
 			c := recoveryClient(t)
 			b := newResourceBroker()
 			b.Now = func() time.Time { return now.Add(-tc.age) }
@@ -253,9 +235,11 @@ func TestResourceRecoveryAfterOwnerInterruption(t *testing.T) {
 			if (len(released) == 1) != tc.released {
 				t.Fatalf("released=%v want %v", released, tc.released)
 			}
-			_, err = os.Stat(filepath.Join(os.Getenv("BABYSIT_HOME"), "stopped"))
-			if (err == nil) != tc.stopped {
-				t.Fatalf("worker-stop invoked=%v want %v", err == nil, tc.stopped)
+			if tc.worker == "exited" {
+				task, _ := foreman.LoadTask("task-zombie")
+				if d := task.Current(); d.Status != foreman.DispatchFailed || !strings.Contains(d.Reason, "exited") {
+					t.Fatalf("exited worker's dispatch = %+v", d)
+				}
 			}
 			status, err := b.Status(0)
 			if err != nil {
@@ -277,7 +261,7 @@ func TestReserveReclaimsOtherForemansCapacity(t *testing.T) {
 	if _, err := b.Reserve(foreman.ResourceRequest{ForemanID: "fm-a", Ticket: "bs-a", Task: "old", Profile: "ios-simulator"}, 0); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("DISPATCH_RESPONSE", `{"ok":true,"result":{"dispatch":{"id":"old-done","status":"completed"}}}`)
+	seedTask(t, "old", "old-done", "completed", "term_old", time.Now())
 	recoveryClient(t)
 	out := captureStdout(t, func() {
 		if err := foremanResourceReserve([]string{"fm-new", "--ticket", "bs-new", "--task", "new", "--profile", "ios-simulator"}); err != nil {
@@ -376,7 +360,6 @@ func TestWatchRecoversCapacityWithoutOpenForeman(t *testing.T) {
 	if _, err := b.Reserve(foreman.ResourceRequest{ForemanID: "fm-a", Ticket: "bs-a", Task: "orphan", Profile: "standard"}, 0); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("DISPATCH_RESPONSE", `{"ok":true,"result":{"dispatch":null}}`)
 	recoveryClient(t)
 	out := captureStdout(t, func() {
 		if err := foremanWatch([]string{"--once"}); err != nil {
@@ -400,15 +383,15 @@ func TestSlowLeaseCannotStarveOtherForemanRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Force the first lease to consume the whole tick's budget.
-	t.Setenv("SLOW_TASK", status.Leases[0].Task)
+	// Force the first lease to consume the whole tick's budget: its Dispatch
+	// is open, so reconciliation asks Orca for terminals, which hangs.
+	seedTask(t, status.Leases[0].Task, "open", "dispatched", "term_slow", time.Now().Add(-time.Hour))
+	seedTask(t, status.Leases[1].Task, "done", "completed", "term_done", time.Now().Add(-time.Hour))
 	path := filepath.Join(os.Getenv("BABYSIT_HOME"), "orca-slow")
 	stub := `#!/bin/sh
 case "$1" in
- status) echo '{"ok":true,"result":{"runtime":{"reachable":true,"capabilities":["orchestration.contract.v1"]}}}' ;;
- orchestration)
- if [ "$4" = "$SLOW_TASK" ]; then exec sleep 30; fi
- echo '{"ok":true,"result":{"dispatch":{"id":"done","status":"completed"}}}' ;;
+ status) echo '{"ok":true,"result":{"runtime":{"reachable":true,"capabilities":[]}}}' ;;
+ terminal) exec sleep 30 ;;
 esac
 `
 	if err := os.WriteFile(path, []byte(stub), 0700); err != nil {

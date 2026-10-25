@@ -71,6 +71,10 @@ type Question struct {
 	AnsweredAt string `json:"answered_at,omitempty"`
 }
 
+// ErrTaskNotFound is a Task id with no record. Callers that only ask "is a
+// worker running for it" read it as "not dispatched yet".
+var ErrTaskNotFound = errors.New("task not found")
+
 func TasksDir() string { return filepath.Join(identity.BabysitHome(), "tasks") }
 
 func taskDir(id string) string { return filepath.Join(TasksDir(), id) }
@@ -123,7 +127,7 @@ func LoadTask(id string) (Task, error) {
 	data, err := os.ReadFile(taskPath(id))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return t, fmt.Errorf("task %s not found", id)
+			return t, fmt.Errorf("task %s: %w", id, ErrTaskNotFound)
 		}
 		return t, err
 	}

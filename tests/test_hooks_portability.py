@@ -203,31 +203,26 @@ class Hooks(unittest.TestCase):
             for f in sessions.iterdir():
                 self.assertTrue(f.name.startswith(".session.") or "/" not in f.name)
 
-    def test_stop_gate_checks_current_orca_dispatch(self):
-        cli = self.root / "orca"
-        log = self.root / "orca-calls"
-        cli.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$BBS_TEST_LOG"\n'
-                       'printf "%s\\n" "$BBS_TEST_REPLY"\n')
-        cli.chmod(0o755)
-        env = {**self.env, "ORCA_CLI_COMMAND": str(cli),
-               "ORCA_TERMINAL_HANDLE": "term-worker", "BBS_TEST_LOG": str(log)}
+    def test_stop_gate_checks_current_foreman_dispatch(self):
+        task_dir = self.state / "tasks" / "task-w"
+        task_dir.mkdir(parents=True)
+        env = {**self.env, "ORCA_TERMINAL_HANDLE": "term-worker"}
         for active in (False, True):
-            response = {"messages": [], "count": 0}
-            if active:
-                response["dispatchId"] = "ctx-current"
-            env["BBS_TEST_REPLY"] = json.dumps({"ok": True, "result": response})
+            task = {"id": "task-w", "foreman": "fm-a", "ticket": "bs-a",
+                    "created_at": "2026-01-01T00:00:00Z", "dispatches": [{
+                        "id": "task-w.d1", "status": "dispatched" if active else "completed",
+                        "terminal": "term-worker", "launched_at": "2026-01-01T00:00:00Z"}]}
+            (task_dir / "task.json").write_text(json.dumps(task))
             for continued in (False, True):
                 result = self.run_hook("Stop", payload={"stop_hook_active": continued}, env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 if active:
                     decision = json.loads(result.stdout)
                     self.assertEqual(decision["decision"], "block")
-                    self.assertIn("ctx-current", decision["reason"])
-                    self.assertIn("worker_done", decision["reason"])
+                    self.assertIn("task-w.d1", decision["reason"])
+                    self.assertIn("bbs foreman task done", decision["reason"])
                 else:
                     self.assertEqual(result.stdout, "")
-        self.assertEqual(log.read_text().splitlines(),
-                         ["orchestration check --terminal term-worker --peek --json"] * 4)
 
     def test_stop_gate_skips_sessions_outside_orca(self):
         result = self.run_hook("Stop", payload={"stop_hook_active": True})
