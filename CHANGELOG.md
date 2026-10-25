@@ -1,5 +1,32 @@
 # Changelog
 
+
+## 1.108.0 — 2026-10-25
+
+### Added
+
+- **Prompt-cache-aware Foreman waits** — new `foreman_cache_ttl` config
+  (auto: claude 3600s, others 300s). `bbs foreman task ask`/await blocking
+  returns land a minute inside the agent's prompt-cache lifetime so the
+  follow-up run reads a warm cache; the watcher keeps an idle Foreman's
+  cache warm through long batches. `foreman_status_interval` default drops
+  to 3300s to stay under the one-hour cache window.
+- **Cache-warmth internals** — `agent.PromptCacheTTL()` per-agent profile
+  field and `promptCacheTTL`/`blockingWaitSeconds` helpers; the batch
+  watcher sends a keep-warm nudge before the cache expires, and
+  `scripts/foreman-cache-report.py` reports cache economics.
+- **`token-audit` skill** — audits token spend against the foreman cache
+  baseline (`docs/data/foreman-cache-baseline-2026-10-25.json`), shipped
+  in the 2build pack with `scripts/foreman-cache-report.py`.
+- **Docs** — `docs/foreman-cache-economics.md` and
+  `docs/token-economics.md`.
+
+### Changed
+
+- **autopilot verification, review-pr, plan-draft, foreman skills** —
+  routing, phases, tickets, topology and worker-lifecycle references
+  refreshed for the cache-aware lifecycle.
+
 ## 1.107.0 — 2026-10-25
 
 ### Added
