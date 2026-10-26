@@ -100,7 +100,7 @@ for that workflow.
 | `test` | 7358 | Create meaningful regression coverage, audit weak or redundant tests, and optimize test lanes using measured cost and change impact. Use for test creation, suite audits, failing-test investigation, or CI test optimization; browser journey QA stays with qa/browse. |
 | `token-audit` | 5969 | Audit where agent sessions spend tokens and what every session loads before work starts (skill listing, CLAUDE.md/AGENTS.md, memory), then rank savings that keep quality. Use when runs feel expensive, before tuning skills, models, effort or compaction, or to check background context bloat. |
 | `triage` | 4479 | Tier-1 triage for a stalled or BLOCKED autonomous run. Use when a worker returned BLOCKED/NEEDS_CONTEXT or a ticket's checkpoint stopped advancing — classify recoverable vs needs-human, post a structured handoff, optionally resume from the checkpoint. |
-| `ui-audit` | 11324 | Evaluate a running app's UI/UX by using it as a named persona through one real work flow — look at every screen before acting, log every friction and workaround, score the flow, and hand back evidence-backed findings ranked by severity with fix directions. Use before planning UI improvements, to inventory an app's work flows, or to re-audit a flow after a fix. |
+| `ui-audit` | 6876 | Evaluate a running app's UI/UX by using it as a named persona through one real work flow, scored with PURE step ratings, Nielsen severities and measured thresholds; also builds the app's flow inventory. Use before planning UI improvements or to re-audit a flow after a fix. |
 
 </details>
 
