@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **`ui-audit` skill** (Grower) — evaluate a running app's UI/UX by using it
+  as a persona through one work flow: a flow inventory, an
+  EXPECT → LOOK → FIND → ACT → FEEL loop judged from screenshots (never the
+  accessibility tree alone), workarounds and retries logged as findings,
+  mandatory non-happy passes, an independent second look, S0–S3 severities,
+  a measured flow scorecard and a re-audit contract. Lenses in
+  `ui-audit/lenses.md`.
+
 ## 1.108.1 — 2026-10-25
 
 ### Added

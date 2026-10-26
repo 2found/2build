@@ -25,7 +25,8 @@
     "sweep",
     "test",
     "token-audit",
-    "triage"
+    "triage",
+    "ui-audit"
   ],
   "capabilities": {
     "agent-first-docs": {
@@ -241,6 +242,15 @@
           "name": "2build_triage",
           "file": "triage/skill.md",
           "description": "Tier-1 triage for a stalled or BLOCKED autonomous run. Use when a worker returned BLOCKED/NEEDS_CONTEXT or a ticket's checkpoint stopped advancing — classify recoverable vs needs-human, post a structured handoff, optionally resume from the checkpoint."
+        }
+      ]
+    },
+    "ui-audit": {
+      "skills": [
+        {
+          "name": "2build_ui-audit",
+          "file": "ui-audit/skill.md",
+          "description": "Evaluate a running app's UI/UX by using it as a named persona through one real work flow — look at every screen before acting, log every friction and workaround, score the flow, and hand back evidence-backed findings ranked by severity with fix directions. Use before planning UI improvements, to inventory an app's work flows, or to re-audit a flow after a fix."
         }
       ]
     }

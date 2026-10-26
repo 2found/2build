@@ -18,6 +18,7 @@ Only developer runs may also rely on conversation. Resolve identity via the
 | `review-pr` | `PASS` \| `FINDINGS(<N>)` \| `FIXED(<N>)` |
 | `create-pr` | `PR_CREATED` |
 | `design-ui` | `DESIGNED` |
+| `ui-audit` | `AUDITED(<grade>, S0..S3 counts)` \| `INVENTORIED(<n>)` |
 | `recon` | `STEAL(<approach>)` \| `PASS` |
 | `setup-project` | `CONFIGURED` |
 

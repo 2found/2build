@@ -10,7 +10,7 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Prototyper | `recon`, `prototype` |
 | Builder | `autopilot`, `plan-draft`, `design-ui`, `implement`, `review-pr`, `test`, `qa`, `browse`, `create-pr`, `release-prd`, `semantic-decision`, `agent-first-docs` |
 | Sweeper | `sweep`, `review-pr`, `qa` |
-| Grower | `product-marketing-page` |
+| Grower | `ui-audit`, `product-marketing-page` |
 | Maintainer | `maintain`, `investigate`, `qa`, `analytics-review`, `token-audit`, `harness-audit`, `triage` |
 | Setup | `setup-project` |
 
@@ -52,6 +52,7 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Create a pull request after human review | `/bbs:create-pr` |
 | Release to production through distribution, deploy and hypercare | `/bbs:release-prd` |
 | UI design and prototype | `/bbs:design-ui` |
+| Evaluate a running app's UX by using it as a persona; inventory work flows | `/bbs:ui-audit` |
 | Configure repo | `/bbs:setup-project` |
 | Audit AGENTS.md, CLAUDE.md and related harness files | `/bbs:harness-audit` |
 | Evaluate external code | `/bbs:recon` |
