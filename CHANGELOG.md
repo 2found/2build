@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.110.0 — 2026-10-27
+
+### Removed
+
+- **The archetype model.** Autopilot now has one built-in workflow,
+  `builder`; a project can still add its own under `.claude/workflows/`. The
+  `prototyper`, `sweeper`, `grower` and `maintainer` workflows and the
+  `prototype`, `sweep` and `maintain` skills are gone (telemetry: `builder`
+  ran 396 times, the other four 7 in total). Handoffs no longer carry
+  `LIFECYCLE:` / `TRIGGER:` lines; a follow-up is named in the handoff with
+  its evidence. Instead: ask the agent for a spike; `/simplify` or
+  `review-pr` for cleanup; `/security-review` for a security audit;
+  `autopilot` (with `investigate`) for a bug fix.
+- **`fix-pr` skill.** Ask the agent to address the PR's review comments.
+- **`product-marketing-page` skill** — merged into `agent-first-docs`.
+
+### Changed
+
+- **`agent-first-docs` rewritten** to cover docs, quick starts and
+  marketing pages around one copyable coding-agent prompt kept in a single
+  source, plus agent-readable Markdown delivery.
+- **Nine skills no longer load into every session.** `create-pr`, `triage`,
+  `analytics-review`, `token-audit`, `ui-audit`, `setup-project`,
+  `harness-audit`, `recon` and `agent-first-docs` set
+  `disable-model-invocation: true` (Claude Code): they stay `/bbs:<name>`
+  commands but leave the model's skill listing, roughly halving its size.
+  Skills that workflows invoke stay model-invocable.
+
 ## 1.109.0 — 2026-10-27
 
 ### Added
