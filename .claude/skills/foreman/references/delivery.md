@@ -29,7 +29,7 @@ in `bbs foreman snapshot` and `readiness`: a concern to report, never a
 blocker. Prefer a real gate when it is cheap; a waiver is the exception.
 
 An evidence-only child is sealable when its workflow verdict, acceptance
-evidence and lifecycle signal are current and its worktree holds no code
+evidence are current and its worktree holds no code
 change; seal its artifacts (`bbs foreman seal "$CHILD" --file`). If any code
 changed, use the code-bearing path instead.
 

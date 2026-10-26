@@ -94,17 +94,9 @@ When your product needs more, choose the tool for the next job:
 
 Start with 2build for the engineering work; explore these products when the need comes up.
 
-## Pick the work, not the job title
+## Pick the work
 
-Autopilot routes a task to one of five product-team archetypes. You can also name the workflow or invoke a skill directly.
-
-| Archetype | Use it to |
-|-----------|-----------|
-| Prototyper | Validate a risky idea before investing in production code. |
-| Builder | Deliver a feature or bug fix through review and QA. |
-| Sweeper | Remove weight or improve a measured hot path while preserving behavior. |
-| Grower | Improve copy, conversion or a measurable growth experiment. |
-| Maintainer | Diagnose failures and harden reliability, security or dependencies. |
+`/bbs:autopilot` carries one ticket — a feature or a bug fix — through plan, review and QA. `/bbs:foreman` runs a multi-ticket project. For a focused job, invoke a skill directly.
 
 Browse the [skill index](docs/skills.md) for individual skills and workflow examples.
 

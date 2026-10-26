@@ -20,11 +20,11 @@ under that phase's ticket.
    Preserve real `blocked_by`/`blocks` dependencies, shared interfaces, edit
    ownership, and acceptance-to-seed/evidence mapping. Missing accepted coverage
    needs a child or repair; changed scope or non-delegable decisions escalate.
-   Persist the assigned archetype workflow with
-   `BABYSIT_TICKET="$TICKET" bbs ticket set-pointer workflow <workflow>`;
-   default to `builder` only for ordinary production work. Lifecycle promotion
-   needs the prerequisite handoff's `LIFECYCLE` and `TRIGGER` evidence; never
-   pre-admit speculative growth/maintenance work before its signal exists.
+   Persist the ticket's workflow with
+   `BABYSIT_TICKET="$TICKET" bbs ticket set-pointer workflow <workflow>`:
+   `builder` unless the project defines its own. A follow-up a worker's handoff
+   names becomes a ticket only on its evidence; never pre-admit speculative
+   work.
 2. For each seed of the opening phase, run `bbs ticket ensure --mode=worktree
    --from-input-file "$SEED_PATH" --reason foreman-decompose` from the
    canonical repo, so the ticket starts from the local base the previous phase

@@ -1,6 +1,7 @@
 ---
 name: recon
 description: Evaluate an external repository, library, or tool against the current project. Use for adoption decisions, architecture comparisons, or requests to explore and borrow from another project.
+disable-model-invocation: true
 ---
 
 > **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.

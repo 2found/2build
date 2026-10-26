@@ -121,8 +121,8 @@ has_all "fresh-eyes-only-after-retry-budget" \
   'after its retry budget' 'Fresh read-only' 'diagnosis worker' \
   'a context' 'that has not already failed three times'
 
-has_all "lifecycle-aware-dispatch" \
-  'pointers.workflow' 'default to `builder` only' 'LIFECYCLE' 'TRIGGER' 'evidence-only'
+has_all "workflow-aware-dispatch" \
+  'pointers.workflow' '`builder` unless the project defines its own' 'evidence-only'
 
 has_all "phase-qa-gate" \
   '## Phase integration QA' 'bbs foreman integrate' 'one integration worker session' \

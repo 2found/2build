@@ -1,6 +1,7 @@
 ---
 name: ui-audit
 description: Evaluate a running app's UI/UX by using it as a named persona through one real work flow, scored with PURE step ratings, Nielsen severities and measured thresholds; also builds the app's flow inventory. Use before planning UI improvements or to re-audit a flow after a fix.
+disable-model-invocation: true
 ---
 # ui-audit
 Make it really good, use lots of tokens and iterate till you're proud of it.

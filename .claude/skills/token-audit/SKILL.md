@@ -1,6 +1,7 @@
 ---
 name: token-audit
 description: Audit where agent sessions spend tokens and what every session loads before work starts (skill listing, CLAUDE.md/AGENTS.md, memory), then rank savings that keep quality. Use when runs feel expensive, before tuning skills, models, effort or compaction, or to check background context bloat.
+disable-model-invocation: true
 ---
 # token-audit
 Measure first, then propose. The usual guess (cheaper subagent models, shorter

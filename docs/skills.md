@@ -2,33 +2,22 @@
 
 Skills carry specialized workflows; `semantic-decision` isolates bounded
 judgment with the current LLM by default and optional Cloudflare inference.
-The pack is organized around the [five archetypes](../.claude/skills/references/archetypes.md)
-of a product-building team — pick by the shape of the work, not the job title.
 
-| Archetype | Skills |
-|-----------|--------|
-| Prototyper | `recon`, `prototype` |
-| Builder | `autopilot`, `plan-draft`, `design-ui`, `implement`, `review-pr`, `test`, `qa`, `browse`, `create-pr`, `release-prd`, `semantic-decision`, `agent-first-docs` |
-| Sweeper | `sweep`, `review-pr`, `qa` |
-| Grower | `ui-audit`, `product-marketing-page` |
-| Maintainer | `maintain`, `investigate`, `qa`, `analytics-review`, `token-audit`, `harness-audit`, `triage` |
-| Setup | `setup-project` |
+## Workflows
 
-## Archetype workflows
-
-`autopilot` runs exactly one workflow per archetype. Name the archetype, or let
-`autopilot` route production work to `builder` from ticket state.
-
-| Workflow | Use when | Stops at |
-|----------|----------|----------|
-| `/bbs:autopilot prototyper "<idea>"` | Validate a risky assumption with a throwaway spike | learning verdict |
-| `/bbs:autopilot builder "<requirement>"` | Build one production ticket (auto-selects build/implement/child/verify) | QA-verified change, left uncommitted |
+| Command | Use when | Stops at |
+|---------|----------|----------|
+| `/bbs:autopilot "<requirement>"` | Build one production ticket — feature or bug fix (auto-selects build/implement/child/verify) | QA-verified change, left uncommitted |
 | `/bbs:foreman "<project>"` | Decompose and orchestrate a multi-ticket project through Orca | Each phase landed as one commit after phase QA, then released; project-wide QA at the last phase |
-| `/bbs:autopilot sweeper` | Simplify / unship / optimize without changing behavior | QA-verified change, left uncommitted |
-| `/bbs:autopilot grower "<metric>"` | Rank or scaffold a growth experiment | ranked plan or scaffolded variant |
-| `/bbs:autopilot maintainer` | Audit security/deps/reliability/scale, or root-cause a bug | hardened/fixed change, left uncommitted |
+
+`builder` is autopilot's only built-in workflow; a project may add its own under
+`.claude/workflows/`.
 
 ## Which skill when
+
+Skills marked *manual* set `disable-model-invocation: true`: they are not in the
+model's skill listing, so the agent never picks them up on its own — type the
+command.
 
 | Need | Skill |
 |------|-------|
@@ -38,27 +27,22 @@ of a product-building team — pick by the shape of the work, not the job title.
 | Add missing behavioral coverage | `/bbs:test create` |
 | Audit weak, redundant or unrun tests | `/bbs:test audit` |
 | Measure and optimize test lanes | `/bbs:test optimize` |
-| Validate a risky idea with a throwaway spike | `/bbs:prototype` |
-| Simplify, unship, or optimize without changing behavior | `/bbs:sweep` |
-| Audit security, deps, reliability, or scale and harden | `/bbs:maintain` |
 | Root-cause a bug | `/bbs:investigate` |
-| Turn babysit telemetry into ticket-ready findings | `/bbs:analytics-review` |
-| Find where session tokens and background context go, rank savings | `/bbs:token-audit` |
 | Make a bounded judgment, including whether human input is needed | `/bbs:semantic-decision` |
-| Classify and unblock a stalled/BLOCKED run | `/bbs:triage` |
 | Focused browser check | `/bbs:browse` |
 | Full test/fix browser loop | `/bbs:qa` |
 | Pre-landing code review | `/bbs:review-pr` |
-| Create a pull request after human review | `/bbs:create-pr` |
-| Release to production through distribution, deploy and hypercare | `/bbs:release-prd` |
 | UI design and prototype | `/bbs:design-ui` |
-| Evaluate a running app's UX by using it as a persona; inventory work flows | `/bbs:ui-audit` |
-| Configure repo | `/bbs:setup-project` |
-| Audit AGENTS.md, CLAUDE.md and related harness files | `/bbs:harness-audit` |
-| Evaluate external code | `/bbs:recon` |
-| Measurable growth workflow | `/bbs:autopilot grower` |
-| Agent-first onboarding docs and Markdown discovery | `/bbs:agent-first-docs` |
-| Product value, CTAs and a marketing quick start | `/bbs:product-marketing-page` |
+| Release to production through distribution, deploy and hypercare | `/bbs:release-prd` |
+| Create a pull request after human review | `/bbs:create-pr` *(manual)* |
+| Classify and unblock a stalled/BLOCKED run | `/bbs:triage` *(manual)* |
+| Turn babysit telemetry into ticket-ready findings | `/bbs:analytics-review` *(manual)* |
+| Find where session tokens and background context go, rank savings | `/bbs:token-audit` *(manual)* |
+| Evaluate a running app's UX by using it as a persona; inventory work flows | `/bbs:ui-audit` *(manual)* |
+| Configure repo | `/bbs:setup-project` *(manual)* |
+| Audit AGENTS.md, CLAUDE.md and related harness files | `/bbs:harness-audit` *(manual)* |
+| Evaluate external code | `/bbs:recon` *(manual)* |
+| Docs, quick start or marketing page built around one agent prompt; agent-readable Markdown | `/bbs:agent-first-docs` *(manual)* |
 
 ## Skill boundary
 
@@ -78,11 +62,18 @@ and script writing are direct agent tasks.
 
 Removed shortcuts: `conversion-fix`, `copy-rewrite`, `growth-experiment`,
 `office-hours`, `reason`, `social-content`. Ask the agent directly for those
-jobs; use `autopilot grower` for a persisted experiment workflow, `prototype`
-for a quarantined technical spike, and `product-marketing-page` for the
-product activation/docs standard. The reasoning benchmark remains archived
+jobs, and use `agent-first-docs` for the product activation/docs standard.
+
+Removed with the archetype model: the `prototype`, `sweep` and
+`maintain` skills and the `prototyper`, `sweeper`, `grower` and `maintainer`
+workflows (telemetry: `builder` ran 396 times, the four others 7 in total). A
+spike is an ordinary agent task; simplify with Claude Code's `/simplify` or
+`review-pr`; audit security with `/security-review`; fix a bug with
+`autopilot` (`investigate` inside it). `fix-pr` is gone too — ask the agent to
+address the PR's review comments; `product-marketing-page` merged into
+`agent-first-docs`. The reasoning benchmark remains archived
 under `tests/reason-bench`; it is not an installed skill.
 
-`create-pr`/`fix-pr` retain PR and ticket-state protocols; `analytics-review`
+`create-pr` retains PR and ticket-state protocols; `analytics-review`
 retains telemetry interpretation; `triage` retains bounded checkpoint recovery.
 Low personal usage alone is not a reason to remove these contracts.

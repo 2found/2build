@@ -1,6 +1,7 @@
 ---
 name: create-pr
 description: Prepare and create a pull request from the current branch. Use when a human requests a PR; 2build workflows never open one.
+disable-model-invocation: true
 ---
 
 > **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.
@@ -22,7 +23,7 @@ Create a reviewable PR without merging it.
    and require `data.ready=true` for the final head. Then push the source
    branch and open the PR against `base_branch`. When a ticket resolves,
    persist `bbs ticket set-pointer pr <url>` and `bbs ticket set-status in_review`.
-   `board --pr` and `fix-pr` use the pointer; status becomes `done` only after the PR is observed merged.
+   `board --pr` uses the pointer; status becomes `done` only after the PR is observed merged.
 5. Return the PR URL, title, summary, tests, and concerns. Cross-repo tickets: a sibling repo's change needs its own create-pr run there; list the sibling repo + branch in the summary instead of fanning out.
 ## Rules
 - Never force-push.

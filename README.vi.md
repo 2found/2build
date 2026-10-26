@@ -96,15 +96,7 @@ Bắt đầu với 2build cho công việc engineering; tìm hiểu các sản p
 
 ## Chọn theo công việc
 
-Autopilot chọn một trong năm hình mẫu của đội xây dựng sản phẩm. Bạn cũng có thể chỉ định workflow hoặc gọi skill trực tiếp.
-
-| Hình mẫu | Công việc |
-|----------|-----------|
-| Prototyper | Kiểm chứng ý tưởng rủi ro trước khi đầu tư code production. |
-| Builder | Hoàn thành tính năng hoặc sửa bug qua review và QA. |
-| Sweeper | Loại bỏ phần dư hoặc tối ưu điểm nóng đã đo, giữ nguyên hành vi. |
-| Grower | Cải thiện copy, conversion hoặc thử nghiệm tăng trưởng có đo lường. |
-| Maintainer | Tìm nguyên nhân lỗi, củng cố độ tin cậy, bảo mật và dependency. |
+`/bbs:autopilot` đưa một ticket — tính năng hoặc sửa bug — qua plan, review và QA. `/bbs:foreman` chạy dự án nhiều ticket. Việc nhỏ, chuyên biệt thì gọi skill trực tiếp.
 
 Xem [danh mục skill](docs/skills.md) để chọn skill riêng và ví dụ workflow.
 

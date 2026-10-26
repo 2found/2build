@@ -8,21 +8,16 @@
     "browse",
     "create-pr",
     "design-ui",
-    "fix-pr",
     "harness-audit",
     "implement",
     "investigate",
-    "maintain",
     "plan-draft",
-    "product-marketing-page",
-    "prototype",
     "qa",
     "recon",
     "release-prd",
     "review-pr",
     "semantic-decision",
     "setup-project",
-    "sweep",
     "test",
     "token-audit",
     "triage",
@@ -34,7 +29,7 @@
         {
           "name": "2build_agent-first-docs",
           "file": "agent-first-docs/skill.md",
-          "description": "Write product documentation and quick starts that begin with one coding-agent prompt, then human and agent references. Use for agent-assisted onboarding and discoverable Markdown documentation."
+          "description": "Write a product's docs, quick start or marketing page around one copyable coding-agent prompt, and serve docs as agent-readable Markdown (llms.txt, .md URLs). Use for onboarding docs, quick starts, product pages, heroes and CTAs."
         }
       ]
     },
@@ -43,7 +38,7 @@
         {
           "name": "2build_analytics-review",
           "file": "analytics-review/skill.md",
-          "description": "Maintainer pass over babysit telemetry. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED."
+          "description": "Review babysit telemetry. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED."
         }
       ]
     },
@@ -83,15 +78,6 @@
         }
       ]
     },
-    "fix-pr": {
-      "skills": [
-        {
-          "name": "2build_fix-pr",
-          "file": "fix-pr/skill.md",
-          "description": "Address unresolved review comments on an open pull request — fix on the PR head branch, reply in-thread, resolve threads, push. Use after a human or bot review leaves comments on a PR."
-        }
-      ]
-    },
     "harness-audit": {
       "skills": [
         {
@@ -119,39 +105,12 @@
         }
       ]
     },
-    "maintain": {
-      "skills": [
-        {
-          "name": "2build_maintain",
-          "file": "maintain/skill.md",
-          "description": "Keep a mature system secure, reliable, and efficient at scale. Use for security and dependency audits, reliability hardening, db/query performance (schema, indexes, partitioning, caching, batching, async processing), and architecture reviews under change or scale pressure."
-        }
-      ]
-    },
     "plan-draft": {
       "skills": [
         {
           "name": "2build_plan-draft",
           "file": "plan-draft/skill.md",
           "description": "Draft a technical plan before implementation. Use when the user asks for a plan, architecture, ticket breakdown, or wants to turn a requirement into plan.md without coding yet."
-        }
-      ]
-    },
-    "product-marketing-page": {
-      "skills": [
-        {
-          "name": "2build_product-marketing-page",
-          "file": "product-marketing-page/skill.md",
-          "description": "Write or revise product introduction pages around customer value and a clear activation path. Use for product heroes, benefits, CTAs and agent-assisted quick starts, rather than full technical manuals."
-        }
-      ]
-    },
-    "prototype": {
-      "skills": [
-        {
-          "name": "2build_prototype",
-          "file": "prototype/skill.md",
-          "description": "Build a fast, throwaway spike to validate one risky technical or product idea before committing to production work. Use to test feasibility, churn a rough proof, or de-risk an assumption — not to ship, and not for UI look-and-feel questions (that is design-ui)."
         }
       ]
     },
@@ -206,15 +165,6 @@
           "name": "2build_setup-project",
           "file": "setup-project/skill.md",
           "description": "Initialize or update a repo's 2build configuration, QA target, release profile and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files."
-        }
-      ]
-    },
-    "sweep": {
-      "skills": [
-        {
-          "name": "2build_sweep",
-          "file": "sweep/skill.md",
-          "description": "Simplify and shrink working code without changing behavior. Use to remove dead code, unship unused features, cut complexity, tidy UI, or optimize a measured hot path."
         }
       ]
     },

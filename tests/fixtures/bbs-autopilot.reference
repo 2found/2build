@@ -699,10 +699,8 @@ EOF
     echo "landing_doc:     $state_landing_doc  (CLAUDE.md or AGENTS.md present — Phase-1 readiness)"
     echo
 
-    # The pack runs five archetype workflows. State signals route one-ticket
-    # work to `builder` and decomposed parents to `foreman`;
-    # prototyper/sweeper/grower/maintainer are intent-driven and invoked by
-    # name. Autopilot never executes the parent's project orchestration.
+    # State signals route one-ticket work to `builder` and decomposed parents
+    # to `foreman`. Autopilot never executes the parent's project orchestration.
     best_workflow=""
     best_reason=""
     if [ "$state_origin_type" = "sub_ticket" ]; then
@@ -730,7 +728,6 @@ EOF
       echo "$best_workflow — $best_reason"
     else
       echo "NEEDS_CONTEXT — no ticket, requirement, plan, manifest, or branch work to route."
-      echo "  For intent-driven work, name the archetype: prototyper | sweeper | grower | maintainer."
     fi
     echo
 

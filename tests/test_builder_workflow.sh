@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# tests/test_archetype_workflows.sh — regression guards for the five
-# archetype workflows introduced in v1.47.0.
+# tests/test_builder_workflow.sh — regression guards for the builder
+# workflow, autopilot's only built-in workflow.
 #
-# The workflows are prose, so refactors can silently drop load-bearing
+# The workflow is prose, so refactors can silently drop load-bearing
 # lines (this happened to the readiness gate in v1.47.0). Pin:
-#   1. All five workflow files exist and pass `bbs autopilot lint-workflow`.
-#   2. Each has a **Final status** block with a STATUS line, a VERDICT line
-#      carrying that archetype's verdict vocabulary, and a NEXT line.
+#   1. The workflow file exists and passes `bbs autopilot lint-workflow`.
+#   2. It has a **Final status** block with a STATUS line, a BUILT VERDICT
+#      line, and a NEXT line.
 #   3. Builder keeps only one-ticket modes and leaves all branch/worktree and
 #      decomposed-parent ownership to foreman.
-#   4. Code-touching workflows run review-pr in the current autopilot session,
+#   4. It runs review-pr in the current autopilot session,
 #      then persist the QA verdict the PR gate reads.
 #   5. `bbs autopilot snapshot --json` reports a committed non-base branch
 #      in verify mode — needs a real origin, which the eval-set fixtures lack.
@@ -27,7 +27,7 @@ FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m  %s\n' "$1"; [ $# -gt 1 ] && printf '        %s\n' "$2"; }
 
-# ── existence + lint + final-status skeleton, per archetype ─────────
+# ── existence + lint + final-status skeleton ────────────────────────
 
 check_workflow() {  # $1=name $2=verdict-vocab regex (matched on the VERDICT line)
   local name="$1" vocab="$2" f="$WF_DIR/$1.md"
@@ -53,19 +53,9 @@ check_workflow() {  # $1=name $2=verdict-vocab regex (matched on the VERDICT lin
   else
     fail "$name-verdict-vocabulary" "expected 'VERDICT: $vocab', got: $(grep '^VERDICT:' "$f" | head -1)"
   fi
-
-  if grep -q '^LIFECYCLE: ' "$f" && grep -q '^TRIGGER: ' "$f"; then
-    ok "$name-lifecycle-signal"
-  else
-    fail "$name-lifecycle-signal"
-  fi
 }
 
-check_workflow prototyper 'VALIDATED | INVALIDATED | INCONCLUSIVE'
-check_workflow builder    'BUILT'
-check_workflow sweeper    'SWEPT'
-check_workflow grower     'RANKED | SCAFFOLDED'
-check_workflow maintainer 'AUDITED | HARDENED | FIXED'
+check_workflow builder 'BUILT'
 
 # ── builder mode table + verbatim branch constructions ──────────────
 
@@ -131,7 +121,7 @@ else
   fail "auto-entry-needs-no-goal-paste"
 fi
 
-for name in builder grower sweeper maintainer; do
+for name in builder; do
   if grep -q 'review-pr' "$WF_DIR/$name.md" \
      && grep -q 'current autopilot session' "$WF_DIR/$name.md"; then
     ok "$name-runs-review-in-current-session"

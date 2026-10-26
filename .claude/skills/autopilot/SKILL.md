@@ -41,8 +41,8 @@ finding remains, and the verified change can proceed to the authorized
 release step without more implementation or verification. It does not mean
 published or deployed. `DONE_WITH_CONCERNS` is only for nonblocking residuals;
 a missing required check or unmet criterion is `BLOCKED`/`NEEDS_CONTEXT`, not
-releasable. Explicit prototype, recommendation-only, or audit-only workflows
-keep their learning/report outcome and must not claim release readiness.
+releasable. A report-only project workflow keeps its report outcome and must
+not claim release readiness.
 
 Record acceptance criteria and their check/evidence mapping in the existing
 plan and handoff. Derive checks from the requirement and repository release/CI
@@ -51,34 +51,12 @@ compatibility, or rollout checks only where the change needs them. A named
 fallback must prove the same required behavior; a unit check cannot stand in
 for a required browser journey merely because the browser is unavailable.
 
-## Lifecycle loop
+## Scope
 
-Autopilot advances **one evidence-bounded ticket through one archetype**. It
-never recursively invokes itself or turns a suggested next stage into accepted
-scope. A foreman may chain lifecycle tickets in a DAG; a serial run leaves the
-next stage in its handoff.
-
-The product loop is `prototyper -> builder -> grower -> maintainer`, with
-`sweeper` inserted only when a measured simplification opportunity exists.
-Promotion is evidence-gated:
-
-- `prototyper -> builder`: the risky assumption was validated and the handoff
-  names the production requirement; throwaway spike code is not promoted.
-- `builder -> grower`: the feature is released or has an authorized experiment
-  venue, and a target metric plus instrumentation are available.
-- `builder|grower|maintainer -> sweeper`: current behavior is characterized and
-  specific removable weight or a measured hot path was found.
-- `grower -> maintainer`: a shipped experiment exposed a reliability, security,
-  cost, dependency, or scale signal.
-- `maintainer -> grower|builder`: analysis found a product experiment or a
-  structural change; maintain does not smuggle that larger scope into its fix.
-
-Every workflow handoff ends with `LIFECYCLE: <stage> -> <next|stop>` and
-`TRIGGER: <observed evidence or missing signal>`. `stop` is a successful answer
-when the next stage would require fabricated validation, unavailable production
-data, or scope the ticket did not authorize. Under a foreman, those two lines
-are durable routing evidence: create or unblock the next child only when the
-trigger is satisfied.
+Autopilot advances **one evidence-bounded ticket** through one workflow. It
+never recursively invokes itself or turns a follow-up it noticed into accepted
+scope: it names the follow-up and its evidence in the handoff, and the human
+or a foreman decides whether to open a ticket for it.
 ## Harness and terminal portability
 - Follow [the preamble](../references/preamble.md) and
   [Auto-Decision Framework](../references/auto-decision-framework.md) —
@@ -139,17 +117,14 @@ trigger is satisfied.
    Stop here on `--stop-after=requirement`.
 3. A parent carrying `manifest.md` is a multi-ticket project: stop init and
    hand it to `foreman`; never dispatch or merge its children here. Otherwise
-   pick the archetype workflow ([archetypes](../references/archetypes.md)):
-   named one wins; else use `../semantic-decision/SKILL.md` kind
-   `skill-route` with the requirement and archetype mandates to route by shape;
-   ambiguous or ordinary production work → `builder`. Several *independent* requirements in one
+   run `builder`, unless the invocation names a project workflow
+   (`.claude/workflows/<name>.md`). Several *independent* requirements in one
    invocation → don't batch here: autopilot runs one ticket end-to-end;
    parallel dispatch belongs to the `foreman` skill (one visible worker per
    ticket, each running autopilot). `NEEDS_CONTEXT` only when there is no ticket,
-   requirement, plan, manifest, or branch work at all *and* no archetype was
-   named — a named archetype is direction enough to proceed.
+   requirement, plan, manifest, or branch work at all.
 4. Seed the plan when the routed mode needs one (build or child mode, size
-   above XS) or `--stop-after=plan` explicitly requests it, regardless of archetype:
+   above XS) or `--stop-after=plan` explicitly requests it:
    run `plan-draft` in this session, per the planning policy below — `plan.md` on
    disk is what a crashed loop recovers from. User-facing work routes through
    `design-ui` inside `plan-draft`; make sure that ran, so the spec and
@@ -592,8 +567,6 @@ does not replace normal cleanup.
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: PLANNED | BUILT | FIXED | HANDOFF
 SUMMARY: <acceptance results, final revision, review/QA evidence, release readiness>
-LIFECYCLE: <current stage> -> <next stage | stop>
-TRIGGER: <observed promotion evidence or missing signal>
 CLEANUP: <owned processes stopped and verified; pre-existing/shared resources retained>
 NEXT: commit it, or /bbs:create-pr for the verified change — under a foreman,
 nothing: Foreman seals the ticket and lands its phase

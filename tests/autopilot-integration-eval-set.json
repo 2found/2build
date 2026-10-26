@@ -269,66 +269,6 @@
     "assert_stdout": {"mode": "\"mode\":\"orchestrate\""}
   },
   {
-    "name": "P24-prototyper-named-workflow",
-    "ticket": "bs-pipe-24",
-    "fixture": {"cache_key": "babysit-autopilot-minimal", "cmd": ["mkdir", "-p", "$DEST"]},
-    "prompt_template": "/bbs:autopilot $TICKET --workflow=prototyper",
-    "pre_setup": [
-      ["init"],
-      ["set-pointer", "requirement", "requirement.md"]
-    ],
-    "seed_files": {"requirement.md": "Validate whether sqlite FTS5 is fast enough for typeahead search"},
-    "assert_paths": ["checkpoint.json"],
-    "assert_path_contents": {"checkpoint.json": "prototyper"},
-    "assert_decisions": {"workflow": "prototyper", "choice": "outcome=dispatch"},
-    "assert_output": {"VERDICT": "VALIDATED|INVALIDATED|INCONCLUSIVE"}
-  },
-  {
-    "name": "P25-sweeper-named-workflow",
-    "ticket": "bs-pipe-25",
-    "fixture": {"cache_key": "babysit-autopilot-minimal", "cmd": ["mkdir", "-p", "$DEST"]},
-    "fixture_branch": "feat/bs-pipe-25-sweeper",
-    "prompt_template": "/bbs:autopilot $TICKET --workflow=sweeper",
-    "pre_setup": [["init"]],
-    "setup_commits": [
-      {"files": {"src/util.ts": "export const used = 1;\nexport const dead = 2; // unreferenced\n"}, "message": "feat: add util"}
-    ],
-    "assert_paths": ["checkpoint.json"],
-    "assert_path_contents": {"checkpoint.json": "sweeper"},
-    "assert_decisions": {"workflow": "sweeper", "choice": "outcome=dispatch"},
-    "assert_output": {"VERDICT": "SWEPT"}
-  },
-  {
-    "name": "P26-grower-ranked-plan",
-    "ticket": "bs-pipe-26",
-    "fixture": {"cache_key": "babysit-autopilot-minimal", "cmd": ["mkdir", "-p", "$DEST"]},
-    "prompt_template": "/bbs:autopilot $TICKET --workflow=grower",
-    "pre_setup": [
-      ["init"],
-      ["set-pointer", "requirement", "requirement.md"]
-    ],
-    "seed_files": {"requirement.md": "Rank growth experiments to improve signup conversion on the landing page. Do not implement anything."},
-    "assert_paths": ["checkpoint.json"],
-    "assert_path_contents": {"checkpoint.json": "grower"},
-    "assert_decisions": {"workflow": "grower", "choice": "outcome=dispatch"},
-    "assert_output": {"VERDICT": "RANKED"}
-  },
-  {
-    "name": "P27-maintainer-audit-fix",
-    "ticket": "bs-pipe-27",
-    "fixture": {"cache_key": "babysit-autopilot-minimal", "cmd": ["mkdir", "-p", "$DEST"]},
-    "prompt_template": "/bbs:autopilot $TICKET --workflow=maintainer",
-    "pre_setup": [
-      ["init"],
-      ["set-pointer", "requirement", "requirement.md"]
-    ],
-    "seed_files": {"requirement.md": "Audit this repo's dependencies for known vulnerabilities and fix the top finding if a safe fix exists."},
-    "assert_paths": ["checkpoint.json"],
-    "assert_path_contents": {"checkpoint.json": "maintainer"},
-    "assert_decisions": {"workflow": "maintainer", "choice": "outcome=dispatch"},
-    "assert_output": {"VERDICT": "AUDITED|HARDENED|FIXED"}
-  },
-  {
     "name": "P28-builder-child-route",
     "ticket": "bs-pipe-28",
     "fixture": {"cache_key": "babysit-autopilot-minimal", "cmd": ["mkdir", "-p", "$DEST"]},

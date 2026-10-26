@@ -6,7 +6,7 @@
 fixes issues. For UI work, it creates a prototype first. You can
 follow progress without reminding the agent to do each step.
 
-The pack contains 25 skills for product engineering and growth.
+The pack contains 20 skills for product engineering and growth.
 The companion `bbs` CLI keeps progress and evidence on disk.
 
 A 2found product. [Soot](https://trysoot.com), powered by 2agent, is
@@ -59,11 +59,10 @@ the task or prove the resulting code works.
 
 | Work | Start with |
 | --- | --- |
-| Validate an idea | [prototype](prototype/skill.md), [recon](recon/skill.md) |
+| Evaluate external code | [recon](recon/skill.md) |
 | Finish a ticket | [autopilot](autopilot/skill.md), [implement](implement/skill.md), [qa](qa/skill.md) |
-| Simplify code | [sweep](sweep/skill.md) |
-| Improve marketing | [product-marketing-page](product-marketing-page/skill.md) |
-| Diagnose or harden | [investigate](investigate/skill.md), [maintain](maintain/skill.md) |
+| Docs or marketing page | [agent-first-docs](agent-first-docs/skill.md) |
+| Diagnose a failure | [investigate](investigate/skill.md) |
 
 `foreman` is not included: its project coordinator requires the Orca
 worker runtime. See the [full product](https://github.com/2found/2build)
@@ -72,35 +71,30 @@ for that workflow.
 ## Full capability inventory
 
 <details>
-<summary>Browse all 25 skills and their packaged sizes</summary>
+<summary>Browse all 20 skills and their packaged sizes</summary>
 
 | Capability | Bytes | When to use |
 | --- | --- | --- |
-| `agent-first-docs` | 2928 | Write product documentation and quick starts that begin with one coding-agent prompt, then human and agent references. Use for agent-assisted onboarding and discoverable Markdown documentation. |
-| `analytics-review` | 3379 | Maintainer pass over babysit telemetry. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED. |
-| `autopilot` | 39704 | Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; use foreman for multi-ticket projects. |
+| `agent-first-docs` | 3256 | Write a product's docs, quick start or marketing page around one copyable coding-agent prompt, and serve docs as agent-readable Markdown (llms.txt, .md URLs). Use for onboarding docs, quick starts, product pages, heroes and CTAs. |
+| `analytics-review` | 3373 | Review babysit telemetry. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED. |
+| `autopilot` | 37986 | Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; use foreman for multi-ticket projects. |
 | `browse` | 9759 | Use the browser for focused web-app checks: open a URL, inspect state, click through a flow, capture screenshots, read console errors, or verify a frontend fix. Prefer this over a full QA workflow. |
-| `create-pr` | 3037 | Prepare and create a pull request from the current branch. Use when a human requests a PR; 2build workflows never open one. |
+| `create-pr` | 3056 | Prepare and create a pull request from the current branch. Use when a human requests a PR; 2build workflows never open one. |
 | `design-ui` | 3388 | Design and iterate a reviewable UI using the project's design authority and existing screens. Use for UI design requests or a workflow's design/prototype handoff; a direct build request can use the working UI as its prototype. |
-| `fix-pr` | 3844 | Address unresolved review comments on an open pull request — fix on the PR head branch, reply in-thread, resolve threads, push. Use after a human or bot review leaves comments on a PR. |
-| `harness-audit` | 10799 | Audit AGENTS.md, CLAUDE.md and linked project instructions against repository code, scripts, CI and agent configuration. Use to find stale commands, broken references, conflicting rules or missing verification paths; setup-project owns initial 2build configuration. |
+| `harness-audit` | 10830 | Audit AGENTS.md, CLAUDE.md and linked project instructions against repository code, scripts, CI and agent configuration. Use to find stale commands, broken references, conflicting rules or missing verification paths; setup-project owns initial 2build configuration. |
 | `implement` | 6125 | Implement a scoped code change from the user's request, an accepted plan.md, or ticket context. Use for feature work, bug fixes, endpoints, UI changes, integrations, and contained refactors. |
 | `investigate` | 1709 | Debug a failure before fixing it. Use when the user asks why something is broken, wants root cause analysis, or reports an error, regression, flaky test, crash, or unexpected behavior. |
-| `maintain` | 2347 | Keep a mature system secure, reliable, and efficient at scale. Use for security and dependency audits, reliability hardening, db/query performance (schema, indexes, partitioning, caching, batching, async processing), and architecture reviews under change or scale pressure. |
 | `plan-draft` | 12388 | Draft a technical plan before implementation. Use when the user asks for a plan, architecture, ticket breakdown, or wants to turn a requirement into plan.md without coding yet. |
-| `product-marketing-page` | 2601 | Write or revise product introduction pages around customer value and a clear activation path. Use for product heroes, benefits, CTAs and agent-assisted quick starts, rather than full technical manuals. |
-| `prototype` | 2278 | Build a fast, throwaway spike to validate one risky technical or product idea before committing to production work. Use to test feasibility, churn a rough proof, or de-risk an assumption — not to ship, and not for UI look-and-feel questions (that is design-ui). |
 | `qa` | 18368 | Systematically test a web application, fix issues caused by the current change, and re-verify. Use for full QA loops, critical user flows, release checks, or test-and-fix requests. |
-| `recon` | 1231 | Evaluate an external repository, library, or tool against the current project. Use for adoption decisions, architecture comparisons, or requests to explore and borrow from another project. |
+| `recon` | 1262 | Evaluate an external repository, library, or tool against the current project. Use for adoption decisions, architecture comparisons, or requests to explore and borrow from another project. |
 | `release-prd` | 12689 | Release a repository or selected services to production, from version and changelog through main sync, GitHub release, package distribution, deployment and hypercare. Supports --local when CI quota is exhausted; use --dry-run for a read-only release plan. |
 | `review-pr` | 19014 | Review code before it lands — the current branch, working diff, or a GitHub pull request. Use when asked to review a PR/diff/change, run a code review, do a pre-merge or pre-commit check, hunt for bugs, or gate a change before landing. Surfaces correctness bugs, removed behavior, cross-file breakage, security, performance, and cleanup, then verifies each candidate before reporting. Effort levels low|medium|high|xhigh|max (default medium); --fix applies findings to the working tree, --comment posts inline PR comments. Claude Code /code-review pipeline with babysit semantic-decision integration. |
 | `semantic-decision` | 2513 | Make an explicit, structured judgment from evidence and bounded choices. Use for task sizing, skill routing, orchestration need, test impact, review findings, recovery, decision tiers, or whether human/deeper review is warranted. Defaults to the current LLM; configured Cloudflare Clef/Clef-flash can replace the provider. |
-| `setup-project` | 7379 | Initialize or update a repo's 2build configuration, QA target, release profile and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files. |
-| `sweep` | 1749 | Simplify and shrink working code without changing behavior. Use to remove dead code, unship unused features, cut complexity, tidy UI, or optimize a measured hot path. |
+| `setup-project` | 7410 | Initialize or update a repo's 2build configuration, QA target, release profile and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files. |
 | `test` | 7358 | Create meaningful regression coverage, audit weak or redundant tests, and optimize test lanes using measured cost and change impact. Use for test creation, suite audits, failing-test investigation, or CI test optimization; browser journey QA stays with qa/browse. |
-| `token-audit` | 5969 | Audit where agent sessions spend tokens and what every session loads before work starts (skill listing, CLAUDE.md/AGENTS.md, memory), then rank savings that keep quality. Use when runs feel expensive, before tuning skills, models, effort or compaction, or to check background context bloat. |
-| `triage` | 4479 | Tier-1 triage for a stalled or BLOCKED autonomous run. Use when a worker returned BLOCKED/NEEDS_CONTEXT or a ticket's checkpoint stopped advancing — classify recoverable vs needs-human, post a structured handoff, optionally resume from the checkpoint. |
-| `ui-audit` | 6876 | Evaluate a running app's UI/UX by using it as a named persona through one real work flow, scored with PURE step ratings, Nielsen severities and measured thresholds; also builds the app's flow inventory. Use before planning UI improvements or to re-audit a flow after a fix. |
+| `token-audit` | 6000 | Audit where agent sessions spend tokens and what every session loads before work starts (skill listing, CLAUDE.md/AGENTS.md, memory), then rank savings that keep quality. Use when runs feel expensive, before tuning skills, models, effort or compaction, or to check background context bloat. |
+| `triage` | 4510 | Tier-1 triage for a stalled or BLOCKED autonomous run. Use when a worker returned BLOCKED/NEEDS_CONTEXT or a ticket's checkpoint stopped advancing — classify recoverable vs needs-human, post a structured handoff, optionally resume from the checkpoint. |
+| `ui-audit` | 6907 | Evaluate a running app's UI/UX by using it as a named persona through one real work flow, scored with PURE step ratings, Nielsen severities and measured thresholds; also builds the app's flow inventory. Use before planning UI improvements or to re-audit a flow after a fix. |
 
 </details>
 

@@ -1,6 +1,7 @@
 ---
 name: triage
 description: Tier-1 triage for a stalled or BLOCKED autonomous run. Use when a worker returned BLOCKED/NEEDS_CONTEXT or a ticket's checkpoint stopped advancing — classify recoverable vs needs-human, post a structured handoff, optionally resume from the checkpoint.
+disable-model-invocation: true
 ---
 
 > **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.

@@ -1,6 +1,7 @@
 ---
 name: setup-project
 description: Initialize or update a repo's 2build configuration, QA target, release profile and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files.
+disable-model-invocation: true
 ---
 # setup-project
 Create the minimum configuration future runs need. Re-running preserves valid

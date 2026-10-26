@@ -95,15 +95,7 @@ bbs install
 
 ## 按工作内容选择
 
-Autopilot 将任务路由到产品团队的五种角色之一。也可指定 workflow 或直接调用 skill。
-
-| 角色 | 工作 |
-|------|------|
-| Prototyper | 在投入生产代码前验证风险假设。 |
-| Builder | 将功能或 bug 修复推进到 review 和 QA。 |
-| Sweeper | 移除冗余或优化已测量的热点，保持行为。 |
-| Grower | 改善文案、转化或可衡量的增长实验。 |
-| Maintainer | 诊断故障，强化可靠性、安全性和依赖。 |
+`/bbs:autopilot` 将一个 ticket(功能或 bug 修复)推进到 plan、review 和 QA。`/bbs:foreman` 运行多 ticket 项目。专项工作可直接调用 skill。
 
 在 [skill 索引](docs/skills.md)中查阅独立 skill 和 workflow 示例。
 

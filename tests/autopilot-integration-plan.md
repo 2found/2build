@@ -1,7 +1,8 @@
 # Autopilot assistant — integration test plan
 
-> **Flow migration (v1.47.0).** The pack now runs **one workflow per archetype**
-> — `prototyper`, `builder`, `sweeper`, `grower`, `maintainer`. The old
+> **Flow migration (v1.47.0).** The pack runs one built-in workflow,
+> `builder` (the `prototyper`, `sweeper`, `grower` and `maintainer` archetype
+> workflows were removed later). The old
 > `build` / `plan` / `implement` / `quality` / `orchestrate` / `sub-implement`
 > workflows were folded into `builder`, which selects an internal **mode**
 > (child / implement / build / verify) from ticket state. A decomposed parent
@@ -11,8 +12,6 @@
 > `builder`'s runtime mode-selection** (the workflow's mode table + stop
 > conditions). Rows below that previously read "Assign BLOCKS" now mean
 > "`builder` BLOCKS at mode-selection"; the BLOCKED SUMMARY wording is preserved.
-> Intent-driven archetypes (`prototyper`, `sweeper`, `grower`, `maintainer`) are
-> invoked by name, never state-routed.
 
 Tracks the scenarios that exercise the Parse → Probe → Assign → Dispatch →
 Verify-post pipeline. Each row is a black-box invocation of `/bbs:autopilot`;

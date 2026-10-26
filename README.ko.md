@@ -95,15 +95,7 @@ bbs install
 
 ## 작업 내용으로 선택
 
-Autopilot은 작업을 제품 팀의 다섯 역할 중 하나로 배정합니다. Workflow를 지정하거나 skill을 직접 호출할 수도 있습니다.
-
-| 역할 | 작업 |
-|------|------|
-| Prototyper | 프로덕션 코드에 투자하기 전에 위험한 가설 검증. |
-| Builder | 기능이나 bug 수정을 review와 QA까지 완료. |
-| Sweeper | 동작을 유지하면서 불필요한 부분 제거 또는 측정된 병목 개선. |
-| Grower | 카피, 전환, 측정 가능한 성장 실험 개선. |
-| Maintainer | 장애 원인 파악 및 안정성, 보안, 의존성 강화. |
+`/bbs:autopilot`은 하나의 ticket(기능 또는 bug 수정)을 plan, review, QA까지 진행합니다. `/bbs:foreman`은 여러 ticket으로 이루어진 프로젝트를 실행합니다. 특정 작업에는 skill을 직접 호출하세요.
 
 개별 skill과 workflow 예제는 [skill 목록](docs/skills.md)을 참고하세요.
 

@@ -94,15 +94,7 @@ GitHub から直接ダウンロードできます。コマンドと前提条件�
 
 ## 仕事の内容で選ぶ
 
-Autopilot はタスクを製品チームの 5 つの役割に振り分けます。Workflow の指定や skill の直接呼び出しも可能です。
-
-| 役割 | 仕事 |
-|------|------|
-| Prototyper | 本番コードに投資する前にリスクのある仮説を検証。 |
-| Builder | 機能や bug 修正を review と QA まで完了。 |
-| Sweeper | 動作を保ちながら冗長な部分を削除、測定済みのホットパスを改善。 |
-| Grower | 文案、コンバージョン、測定可能な成長実験を改善。 |
-| Maintainer | 障害の原因を調べ、信頼性・セキュリティ・依存関係を強化。 |
+`/bbs:autopilot` は 1 つの ticket(機能または bug 修正)を plan、review、QA まで進めます。`/bbs:foreman` は複数 ticket のプロジェクトを実行します。特定の作業には skill を直接呼び出してください。
 
 個別 skill と workflow の例は [skill 一覧](docs/skills.md)を参照してください。
 

@@ -6,8 +6,7 @@ needs-state:
   requirement_md: optional
 ---
 # builder
-The Builder archetype (see `../shared/archetypes.md`). One workflow,
-several modes — pick the mode from durable state each time you resume, never
+The default autopilot workflow. One workflow, several modes — pick the mode from durable state each time you resume, never
 from conversation memory.
 ### mode selection
 Re-read ticket state, checkpoint, and git status; choose the **first** match:
@@ -68,17 +67,13 @@ no ticket/requirement, stop with `NEEDS_CONTEXT`.
    and lands it with its phase.
 7. Write a handoff: mode, checkout, changed files, deviations from the plan
    (the implement handoff's `## Deviations`), prototype path when `design-ui`
-   produced one, QA evidence, concerns, next action — and, when a signal
-   warrants, the forward lifecycle edge after `create-pr` (leftover cruft →
-   `sweeper`; surface now live and measurable → `grower`). Child mode targets
+   produced one, QA evidence, concerns, next action, and any follow-up worth
+   its own ticket with the evidence for it. Child mode targets
    the parent foreman run. Cross-repo: list every touched repo with its
    branch. Write it so a non-technical owner can act: lead with what was
    built and where to see it (URL), and give the next action as a copy-paste
    command. Confirm first: no debug leftovers, nothing outside the ticket's
-   scope in the diff, checkpoint current. End with the lifecycle signal required by
-   autopilot's **Lifecycle loop**: promote to `grower` only when there is a
-   release/experiment venue, metric, and instrumentation; route to `sweeper`
-   only for concrete characterized cruft; otherwise stop.
+   scope in the diff, checkpoint current.
 ### Foreman-dispatched children
 `origin.type=sub_ticket` scopes child mode; the current checkout is already the
 worktree foreman prepared. Never derive or check out a branch in this
@@ -124,7 +119,5 @@ review and QA each repo's change against *its own* base, once per repo touched.
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: BUILT
 SUMMARY: <mode, checkout, files, QA evidence>
-LIFECYCLE: builder -> grower | sweeper | stop
-TRIGGER: <release/metric/instrumentation evidence, characterized cruft, or missing signal>
 NEXT: commit it or /bbs:create-pr — under a foreman, nothing: Foreman lands it with its phase
 ```

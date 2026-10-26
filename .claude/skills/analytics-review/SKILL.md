@@ -1,9 +1,10 @@
 ---
 name: analytics-review
-description: Maintainer pass over babysit telemetry. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED.
+description: Review babysit telemetry. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED.
+disable-model-invocation: true
 ---
 # analytics-review
-The Maintainer archetype pointed at babysit itself. Telemetry is the pack's
+A maintainer pass over babysit itself. Telemetry is the pack's
 primary feedback channel; this skill closes the loop by reading it and emitting
 tickets, not dashboards. Read-only — it never edits the pack in the same run.
 ## Flow
@@ -39,7 +40,7 @@ tickets, not dashboards. Read-only — it never edits the pack in the same run.
 - Evidence or it didn't happen: every item cites counts from the files, never
   impressions. Don't invent trends from <5 data points.
 - Report, don't fix. Changing a skill because of a finding is the next ticket
-  (usually `sweep` or `maintain`), not this run.
+  (usually `implement`), not this run.
 - Local-only data: never send telemetry contents to an external service.
 ## Output
 ```text

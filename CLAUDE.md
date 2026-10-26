@@ -67,13 +67,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 2build is a 2found product for product engineering, with a Claude Code and Codex skill pack for **autonomous** workflows — scheduled runs, background jobs, CI loops, anything where no human is at the keyboard to approve or course-correct. Repository: `2found/2build`. Follow [BRANDING.md](BRANDING.md) for names; `bbs`, `bbs:` and `.babysit` remain compatibility identifiers.
 
-It is the product-building *team*: skills and workflows are organized around the
-**five archetypes** of how that team works — Prototyper, Builder, Sweeper,
-Grower, Maintainer. A run acts as whichever teammate the task needs, picked by
-the shape of the work rather than a job title. The mapping (which skills and
-workflows realize each archetype, and how to choose) lives in
-[.claude/skills/references/archetypes.md](.claude/skills/references/archetypes.md).
-When adding a skill, place it under the archetype whose mandate it serves.
+One ticket runs the `builder` autopilot workflow; a multi-ticket project runs
+under `foreman`. A new skill earns its place only by owning a 2build contract,
+evidence format or workflow boundary — see [docs/skills.md](docs/skills.md).
+A skill that only makes sense when a human asks for it sets
+`disable-model-invocation: true`, so it stays a `/bbs:<name>` command without
+costing every session a listing line; never set it on a skill a workflow
+invokes through the Skill tool.
 
 ## Working principles
 
@@ -216,7 +216,7 @@ terminal or wrap them in an orchestrator that can relay `NEEDS_CONTEXT`.
 
 | Compatibility | Skills |
 |---------------|--------|
-| **`INVOKER`-agnostic** (safe to chain unattended) | `agent-first-docs`, `analytics-review`, `autopilot`, `browse`, `create-pr`, `design-ui`, `fix-pr`, `foreman`, `harness-audit`, `implement`, `investigate`, `maintain`, `phased-build`, `plan-draft`, `product-marketing-page`, `prototype`, `qa`, `recon`, `release-prd`, `review-pr`, `semantic-decision`, `setup-project`, `sweep`, `test`, `token-audit`, `triage`, `ui-audit` |
+| **`INVOKER`-agnostic** (safe to chain unattended) | `agent-first-docs`, `analytics-review`, `autopilot`, `browse`, `create-pr`, `design-ui`, `foreman`, `harness-audit`, `implement`, `investigate`, `phased-build`, `plan-draft`, `qa`, `recon`, `release-prd`, `review-pr`, `semantic-decision`, `setup-project`, `test`, `token-audit`, `triage`, `ui-audit` |
 | **`developer`-only** (require a human at the keyboard) | None; unresolved setup policy uses the caller's `NEEDS_CONTEXT` channel. |
 
 Foreman reaches its parent human design checkpoint by default; unattended callers

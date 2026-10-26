@@ -1,42 +1,51 @@
 ---
 name: agent-first-docs
-description: Write product documentation and quick starts that begin with one coding-agent prompt, then human and agent references. Use for agent-assisted onboarding and discoverable Markdown documentation.
+description: Write a product's docs, quick start or marketing page around one copyable coding-agent prompt, and serve docs as agent-readable Markdown (llms.txt, .md URLs). Use for onboarding docs, quick starts, product pages, heroes and CTAs.
+disable-model-invocation: true
 ---
 # agent-first-docs
-Builder-owned documentation delivery. Follow the
-[Auto-Decision Framework](../references/auto-decision-framework.md) for choices;
-derive requirements from supplied artifacts or conversation, without a ticket gate.
-Shared refs are filesystem paths beside this skill's directory, so read them by
-path, not as `skill://`.
+The 2found convention for how a product introduces itself: a reader — human or
+agent — gets from "what is this" to a working first result by pasting **one
+prompt** into a coding agent. Derive the requirement from supplied artifacts or
+conversation; no ticket gate. Shared refs are filesystem paths beside this
+skill's directory, so read them by path, not as `skill://`.
 
-- Landing docs and quick starts open with a brief invitation and **one copyable
-  prompt**, before prerequisites or install commands. Deep references stay
-  focused on their subject. The prompt names the task, public Markdown/docs
-  URL, optional source repo and the result the agent should verify. Avoid
-  placeholders and mandatory plugin installation unless the product needs it.
-- Make setup actionable from the user's current position. For each real barrier,
-  explain what the user supplies, what the agent handles, the missing-resource
-  path and the completion check. Deployment onboarding offers an existing VM
-  alongside cloud provisioning, including account/billing/login setup; identify
-  resources and provider costs before applying. For credentials, use a private
-  file or secret-store reference and share its path, never values in chat/argv.
-- Verify commands against the maintained product contract and current provider
-  docs. Examples are instructions, not authorization to create live resources.
-  State what was actually verified and any remaining blocker.
-- Derive the docs and marketing quick-start prompt from one source per language.
-  Keep imported snapshots separate from local onboarding; never fabricate a
-  revision or bypass integrity checks to publish uncommitted upstream content.
-- For hosted docs, read [AX Markdown delivery](references/ax-markdown.md).
-  Publish clean Markdown, predictable URLs, discovery indexes and machine-readable
-  links. Keep source examples intact; preserve existing URLs when improving paths.
-- Verify built artifacts and HTTP behavior, including an adverse case such as
-  an unknown Markdown URL or clipboard denial. UI checks use the host project's
-  browser workflow. Leave source changes reviewable; release is caller-owned.
+## The one prompt
+- Keep it in one maintained source per language; the docs quick start and the
+  marketing CTA both render it from there. Never write a second prompt.
+- It names the task, the public Markdown docs URL, the optional source repo and
+  the result the agent must verify. No placeholders; no mandatory plugin install
+  unless the product needs one.
+- It opens the quick start, before prerequisites or install commands, after a
+  one-line invitation.
+
+## Surfaces
+| Surface | Leads with | Keeps out |
+|---------|-----------|-----------|
+| Marketing page | What the visitor achieves; one primary CTA (the prompt as a concrete activation task) and a secondary docs link | Manifest fields, command grammar, full procedures — they live in docs |
+| Docs / quick start | The prompt, then setup paths, then focused references | Marketing claims |
+
+## Rules
+- Make setup actionable from where the user is: for each real barrier (account,
+  billing, VM, credentials) say what the user supplies, what the agent does, the
+  path when the resource is missing, and the completion check. Credentials travel
+  as a private file or secret-store reference, never values in chat or argv.
+- Never invent speed/savings claims, prices, customers, integrations, guarantees
+  or release/license status. Keep material limitations in fit guidance or FAQ.
+- Verify every command against the product's current contract and provider docs;
+  examples are not authorization to create live resources.
+- Hosted docs follow [AX Markdown delivery](references/ax-markdown.md). Preserve
+  existing URLs when improving paths; verify the CTA's real target and language.
+- Reuse the host's components, tokens and copy controls; keep translations and
+  metadata aligned.
+- Verify the built result through the project's browser workflow: text fit on
+  desktop and mobile, plus one adverse case (unknown `.md` URL, clipboard denied,
+  broken CTA target). Leave changes reviewable; publishing is the caller's.
 
 ## Output
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: DOCUMENTED
-SUMMARY: <content, AX endpoints/discovery, verification, limits>
+SUMMARY: <surfaces changed, prompt source, AX endpoints, verification, limits>
 NEXT: <remaining action or none>
 ```

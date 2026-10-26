@@ -1,6 +1,7 @@
 ---
 name: harness-audit
 description: Audit AGENTS.md, CLAUDE.md and linked project instructions against repository code, scripts, CI and agent configuration. Use to find stale commands, broken references, conflicting rules or missing verification paths; setup-project owns initial 2build configuration.
+disable-model-invocation: true
 ---
 
 > **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.
