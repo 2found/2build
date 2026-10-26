@@ -1,13 +1,44 @@
 # Changelog
 
-## Unreleased
+## 1.109.0 — 2026-10-27
 
 ### Added
 
+- **Foreman HTML recap** — `bbs foreman complete` now writes
+  `tickets/<parent>/recap.html` (self-contained, light/dark): the Foreman
+  report, each phase's commit, file diffstat, release tag and verdict, the
+  acceptance criteria and the tickets. The receipt records its path
+  (`recap`); `bbs foreman recap <parent>` regenerates it. The parent report
+  opens with a `## Recap` written for the human.
 - **`ui-audit` skill** (Grower) — persona-driven audit of a running app's
   flows: flow inventory, PURE step ratings with an independent second rater,
   Nielsen 0–4 severities, measured thresholds (step ratio, depth, response
   limits, jargon, WCAG 2.2 AA), grade and re-audit contract.
+
+### Changed
+
+- **A finished Foreman stays open.** The watcher no longer closes the
+  Foreman terminal after `complete`; a done Foreman leaves the watch set and
+  stays idle so the human can read the recap and ask follow-ups.
+- **`bbs foreman task create` requires `--kind`.** Without it the readiness
+  gate on `task done` never applied, so a ticket session could report done
+  before its review/QA passed. Existing scripts must pass a kind
+  (`ticket`, `repair`, `refresh`, `redirect` are gated).
+
+### Fixed
+
+- Re-running `bbs foreman batch` during an open batch keeps delivered
+  attention (reported/owed members, questions, keep-warms), so Foreman is not
+  woken again for an `exited:` or question it already handled.
+- Questions from a settled Dispatch no longer count as pending or wake
+  Foreman; a worker blocked on its question is not nudged as stalled.
+- A failed send into a reused terminal settles the Dispatch failed instead of
+  leaving it open; a failed worker-terminal close is retried on the next tick.
+- A repeated `task done` keeps the first report instead of overwriting it.
+- The watcher no longer inherits a worker's `ORCA_TERMINAL_HANDLE`, which
+  kept that worker's terminal from being closed.
+- `OwedSince` is cleared once nothing is owed; the OMP `task launch` docs
+  example includes `--worktree`.
 
 ## 1.108.1 — 2026-10-25
 
