@@ -489,6 +489,17 @@ func foremanProjectCommand(verb string, args []string) error {
 		return projectProgressCommand(st, kv)
 	case "complete":
 		return projectComplete(st, kv["foreman"])
+	case "recap":
+		s, err := projectRead(st)
+		if err != nil {
+			return err
+		}
+		path, err := writeProjectRecap(st, s)
+		if err != nil {
+			return err
+		}
+		fmt.Println("RECAP=" + path)
+		return nil
 	case "release":
 		return projectReleaseCommand(st, kv)
 	case "integrate":

@@ -100,5 +100,6 @@ never writes ticket state. See topology.md for the bidirectional relations.
 Use project-contract.md for the durable report and execution.md for typed evidence
 and the final completion receipt. A `done` heartbeat alone is not completion.
 The parent becomes `done` once every phase landed (and released, where its mode
-asks). After successful `bbs foreman complete`, the external
-watcher closes only the adopted Foreman terminal after its delivery grace.
+asks). After successful `bbs foreman complete`, the external watcher drops the
+Foreman from its set and leaves its terminal open and idle — never closed,
+nudged or prompted — so the human can read the recap and ask follow-ups there.

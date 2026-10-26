@@ -16,7 +16,7 @@ import (
 )
 
 const foremanTaskUsage = `Usage:
-  bbs foreman task create <foreman-id> --ticket <ticket> --spec-file <path> [--kind <kind>]
+  bbs foreman task create <foreman-id> --ticket <ticket> --kind <kind> --spec-file <path>
   bbs foreman task launch <task> --agent <id> --worktree <path> [--model <id>] [--effort <level>]
                           [--host <host-id>] [--skill <name>] [--terminal <handle> [--created-terminal]]
   bbs foreman task show <task> [--json] [--spec]
@@ -36,8 +36,8 @@ records the launch evidence on the ticket. The worker reports with done, asks
 with ask (it blocks until answered or --timeout, default 540s, capped below
 the prompt-cache TTL), and sends nothing else.
 
-A succeeded done for a ticket-session kind (ticket, repair, refresh,
-redirect) is refused until the ticket passes readiness (review, or light when
+--kind is required so the gate is a choice, never an omission: a succeeded
+done for a ticket-session kind (ticket, repair, refresh, redirect) is refused until the ticket passes readiness (review, or light when
 heavy checks are deferred), so a missing gate is fixed by the warm session
 that owns it, not by a cold follow-up. --no-gate <why> reports anyway.
 `
@@ -93,7 +93,7 @@ func taskArgs(verb string, args []string, required ...string) (string, map[strin
 }
 
 func foremanTaskCreate(args []string) error {
-	id, kv, err := taskArgs("create", args, "ticket", "spec-file")
+	id, kv, err := taskArgs("create", args, "ticket", "kind", "spec-file")
 	if err != nil {
 		return err
 	}
@@ -171,8 +171,12 @@ func foremanTaskLaunch(args []string) error {
 	receipt := orca.LaunchReceipt{DispatchID: d.ID, TerminalHandle: reuse, Reused: reuse != ""}
 	prompt := taskWorkerPrompt(skillRef, t.ID, d.ID)
 	var launchErr error
+	// sendFailed: the assignment never reached the reused terminal, so no
+	// worker runs this Dispatch even though the handle is known.
+	sendFailed := false
 	if reuse != "" {
 		launchErr = client.SendEnterHandle(reuse, prompt)
+		sendFailed = launchErr != nil
 		receipt.PromptOutcome = "sent"
 	} else {
 		raw, err := client.LaunchAgent(orca.AgentLaunch{
@@ -207,7 +211,7 @@ func foremanTaskLaunch(args []string) error {
 			return fmt.Errorf("foreman task launch: record terminal: %w", err)
 		}
 	}
-	if receipt.TerminalHandle == "" {
+	if receipt.TerminalHandle == "" || sendFailed {
 		// Nothing started: settle the Dispatch so the Task can be relaunched.
 		_, _ = foreman.UpdateTask(id, func(t *foreman.Task) error {
 			return t.DispatchByID(d.ID).Settle(foreman.DispatchFailed, "launch failed: "+launchErr.Error())
@@ -334,6 +338,11 @@ func foremanTaskDone(args []string) error {
 		}
 		if cur := t.Current(); cur.ID != d.ID {
 			return fmt.Errorf("dispatch %s was superseded by %s; do not report for it", d.ID, cur.ID)
+		}
+		if foreman.DispatchSettled(d.Status) {
+			// A retried report: Settle refuses a conflicting status, and the
+			// first report's summary, paths and gate stay the record.
+			return d.Settle(status, "")
 		}
 		if err := d.Settle(status, ""); err != nil {
 			return err

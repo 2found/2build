@@ -27,7 +27,8 @@ when the whole batch has settled or cannot settle without it: an unanswered
 worker question, an exited worker, a worker that stayed idle through its
 nudges, or an open Dispatch with no live worker for as long (lost). batch show
 prints each pending question with its answer command. A failed member the Foreman retries reopens on its new Dispatch. Re-running
-batch replaces the watched set, keeping nudge state.
+batch replaces the watched set, keeping nudge state and the attention already
+delivered for members still on the same Dispatch.
 `
 
 // Every coordinator wake re-reads its whole context, which dominates token
@@ -223,6 +224,32 @@ func foremanBatchCommand(args []string) error {
 		m.Task, m.Dispatch, m.Status = task, dispatch, status
 		b.Tasks = append(b.Tasks, m)
 	}
+	if prev.open() {
+		// Re-running batch after an early wake must not re-deliver what that
+		// wake already carried: keep the attention and prompt clocks for every
+		// member still on the same Dispatch (a new Dispatch owes its own).
+		same := map[string]bool{}
+		for _, m := range b.Tasks {
+			if p, ok := carried[m.Task]; ok && p.Dispatch == m.Dispatch {
+				same[m.Task] = true
+			}
+		}
+		keep := func(keys []string) []string {
+			var out []string
+			for _, k := range keys {
+				if _, t, _ := strings.Cut(k, ":"); same[t] {
+					out = append(out, k)
+				}
+			}
+			return out
+		}
+		b.Reported, b.Owed = keep(prev.Reported), keep(prev.Owed)
+		if len(b.Owed) > 0 {
+			b.OwedSince = prev.OwedSince
+		}
+		b.Questions, b.QuestionIDs = prev.Questions, prev.QuestionIDs
+		b.PromptedAt, b.KeepWarms = prev.PromptedAt, prev.KeepWarms
+	}
 	if err := saveBatch(id, b); err != nil {
 		return fmt.Errorf("foreman batch: %w", err)
 	}
@@ -343,8 +370,10 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 	}
 	lines, attention := closeLines, []string(nil)
 	var questionIDs []string
+	asking := map[string]bool{}
 	for _, q := range foreman.PendingQuestions(b.taskIDs()) {
 		questionIDs = append(questionIDs, q.ID)
+		asking[q.Task] = true
 	}
 	questions := len(questionIDs)
 	if batchNewQuestion(b, questions, questionIDs) {
@@ -387,6 +416,12 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 			}
 			continue
 		}
+		if asking[m.Task] {
+			// Blocked on Foreman's answer, not idle: the question already
+			// owes the wake, and a nudge would only queue noise in its pane.
+			m.Fingerprint, m.Since = "", ""
+			continue
+		}
 		if line, key := batchWatchWorker(client, m, w.Handle, o, now); line != "" || key != "" {
 			if line != "" {
 				lines = append(lines, line)
@@ -403,6 +438,11 @@ func batchTick(client *orca.Client, r foreman.Record, b *foremanBatch, o watchOp
 		} else if !slices.Contains(b.Owed, key) {
 			b.Owed = append(b.Owed, key)
 		}
+	}
+	if len(b.Owed) == 0 && !question {
+		// Held attention resolved inside the window (a question answered):
+		// the next attention starts its own window.
+		b.OwedSince = ""
 	}
 	if len(b.Owed) > 0 || question {
 		if b.OwedSince == "" {

@@ -110,10 +110,20 @@ from a log line — the snapshot is the record.
    Only then run `bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"`. No
    unreleased phase, missing gate, blocked ticket or unfinished cleanup can
    become DONE.
+4. **Recap.** Before `complete`, open `report.md` with a `## Recap` section
+   for a human who did not watch the run: per phase, what changed in product
+   terms (not file lists), decisions you took on their behalf and why, waived
+   gates or carried evidence, and what they should look at first. `complete`
+   renders `<parent>/recap.html` from that report plus durable state — phases,
+   phase commits with their changed files, releases, acceptance coverage,
+   tickets — and names it in the receipt's `recap`. `bbs foreman recap
+   "$PARENT"` rewrites it after any later report edit. Link the recap in your
+   final report. The watcher leaves your terminal open and idle; do not retire
+   yourself.
 
 Report the result per phase — phase commit, release tag and verdict, QA
 evidence — and remaining human action. Use `STATUS: DONE | IN_PROGRESS |
-NEEDS_CONTEXT | BLOCKED`, link the parent `report.md`, and end with `Next:`
+NEEDS_CONTEXT | BLOCKED`, link the parent `recap.html` and `report.md`, and end with `Next:`
 (a pending release go, kept worktrees, parked approvals, or none).
 Distinguish landed-on-local-base from released (pushed and deployed).
 Normal worker activity stays in Orca; report state changes, requests and

@@ -182,8 +182,12 @@ session ownership, batch dispatch, heavy checks, verification),
 
 The last phase's cumulative QA is the project's final QA. When every phase is
 released (or landed, for `none`), release workers and leases, persist the
-parent report and run `bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"`
-([delivery](references/delivery.md#finish-the-project)). Report per phase —
-commit, release tag and verdict, QA evidence — with `STATUS: DONE |
-IN_PROGRESS | NEEDS_CONTEXT | BLOCKED` and a `Next:` line naming any human
-action left. Distinguish landed-on-local-base from released.
+parent report — opening with a `## Recap` written for the human — and run
+`bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"`
+([delivery](references/delivery.md#finish-the-project)). `complete` writes the
+HTML recap (`RECAP=` / receipt `recap`); hand that path to the human. Your
+terminal is **not** closed: stay idle in it after the final report so the
+human can read the recap and ask follow-ups. Report per phase — commit,
+release tag and verdict, QA evidence — with `STATUS: DONE | IN_PROGRESS |
+NEEDS_CONTEXT | BLOCKED` and a `Next:` line naming any human action left.
+Distinguish landed-on-local-base from released.

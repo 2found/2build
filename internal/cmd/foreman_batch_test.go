@@ -316,6 +316,12 @@ func TestBatchWakesEarlyForQuestionAndExitedWorker(t *testing.T) {
 	if b, _ := loadBatch(f.record.ID); !b.open() {
 		t.Fatal("attention closed the batch")
 	}
+	// The Foreman handles the wake and re-runs batch with the same Tasks:
+	// what that wake carried is not delivered a second time.
+	f.start(t, "task-a", "task-b")
+	if line := f.tick(t, now.Add(4*time.Minute)); strings.Contains(line, "exited:task-b") || strings.Contains(line, "messages:") {
+		t.Fatalf("re-run batch re-delivered handled attention: %q", line)
+	}
 }
 
 // An idle worker is nudged (not the coordinator) and only after the nudges

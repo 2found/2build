@@ -45,8 +45,11 @@ before `schema_version: 2` is refused until
   The last phase's run is the final integration. Product review uses a separate
   evaluator identity. Capture the tested runtime revision for preview links.
 - `bbs foreman complete PARENT --foreman ID` checks readiness and cleanup again,
-  then writes the receipt. Landing on local base, push and release are reported
-  separately.
+  then writes the receipt and `<parent>/recap.html` — a self-contained page of
+  the Foreman's `report.md` (its `## Recap` first) plus phases, phase commits
+  and changed files, releases, acceptance coverage and tickets. The Foreman's
+  terminal stays open afterwards; `bbs foreman recap PARENT` re-renders the
+  page. Landing on local base, push and release are reported separately.
 - For documentation/research projects, explicitly approve `artifacts_only` and
   seal the child workflow's durable outputs. Production commits cannot use this
   shortcut.

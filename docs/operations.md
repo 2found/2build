@@ -218,6 +218,8 @@ QA, and release modes remain in force. Existing records without
 `auto: true` use human project review; ticket plan approval is unchanged.
 `--auto` never gives a release go.
 
+`bbs foreman recap <parent-ticket>` renders that report with project state into
+`tickets/<parent>/recap.html` (also written by `complete`).
 `bbs foreman report <parent-ticket>` reads the last durable `report.md`, even
 after Orca closes. Each reconciliation writes the observation time, meaningful
 ticket titles, each phase's state and release, worker/loop step, sealed
@@ -368,7 +370,7 @@ bbs foreman spawn fm-demo --agent codex --model '<your-model-id>'
 OMP worker routes return `launchMode: native-terminal`: render an idle command
 with `bbs foreman worker-command --startup-only --agent omp --model <selection>`,
 create an Orca terminal with that exact command, then call
-`bbs foreman task launch <task> --agent omp --terminal <handle> --created-terminal`
+`bbs foreman task launch <task> --agent omp --worktree <path> --terminal <handle> --created-terminal`
 without launch overrides.
 `--startup-only` rejects prompts and skill selectors, so supervision delivers
 the assignment once. This preserves native aliases such as `@slow` without

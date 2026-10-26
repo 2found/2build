@@ -44,14 +44,16 @@ func batchCloseSettled(client *orca.Client, r foreman.Record, b *foremanBatch, o
 				}
 			}
 		}
-		m.Closed = true
 		d := t.DispatchByID(m.Dispatch)
 		if d == nil || !d.OwnsTerminal || protected[d.Terminal] {
+			m.Closed = true
 			continue
 		}
+		// A failed close stays unmarked so the next tick retries it.
 		if err := client.CloseHandle(d.Terminal); err != nil {
 			lines = append(lines, fmt.Sprintf("CLOSE-WORKER-FAILED %s — %v", m.Task, err))
 		} else {
+			m.Closed = true
 			lines = append(lines, fmt.Sprintf("CLOSED-WORKER %s (%s)", m.Task, d.Terminal))
 		}
 	}

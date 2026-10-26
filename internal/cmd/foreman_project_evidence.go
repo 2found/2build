@@ -35,6 +35,8 @@ type projectCompletion struct {
 	Foreman  string            `json:"foreman"`
 	Cleanup  bool              `json:"cleanup_verified"`
 	Delivery []projectDelivery `json:"delivery"`
+	// Recap is the HTML summary written for the human at completion.
+	Recap string `json:"recap,omitempty"`
 }
 
 func projectEvidenceProblems(st *ticket.Store, s projectSnapshot, ev projectEvidence, checkedOut bool) []string {
@@ -532,6 +534,14 @@ func projectComplete(st *ticket.Store, id string) error {
 			return fmt.Errorf("project changed during completion; re-read readiness")
 		}
 		receipt := projectCompletion{Version: 1, Subject: projectCompletionSubject(s), At: isoNow(), Foreman: id, Cleanup: true, Delivery: s.Delivery}
+		// The recap is for the human, not a gate: a failed render never
+		// blocks completion, and `bbs foreman recap` rewrites it.
+		s.Completion = "verified"
+		if path, err := writeProjectRecap(st, s); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: recap not written: %v\n", err)
+		} else {
+			receipt.Recap = path
+		}
 		if err := writeJSONAtomic(filepath.Join(st.Home(), "completion.json"), receipt); err != nil {
 			return err
 		}
@@ -581,6 +591,7 @@ func projectComplete(st *ticket.Store, id string) error {
 			if err := foreman.Save(r); err != nil {
 				return err
 			}
+			watchClear(id)
 		}
 		projectEvent(st, "project_completed", "", id, s.Subject)
 		printV2Envelope(receipt)

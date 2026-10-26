@@ -2,7 +2,7 @@
 
 Input: accepted parent outcome, audience, criterion IDs, design/prototype, exact
 integrated revisions, runtime URL/probe, and existing QA evidence. Start a fresh
-read-only worker (`bbs foreman task create` + `task launch`, lifecycle per
+read-only worker (`bbs foreman task create --kind product-review` + `task launch`, lifecycle per
 [worker-lifecycle.md](worker-lifecycle.md)). No code edits,
 topology changes, nested workers, release authority, or approval authority.
 

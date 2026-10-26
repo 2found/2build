@@ -295,12 +295,21 @@ func AnswerQuestion(taskID, id, answer string) (Question, error) {
 	return q, writeJSON(questionPath(taskID, id), q)
 }
 
-// PendingQuestions lists the unanswered questions of the given Tasks, oldest
-// first.
+// PendingQuestions lists the unanswered questions of the given Tasks' open
+// Dispatches, oldest first. A question left by a Dispatch that settled or was
+// superseded has no worker waiting on it, so it never asks for an answer.
 func PendingQuestions(taskIDs []string) []Question {
 	var out []Question
 	for _, id := range taskIDs {
 		if validTaskPart("task", id) != nil {
+			continue
+		}
+		t, err := LoadTask(id)
+		if err != nil {
+			continue
+		}
+		cur := t.Current()
+		if cur == nil || DispatchSettled(cur.Status) {
 			continue
 		}
 		entries, _ := os.ReadDir(filepath.Join(taskDir(id), "questions"))
@@ -309,7 +318,7 @@ func PendingQuestions(taskIDs []string) []Question {
 			if !ok {
 				continue
 			}
-			if q, err := LoadQuestion(id, name); err == nil && q.AnsweredAt == "" {
+			if q, err := LoadQuestion(id, name); err == nil && q.AnsweredAt == "" && q.Dispatch == cur.ID {
 				out = append(out, q)
 			}
 		}

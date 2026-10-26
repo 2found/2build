@@ -355,73 +355,47 @@ func TestWatchLaggingStatusEchoDoesNotRefund(t *testing.T) {
 	}
 }
 
-// A completed Foreman remains selected through a short delivery grace, then
-// the external watcher closes its exact terminal tab. This lets the final
-// report render without leaving the coordinator harness alive indefinitely.
-func TestWatchClosesDoneForemanAfterDeliveryGrace(t *testing.T) {
+// A completed Foreman is left open for the human reading its recap: complete
+// writes recap.html, the watcher drops the record from its set and never
+// closes, nudges or prompts that terminal.
+func TestCompleteWritesRecapAndWatcherLeavesForemanOpen(t *testing.T) {
 	st, _, _ := verifiedExecution(t)
 	originalPath := os.Getenv("PATH")
 	client, r, _, log := watchFixture(t)
 	t.Setenv("PATH", os.Getenv("PATH")+string(os.PathListSeparator)+originalPath)
+	if err := os.WriteFile(filepath.Join(st.Home(), "report.md"), []byte("# Project\n\n## Recap\n- shipped `p1` <safely>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	var completionErr error
-	captureStdout(t, func() { completionErr = projectComplete(st, r.ID) })
+	out := captureStdout(t, func() { completionErr = projectComplete(st, r.ID) })
 	if completionErr != nil {
 		t.Fatal(completionErr)
 	}
-	r, _ = foreman.Load(r.ID)
-	completedAt := time.Now().UTC().Truncate(time.Second)
-	r.Status = "done"
-	r.Heartbeat = completedAt.Format(time.RFC3339)
-	if err := foreman.Save(r); err != nil {
+	if !strings.Contains(out, "recap.html") {
+		t.Fatalf("completion receipt does not name the recap:\n%s", out)
+	}
+	page, err := os.ReadFile(projectRecapPath(st))
+	if err != nil {
 		t.Fatal(err)
+	}
+	for _, want := range []string{"<li>shipped <code>p1</code> &lt;safely&gt;</li>", "p1 ·", "Acceptance criteria"} {
+		if !strings.Contains(string(page), want) {
+			t.Fatalf("recap missing %q:\n%s", want, page)
+		}
+	}
+	r, _ = foreman.Load(r.ID)
+	if r.Status != "done" {
+		t.Fatalf("foreman status = %q, want done", r.Status)
 	}
 	targets, err := watchTargets(client, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(targets) != 1 || targets[0].ID != r.ID {
-		t.Fatalf("done foreman left the cleanup set too early: %+v", targets)
-	}
-	if line := watchTick(client, r, testWatchOpts(), completedAt.Add(foremanDoneCloseGrace-time.Second)); line != "" {
-		t.Fatalf("delivery grace should be quiet, got %q", line)
+	if len(targets) != 0 {
+		t.Fatalf("done foreman still watched: %+v", targets)
 	}
 	if calls := readCalls(t, log); strings.Contains(calls, "terminal close") {
-		t.Fatalf("watcher closed the terminal during delivery grace:\n%s", calls)
-	}
-	line := watchTick(client, r, testWatchOpts(), completedAt.Add(foremanDoneCloseGrace))
-	if !strings.HasPrefix(line, "CLOSED") {
-		t.Fatalf("expected completed terminal close, got %q", line)
-	}
-	if calls := readCalls(t, log); !strings.Contains(calls, "terminal close") {
-		t.Fatalf("watcher did not close the completed Foreman terminal:\n%s", calls)
-	}
-}
-
-// A done foreman whose heartbeat cannot be parsed still gets closed: the
-// grace cannot be proven, but leaving the terminal up re-selects the record
-// on every tick and wedges the watcher in CLOSE-BLOCKED forever.
-func TestWatchClosesDoneForemanWithBadHeartbeat(t *testing.T) {
-	st, _, _ := verifiedExecution(t)
-	originalPath := os.Getenv("PATH")
-	client, r, _, log := watchFixture(t)
-	t.Setenv("PATH", os.Getenv("PATH")+string(os.PathListSeparator)+originalPath)
-	var completionErr error
-	captureStdout(t, func() { completionErr = projectComplete(st, r.ID) })
-	if completionErr != nil {
-		t.Fatal(completionErr)
-	}
-	r, _ = foreman.Load(r.ID)
-	r.Status = "done"
-	r.Heartbeat = "not-a-timestamp"
-	if err := foreman.Save(r); err != nil {
-		t.Fatal(err)
-	}
-	line := watchTick(client, r, testWatchOpts(), time.Now())
-	if !strings.HasPrefix(line, "CLOSED") {
-		t.Fatalf("bad heartbeat should still close, got %q", line)
-	}
-	if calls := readCalls(t, log); !strings.Contains(calls, "terminal close") {
-		t.Fatalf("watcher did not close the completed Foreman terminal:\n%s", calls)
+		t.Fatalf("completion closed the Foreman terminal:\n%s", calls)
 	}
 }
 

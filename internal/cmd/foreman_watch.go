@@ -46,16 +46,14 @@ import (
 // interval the Foreman skill uses — so the two
 // cannot drift. The two clocks never share state — a status prompt spends no
 // nudge budget and buys no idle time, so it cannot let a dead terminal evade
-// the bound. A foreman that reports itself done remains in the loop only for
-// the short delivery grace, then the watcher closes that exact terminal tab.
+// the bound. A foreman that reports itself done leaves the watch set: its
+// terminal stays open, idle, with the recap it wrote for the human.
 //
 // Deliberately not a daemon: it is a foreground loop (or a single --once pass
 // for cron), holds no lock on foreman state, and writes only its own state
 // file. It still never needs a human starter — adopt and spawn launch a
 // detached copy on check-in, the flock keeps it single-instance, and the
 // empty-target exit is its check-out.
-
-const foremanDoneCloseGrace = 30 * time.Second
 
 // watchState is the per-foreman clock, on disk so `--once` from cron measures
 // the same idle window a long-running loop does. Losing it costs one idle
@@ -115,7 +113,7 @@ type watchOpts struct {
 func watchDir() string { return filepath.Join(identity.BabysitHome(), "watch") }
 
 // watchClear drops a foreman's watch state. Called when the foreman leaves the
-// watch set for good — terminal closed after `done`, or record retired — so a
+// watch set for good — completed, or record retired — so a
 // later foreman reusing the id never inherits a stale clock.
 func watchClear(id string) {
 	_ = os.Remove(filepath.Join(watchDir(), id+".json"))
@@ -453,8 +451,8 @@ func orphanedBatchLines(targets []foreman.Record, id string) []string {
 }
 
 // watchTargets is the set to poll: one named foreman, or every registered one
-// whose Orca terminal is still open. A done foreman stays selected until
-// watchTick closes its exact terminal after the delivery grace.
+// whose Orca terminal is still open. A done foreman is never selected: it is
+// idle by design, and a nudge or status prompt would wake it for nothing.
 //
 // "Open terminal", not Live() — a foreman's heartbeat is written by the
 // foreman, so a session wedged long enough to need a nudge is exactly the one
@@ -486,7 +484,7 @@ func watchTargets(client *orca.Client, id string) ([]foreman.Record, error) {
 	for _, r := range records {
 		// Explicit commands may be shells or other user processes, not Foreman
 		// agents; never type the Foreman prompt into those panes.
-		if r.ManualCommand {
+		if r.ManualCommand || strings.EqualFold(r.Status, "done") {
 			continue
 		}
 		if r.WorkspaceTitle == "" && r.WorkspaceRef == "" {
@@ -510,25 +508,6 @@ func watchTargets(client *orca.Client, id string) ([]foreman.Record, error) {
 // "nothing a human needs to know" — a moving foreman is the normal case and
 // must not produce output every interval, or the signal drowns.
 func watchTick(client *orca.Client, r foreman.Record, o watchOpts, now time.Time) string {
-	if strings.EqualFold(r.Status, "done") {
-		if err := foremanCompletionCurrent(r); err != nil {
-			return fmt.Sprintf("CLOSE-BLOCKED %s — %v", r.ID, err)
-		}
-		// An unparseable heartbeat cannot prove the grace is still running,
-		// so it must not wedge the close: a done foreman's terminal is meant
-		// to be closed, and skipping it here would re-select the record on
-		// every tick forever.
-		completedAt, _ := time.Parse(time.RFC3339, r.Heartbeat)
-		if now.Before(completedAt.Add(foremanDoneCloseGrace)) {
-			return ""
-		}
-		if err := client.Close(foremanTerm(client, r)); err != nil {
-			return fmt.Sprintf("CLOSE-BLOCKED %s — %v", r.ID, err)
-		}
-		watchClear(r.ID)
-		return fmt.Sprintf("CLOSED %s — completed Foreman terminal %q", r.ID, r.WorkspaceTitle)
-	}
-
 	if b, ok := loadBatch(r.ID); ok && b.open() {
 		lines := batchTick(client, r, &b, o, now)
 		if b.open() {

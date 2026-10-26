@@ -248,7 +248,7 @@ has_all "status-wake-full-snapshot" \
 has_all "terminal-done-heartbeat" \
   'bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"' \
   'A `done` heartbeat alone is not completion' \
-  'watcher closes only the adopted Foreman terminal' \
+  'leaves its terminal open and idle' 'recap.html' \
   'blocked ticket or unfinished cleanup'
 
 if ! grep -q 'bbs foreman mailbox' "$F" "$ROOT/.claude/skills/references/preamble.md" \

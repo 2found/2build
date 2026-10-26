@@ -40,6 +40,9 @@ func TestTaskDispatchLifecycle(t *testing.T) {
 	if _, err := UpdateTask(task.ID, func(t *Task) error { return t.Current().Settle(DispatchCompleted, "") }); err == nil {
 		t.Fatal("conflicting settle accepted")
 	}
+	if len(PendingQuestions([]string{task.ID})) != 0 {
+		t.Fatal("a settled dispatch's question still asks for an answer")
+	}
 	if _, err := Ask(task.ID, "late?"); err == nil {
 		t.Fatal("asked on a settled dispatch")
 	}

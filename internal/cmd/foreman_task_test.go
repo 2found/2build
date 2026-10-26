@@ -50,6 +50,9 @@ func createTask(t *testing.T, foremanID string, extra ...string) string {
 	if err := os.WriteFile(spec, []byte("Run autopilot for bs-child.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if !strings.Contains(strings.Join(extra, " "), "--kind") {
+		extra = append(extra, "--kind", "phase-qa")
+	}
 	out := captureStdout(t, func() {
 		if err := foremanTask(append([]string{"create", foremanID, "--ticket", "bs-child", "--spec-file", spec}, extra...)); err != nil {
 			t.Fatal(err)
@@ -175,12 +178,16 @@ func TestForemanTaskDoneGatesTicketSessions(t *testing.T) {
 	}
 	gateErr = nil
 
-	for _, extra := range [][]string{{"--kind", "phase-qa"}, nil} {
-		other := createTask(t, fm, extra...)
-		launch(other)
-		if _, err := done(other); err != nil || gateOf(other) != "" {
-			t.Fatalf("ungated kind %v: %v gate=%q", extra, err, gateOf(other))
-		}
+	other := createTask(t, fm, "--kind", "phase-qa")
+	launch(other)
+	if _, err := done(other); err != nil || gateOf(other) != "" {
+		t.Fatalf("ungated kind: %v gate=%q", err, gateOf(other))
+	}
+	// An omitted kind used to skip the gate silently; it is now refused.
+	spec := filepath.Join(t.TempDir(), "spec.md")
+	_ = os.WriteFile(spec, []byte("x\n"), 0o644)
+	if err := foremanTask([]string{"create", fm, "--ticket", "bs-child", "--spec-file", spec}); err == nil {
+		t.Fatal("task create without --kind must be refused")
 	}
 	failed := createTask(t, fm, "--kind", "ticket")
 	launch(failed)
@@ -303,5 +310,31 @@ func TestBatchLineCarriesTheSettledReport(t *testing.T) {
 	}
 	if got := settledReport(batchMember{Task: "task-r", Dispatch: "task-r.d1", Status: foreman.DispatchOpen}); got != "" {
 		t.Fatalf("running line = %q", got)
+	}
+}
+
+// A retried done keeps the first report: a retry without --report-path must
+// not erase the path Foreman judges the ticket from.
+func TestForemanTaskDoneRetryKeepsTheFirstReport(t *testing.T) {
+	fm, _ := taskFixture(t)
+	task := createTask(t, fm)
+	captureStdout(t, func() {
+		if err := foremanTask([]string{"launch", task, "--agent", "codex", "--worktree", t.TempDir()}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	report := filepath.Join(t.TempDir(), "report.md")
+	_ = os.WriteFile(report, []byte("done\n"), 0o644)
+	captureStdout(t, func() {
+		if err := foremanTask([]string{"done", task, "--outcome", "succeeded", "--summary", "first", "--report-path", report}); err != nil {
+			t.Fatal(err)
+		}
+		if err := foremanTask([]string{"done", task, "--outcome", "succeeded", "--summary", "retry"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	tk, _ := foreman.LoadTask(task)
+	if d := tk.Current(); d.Summary != "first" || d.ReportPath == "" {
+		t.Fatalf("retry overwrote the report: %+v", d)
 	}
 }

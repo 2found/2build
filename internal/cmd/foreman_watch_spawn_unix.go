@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -58,6 +59,14 @@ func startWatcher() error {
 	}
 	defer out.Close()
 	cmd := exec.Command(exe, "foreman", "watch")
+	// The watcher belongs to no terminal. Inheriting the starter's handle (a
+	// worker's `task ask` can start it) would protect that worker's terminal
+	// from the settle-time close for the watcher's whole life.
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, "ORCA_TERMINAL_HANDLE=") {
+			cmd.Env = append(cmd.Env, kv)
+		}
+	}
 	cmd.Stdout, cmd.Stderr = out, out
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := cmd.Start(); err != nil {

@@ -34,8 +34,12 @@ bbs foreman route --ticket "$TICKET" --task "$TASK" \
 ```
 
 `$TASK` is the bbs Task the worker will run: create it first with
-`bbs foreman task create "$FOREMAN_ID" --ticket "$TICKET" --spec-file <spec>`
+`bbs foreman task create "$FOREMAN_ID" --ticket "$TICKET" --kind <kind> --spec-file <spec>`
 (the spec carries the assignment plus [worker-lifecycle.md](worker-lifecycle.md)).
+`--kind` is required: `ticket` for a ticket session and `repair|refresh|redirect`
+for its follow-ups (their `task done` is refused until the ticket's readiness
+passes); any other name — `phase-qa`, `diagnosis`, `product-review`, `release`
+— is ungated.
 
 The route order is explicit intent, compatible ticket pin, then the
 destination-host `agentDiscovery.effectiveDefaultAgent`. The command validates
@@ -125,7 +129,7 @@ show`), and `orca terminal show` still names its agent. It inherits the ticket
 route, so skip model lookup and route resolution:
 
 ```bash
-bbs foreman task create "$FOREMAN_ID" --ticket "$TICKET" --spec-file <follow-up spec>
+bbs foreman task create "$FOREMAN_ID" --ticket "$TICKET" --kind <repair|refresh|redirect> --spec-file <follow-up spec>
 # reserve the ticket's resource profile for the new Task first (topology.md)
 TICKET_WORKTREE=$(BABYSIT_TICKET="$TICKET" bbs ticket path worktree --read)
 bbs foreman task launch "$FOLLOWUP_TASK" --agent <ticket-agent> \

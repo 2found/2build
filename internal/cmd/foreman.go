@@ -51,6 +51,8 @@ const foremanUsage = `Usage:
   bbs foreman evidence <parent> --attempt <id> --file results.json
   bbs foreman progress <ticket> --file progress.json
   bbs foreman complete <parent> --foreman <id>
+                                         (also writes the HTML recap; the Foreman terminal stays open)
+  bbs foreman recap <parent>             (re)write <parent>/recap.html from project state + report.md
   bbs foreman register <id> [--dir <path>] [--workspace-title <title>] [--session <uuid>]
   bbs foreman adopt [<id>] [--agent <name>] [--auto]
                     [--plan-worker <name>] [--implement-worker <name>] [--qa-worker <name>]
@@ -175,7 +177,7 @@ func dispatchForeman(args []string) error {
 		return foremanReport(rest)
 	case "seal":
 		return foremanSealMany(rest)
-	case "contract", "bind", "snapshot", "readiness", "next", "evidence", "progress", "complete", "release", "integrate", "land":
+	case "contract", "bind", "snapshot", "readiness", "next", "evidence", "progress", "complete", "recap", "release", "integrate", "land":
 		return foremanProjectCommand(sub, rest)
 	case "register":
 		return foremanRegister(rest)
@@ -641,9 +643,9 @@ func foremanEnsure(args []string) error {
 		return err
 	}
 	if strings.EqualFold(rec.Status, "done") {
-		// A finished foreman is never recreated: the watcher closed its
-		// terminal on purpose, and respawning would resurrect a completed
-		// batch as a fresh "idle" session.
+		// A finished foreman is never recreated: its terminal stays open for
+		// the human reading the recap, and if they closed it, respawning
+		// would resurrect a completed batch as a fresh "idle" session.
 		fmt.Printf("done %s — not recreating %s\n", id, rec.WorkspaceTitle)
 		return nil
 	}
