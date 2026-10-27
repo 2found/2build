@@ -21,9 +21,9 @@ ticket worker follows autopilot's **Foreman ticket assignment** contract:
 | Plan approval | By ticket size — see [plan approval](#plan-approval-by-ticket-size) |
 | Await prerequisites | `bbs foreman await` until every prerequisite ticket settles; no-op for a root ticket |
 | Adopt prerequisites | `await` adopts each sealed prerequisite snapshot into the worktree as uncommitted changes; resolve `CONFLICT=` files, then reconcile the plan with the adopted code |
-| Implement | Code and focused checks, left uncommitted |
-| Review | `review-pr --fix` at `medium` effort (`low` only for `simple` tickets); a follow-up reviews its delta from `review_tree` at `low` unless it touches money, auth or irreversible-data paths |
-| QA | `qa` with the repair loop; deferred heavy checks only recorded |
+| Implement | Code and focused checks (typecheck, lint, unit tests of the touched code), left uncommitted |
+| Review | By size: `XS`/`S` none (the phase reviews it), `M` `review-pr low --fix`, `L` `review-pr --fix` at `medium`; a follow-up reviews its delta from `review_tree` at `low` unless it touches money, auth or irreversible-data paths |
+| QA | `L` only: `qa` with the repair loop; `XS`–`M` leave it to phase QA; deferred heavy checks only recorded |
 | Report | Readiness, handoff and exactly one `bbs foreman task done`, which refuses success until readiness passes; no commit, push or PR |
 
 The route is chosen once per ticket (phase class `critical`, because the session

@@ -119,7 +119,11 @@ bbs foreman evidence "$PARENT" --attempt <id> --file /absolute/results.json
 }
 ```
 
-Record every required criterion/check pair and real exit code. The producer
+Record every required criterion/check pair and real exit code. When a ticket
+of the phase deferred `review-pr` by size or took a `seal --fixup`, also
+record the phase review as `{"criterion":"<phase id>","kind":"review",...}`
+with the review report as its log ([phases](phases.md#3-cumulative-qa-and-product-review));
+it is never carried. The producer
 archives logs and hashes them; changed inputs reject results. Failures remain
 durable; repairs get a fresh attempt. A preview requires `preview` HTTP(S) URL,
 `runtime` full tested SHA, and a passing `runtime` check whose probe log contains

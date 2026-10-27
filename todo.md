@@ -19,4 +19,5 @@
   - để ý: ticket quá to (compact nhiều, plan `L` bị kẹt, review kém hơn); lạm dụng `--no-gate` (`gate: "skipped: …"` trong `$BABYSIT_HOME/tasks/*/task.json`); keep-warm tốn mà không giảm số lần thức lạnh
   - script chỉ đo phiên Claude Code; agent khác không có transcript ở `~/.claude/projects`
   - 2026-10-27: re-check done (`docs/foreman-cache-economics.md` § Re-check 2026-10-27): Foreman cold wakes fixed, worker sessions/worktree worse (2.83). v1.111.0 adds the compose check, carried gates, one-session phase QA + product review and low-effort follow-up review; measure again after a few projects on ≥ 1.111.0, also by Dispatch durations in `$BABYSIT_HOME/tasks/*/task.json` (omp projects have no transcripts)
+  - 2026-10-27 (later): a 4-hour sample showed review-pr ≈ 48% of worker spend and post-QA repairs 43% (`docs/foreman-cache-economics.md` § Phase cost by gate). v1.113.0 defers XS/S/M ticket gates to one phase review, and the integration session fixes small findings with `seal --fixup`; measure phases on ≥ 1.113.0 by repairs per phase and dispatch-to-land time
   - added: 2026-10-25

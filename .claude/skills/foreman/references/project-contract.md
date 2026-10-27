@@ -152,7 +152,9 @@ phase and all earlier ones; the last phase's run is the project's final QA and
 passes before the Foreman `done` heartbeat. Per-ticket QA never substitutes for
 it. Wholly evidence-only projects may record N/A with acceptance evidence.
 Foreman owns the evidence checks; one integration worker session on the normal
-route tests through the `qa` skill — never fixing code. Foreman never tests
+route reviews the phase diff and tests through the `qa` skill, and fixes small
+findings in their owning ticket's worktree
+([phases](phases.md#3-cumulative-qa-and-product-review)). Foreman never tests
 inline.
 
 1. `bbs foreman integrate "$PARENT" --phase <k>` builds the phase commit and
@@ -161,7 +163,7 @@ inline.
 2. Begin evidence with `"phase"` (execution.md), then run the `qa` skill in
    that worktree with parent identity, the phase commit, the approved artifact
    revision and the ticket list, in its Foreman integration mode: no commits,
-   code fixes or topology changes. The runtime must serve that exact tree;
+   edits of the integration worktree or topology changes. The runtime must serve that exact tree;
    probe the changed behavior first. Run the cumulative journeys,
    cross-ticket transitions and adjacent regressions. A shared resource (port, database,
    device) is taken with `bbs ticket surface acquire` and released on every
@@ -170,8 +172,9 @@ inline.
    evidence links and the tested commit; set `pointers.integration_qa` and the
    parent `qa` verdict. A worktree that is no longer clean at the commit means
    STALE and a rerun, not PASS.
-4. On FAIL/STALE, `repair` the owning tickets, reseal, integrate again and
-   rerun. On PASS, `bbs foreman land "$PARENT" --phase <k>` moves base to
+4. On FAIL/STALE, the session fixes what it can with `seal --fixup` and
+   re-checks; `repair` the owning tickets for the rest, reseal, integrate
+   again and rerun. On PASS, `bbs foreman land "$PARENT" --phase <k>` moves base to
    exactly the tested commit ([delivery](delivery.md)).
 
 ## Executable completion

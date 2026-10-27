@@ -68,8 +68,11 @@ Exercise the application like a user and leave reproducible evidence.
    earlier ones) tests that exact commit read-only, and runs
    `bbs contract check <id>` there for each contract the phase changed
    (`contracts_changed` in the integrate output). Verify the worktree is
-   clean at that commit before and after testing. Do not edit code, commit,
-   switch revisions or touch other checkouts. Report findings to Foreman for
+   clean at that commit before and after testing. Do not edit the
+   integration worktree, commit or switch revisions while testing. Once the
+   attempt is recorded, the session fixes small findings in the owning
+   ticket's worktree per Foreman's phases reference (`seal --fixup`,
+   integrate again, re-test what changed); report the rest to Foreman for
    ticket repairs; persist evidence/verdict on the parent.
    Inside a ticket worktree, install and serve from that worktree with the
    ports, databases and secrets `qa.yaml` names. When the run uses a resource

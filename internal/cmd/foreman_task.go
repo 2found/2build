@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -388,6 +388,12 @@ var taskDoneGate = func(t string) (string, []string, error) {
 	if state == "" {
 		if why, ok := ticketAdoptionCarry(primary, env, t, reasons); ok {
 			return "carried: " + why, nil, nil
+		}
+		if dir, _, err := ticketWorktree(primary, env, t); err == nil {
+			st := storeForTicket(env, t)
+			if _, why, ok := deferralCovers(dir, st.Home(), ticket.ReadDoc(st.IndexPath()), reasons); ok {
+				return why, nil, nil
+			}
 		}
 	}
 	return state, reasons, nil

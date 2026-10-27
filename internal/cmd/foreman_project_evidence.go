@@ -231,7 +231,8 @@ func projectEvidenceCommand(st *ticket.Store, kv map[string]string) error {
 			if check.ExitCode == nil || len(check.Command) == 0 || strings.TrimSpace(check.Command[0]) == "" {
 				return fmt.Errorf("check needs command and exit_code")
 			}
-			known := false
+			// The phase review is a check on the phase itself, not a criterion.
+			known := check.Criterion == ev.Phase && check.Kind == "review" && ev.Kind == "integration"
 			for _, ac := range s.Contract.Criteria {
 				if ac.ID == check.Criterion && (slices.Contains(ac.Checks, check.Kind) || check.Kind == "product" || check.Kind == "runtime") {
 					known = true
@@ -332,6 +333,9 @@ func projectEvidenceCarry(st *ticket.Store, s projectSnapshot, kv map[string]str
 			switch {
 			case slices.Contains(except, check.Criterion):
 				skipped = append(skipped, label+" (excepted)")
+			case check.Kind == "review":
+				// The commit changed since that review; review the delta afresh.
+				skipped = append(skipped, label+" (a review is never carried)")
 			case !projectCheckPassed(src, check.Criterion, check.Kind) || len(check.Command) == 0:
 				skipped = append(skipped, label+" (not passed in "+src.ID+")")
 			case slices.ContainsFunc(ev.Checks, func(c projectCheck) bool { return c.Criterion == check.Criterion && c.Kind == check.Kind }):

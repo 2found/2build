@@ -216,9 +216,13 @@ func projectPhaseProgress(st *ticket.Store, s *projectSnapshot) {
 				p.Problems = append(p.Problems, "no child bound to "+seed)
 			}
 		}
+		var unreviewed []string
 		for _, child := range children {
 			if w := child.Waiver; w != nil {
 				p.Notes = append(p.Notes, fmt.Sprintf("child %s sealed without %s (%s) on %s: %s", child.ID, strings.Join(w.Gates, ", "), projectWaiverStates(w), w.At, w.Reason))
+				if w.PhaseReview {
+					unreviewed = append(unreviewed, child.ID)
+				}
 			}
 		}
 		latest := map[string]projectEvidence{}
@@ -264,6 +268,11 @@ func projectPhaseProgress(st *ticket.Store, s *projectSnapshot) {
 					p.Notes = append(p.Notes, fmt.Sprintf("%s evidence %s carries checks from %s: %s", kind, other.ID, strings.Join(c.From, ","), c.Reason))
 				}
 			}
+		}
+		// Work no ticket session reviewed is reviewed once, on the phase commit.
+		if len(unreviewed) > 0 && !projectCheckPassedAny(current["integration"], p.ID, "review") {
+			p.Integrated = false
+			p.Problems = append(p.Problems, "phase review: integration evidence needs a passing "+p.ID+"/review check (review-pr on the phase diff; unreviewed: "+strings.Join(unreviewed, ", ")+")")
 		}
 		// Phase QA is cumulative: every criterion owned by phases ≤ k.
 		for _, ac := range s.Contract.Criteria {

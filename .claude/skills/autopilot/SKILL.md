@@ -6,11 +6,11 @@ description: "Deliver one ticket end-to-end from a requirement or accepted plan 
 A **goal proxy**: the skill owns init — durable ticket state, requirement,
 plan — and the harness's work loop owns execution (`/goal` where supported),
 with persisted `review-pr`/`qa` verdicts as the terminal condition. Gates
-are proportional: a simple or docs-only ticket, or a follow-up already
-verified on its final tree, may be sealed by `foreman` with
-`bbs foreman seal --waive` and a reason, so record them when you can (a
-follow-up should end by recording both on the final tree) but do not invent
-work to satisfy them. Keep
+are proportional: under Foreman an `XS`/`S` ticket leaves `review-pr` and
+`qa` to its phase and an `M` ticket leaves `qa` (step 5 of the Foreman ticket
+assignment); a follow-up already verified on its final tree may be sealed by
+`foreman` with `bbs foreman seal --waive` and a reason. Record the gates your
+size owns, but do not invent work to satisfy the ones it defers. Keep
 state on disk; safe to re-enter until a terminal status prints.
 **Autopilot is an assistant, not an orchestrator.** It works on the checkout
 it was started in and never manages its own git topology: no branch cutting,
@@ -328,16 +328,31 @@ steps and ends when the ticket is ready for its phase's integration:
    the adopted code: fix details in place; a scope, acceptance or
    shared-contract change is a material deviation and goes back through
    step 2.
-5. **Build**, then **Review** with `review-pr <effort> --fix` at the
-   assignment's effort (`medium`, or `low` when Foreman marked the ticket
-   simple), then **QA**, all under the Current-session gates and the repair
-   loop below: QA fixes return to review exactly as in a direct run. A check
+5. **Build**, then the gates the ticket's size owns. The phase commit is
+   reviewed once and QA'd cumulatively after integration, so a small ticket
+   does not repeat that work on its own tree:
+
+   | Size | Ticket session | Left to the phase |
+   |---|---|---|
+   | `XS`, `S` | focused checks only: typecheck, lint and the unit tests of the touched code, fixed until green | `review-pr`, `qa` |
+   | `M` | focused checks, then `review-pr low --fix` (one pass, no finder fan-out) | `qa` |
+   | `L` | `review-pr <assigned effort> --fix`, then `qa` | nothing |
+
+   Size work that touches money, auth or irreversible data `L` in the plan.
+   `task done` and `seal` decide the deferral themselves from the larger of
+   the plan's `ticket_size` (`M` when unset) and the rubric applied to this
+   worktree's own changes, and defer nothing when a changed path hits the
+   money/auth/irreversible-data floor; a deferred report reads
+   `GATE="deferred to phase review: size S (…)"`. A failed verdict or open
+   finding of a gate you did run is never deferred. The gates you run follow
+   the Current-session gates and the repair loop below: QA fixes return to
+   review exactly as in a direct run. A check
    the assignment defers to a heavy profile is skipped and recorded as
    `DEFERRED_HEAVY=<profile>: <checks>` in the handoff and with
    `bbs ticket set-pointer deferred_heavy "<profile>: <checks>"`, leaving the
    `qa` verdict open.
 6. **Report.** Require `bbs ticket readiness --action review --json` (`push`
-   when heavy checks are deferred), persist the checkpoint, handoff and gate
+   when heavy checks are deferred) for the gates your size owns, persist the checkpoint, handoff and gate
    evidence per `references/verification.md`, and report exactly once with
    `bbs foreman task done`; it re-checks readiness and refuses success with
    `GATE=not-ready` and the missing reasons, or with `GATE=not-composing` and
@@ -345,8 +360,8 @@ steps and ends when the ticket is ready for its phase's integration:
    reported work this tree conflicts with (`bbs ticket adopt <sibling>`,
    resolve, review the resolution delta), which this session fixes and then
    reports again — a later session would have to reload everything you hold.
-   Record workflow completion only when review, QA and readiness are all
-   current. Never commit, push or open a PR.
+   Record workflow completion only when the gates your size owns and
+   readiness are current. Never commit, push or open a PR.
 
 A follow-up carries a new Dispatch and names its kind and trigger evidence:
 `repair` fixes the named findings or failures, `refresh` re-runs steps 3–4

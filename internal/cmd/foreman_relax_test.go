@@ -42,14 +42,14 @@ func TestSealWaiverSealsStaleGatesAndIsVisible(t *testing.T) {
 	m, _ := ticket.ReadManifest(child.ManifestPath())
 	mustWrite(t, filepath.Join(m.Repos[0].Worktree, "feature.txt"), "repaired journey\n")
 
-	err := projectSealChild(child, nil, "")
+	err := projectSealChild(child, nil, "", false)
 	if err == nil || !strings.Contains(err.Error(), "stale_tree_digest") || !strings.Contains(err.Error(), "--waive") {
 		t.Fatalf("seal on stale gates = %v, want refusal naming --waive", err)
 	}
-	if err := projectSealChild(child, []string{"qa"}, "docs only"); err == nil {
+	if err := projectSealChild(child, []string{"qa"}, "docs only", false); err == nil {
 		t.Fatal("waiving qa alone covered a stale review-pr")
 	}
-	if err := projectSealChild(child, []string{"review-pr", "qa"}, "verified in the repair handoff"); err != nil {
+	if err := projectSealChild(child, []string{"review-pr", "qa"}, "verified in the repair handoff", false); err != nil {
 		t.Fatal(err)
 	}
 	var seal projectSeal
@@ -119,7 +119,7 @@ func repairAndReintegrate(t *testing.T, st, child *ticket.Store) {
 	if err := os.WriteFile(filepath.Join(m.Repos[0].Worktree, "feature.txt"), []byte("repaired journey\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := projectSealChild(child, []string{"review-pr", "qa"}, "small repair"); err != nil {
+	if err := projectSealChild(child, []string{"review-pr", "qa"}, "small repair", false); err != nil {
 		t.Fatal(err)
 	}
 	integratePhase(t, st, "p1")

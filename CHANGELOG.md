@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.113.0 — 2026-10-28
+
+Foreman merges small tickets first and reviews them together. A 4-hour sample
+of one three-ticket phase spent about 48% of worker tokens in `review-pr` and
+43% in cold `repair` sessions after phase QA.
+
+### Changed
+
+- **Ticket size defers gates to the phase.** Under Foreman, an `XS`/`S`
+  ticket runs focused checks only and leaves `review-pr` and `qa` to its
+  phase; an `M` ticket runs `review-pr low` and leaves `qa`. `bbs foreman task
+  done` reports `GATE="deferred to phase review: …"` and `bbs foreman seal`
+  records the deferral. Size is the larger of the plan's `ticket_size` (`M`
+  when unset) and the rubric applied to the worktree's own changes; a change
+  touching a money/auth/irreversible-data path defers nothing.
+- **The phase diff is reviewed once.** When a ticket deferred review or took
+  a fixup, phase readiness requires a passing `<phase>/review` check in the
+  integration evidence. `evidence --carry` never carries a review.
+- **The integration session fixes small findings itself**, in the owning
+  ticket's worktree: `bbs foreman seal <ticket> --fixup "<finding>"` reseals
+  a settled ticket (refused while a Dispatch owns it), then `integrate` and a
+  re-check of what changed. Only findings it cannot fix locally become
+  `repair` Dispatches.
+- `bbs foreman seal` accepts a waived gate that never ran (no accepted
+  evidence), not only a stale one.
+
 ## 1.112.0 — 2026-10-27
 
 QA from measured runs: 7 bugs that escaped a QA PASS and the token spend of

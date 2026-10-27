@@ -149,15 +149,7 @@ func adoptionCarry(dir, home, reviewTree string, codes []string) (string, bool) 
 		}
 		// A deletion is never carried: a snapshot that lacks the path would
 		// match it without having removed it.
-		want := gitOutIn(dir, "rev-parse", "--verify", "-q", current+":"+path)
-		if want == "" {
-			return "", false
-		}
-		verbatim := false
-		for _, snap := range adopted {
-			verbatim = verbatim || gitOutIn(dir, "rev-parse", "--verify", "-q", snap+":"+path) == want
-		}
-		if !verbatim {
+		if !adoptedVerbatim(dir, current, path, adopted) {
 			return "", false
 		}
 	}

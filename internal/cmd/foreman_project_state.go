@@ -61,6 +61,9 @@ type projectWaiver struct {
 	Reason string            `json:"reason"`
 	At     string            `json:"at"`
 	States map[string]string `json:"states"` // gate -> missing | stale
+	// PhaseReview: the gate was deferred (ticket size) or the work changed in a
+	// phase fixup, so the phase commit carries a review check instead.
+	PhaseReview bool `json:"phase_review,omitempty"`
 }
 
 type projectChild struct {
@@ -231,8 +234,13 @@ func projectChildInputs(st *ticket.Store) (string, []string, error) {
 	accepted, _ := cp["accepted_evidence"].(map[string]interface{})
 	for _, gate := range []string{"review-pr", "qa"} {
 		id := stringValue(accepted[gate])
+		if id == "" {
+			// Never run: only a seal waiver (deferral, fixup, --waive) admits it.
+			rows[gate] = "missing"
+			continue
+		}
 		if !idRe.MatchString(id) {
-			return "", nil, fmt.Errorf("%s: missing accepted evidence", gate)
+			return "", nil, fmt.Errorf("%s: invalid accepted evidence id", gate)
 		}
 		path := filepath.Join(st.Home(), "evidence", "verification", "attempts", id+".json")
 		ev, err := readStrictObject(path, true)

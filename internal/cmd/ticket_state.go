@@ -487,12 +487,26 @@ func runEnsureSize() {
 	if base == "" {
 		base = "HEAD~1"
 	}
-	names := gitOut("diff", "--name-only", base+"...HEAD")
-	changed := splitNonEmptyLines(names)
-	files := len(changed)
+	changed := splitNonEmptyLines(gitOut("diff", "--name-only", base+"...HEAD"))
 	loc := parseShortstat(gitOut("diff", "--shortstat", base+"...HEAD"))
+	size, files, modules, migrations, deps := classifySize(changed, loc)
+	fmt.Fprintf(os.Stderr, "estimated ticket_size=%s (files=%d loc=%d modules=%d migrations=%d deps=%d)\n",
+		size, files, loc, modules, migrations, deps)
+
+	mutateLocked(st, func() error {
+		doc := st.LoadForMutate()
+		doc.Set("pointers.ticket_size", size)
+		return ticket.WriteDoc(st.IndexPath(), doc)
+	})
+	fmt.Println(size)
+	os.Exit(0)
+}
+
+// classifySize applies the ticket size rubric's diff rows to changed paths
+// and their insertions+deletions.
+func classifySize(changed []string, loc int) (size string, files, modules, migrations, deps int) {
+	files = len(changed)
 	mods := map[string]bool{}
-	migrations, deps := 0, 0
 	for _, f := range changed {
 		if i := strings.IndexByte(f, '/'); i > 0 {
 			mods[f[:i]] = true
@@ -504,9 +518,7 @@ func runEnsureSize() {
 			deps++
 		}
 	}
-	modules := len(mods)
-
-	var size string
+	modules = len(mods)
 	switch {
 	case files <= 1 && loc <= 20 && modules <= 1 && migrations == 0 && deps == 0:
 		size = "XS"
@@ -517,16 +529,7 @@ func runEnsureSize() {
 	default:
 		size = "L"
 	}
-	fmt.Fprintf(os.Stderr, "estimated ticket_size=%s (files=%d loc=%d modules=%d migrations=%d deps=%d)\n",
-		size, files, loc, modules, migrations, deps)
-
-	mutateLocked(st, func() error {
-		doc := st.LoadForMutate()
-		doc.Set("pointers.ticket_size", size)
-		return ticket.WriteDoc(st.IndexPath(), doc)
-	})
-	fmt.Println(size)
-	os.Exit(0)
+	return size, files, modules, migrations, deps
 }
 
 // splitNonEmptyLines counts changed files the way `wc -l` would on the untrimmed

@@ -151,7 +151,7 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 	}
 	if len(sealable) > 0 {
 		ids := strings.Join(sealable, " ")
-		steps = append([]foremanStep{step("seal", ids, "bbs foreman seal "+ids, "review-pr and qa pass on their current trees")}, steps...)
+		steps = append([]foremanStep{step("seal", ids, "bbs foreman seal "+ids, "review-pr and qa pass on their current trees, or the ticket's size defers them to phase review")}, steps...)
 	}
 	return steps
 }
@@ -165,7 +165,14 @@ func childSealable(cs *ticket.Store) bool {
 	env := cs.Env
 	env.Branch = m.Repos[0].Branch
 	r, err := evaluateReadinessIn(env, "review", m.Repos[0].Worktree)
-	return err == nil && r.Ready
+	if err != nil {
+		return false
+	}
+	if r.Ready {
+		return true
+	}
+	_, _, ok := deferralCovers(m.Repos[0].Worktree, cs.Home(), ticket.ReadDoc(cs.IndexPath()), r.ReasonCodes)
+	return ok
 }
 
 // phaseContractChecks lists the checks of the contracts a phase commit changes.

@@ -120,7 +120,8 @@ again. Never resolve a conflict outside a ticket session.
 ### 3. Cumulative QA and product review
 
 Dispatch one **phase integration worker** (normal route, `standard` profile)
-on `--qa-worker` (default: this Foreman's harness) in the integration worktree. It never edits code. In that session it begins
+on `--qa-worker` (default: this Foreman's harness) in the integration worktree.
+It never edits the integration worktree. In that session it begins
 evidence with the phase named (execution.md) — the CLI derives the surfaces
 from the phase commit:
 
@@ -128,9 +129,15 @@ from the phase commit:
 {"kind":"integration","producer":"<integration dispatch id>","phase":"p2"}
 ```
 
-and runs the `qa` skill's Foreman integration mode against **every criterion
-of phases 1..k**, the cross-ticket journeys and adjacent regressions — not a
-union of ticket PASS counts — then submits the evidence. When the contract
+then **reviews the phase diff once**: `review-pr --fix` is not used here —
+run `review-pr medium` on `git diff <base_head> <phase commit>` (`high` when
+any changed path touches money, auth or irreversible data) and record it as
+the check `{"criterion":"<phase id>","kind":"review"}` whose log is the
+review report. Readiness requires a passing one whenever a ticket of the phase
+deferred `review-pr` by size or took a fixup. It then runs the `qa` skill's
+Foreman integration mode against **every criterion of phases 1..k**, the
+cross-ticket journeys and adjacent regressions — not a union of ticket PASS
+counts — then submits the evidence. When the contract
 requires product review, the **same session** then begins a `kind: product`
 attempt on the same running phase commit and judges it as the product
 evaluator (product-review.md): it built no ticket, so it is independent of the
@@ -138,10 +145,29 @@ work, and one session pays one cold start and one runtime setup instead of
 two. The CLI rejects evidence for a phase that is not ready, a worktree that
 is not clean at the phase commit, or a stale subject.
 
-Its report lists every failing criterion and material finding of both
-attempts, by owning ticket. Foreman sends each owning ticket **one** `repair`
-carrying all of its items, and launches them as one batch: fixing findings one
-at a time costs a repair session, a reseal and a phase re-check per finding.
+**Fix small findings in the same session.** The integration session holds
+the whole phase in context; a cold `repair` session per ticket measured 66–93
+minutes and 2–7M tokens each, mostly re-reviewing what was already reviewed.
+For each failing criterion or material finding — from review, QA or product
+review — whose fix is local (one ticket's files, no change to scope, a shared
+contract, or a money/auth/irreversible-data path):
+
+1. edit the **owning ticket's worktree** (`bbs foreman snapshot` lists it; its
+   Dispatch must be settled), never the integration worktree, and run the
+   focused checks of what changed;
+2. `bbs foreman seal <ticket> --fixup "<finding, evidence id>"` — it waives
+   the ticket's now-stale gates and marks the next phase commit as needing a
+   fresh review;
+3. `bbs foreman integrate "$PARENT" --phase "$K"` again (it re-checks out the
+   same worktree), then the re-check below: review only the fixup delta
+   (`git diff <old phase commit> <new>`) at `low` and record a fresh
+   `<phase>/review` check — a review is never carried — and re-test the
+   criteria the fixes touched.
+
+Its report lists every finding it could not fix that way, by owning ticket.
+Foreman sends each such ticket **one** `repair` carrying all of its items,
+launched as one batch: fixing findings one at a time costs a repair session,
+a reseal and a phase re-check per finding.
 
 A small repair after phase QA does not restart the phase's QA. After the
 repairs' tickets are resealed and the phase is integrated again, one
@@ -162,8 +188,9 @@ satisfy the cumulative check. Carrying is Foreman's judgment: if the repair
 could affect a criterion, except it. A repair that touches shared code gets a
 full fresh attempt.
 
-QA failure → `repair` follow-ups on the owning ticket sessions, then reseal,
-integrate again (a new commit) and run a fresh attempt. After three failed
+QA failure the integration session cannot fix → `repair` follow-ups on the
+owning ticket sessions, then reseal, integrate again (a new commit) and run a
+fresh attempt. After three failed
 attempts on the same blocker, park the phase and escalate; independent work
 continues.
 

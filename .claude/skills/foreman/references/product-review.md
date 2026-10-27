@@ -7,8 +7,10 @@ runtime ([phases](phases.md#3-cumulative-qa-and-product-review)). Start a
 separate read-only worker (`bbs foreman task create --kind product-review` +
 `task launch`, lifecycle per [worker-lifecycle.md](worker-lifecycle.md)) only
 when that session cannot: its harness lacks the browser or runtime the review
-needs, or the contract names a different evaluator model. No code edits,
-topology changes, nested workers, release authority, or approval authority.
+needs, or the contract names a different evaluator model. No code edits
+while evaluating (the integration session fixes findings only after both
+attempts are recorded), topology changes, nested workers, release authority,
+or approval authority.
 
 Judge the running product from the user's entry point. Complete the first
 usable journey without implementation narration, then check the remaining

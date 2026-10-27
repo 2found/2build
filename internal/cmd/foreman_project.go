@@ -344,7 +344,7 @@ func parseSealWaiver(kv map[string]string) ([]string, error) {
 	return gates, nil
 }
 
-func projectSealChild(st *ticket.Store, waive []string, reason string) error {
+func projectSealChild(st *ticket.Store, waive []string, reason string, fixup bool) error {
 	return withLock(st, func() error {
 		inputs, owners, err := projectChildInputs(st)
 		if err != nil {
@@ -358,6 +358,8 @@ func projectSealChild(st *ticket.Store, waive []string, reason string) error {
 			return fmt.Errorf("one verified repository per child is required; split cross-repo work into dependent children")
 		}
 		seal := projectSeal{Version: 1, Ticket: st.Env.Ticket, At: isoNow(), Inputs: inputs, Owners: owners, Repos: []projectRepo{}}
+		// A phase fixup is reviewed and re-tested on the phase commit.
+		phaseReview := fixup
 		for _, r := range m.Repos {
 			if !filepath.IsAbs(r.Canonical) || !filepath.IsAbs(r.Worktree) {
 				return fmt.Errorf("manifest needs absolute canonical and worktree paths")
@@ -372,15 +374,18 @@ func projectSealChild(st *ticket.Store, waive []string, reason string) error {
 				if len(waive) == 0 {
 					// Gates staled only by adopting work outside the reviewed
 					// diff stand; no worker is launched to re-stamp them.
-					if why, ok := adoptionCarry(r.Worktree, st.Home(), ticket.ReadDoc(st.IndexPath()).Get("pointers.review_tree"), ready.ReasonCodes); ok {
+					doc := ticket.ReadDoc(st.IndexPath())
+					if why, ok := adoptionCarry(r.Worktree, st.Home(), doc.Get("pointers.review_tree"), ready.ReasonCodes); ok {
 						waive, reason = []string{"review-pr", "qa"}, "carried: "+why
+					} else if gates, why, ok := deferralCovers(r.Worktree, st.Home(), doc, ready.ReasonCodes); ok {
+						waive, reason, phaseReview = gates, why, slices.Contains(gates, "review-pr")
 					}
 				}
 				rest, states := sealWaivable(ready.ReasonCodes, waive)
 				if len(rest) > 0 {
 					return fmt.Errorf("child not verified: %v; if the gates are not needed or the work was verified in its handoff, seal with --waive <review-pr|qa>[,<gate>] --reason \"<text>\" (only missing or stale gates can be waived)", rest)
 				}
-				w := &projectWaiver{Gates: []string{}, Reason: strings.TrimSpace(reason), At: isoNow(), States: states}
+				w := &projectWaiver{Gates: []string{}, Reason: strings.TrimSpace(reason), At: isoNow(), States: states, PhaseReview: phaseReview}
 				for gate := range states {
 					w.Gates = append(w.Gates, gate)
 				}
@@ -485,11 +490,20 @@ func foremanProjectCommand(verb string, args []string) error {
 		if kv["file"] != "" {
 			return projectSealArtifacts(st, kv["file"])
 		}
+		if fix := strings.TrimSpace(kv["fixup"]); fix != "" {
+			if kv["waive"] != "" || kv["reason"] != "" {
+				return fmt.Errorf("--fixup takes no --waive/--reason; it waives the stale gates itself")
+			}
+			if d := openTicketDispatch(st.Env.Ticket); d != "" {
+				return fmt.Errorf("--fixup: dispatch %s still owns this ticket's worktree; only a settled ticket takes a phase fixup", d)
+			}
+			return projectSealChild(st, []string{"review-pr", "qa"}, "phase fixup: "+fix, true)
+		}
 		waive, err := parseSealWaiver(kv)
 		if err != nil {
 			return err
 		}
-		return projectSealChild(st, waive, kv["reason"])
+		return projectSealChild(st, waive, kv["reason"], false)
 	case "evidence":
 		return projectEvidenceCommand(st, kv)
 	case "progress":

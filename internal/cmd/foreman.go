@@ -43,7 +43,11 @@ const foremanUsage = `Usage:
                                          (record a release-prd verdict for the phase)
   bbs foreman seal <child>... [--waive <review-pr|qa>[,<gate>] --reason <text>]
                                          preserve verified tickets' work before their phase integrates
-                                         (--waive seals despite a missing or stale gate; recorded as a note)
+                                         (--waive seals despite a missing or stale gate; recorded as a note;
+                                         an XS/S ticket defers review-pr+qa and an M ticket qa to phase review)
+  bbs foreman seal <child> --fixup <finding>
+                                         reseal a settled ticket after the integration session fixed a phase
+                                         finding in its worktree; the next phase commit needs a fresh review
   bbs foreman evidence <parent> --phase <id> --begin --file spec.json
   bbs foreman evidence <parent> --phase <id> --carry --from <attempt-id>[,<attempt-id>] --reason <text> [--except <AC-id,...>]
                                          (carry earlier passed checks of this phase onto the current subject;

@@ -222,7 +222,8 @@ for required in (
     assert required in contract, required
 assert 'Foreman integration mode' in qa
 assert 'tests that exact commit read-only' in qa
-assert 'Do not edit code, commit' in qa
+assert 'integration worktree, commit or switch revisions' in qa
+assert 'seal --fixup' in qa
 PY
 then
   ok "project-approval-report-and-final-surface-contract"

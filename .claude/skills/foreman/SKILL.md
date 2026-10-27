@@ -72,6 +72,13 @@ keep work on warm context.
      verdicts staled only by adopting work outside the reviewed diff
      (`GATE="carried: …"`; `seal` carries them the same way), so neither
      costs a follow-up.
+   - **Small tickets merge first and are reviewed together.** An `XS`/`S`
+     ticket leaves `review-pr` and `qa` to its phase, an `M` ticket leaves
+     `qa` (`GATE="deferred to phase review: …"`; `seal` defers the same way
+     and records it). The integration session reviews the phase diff once,
+     QAs every criterion, and fixes small findings itself in the owning
+     ticket's worktree (`seal --fixup`) instead of a cold `repair` session
+     per ticket ([phases](references/phases.md#3-cumulative-qa-and-product-review)).
 
 **Foreman stays light.** Your context holds the goal, the accepted design, the
 phase plan, the DAG and durable ids — never worker transcripts, diffs or test
@@ -163,8 +170,8 @@ On a settled batch wake:
 3. **Advance every phase that is ready** — `bbs foreman next` lists them:
    open the next phase while the previous one waits on its release
    (**pipeline one phase deep**; a phase cannot integrate until the earlier
-   one is released), integrate, hand phase QA to one integration worker, land,
-   release.
+   one is released), integrate, hand phase review + QA to one integration
+   worker (it fixes small findings itself), land, release.
 4. Launch everything runnable as **one batch** — follow-ups, new tickets,
    integration QA, release workers — then `bbs foreman batch` and end the turn.
 

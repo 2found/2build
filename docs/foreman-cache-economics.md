@@ -171,6 +171,36 @@ product-review attempt per phase, and `GATE="carried: …"` / `not-composing`
 appearing in task records. Projects run on `omp` leave no transcripts, so for
 those judge by Dispatch durations in the task records.
 
+## Phase cost by gate, 2026-10-27 (4 hours, soot-autoupdate p2)
+
+Worker spend in the window was 34.2M (plus 0.9M Foreman), 93% of it one
+three-ticket phase. Attributing each turn to the last gate skill invoked
+(review includes the `--fix` work after it):
+
+| Step | Cost | Wall time |
+|---|---|---|
+| Tail of the 3 ticket sessions (review/QA) + 1 ruling repair | 5.7M | tickets ran 66–121 min |
+| Phase QA + product review (two parallel dispatches) | 9.3M | 55 min |
+| Three `repair` sessions after phase QA | 14.8M | 66–93 min each |
+| A `refresh` after the repairs (still running) | 2.1M | — |
+
+`review-pr` and its subagents were about 48% of the spend; every repair
+re-ran `review-pr medium --fix` with 7–12 finder subagents (2–4.6M each)
+although v1.111.0 asked for a low-effort delta review. Per-ticket review and
+QA did not prevent the phase findings, and the cold repair cycle after phase
+QA cost more than the phase QA itself.
+
+Changes (v1.113.0):
+
+| # | Change | Where |
+|---|---|---|
+| 12 | **Size defers gates to the phase.** `XS`/`S` tickets leave `review-pr` and `qa` to their phase, `M` leaves `qa`. `task done` (`GATE="deferred to phase review: …"`) and `seal` decide it from the larger of the plan's `ticket_size` (`M` when unset) and the rubric on the worktree's own changes, and never for paths that hit the money/auth/irreversible-data floor. | `internal/cmd/foreman_defer_gate.go`, `autopilot/SKILL.md`, `tickets.md` |
+| 13 | **One review of the phase diff.** When any ticket deferred review or took a fixup, phase readiness needs a passing `<phase>/review` check in the integration evidence; a review is never carried. | `foreman_project_phases.go`, `foreman_project_evidence.go`, `phases.md` |
+| 14 | **Integration session fixes small findings** in the owning ticket's worktree and reseals it with `bbs foreman seal <ticket> --fixup "<finding>"` (refused while a Dispatch owns the ticket), then integrates again and re-checks only what changed. Only findings it cannot fix locally become `repair` Dispatches. | `foreman_project.go`, `phases.md`, `qa/SKILL.md` |
+
+Re-check: per-ticket sessions without review/QA for `XS`–`S`, at most one
+`repair` Dispatch per phase, and phase wall time from first dispatch to land.
+
 ## Measurement notes
 
 - A **worker session** is a main transcript in a project directory whose name
