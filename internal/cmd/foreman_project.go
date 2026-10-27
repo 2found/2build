@@ -369,6 +369,13 @@ func projectSealChild(st *ticket.Store, waive []string, reason string) error {
 				return err
 			}
 			if !ready.Ready {
+				if len(waive) == 0 {
+					// Gates staled only by adopting work outside the reviewed
+					// diff stand; no worker is launched to re-stamp them.
+					if why, ok := adoptionCarry(r.Worktree, st.Home(), ticket.ReadDoc(st.IndexPath()).Get("pointers.review_tree"), ready.ReasonCodes); ok {
+						waive, reason = []string{"review-pr", "qa"}, "carried: "+why
+					}
+				}
 				rest, states := sealWaivable(ready.ReasonCodes, waive)
 				if len(rest) > 0 {
 					return fmt.Errorf("child not verified: %v; if the gates are not needed or the work was verified in its handoff, seal with --waive <review-pr|qa>[,<gate>] --reason \"<text>\" (only missing or stale gates can be waived)", rest)

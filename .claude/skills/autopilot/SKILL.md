@@ -340,14 +340,18 @@ steps and ends when the ticket is ready for its phase's integration:
    when heavy checks are deferred), persist the checkpoint, handoff and gate
    evidence per `references/verification.md`, and report exactly once with
    `bbs foreman task done`; it re-checks readiness and refuses success with
-   `GATE=not-ready` and the missing reasons, which this session fixes and then
+   `GATE=not-ready` and the missing reasons, or with `GATE=not-composing` and
+   a `CONFLICT_WITH=<sibling>: <files>` line when a phase sibling already
+   reported work this tree conflicts with (`bbs ticket adopt <sibling>`,
+   resolve, review the resolution delta), which this session fixes and then
    reports again — a later session would have to reload everything you hold.
    Record workflow completion only when review, QA and readiness are all
    current. Never commit, push or open a PR.
 
 A follow-up carries a new Dispatch and names its kind and trigger evidence:
 `repair` fixes the named findings or failures, `refresh` re-runs steps 3–4
-for the named prerequisites (or re-reads a changed contract, adapts and
+for the named prerequisites (adopting them — never a rebase, which moves the
+base and reopens the whole review) (or re-reads a changed contract, adapts and
 re-pins it), `redirect` resumes from step 2 with Foreman's
 answer — each then re-runs every gate the change invalidates. A `repair`
 from phase integration QA names the failing criterion and the tested phase
@@ -443,10 +447,16 @@ back evidence, never a verdict.
    passed as the review target), at the resolved effort,
    with the previous report as context: finders read callers and enclosing
    code beyond the hunk, and every earlier finding the fixes claim to resolve
-   is checked. Its report names the `review_tree` it builds on. Review the
-   complete ticket diff again when there is no `review_tree`, when the base,
-   requirement or plan changed (refresh, adopt, rebase), or when the delta is
-   most of the ticket diff.
+   is checked. Its report names the `review_tree` it builds on. A
+   follow-up Dispatch reviews its delta at `low` effort, raised to the
+   assignment's effort only when the delta touches money, auth or
+   irreversible-data paths. Adopted work that touches no path in the
+   reviewed diff needs no review and no QA re-run: run the focused checks it
+   affects, and `task done` / `seal` keep the verdicts (`GATE="carried: …"`).
+   Adopted work that does touch the reviewed diff is reviewed as a delta.
+   Review the complete ticket diff again only when there is no
+   `review_tree`, when the base moved, the requirement or plan changed, or
+   when the delta is most of the ticket diff.
 5. **Accept evidence, not completion text.** Record the session model,
    reviewed revision, report, fixes, and evidence paths in the
    checkpoint/handoff. A gate owns the checkout while it runs — no editing the

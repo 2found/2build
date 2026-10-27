@@ -131,9 +131,10 @@ Release receipts and requests are phases.md's: `bbs foreman release --request`
 and `--file` write `release-request.json` on the phase ticket and
 `project-releases/<id>.json` on the parent, and the snapshot reads them back.
 
-When the contract requires product review, dispatch a **fresh read-only product
-evaluator** on the normal route using [product-review.md](product-review.md).
-Its identity must differ from child gate producers. Final evidence and every
+When the contract requires product review, the integration session runs it
+next as the read-only product evaluator ([product-review.md](product-review.md));
+a separate evaluator Task is the exception named there. Its identity must
+differ from child gate producers. Final evidence and every
 criterion check use `kind: product`; `kind: journey` is only for an explicitly
 required preliminary check. Material findings require repair and fresh evidence;
 minor findings stay in the handoff.

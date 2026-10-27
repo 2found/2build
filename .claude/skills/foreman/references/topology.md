@@ -117,6 +117,18 @@ the module's decisions from a summary instead of re-deriving them from code.
 When the manifest gives two tickets of one phase the same files, merge them
 before the phase opens instead of sequencing them.
 
+**Every shared seam has one owner per phase.** The files parallel tickets each
+want one line in — a composition root, route or listener registration, a
+module `index`, a catalog, generated types — are the usual compose conflict
+(measured: five repair sessions in one three-ticket phase, all on such files).
+The manifest's owned-files column lists every file a ticket edits, wiring
+lines included; a seam file goes to exactly one ticket of the phase, or to an
+earlier phase's producer that leaves the hook the others fill. If two rows of
+one phase still need the same file, merge them or move the seam earlier.
+`task done` backs this up mechanically: a ticket whose tree conflicts with a
+sibling that already reported is refused `GATE=not-composing` and adopts it
+while warm, instead of in a cold repair after `integrate` refuses the phase.
+
 ## Resource admission
 
 Resolve the worker bound on every fresh invocation or resume: parse

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sort"
 	"strings"
 	"time"
 
@@ -384,6 +385,11 @@ var taskDoneGate = func(t string) (string, []string, error) {
 		return "", nil, err
 	}
 	state, reasons := ticketReportState(primary, env, t, ready, reasons)
+	if state == "" {
+		if why, ok := ticketAdoptionCarry(primary, env, t, reasons); ok {
+			return "carried: " + why, nil, nil
+		}
+	}
 	return state, reasons, nil
 }
 
@@ -407,6 +413,19 @@ func taskDoneGateFor(id string, kv map[string]string) (string, error) {
 	}
 	if why := strings.TrimSpace(kv["no-gate"]); why != "" {
 		return "skipped: " + why, nil
+	}
+	if conflicts, err := taskDoneCompose(t); err == nil && len(conflicts) > 0 {
+		sibs := make([]string, 0, len(conflicts))
+		for sib := range conflicts {
+			sibs = append(sibs, sib)
+		}
+		sort.Strings(sibs)
+		fmt.Println("GATE=not-composing")
+		for _, sib := range sibs {
+			fmt.Println("CONFLICT_WITH=" + sib + ": " + strings.Join(conflicts[sib], ", "))
+		}
+		fmt.Println("NEXT=a phase sibling already reported work these files conflict with: run bbs ticket adopt " + strings.Join(sibs, " ") + " in this worktree, resolve each CONFLICT file, re-review only the resolution delta, re-run QA the resolution touches, then run done again")
+		return "", fmt.Errorf("foreman task done: ticket %s does not compose with %s", t.Ticket, strings.Join(sibs, ","))
 	}
 	state, reasons, err := taskDoneGate(t.Ticket)
 	switch {

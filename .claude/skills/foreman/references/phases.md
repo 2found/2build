@@ -131,15 +131,23 @@ from the phase commit:
 and runs the `qa` skill's Foreman integration mode against **every criterion
 of phases 1..k**, the cross-ticket journeys and adjacent regressions — not a
 union of ticket PASS counts — then submits the evidence. When the contract
-requires product review, a fresh read-only evaluator adds `kind: product`
-evidence for the same phase (product-review.md). The CLI rejects evidence for a
-phase that is not ready, a worktree that is not clean at the phase commit, or
-a stale subject.
+requires product review, the **same session** then begins a `kind: product`
+attempt on the same running phase commit and judges it as the product
+evaluator (product-review.md): it built no ticket, so it is independent of the
+work, and one session pays one cold start and one runtime setup instead of
+two. The CLI rejects evidence for a phase that is not ready, a worktree that
+is not clean at the phase commit, or a stale subject.
+
+Its report lists every failing criterion and material finding of both
+attempts, by owning ticket. Foreman sends each owning ticket **one** `repair`
+carrying all of its items, and launches them as one batch: fixing findings one
+at a time costs a repair session, a reseal and a phase re-check per finding.
 
 A small repair after phase QA does not restart the phase's QA. After the
-repair's ticket is resealed and the phase is integrated again, carry the checks
-that already passed on the earlier phase commit and re-test only the criteria
-the repair touched:
+repairs' tickets are resealed and the phase is integrated again, one
+integration session re-checks it: carry the checks that already passed — from
+both the integration and the product attempt — on the earlier phase commit,
+and re-test only the criteria the repairs touched:
 
 ```bash
 bbs foreman evidence "$PARENT" --phase "$K" --carry --from "$INT_ATTEMPT,$PRODUCT_ATTEMPT" \

@@ -126,6 +126,7 @@ func TestForemanTaskDoneGatesTicketSessions(t *testing.T) {
 	old := taskDoneGate
 	taskDoneGate = func(string) (string, []string, error) { return verdict, reasons, gateErr }
 	t.Cleanup(func() { taskDoneGate = old })
+	stubCompose(t, nil)
 	launch := func(task string) {
 		captureStdout(t, func() {
 			if err := foremanTask([]string{"launch", task, "--agent", "codex", "--worktree", t.TempDir()}); err != nil {

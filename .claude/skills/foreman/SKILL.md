@@ -67,7 +67,11 @@ keep work on warm context.
      ticket|repair|refresh|redirect` on `task create`) until the ticket's
      readiness passes — and a follow-up for a finished ticket goes to a
      **fresh** session in the same worktree, carrying every gap that ticket
-     has at once.
+     has at once. `task done` also refuses a tree that conflicts with a
+     sibling which already reported (`GATE=not-composing`), and keeps
+     verdicts staled only by adopting work outside the reviewed diff
+     (`GATE="carried: …"`; `seal` carries them the same way), so neither
+     costs a follow-up.
 
 **Foreman stays light.** Your context holds the goal, the accepted design, the
 phase plan, the DAG and durable ids — never worker transcripts, diffs or test

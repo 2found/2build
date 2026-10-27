@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.111.0 — 2026-10-27
+
+Foreman follow-up loop: measured runs spent most of a phase's wall time in
+cold repair, refresh and re-review sessions after the tickets themselves were
+done (`docs/foreman-cache-economics.md` § Re-check 2026-10-27).
+
+### Added
+
+- **Compose check at `bbs foreman task done`.** A ticket session whose tree
+  conflicts with a phase sibling that already reported success is refused
+  with `GATE=not-composing` and `CONFLICT_WITH=<sibling>: <files>`, so the
+  warm worker runs `bbs ticket adopt` and resolves it, instead of a cold
+  repair after `integrate` refuses the phase. `--no-gate` still bypasses it.
+- **Carried gates.** When every path changed since the ticket's
+  `review_tree` came verbatim from an adopted snapshot and none of them is in
+  the ticket's own diff, `task done` records `GATE="carried: …"` instead of
+  refusing stale review/QA verdicts, and `bbs foreman seal` waives them with
+  that reason. A moved base, a deletion, any other readiness reason or a
+  missing `review_tree` is never carried.
+
+### Changed
+
+- **Seams have one owner per phase** (`foreman/references/topology.md`): the
+  manifest's owned files include wiring lines, and a composition root,
+  registration, module `index`, catalog or generated type file belongs to one
+  ticket of the phase.
+- **Phase QA and product review run in one integration session**; all
+  findings go to one repair per owning ticket, and the re-check carries both
+  attempts' passed checks. A separate product-review worker is the exception.
+- **Follow-up review** covers the delta from `review_tree` at `low` effort
+  unless it touches money, auth or irreversible-data paths; a disjoint
+  adoption needs no review or QA re-run, and a refresh adopts rather than
+  rebases.
+
 ## 1.110.0 — 2026-10-27
 
 ### Removed

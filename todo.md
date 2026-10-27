@@ -18,4 +18,5 @@
     - cache hit 98,4% / lãng phí do hết hạn 2,0%: giữ nguyên
   - để ý: ticket quá to (compact nhiều, plan `L` bị kẹt, review kém hơn); lạm dụng `--no-gate` (`gate: "skipped: …"` trong `$BABYSIT_HOME/tasks/*/task.json`); keep-warm tốn mà không giảm số lần thức lạnh
   - script chỉ đo phiên Claude Code; agent khác không có transcript ở `~/.claude/projects`
+  - 2026-10-27: re-check done (`docs/foreman-cache-economics.md` § Re-check 2026-10-27): Foreman cold wakes fixed, worker sessions/worktree worse (2.83). v1.111.0 adds the compose check, carried gates, one-session phase QA + product review and low-effort follow-up review; measure again after a few projects on ≥ 1.111.0, also by Dispatch durations in `$BABYSIT_HOME/tasks/*/task.json` (omp projects have no transcripts)
   - added: 2026-10-25
