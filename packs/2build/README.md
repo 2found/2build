@@ -9,8 +9,9 @@ follow progress without reminding the agent to do each step.
 The pack contains 20 skills for product engineering and growth.
 The companion `bbs` CLI keeps progress and evidence on disk.
 
-A 2found product. [Soot](https://trysoot.com), powered by 2agent, is
-**agent as config**: add config to your source code. Add an AI teammate.
+A 2found product. With [Soot](https://trysoot.com), powered by 2agent,
+you give recurring work to a small team of Soots that runs on schedule
+and asks you only when a person is needed.
 
 **[Add the pack](#quick-start) · [Explore 2build](https://github.com/2found/2build)**
 

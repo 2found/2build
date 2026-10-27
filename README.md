@@ -88,7 +88,7 @@ When your product needs more, choose the tool for the next job:
 
 | Your next step | Explore |
 |----------------|---------|
-| Add an AI agent to your product | [**Soot**](https://trysoot.com), powered by **2agent** — **agent as config** — add config to your source code. Add an AI teammate. |
+| Give recurring work to a small team of agents | [**Soot**](https://trysoot.com), powered by **2agent** — Soots answer visitors, watch sources, write and follow up on schedule, and ask you only when a person is needed. |
 | Deploy what you built | [**2server**](https://github.com/2found/2server) — deploy and operate apps on infrastructure you own. |
 | Help customers discover your product | [**2market**](https://2found.dev/#2market) — a marketing workspace in development, bringing product context, content and channels into one flow. |
 

@@ -87,7 +87,7 @@ bbs install
 
 | 다음 단계 | 살펴보기 |
 |-----------|----------|
-| 제품에 AI agent 추가 | [**Soot**](https://trysoot.com), powered by **2agent** — **agent as config** — 소스 코드에 설정을 더하세요. AI 동료가 늘어납니다. |
+| 반복 업무를 작은 에이전트 팀에 맡기기 | [**Soot**](https://trysoot.com), powered by **2agent** — 방문자 응대, 정보 출처 모니터링, 글쓰기, 후속 연락을 일정에 맞춰 처리하고, 사람이 필요할 때만 묻습니다. |
 | 만든 제품 배포 | [**2server**](https://github.com/2found/2server) — 직접 소유한 인프라에서 앱을 배포하고 운영하세요. |
 | 고객이 제품을 발견하게 하기 | [**2market**](https://2found.dev/#2market) — 제품 맥락, 콘텐츠, 채널을 하나의 흐름으로 연결하는 개발 중인 마케팅 작업 공간. |
 

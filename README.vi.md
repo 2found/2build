@@ -88,7 +88,7 @@ Khi sản phẩm cần thêm, chọn công cụ theo bước tiếp theo:
 
 | Bạn muốn | Khám phá |
 |----------|----------|
-| Thêm AI agent vào sản phẩm | [**Soot**](https://trysoot.com), powered by **2agent** — **agent as config** — thêm config vào source code. Có thêm đồng đội AI. |
+| Giao việc lặp lại cho một đội agent nhỏ | [**Soot**](https://trysoot.com), powered by **2agent** — trả lời khách, theo dõi nguồn tin, viết bài, xử lý phản hồi theo lịch và chỉ hỏi bạn khi thật sự cần người. |
 | Deploy sản phẩm đã build | [**2server**](https://github.com/2found/2server) — triển khai và vận hành ứng dụng trên hạ tầng bạn sở hữu. |
 | Giúp khách hàng tìm thấy sản phẩm | [**2market**](https://2found.dev/#2market) — không gian marketing đang phát triển, kết nối bối cảnh sản phẩm, nội dung và các kênh trong một quy trình. |
 

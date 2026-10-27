@@ -87,7 +87,7 @@ bbs install
 
 | 下一步 | 探索 |
 |--------|------|
-| 为产品添加 AI agent | [**Soot**](https://trysoot.com)，由 **2agent** 提供支持 — **agent as config** — 在源代码中加一份配置，多一位 AI 伙伴。 |
+| 把重复性工作交给一支小型 agent 团队 | [**Soot**](https://trysoot.com)，由 **2agent** 提供支持 — 按计划回复访客、关注信息源、撰写内容、跟进联系，只在需要人来处理时才询问你。 |
 | 部署已构建的产品 | [**2server**](https://github.com/2found/2server) — 在你拥有的基础设施上部署和运营应用。 |
 | 让客户发现产品 | [**2market**](https://2found.dev/#2market) — 正在开发的营销工作空间，将产品背景、内容和渠道整合到一个流程中。 |
 
