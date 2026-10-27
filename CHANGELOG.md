@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.112.0 — 2026-10-27
+
+QA from measured runs: 7 bugs that escaped a QA PASS and the token spend of
+55 Claude Code QA runs (about 74% of cost is cache-read over ~126 turns on a
+~135k context that existed before QA started).
+
+### Changed
+
+- **QA matrix adds three mandatory axes** (`qa` step 4), each tied to escapes:
+  *ship surface* — cases run on the surface that ships; a fixture, stub,
+  browser-mode build, dev-only DB or implementer-written payload is a named
+  gap, and a primary journey on a substitute caps `flow` at C; *actor* —
+  changed UI runs signed-out and as a lower-privilege user, plus a
+  wrong-credential/expired-session case where session state is shared;
+  *hard-to-reach states* — cancel and Escape on every guard, hidden-window,
+  offline and timing probes, injection or a named gap for fixture-unreachable
+  states.
+- **QA execution runs in a fresh-context Executor-mode subagent** in every
+  mode, Foreman integration included, whenever the harness has a subagent
+  tool; inline only with a recorded reason.
+- **Turn economy rule:** one script per case group with one pass/fail line
+  per case, 30-line failure tails, write-once matrix/scripts/evidence, scoped
+  snapshots.
+- **Rubric grades are letters or `N/A: <reason>`**; repair and phase QA
+  reports must carry `STATUS` and `VERDICT`.
+
+### Removed
+
+- QA's TaskCreate mirror and `semantic-decision` `testcase` classification
+  step (0 uses in measured runs).
+
 ## 1.111.0 — 2026-10-27
 
 Foreman follow-up loop: measured runs spent most of a phase's wall time in
