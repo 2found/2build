@@ -92,30 +92,44 @@ Exercise the application like a user and leave reproducible evidence.
    resolved discovery. Include accepted prototype flows/states for changed UI.
    Build a flow matrix from the acceptance criteria — not just the diff —
    covering happy path, validation, empty/error states, failure/retry, and
-   responsive behavior. Derive the change's reach independently: for each
+   responsive behavior. Three axes escaped past QA most and are mandatory
+   wherever the change reaches them:
+   - **Ship surface** — each case names the surface that ships (packaged
+     app shell, live provider/sandbox payload, prod-shaped schema, real
+     agent path) and runs there. A fixture, stub, browser-mode build, dev-only
+     DB or implementer-written payload in its place is a named gap, and work
+     deferred to hypercare goes into `SUMMARY` as a release-checklist item.
+   - **Actor** — changed UI runs signed-out and as a lower-privilege user;
+     where session/credential state is shared, add one wrong-credential or
+     expired-session case.
+   - **Hard-to-reach states** — every dialog, confirm or dirty-state guard
+     gets cancel and Escape; background/hidden-window, offline and timing
+     states are probed. A state the fixture cannot reach is forced by
+     injection or named as a gap — unit tests alone do not cover a case.
+   Derive the change's reach independently: for each
    changed file/function, find callers and flows sharing its state or
    routes, and give each an adjacent-regression case (BLAST_RADIUS is the
    producer's own claim). Write the matrix before touching the app, each
    case anchored to its source ("criterion 2", "review-pr finding 1",
    "derived: shares session state"). Self-review: every criterion,
    BLAST_RADIUS entry, unresolved review finding, and implement deviation
-   has a case; material plan findings/unknowns have evidence or a named gap;
+   has a case; each axis above the change reaches has its case or a named
+   gap; material plan findings/unknowns have evidence or a named gap;
    each touched flow has ≥1 non-happy-path case; behavior the
    code walk surfaced that the requirement never mentions gets a *derived
    criterion* case with the gap named in `SUMMARY`; an uncoverable criterion
    is named as a gap now, never silently dropped. Save the matrix:
    `bbs ticket path evidence --skill qa --name test-matrix.md --write`.
-   Before finalizing the matrix, use `../semantic-decision/SKILL.md`
-   kind `testcase` to classify candidate user-journey cases as
-   required/adjacent/unaffected against the impact map. Batch shared context;
-   preserve the coverage floors above and record evidence for exclusions.
-   Reuse the automated-test classification from step 3 rather than repeating
-   it unchanged; automated coverage never replaces the executed journeys below.
-   Mirror the matrix into the native task list (TaskCreate) — one task per
-   case, closed only when its evidence lands.
-5. Execute the flows end-to-end with a real client. Web UI: the `browse`
-   engine — Read `../browse/SKILL.md` § Engine before the first browser
-   command; its session-name export and setup are mandatory. Non-UI: a real
+   Automated coverage never replaces the executed journeys below.
+5. Execute the flows end-to-end with a real client. Whenever the harness has
+   a subagent tool, steps 2, 5, 7 and 8 run in one **Executor mode**
+   subagent with a fresh context — in every mode, Foreman integration
+   included; a caller's own executor assignment (autopilot § Current-session
+   gates) satisfies this. This session keeps only the matrix, the returned
+   block and the failures it triages; run inline only when no subagent tool
+   exists or the executor cannot reach the target, and record why. Web UI:
+   the `browse` engine — Read only `../browse/SKILL.md` § Engine before the
+   first browser command; its session-name export and setup are mandatory. Non-UI: a real
    call sequence (curl, CLI, the repo's e2e suite). Never "test" a flow by
    reading code or unit tests alone. For changed UI, compare the rendered
    result with the accepted prototype at the relevant viewport and key states:
@@ -202,7 +216,7 @@ surface lease this attempt took.
 Grade every dimension A–D against the change's risk surface; a dimension the
 change can't touch is `N/A` **with a one-line reason** — never a silent skip.
 
-- **flow**: A = happy + every alternate/branch flow e2e · B = happy + ≥2 alternates · C = happy only · D = none e2e
+- **flow**: A = happy + every alternate/branch flow e2e · B = happy + ≥2 alternates · C = happy only, or the primary journey ran on a substitute for the ship surface · D = none e2e
 - **boundary**: A = limits, invalid input, empty/error, failure/retry all exercised · B = ≥1 boundary + ≥1 error · C = mentioned, not executed · D = none
 - **regression**: A = existing behavior around the change re-verified · B = adjacent flow spot-checked · C = assumed intact · D = not considered
 - **data**: A = state correct across reload/nav/concurrent edits · B = persists across reload · C = not checked · D = loss/corruption seen
@@ -211,6 +225,8 @@ change can't touch is `N/A` **with a one-line reason** — never a silent skip.
 - **a11y**: A = keyboard path, labels/roles, contrast, clear error copy · B = keyboard + visible focus · C = not checked · D = blocking defect
 - **perf**: A = responsive under realistic data volume · B = no obvious lag on happy path · C = not observed · D = timeout/jank seen
 - **freshness** (always applies): A = final full e2e pass on the *final* code state · B = e2e passed but code changed after · C = partial/stale e2e · D = unit/curl/code-read only
+Grades are letters `A`–`D` or `N/A: <reason>`; anything else ("ok",
+"pass") is a missing grade.
 `PASS`/`FIXED` require **every applicable** dimension at B or better and
 freshness at A. Any applicable dimension at C
 or D, missing required coverage or failed acceptance forces `VERDICT: FAIL`
@@ -230,6 +246,11 @@ including `N/A: <reason>`.
   running locally (or the local-run blocker named). Happy-path-only is not a
   PASS.
 - Prefer deep checks over many vague clicks.
+- Turns are the cost: every turn re-pays the whole context. Batch each case
+  group into one script that prints one pass/fail line per case; on a
+  failure print only its last 30 lines. Write the matrix, scripts and
+  evidence once and reference them by path — never re-read or re-run a whole
+  script to inspect one failure. Prefer a scoped snapshot to a full page.
 - Every QA summary names the local target or blocker, the case matrix, and
   at least one non-happy-path result.
 - `VERDICT: FAIL` always pairs with `STATUS: BLOCKED` — never `DONE*`. The
@@ -250,7 +271,8 @@ CLEANUP: <owned resources stopped and verified; pre-existing/shared resources re
 ```
 When a ticket resolves, persist the **full block** (`RUBRIC`, `EVIDENCE`, and
 `CLEANUP` included) — `reviews/qa.md` is the report a human or orchestrator
-reads after the fact. Record it even when full QA was impossible
+reads after the fact — repair and phase QA included; a report without
+`STATUS` and `VERDICT` is unreadable to the gate. Record it even when full QA was impossible
 (`VERDICT: FAIL`, `STATUS: BLOCKED`, with the missing required coverage and
 blocker named):
 ```bash
