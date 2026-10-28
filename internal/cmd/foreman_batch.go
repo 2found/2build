@@ -45,6 +45,10 @@ type foremanBatch struct {
 	// second question arriving after the first was answered still wakes.
 	Questions   int      `json:"questions,omitempty"`
 	QuestionIDs []string `json:"question_ids,omitempty"`
+	// ReadQuestionIDs are the questions `batch show` printed to the Foreman.
+	// A wake typed into a busy pane can be swallowed (an open dialog eats
+	// it), so only a read question counts as delivered when batch re-arms.
+	ReadQuestionIDs []string `json:"read_question_ids,omitempty"`
 	// Reported holds the attention keys (exited:<task>, stalled:<task>,
 	// lost:<task>) already delivered, so each wakes the Foreman once per
 	// Dispatch attempt.
@@ -170,6 +174,7 @@ func foremanBatchCommand(args []string) error {
 			return fmt.Errorf("foreman batch show: no batch recorded for %s", args[1])
 		}
 		printBatchState(b)
+		markQuestionsRead(args[1], b)
 		printForemanNext(args[1])
 		return nil
 	}
@@ -247,7 +252,15 @@ func foremanBatchCommand(args []string) error {
 		if len(b.Owed) > 0 {
 			b.OwedSince = prev.OwedSince
 		}
-		b.Questions, b.QuestionIDs = prev.Questions, prev.QuestionIDs
+		// A question counts as delivered only once batch show printed it: a
+		// wake swallowed by a busy pane must wake the re-armed batch again.
+		b.ReadQuestionIDs = prev.ReadQuestionIDs
+		for _, q := range prev.QuestionIDs {
+			if slices.Contains(prev.ReadQuestionIDs, q) {
+				b.QuestionIDs = append(b.QuestionIDs, q)
+			}
+		}
+		b.Questions = len(b.QuestionIDs)
 		b.PromptedAt, b.KeepWarms = prev.PromptedAt, prev.KeepWarms
 	}
 	if err := saveBatch(id, b); err != nil {
@@ -298,6 +311,25 @@ func printBatchState(b foremanBatch) {
 	for _, q := range foreman.PendingQuestions(b.taskIDs()) {
 		fmt.Printf("QUESTION=%s TASK=%s ASKED=%s BODY=%s\n", q.ID, q.Task, q.AskedAt, strconv.Quote(q.Body))
 		fmt.Printf("ANSWER_WITH=bbs foreman task answer %s --id %s --body \"<answer>\"\n", q.Task, q.ID)
+	}
+}
+
+// markQuestionsRead records the pending questions batch show just printed. It
+// re-loads the batch so only this field changes under a concurrent watcher.
+func markQuestionsRead(id string, shown foremanBatch) {
+	b, ok := loadBatch(id)
+	if !ok || b.ID != shown.ID {
+		return
+	}
+	changed := false
+	for _, q := range foreman.PendingQuestions(shown.taskIDs()) {
+		if !slices.Contains(b.ReadQuestionIDs, q.ID) {
+			b.ReadQuestionIDs = append(b.ReadQuestionIDs, q.ID)
+			changed = true
+		}
+	}
+	if changed {
+		_ = saveBatch(id, b)
 	}
 }
 
@@ -578,7 +610,9 @@ const (
 // batchKeepWarm keeps an idle Foreman's prompt cache alive through a long
 // batch: once the batch has gone a cache lifetime minus keepWarmLead without
 // prompting it, the Foreman gets one plain line (not a skill prompt, which
-// would re-inject the skill) asking for a one-word reply. Agents with a short
+// would re-inject the skill) asking for one batch show and a one-word reply.
+// That read doubles as insurance: an attention wake a busy pane swallowed is
+// caught within a cache lifetime rather than waited on forever. Agents with a short
 // cache lifetime get none: a keep-warm every few minutes costs more than the
 // cold wake it saves.
 func batchKeepWarm(client *orca.Client, r foreman.Record, b *foremanBatch, now time.Time) string {
@@ -596,7 +630,7 @@ func batchKeepWarm(client *orca.Client, r foreman.Record, b *foremanBatch, now t
 	if now.Sub(last) < ttl-keepWarmLead {
 		return ""
 	}
-	text := fmt.Sprintf("Prompt-cache keep-warm from bbs foreman watch: batch %s is still running (%d/%d settled). Nothing needs you; reply `ok` and end the turn without running any command.", b.ID, b.settled(), len(b.Tasks))
+	text := fmt.Sprintf("Prompt-cache keep-warm from bbs foreman watch: batch %s is still running (%d/%d settled). Run `bbs foreman batch show %s` once as a safety check: answer every QUESTION= line and handle any stalled, exited or lost worker; if nothing needs you, reply `ok` and end the turn.", b.ID, b.settled(), len(b.Tasks), r.ID)
 	if err := client.SendEnter(foremanTerm(client, r), text); err != nil {
 		foreman.MarkUnreachable(r.ID)
 		return fmt.Sprintf("UNREACHABLE %s — %s", r.ID, err)

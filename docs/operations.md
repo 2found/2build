@@ -480,14 +480,17 @@ store, never into the foreman's terminal, so nothing else types into it while
 a batch runs. `bbs foreman batch show <id>` prints the batch state the wake refers to — each
 settled member with its ticket, kind, gate verdict, summary and report — and
 then the `NEXT=` steps of every project the foreman owns, so one read covers a
-wake.
+wake. A question counts as delivered only once `batch show` printed it: a wake
+typed while the Foreman is busy (an open dialog) can be swallowed, so
+re-arming the batch wakes again for any pending question it never read.
 
 A batch outlasting the Foreman's prompt cache would make its wake a cold one:
 the whole context rewritten at up to twice the input price instead of read at a
 tenth. When the cache lifetime (`foreman_cache_ttl`, default the agent's own:
 claude 3600 s, others 300 s) is at least 30 minutes, the watcher therefore
-types one plain keep-warm line (`… reply ok and end the turn …`, not a skill
-prompt) once the batch has gone that lifetime minus ten minutes without
+types one plain keep-warm line (not a skill prompt) asking for one `bbs foreman
+batch show` — answer any pending question, handle any stalled, exited or lost
+worker, else reply ok and end the turn — once the batch has gone that lifetime minus ten minutes without
 prompting the Foreman, at most 8 per batch. Shorter caches get none. The same
 lifetime caps the default block of `bbs foreman await` and `bbs foreman task
 ask` (540 s, or a minute inside the lifetime) so a worker's re-run after a

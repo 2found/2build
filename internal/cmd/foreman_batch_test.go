@@ -202,6 +202,16 @@ func (f *batchFixture) start(t *testing.T, tasks ...string) {
 	f.sends(t)
 }
 
+// show runs batch show, as the Foreman does on a wake.
+func (f *batchFixture) show(t *testing.T) string {
+	t.Helper()
+	return captureStdout(t, func() {
+		if err := foremanBatchCommand([]string{"show", f.record.ID}); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 func (f *batchFixture) tickClosing(t *testing.T, now time.Time) string {
 	t.Helper()
 	o := batchWatchOpts()
@@ -316,11 +326,48 @@ func TestBatchWakesEarlyForQuestionAndExitedWorker(t *testing.T) {
 	if b, _ := loadBatch(f.record.ID); !b.open() {
 		t.Fatal("attention closed the batch")
 	}
-	// The Foreman handles the wake and re-runs batch with the same Tasks:
-	// what that wake carried is not delivered a second time.
+	// The Foreman handles the wake (reading batch show) and re-runs batch
+	// with the same Tasks: what that wake carried is not delivered again.
+	f.show(t)
 	f.start(t, "task-a", "task-b")
 	if line := f.tick(t, now.Add(4*time.Minute)); strings.Contains(line, "exited:task-b") || strings.Contains(line, "messages:") {
 		t.Fatalf("re-run batch re-delivered handled attention: %q", line)
+	}
+}
+
+// fm-nest-agent-native, 2026-10-28: a question wake was typed while the
+// Foreman sat in a dialog of its previous wake, so it never became a turn; the
+// Foreman then re-armed the batch and the carried question ids marked it
+// delivered, leaving the worker unanswered for hours. A question batch show
+// never printed must wake the re-armed batch again.
+func TestBatchRearmRewakesForAQuestionTheForemanNeverRead(t *testing.T) {
+	f := newBatchFixture(t, "codex")
+	f.start(t, "task-a", "task-b")
+	now := time.Now()
+
+	f.world.Asked = map[string]string{"q-a1": "task-a"}
+	f.save(t)
+	if line := f.tick(t, now); !strings.Contains(line, "messages:1") {
+		t.Fatalf("first question wake = %q", line)
+	}
+	f.show(t) // the Foreman reads q-a1 ...
+	f.world.Asked["q-b1"] = "task-b"
+	f.save(t)
+	if line := f.tick(t, now.Add(time.Minute)); !strings.Contains(line, "messages:2") {
+		t.Fatalf("second question wake = %q", line)
+	}
+	// ... but the q-b1 wake is swallowed: the Foreman answers q-a1 and re-arms
+	// without ever running batch show again.
+	delete(f.world.Asked, "q-a1")
+	f.start(t, "task-a", "task-b")
+	line := f.tick(t, now.Add(2*time.Minute))
+	if !strings.Contains(line, "WOKE fm-batch") || !strings.Contains(line, "messages:1") {
+		t.Fatalf("re-armed batch did not re-wake for the unread question: %q", line)
+	}
+	f.show(t)
+	f.start(t, "task-a", "task-b")
+	if line := f.tick(t, now.Add(3*time.Minute)); strings.Contains(line, "messages:") {
+		t.Fatalf("a read question woke the re-armed batch: %q", line)
 	}
 }
 
@@ -751,7 +798,8 @@ func TestBatchKeepsTheForemanCacheWarm(t *testing.T) {
 	}
 	line, sends := tick(51 * time.Minute)
 	if !strings.Contains(line, "KEEP-WARM fm-batch") || len(sends) != 1 ||
-		!strings.Contains(sends[0], "reply `ok`") || strings.Contains(sends[0], "bbs:foreman") {
+		!strings.Contains(sends[0], "reply `ok`") || !strings.Contains(sends[0], "bbs foreman batch show fm-batch") ||
+		strings.Contains(sends[0], "bbs:foreman") {
 		t.Fatalf("keep-warm: %q %v", line, sends)
 	}
 	if line, sends := tick(52 * time.Minute); line != "" || len(sends) != 0 {

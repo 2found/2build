@@ -38,8 +38,10 @@ keep work on warm context.
    to you (`bbs foreman task done` / `task ask`), and send no status messages
    ([worker-lifecycle.md](references/worker-lifecycle.md)); there is no
    mailbox to drain or acknowledge. Through a long batch the watcher types a
-   one-line **keep-warm** before your cache expires: reply `ok` and end the
-   turn, with no command. Inside a wake every tool call is another full read
+   one-line **keep-warm** before your cache expires: run the one `bbs foreman
+   batch show` it names as a safety check (a wake typed while you were busy
+   can be lost), handle any `QUESTION=` or stalled/exited/lost worker, else
+   reply `ok` and end the turn. Inside a wake every tool call is another full read
    of your context, so chain commands into as few calls as the work allows.
 2. **One context, one session.** A worker session pays once to load its
    context — requirement, plan, the code it touches — and every later turn
