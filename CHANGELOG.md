@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.116.0 — 2026-10-29
+
+Verification gates now bind the ticket's own change, not the whole checkout.
+
+### Added
+
+- **Ticket-scoped gate subject.** The first checkpoint written from a
+  ticket's work records a baseline — `HEAD` and the paths already dirty at
+  that moment — and `tree_digest` covers every path that differs from that
+  `HEAD` minus the baseline-dirty ones. Another session's or the owner's
+  edits in a shared checkout no longer void an open review/QA gate; an edit
+  to a ticket path, or a new path joining the change, still does.
+  Checkpoints without a baseline keep binding the whole tree.
+- **`bbs autopilot verification claim <path>...`** adds baseline-dirty
+  paths the ticket also edits into its scope. Claiming changes the subject,
+  so an open gate must begin again on the new digest.
+
+### Changed
+
+- `skill.md`, `verification.md` and `git-flow.md` describe the scoped
+  subject; the same edits are synced into `packs/2build`.
+
 ## 1.115.0 — 2026-10-29
 
 Team keeps a decision trail the handover is written from, and its basic
