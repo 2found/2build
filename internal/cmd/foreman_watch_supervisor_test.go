@@ -22,7 +22,7 @@ func TestSupervisorUnitsAreScopedAndCannotRestartLoop(t *testing.T) {
 		"<key>Label</key><string>" + mac.label + "</string>",
 		"<key>SuccessfulExit</key><false/>",
 		"<key>RunAtLoad</key><true/>",
-		"[ -x &#39;/opt/bbs&#39; ] || exit 0; exec &#39;/opt/bbs&#39; foreman watch --supervised",
+		"[ -x &#39;/opt/bbs&#39; ] || exit 0; exec &#39;/opt/bbs&#39; team watch --supervised",
 		"<key>PATH</key><string>/usr/bin:/a&amp;b</string>",
 		"/h/one/watch/watch.log",
 	} {
@@ -54,7 +54,7 @@ func TestSupervisorUnitsAreScopedAndCannotRestartLoop(t *testing.T) {
 	if !ok || linux.kind != "systemd" {
 		t.Fatalf("linux unit = %+v, %v", linux, ok)
 	}
-	for _, want := range []string{"Restart=on-failure", `Environment="PATH=/usr/bin:/a&b"`, "foreman watch --supervised", "[ -x '/opt/bbs' ] || exit 0"} {
+	for _, want := range []string{"Restart=on-failure", `Environment="PATH=/usr/bin:/a&b"`, "team watch --supervised", "[ -x '/opt/bbs' ] || exit 0"} {
 		if !strings.Contains(linux.body, want) {
 			t.Fatalf("unit missing %q:\n%s", want, linux.body)
 		}

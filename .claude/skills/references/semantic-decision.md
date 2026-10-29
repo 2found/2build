@@ -88,12 +88,12 @@ The matching hash correlates fallback with its completion.
 | Kind | Evidence and bounded choices | Non-negotiable floor |
 |------|------------------------------|----------------------|
 | `task-size` | Requirement, expected footprint, API/migration/dependency changes + full [size rubric](ticket-size-rubric.md); `XS/S/M/L`. | Largest matching rubric row; unknowns default M. File/LOC counts alone do not prove safe XS. |
-| `task-complexity` | Assignment requirement, plan and acceptance commands + Foreman task-complexity rubric; `simple/normal/hard`. | Weak evidence stays normal; hard only when the assignment's own diff changes a named money, auth, security, live-data or concurrency invariant. Model-tier lookup remains deterministic. |
+| `task-complexity` | Assignment requirement, plan and acceptance commands + the lead task-complexity rubric; `simple/normal/hard`. | Weak evidence stays normal; hard only when the assignment's own diff changes a named money, auth, security, live-data or concurrency invariant. Model-tier lookup remains deterministic. |
 | `testcase` | Candidate case/test, criterion and caller/state/route impact map; `required/adjacent/unaffected`. | Every acceptance criterion, deviation, unresolved finding and touched flow's non-happy path retains coverage. `unaffected` needs evidence before excluding a case. |
 | `review-finding` | Candidate + relevant diff/enclosing code/callers/guards + effort's verdict ladder; `CONFIRMED/PLAUSIBLE/REFUTED`. | REFUTED requires a cited disproof. Uncertainty never drops a finding. Preserve independent verification. |
 | `deep-review` | Remaining risk, verification gaps, review effort and findings; `deepen/sufficient`. | Cannot skip the selected effort's mandatory phases or pass unresolved material findings. |
 | `skill-route` | User intent + available skill/workflow descriptions; candidate skill/workflow names as choices. | Explicit skill/workflow selection wins; eligibility and prerequisite gates still run. |
-| `orchestration` | Proposed decomposition, dependencies, shared state and verification boundaries; `single-ticket/multi-ticket`. | Recommendation only; Foreman owns dispatch/topology and its approvals. |
+| `orchestration` | Proposed decomposition, dependencies, shared state and verification boundaries; `single-ticket/multi-ticket`. | Recommendation only; the lead owns dispatch/topology and its approvals. |
 | `decision-tier` | Proposed action, evidence, user direction and authority; `Mechanical/Taste/User Challenge` from the Auto-Decision Framework. | Cannot downgrade known User Challenges or missing authority; no recursive classification. |
 | `human-review` | Checkpoint policy, artifact revision, rubric, gaps and delegated authority; `proceed/revise/needs-human/blocked`. | Apply the owner policy first; see below. |
 | `recovery` | Blocker evidence, cause, prior attempts and available inputs; `recoverable/needs-human`. | Preserve triage's retry limit and execution authority; provider failure is not a human blocker. |
@@ -105,7 +105,7 @@ its `result.answers`; skills consume only the shared result above.
 
 ## Human review
 First read the checkpoint owner's current policy and durable state. Explicit
-`--stop-after`, human-held approval, Foreman's parent checkpoint without `--auto`,
+`--stop-after`, human-held approval, the lead's parent checkpoint without `--auto`,
 holds/grant bounds and non-delegable floors determine the route mechanically.
 Do not call a model to waive them. A checkpoint that policy already requires
 from a human stays human-held; gather reviewable artifacts before escalation.

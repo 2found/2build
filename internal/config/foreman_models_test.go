@@ -24,8 +24,8 @@ func TestForemanModelDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct{ complexity, phase, tier string }{
-		{"simple", "normal", "lite"}, {"simple", "critical", "flash"}, {"simple", "design", "pro"},
-		{"normal", "normal", "flash"}, {"normal", "critical", "flash"}, {"normal", "design", "max"},
+		{"simple", "normal", "flash"}, {"simple", "critical", "pro"}, {"simple", "design", "pro"},
+		{"normal", "normal", "pro"}, {"normal", "critical", "pro"}, {"normal", "design", "pro"},
 		{"hard", "normal", "pro"}, {"hard", "critical", "max"}, {"hard", "design", "max"},
 		{"critical", "critical", "max"},
 	} {
@@ -61,7 +61,7 @@ func TestForemanModelSettingsPrecedence(t *testing.T) {
 		{"codex", "simple", "normal", "flash", "global-flash", ""},
 		{"codex", "simple", "critical", "max", "repo-max", "high"},
 		{"codex", "normal", "normal", "pro", "gpt-6.1-sol", "high"},
-		{"codex", "normal", "design", "max", "repo-max", "high"},
+		{"codex", "normal", "design", "pro", "gpt-6.1-sol", "high"},
 		{"codex", "normal", "critical", "max", "repo-max", "high"},
 		{"custom", "hard", "normal", "pro", "provider/custom", ""},
 	} {
@@ -131,7 +131,7 @@ func TestForemanModelIgnoresOffloadSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	tier, binding, err := p.Select("claude", "normal", "critical")
-	if err != nil || tier != "flash" || binding.Model != "sonnet" {
+	if err != nil || tier != "pro" || binding.Model != "opus" {
 		t.Fatalf("offload settings must not change routing: %s %+v %v", tier, binding, err)
 	}
 }

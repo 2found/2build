@@ -15,9 +15,9 @@ import (
 )
 
 // One phase, one commit. Tickets never commit; their sealed snapshots are
-// composed into a single phase commit on top of local base (`bbs foreman
+// composed into a single phase commit on top of local base (`bbs team
 // integrate`), QA runs on exactly that commit in a dedicated worktree, and
-// `bbs foreman land` fast-forwards base to it. What was tested is what lands,
+// `bbs team land` fast-forwards base to it. What was tested is what lands,
 // and base history gains one commit per phase — never a ticket's.
 
 type projectCandidate struct {
@@ -210,7 +210,7 @@ func projectIntegrateCommand(st *ticket.Store, kv map[string]string) error {
 				return err
 			}
 			if conflicts := contractOwnerConflicts(changed, ticket.ReadDoc(st.IndexPath()).Get("assignee")); len(conflicts) > 0 {
-				return fmt.Errorf("phase %s changes contracts another Foreman owns: %s; ask the owner for the change (bbs ticket assign a ticket to it) and build against its new version", p.ID, strings.Join(conflicts, ", "))
+				return fmt.Errorf("phase %s changes contracts another team owns: %s; ask the owner for the change (bbs ticket assign a ticket to it) and build against its new version", p.ID, strings.Join(conflicts, ", "))
 			}
 			if len(changed) > 0 {
 				after, _ := readContracts(canonical, r.Commit)
@@ -302,7 +302,7 @@ func projectLandCommand(st *ticket.Store, kv map[string]string) error {
 				continue
 			}
 			if tip != r.BaseHead {
-				return fmt.Errorf("%s moved since phase %s was built (%s → %s); run bbs foreman integrate again and re-run phase QA", r.Base, p.ID, short(r.BaseHead), short(tip))
+				return fmt.Errorf("%s moved since phase %s was built (%s → %s); run bbs team integrate again and re-run phase QA", r.Base, p.ID, short(r.BaseHead), short(tip))
 			}
 			if dir := branchCheckout(r.Canonical, r.Base); dir != "" {
 				if err := fastForwardCheckout(dir, ref, r.BaseHead, r.Commit); err != nil {

@@ -18,10 +18,10 @@ func runWorkerReportGate(stdout io.Writer) {
 	if d == nil {
 		return
 	}
-	reason := fmt.Sprintf("Foreman Task %s (Dispatch %s) is still open. Before stopping, persist the handoff and report the actual outcome once: `bbs foreman task done %s --dispatch %s --outcome succeeded|failed --summary \"<did; found; left>\"` (failed when the work is incomplete). A nested skill finishing does not finish the Task. Do not wait for a separate Foreman reply.", t.ID, d.ID, t.ID, d.ID)
+	reason := fmt.Sprintf("Team Task %s (Dispatch %s) is still open. Before stopping, persist the handoff and report the actual outcome once: `bbs team task done %s --dispatch %s --outcome succeeded|failed --summary \"<did; found; left>\"` (failed when the work is incomplete). A nested skill finishing does not finish the Task. Do not wait for a separate Foreman reply.", t.ID, d.ID, t.ID, d.ID)
 	if pending := foreman.PendingQuestions([]string{t.ID}); len(pending) > 0 {
 		q := pending[0]
-		reason = fmt.Sprintf("Foreman Task %s has your unanswered question %s. Keep waiting with `bbs foreman task ask %s --resume %s`; never ask it again.", t.ID, q.ID, t.ID, q.ID)
+		reason = fmt.Sprintf("Team Task %s has your unanswered question %s. Keep waiting with `bbs team task ask %s --resume %s`; never ask it again.", t.ID, q.ID, t.ID, q.ID)
 	}
 	// Recheck on every Stop, including stop_hook_active continuations: that
 	// flag is not evidence of a report. Interrupt/cancellation remains native.

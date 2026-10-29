@@ -11,7 +11,7 @@ import (
 	"github.com/2found/2build/internal/ticket"
 )
 
-// `bbs foreman next` reads the project snapshot and suggests what to do now.
+// `bbs team next` reads the project snapshot and suggests what to do now.
 // It is advice, not a gate: every rule it reflects is enforced by the verb it
 // names (the same projectPhaseReasons readiness uses), so a Foreman that
 // knows better may do something else and the CLI still keeps the invariants.
@@ -28,7 +28,7 @@ type foremanStep struct {
 func projectNext(st *ticket.Store, s projectSnapshot) []foremanStep {
 	parent := s.Ticket
 	if s.Contract == nil {
-		return []foremanStep{{Do: "design", Command: "bbs foreman contract " + parent + " --file project.json",
+		return []foremanStep{{Do: "design", Command: "bbs team contract " + parent + " --file project.json",
 			Why: "no valid project contract: write the basic design (requirement, design, prototype, plan) and its phases, seeds and criteria"}}
 	}
 	doc := ticket.ReadDoc(st.IndexPath())
@@ -37,7 +37,7 @@ func projectNext(st *ticket.Store, s projectSnapshot) []foremanStep {
 		switch s.Approval {
 		case "pending":
 			return []foremanStep{{Do: "wait", Target: "human", Command: "BABYSIT_TICKET=" + parent + " bbs ticket approval await",
-				Why: "the basic design is in review (a Foreman under --auto self-resolves it)"}}
+				Why: "the basic design is in review (a lead under --auto self-resolves it)"}}
 		case "redirected":
 			return []foremanStep{{Do: "revise", Command: publish,
 				Why: "the reviewer asked for changes: read the note and comments, revise the design, publish again"}}
@@ -73,7 +73,7 @@ func projectNext(st *ticket.Store, s projectSnapshot) []foremanStep {
 	if s.Completion == "verified" {
 		return []foremanStep{{Do: "done", Why: "every phase is resolved and completion is verified"}}
 	}
-	return []foremanStep{{Do: "complete", Command: "bbs foreman complete " + parent + " --foreman " + orDefault(s.Coordinator["id"], "<id>"),
+	return []foremanStep{{Do: "complete", Command: "bbs team complete " + parent + " --foreman " + orDefault(s.Coordinator["id"], "<id>"),
 		Why: "every phase is resolved; record completion (it reports any cleanup left)"}}
 }
 
@@ -83,30 +83,41 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 		return foremanStep{Do: do, Phase: p.ID, Target: target, Command: command, Why: why}
 	}
 	if p.Ticket == "" {
-		return []foremanStep{step("bind", "", "bbs foreman bind "+parent+" --phase "+p.ID+" --child <phase-ticket>",
+		return []foremanStep{step("bind", "", "bbs team bind "+parent+" --phase "+p.ID+" --child <phase-ticket>",
 			"create a phase ticket under "+parent+" and bind it; its tickets go under it")}
 	}
 	switch {
 	case p.Delivered:
 		if p.Release == "ask" && !p.ApprovalGo {
-			if doc := ticket.ReadDoc(storeForTicket(st.Env, p.Ticket).IndexPath()); doc.Get("approval.kind") == "release" && doc.Get("approval.state") == "pending" {
-				return []foremanStep{step("wait", "human", "", "release go for phase "+p.ID+" is with the human")}
+			ps := storeForTicket(st.Env, p.Ticket)
+			if doc := ticket.ReadDoc(ps.IndexPath()); doc.Get("approval.kind") == "release" {
+				var req projectReleaseRequest
+				current := readProjectJSON(projectReleaseRequestPath(ps), &req) == nil && req.Subject == p.Subject
+				switch state, _, note := approvalRead(ps); {
+				case state == "pending":
+					return []foremanStep{step("wait", "human", "", "the handover of phase "+p.ID+" is with the human for review and the release go")}
+				case state == "redirected" && current:
+					return []foremanStep{step("repair", "", "BABYSIT_TICKET="+p.Ticket+" bbs ticket approval comments",
+						"the human sent the handover back: "+orDefault(note, "see the comments")+". Fix what the approved scope covers as repairs on the owning tickets (reseal, integrate, phase QA, land), then hand over again; a request beyond the approved scope goes back to basic-design review as a contract change")}
+				case state == "dropped" && current:
+					return []foremanStep{step("wait", "human", "", "the human declined the release of phase "+p.ID+": "+orDefault(note, "no reason given"))}
+				}
 			}
-			return []foremanStep{step("release", "human", "bbs foreman release "+parent+" --phase "+p.ID+" --request",
+			return []foremanStep{step("release", "human", "bbs team release "+parent+" --phase "+p.ID+" --request",
 				"phase "+p.ID+" is landed; ask the human for the release go")}
 		}
-		return []foremanStep{step("release", "", "bbs foreman release "+parent+" --phase "+p.ID+" --file receipt.json",
+		return []foremanStep{step("release", "", "bbs team release "+parent+" --phase "+p.ID+" --file receipt.json",
 			"phase "+p.ID+" is landed; run release-prd, then record its verdict")}
 	case p.Integrated:
-		return []foremanStep{step("land", "", "bbs foreman land "+parent+" --phase "+p.ID, "phase QA passed on the phase commit")}
+		return []foremanStep{step("land", "", "bbs team land "+parent+" --phase "+p.ID, "phase QA passed on the phase commit")}
 	case p.Sealed && p.Candidate == nil && !s.Contract.ArtifactsOnly:
-		return []foremanStep{step("integrate", "", "bbs foreman integrate "+parent+" --phase "+p.ID, "every ticket of phase "+p.ID+" is sealed")}
+		return []foremanStep{step("integrate", "", "bbs team integrate "+parent+" --phase "+p.ID, "every ticket of phase "+p.ID+" is sealed")}
 	case p.Sealed:
-		why := "run phase QA on the phase commit and record it (bbs foreman evidence --begin, then --attempt)"
+		why := "run phase QA on the phase commit and record it (bbs team evidence --begin, then --attempt)"
 		if checks := phaseContractChecks(p); len(checks) > 0 {
 			why += "; it changes contracts, so include their consumers' checks: " + strings.Join(checks, "; ")
 		}
-		return []foremanStep{step("verify", "", "bbs foreman evidence "+parent+" --phase "+p.ID+" --begin --file spec.json", why)}
+		return []foremanStep{step("verify", "", "bbs team evidence "+parent+" --phase "+p.ID+" --begin --file spec.json", why)}
 	}
 
 	var steps []foremanStep
@@ -120,7 +131,7 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 	}
 	for _, seed := range p.Seeds {
 		if !bound[seed] {
-			steps = append(steps, step("create", seed, "bbs foreman bind "+parent+" --seed "+seed+" --child <ticket>",
+			steps = append(steps, step("create", seed, "bbs team bind "+parent+" --seed "+seed+" --child <ticket>",
 				"seed "+seed+" has no ticket: create one under phase ticket "+p.Ticket+", bind it, dispatch it"))
 		}
 	}
@@ -151,12 +162,12 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 	}
 	if len(sealable) > 0 {
 		ids := strings.Join(sealable, " ")
-		steps = append([]foremanStep{step("seal", ids, "bbs foreman seal "+ids, "review-pr and qa pass on their current trees, or the ticket's size defers them to phase review")}, steps...)
+		steps = append([]foremanStep{step("seal", ids, "bbs team seal "+ids, "review-pr and qa pass on their current trees, or the ticket's size defers them to phase review")}, steps...)
 	}
 	return steps
 }
 
-// childSealable: the check `bbs foreman seal` makes, read-only.
+// childSealable: the check `bbs team seal` makes, read-only.
 func childSealable(cs *ticket.Store) bool {
 	m, err := ticket.ReadManifest(cs.ManifestPath())
 	if err != nil || len(m.Repos) != 1 {

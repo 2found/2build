@@ -66,5 +66,5 @@ fail it with `attempt update --id <id> --expect-revision <rev> --json
 beside it. A crash
 after attempt completion can retry `record` with the same ID: the durable pending
 envelope is reused. Neither worker nor coordinator reconstructs old evidence as
-current. Emit structured progress at milestones/waits via `bbs foreman progress`;
+current. Emit structured progress at milestones/waits via `bbs team progress`;
 the parent Task supplies its criterion IDs and integration obligations.

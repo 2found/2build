@@ -97,7 +97,7 @@ export function TicketsList({ snapshot }: { snapshot: Snapshot }) {
   const facets: FacetDef[] = [
     { kind: 'status',  label: 'Status',  options: ALL_STATUSES },
     { kind: 'phase',   label: 'Phase',   options: phases },
-    { kind: 'foreman', label: 'Foreman', options: (snapshot.foremen ?? []).map(f => f.id) },
+    { kind: 'foreman', label: 'Team',    options: (snapshot.foremen ?? []).map(f => f.id) },
     { kind: 'control', label: 'Control', options: ['active', 'paused', 'cancelled'], counts: controlCounts },
   ];
 
@@ -566,7 +566,7 @@ function ListHeader({
       <HeaderCell aria-label="Status">
         <Circle size={12} strokeWidth={1.75} aria-hidden="true" />
       </HeaderCell>
-      {!narrow && <HeaderCell>Foreman</HeaderCell>}
+      {!narrow && <HeaderCell>Team</HeaderCell>}
       {!narrow && <HeaderCell>Phase</HeaderCell>}
       {!narrow && <HeaderCell>Updated</HeaderCell>}
     </DenseRow>
@@ -778,7 +778,7 @@ function NewTicketModal({
           one that stopped beating would park the ticket in an unread inbox. */}
       <Field
         label="Assign to"
-        hint="The foreman that picks it up. It is woken now if its workspace is reachable, otherwise on its next tick."
+        hint="The team that picks it up. It is woken now if its workspace is reachable, otherwise on its next tick."
       >
         {id => (
           <select id={id} style={controlStyle} value={assignee} onChange={e => setAssignee(e.target.value)}>

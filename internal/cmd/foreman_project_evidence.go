@@ -69,7 +69,7 @@ func projectEvidenceProblems(st *ticket.Store, s projectSnapshot, ev projectEvid
 	}
 	cand := s.Phases[k].Candidate
 	if cand == nil && (s.Contract == nil || !s.Contract.ArtifactsOnly) {
-		return append(problems, "phase commit missing or stale: run bbs foreman integrate")
+		return append(problems, "phase commit missing or stale: run bbs team integrate")
 	}
 	if cand != nil {
 		// The tested surface is the phase commit itself, in the phase's own
@@ -539,7 +539,7 @@ func projectComplete(st *ticket.Store, id string) error {
 		}
 		receipt := projectCompletion{Version: 1, Subject: projectCompletionSubject(s), At: isoNow(), Foreman: id, Cleanup: true, Delivery: s.Delivery}
 		// The recap is for the human, not a gate: a failed render never
-		// blocks completion, and `bbs foreman recap` rewrites it.
+		// blocks completion, and `bbs team recap` rewrites it.
 		s.Completion = "verified"
 		if path, err := writeProjectRecap(st, s); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: recap not written: %v\n", err)

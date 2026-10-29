@@ -1,6 +1,6 @@
 # 2build
 
-> Give Autopilot a task. Preview the interface, then let it write, review, test and fix the code. 2build provides open-source skills and a companion CLI for Claude Code, Codex, Antigravity, OMP, Grok and any coding agent that supports Claude Code skills. Only Foreman needs Orca.
+> Give Autopilot a task. Preview the interface, then let it write, review, test and fix the code. 2build provides open-source skills and a companion CLI for Claude Code, Codex, Antigravity, OMP, Grok and any coding agent that supports Claude Code skills. Only Team needs Orca.
 
 ## Start here
 
@@ -14,7 +14,7 @@
 - [Skill preamble](https://raw.githubusercontent.com/2found/2build/main/.claude/skills/references/preamble.md): Harness-specific invocation, bootstrap, telemetry and escalation contract. Resolve sibling references relative to the installed skill directory.
 - [Companion CLI](https://raw.githubusercontent.com/2found/2build/main/docs/companion-cli.md): CLI commands, durable snapshots and recovery helpers. Skill invocations are agent chat instructions, not CLI subcommands.
 - [Project starters](https://raw.githubusercontent.com/2found/2build/main/docs/starters.md): Generate a verified project with `bbs bootstrap`; inspect committed starter provenance and applicable updates with `bbs starter check`.
-- [Foreman](https://raw.githubusercontent.com/2found/2build/main/docs/foreman.md): Optional Orca-dependent coordination for multi-ticket projects.
+- [Team](https://raw.githubusercontent.com/2found/2build/main/docs/team.md): An autonomous product team on Orca — you approve the design, then review the handover and give the release go.
 - [Operations](https://raw.githubusercontent.com/2found/2build/main/docs/operations.md): Configuration, progress, evidence, telemetry and health checks.
 
 ## Optional

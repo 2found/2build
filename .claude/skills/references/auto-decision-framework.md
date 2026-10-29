@@ -22,7 +22,7 @@ Do not recursively classify while executing semantic-decision itself.
 
 When deciding whether a checkpoint needs human input, use its owner's policy
 first, then the shared [human-review contract](semantic-decision.md#human-review).
-The owner (Foreman, Autopilot, or direct skill) also decides where Taste results
+The owner (the lead, Autopilot, or direct skill) also decides where Taste results
 are reported; semantic-decision adds no approval gate of its own.
 
 ## The 6 Decision Principles

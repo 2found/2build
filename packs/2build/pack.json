@@ -47,7 +47,7 @@
         {
           "name": "2build_autopilot",
           "file": "autopilot/skill.md",
-          "description": "Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; use foreman for multi-ticket projects."
+          "description": "Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; the default for any size of change, including a day-long one. Use team only for phased releases, independent phase verification or parallel work on disjoint parts."
         }
       ]
     },

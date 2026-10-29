@@ -1,7 +1,7 @@
 ---
 workflow: builder
 version: 1
-description: Turn one ticket's idea, requirement, or accepted plan into a production-grade, QA-verified change on the current checkout. The default path for serial product work and foreman-dispatched child tickets; multi-ticket parent orchestration belongs to foreman.
+description: Turn one ticket's idea, requirement, or accepted plan into a production-grade, QA-verified change on the current checkout. The default path for serial product work and Team-dispatched child tickets; multi-ticket parent orchestration belongs to Team.
 needs-state:
   requirement_md: optional
 ---
@@ -13,18 +13,18 @@ Re-read ticket state, checkpoint, and git status; choose the **first** match:
 
 | Mode | Condition | What it does |
 |------|-----------|--------------|
-| **child** | `origin_type = sub_ticket` | One Foreman ticket: plan, implement, review and QA only this child's scope; hand off to the parent. |
+| **child** | `origin_type = sub_ticket` | One Team ticket: plan, implement, review and QA only this child's scope; hand off to the parent. |
 | **implement** | `plan.md` exists, no manifest | Implement the accepted plan. |
 | **build** | `requirement.md` exists, `plan.md` absent | Plan first, then implement. |
 | **verify** | none of the above, but the checkout holds existing changes (uncommitted, or commits off base) | QA-only pass on existing work. |
 A ticket with `manifest.md` is a multi-ticket project, not a builder mode:
-stop with `BLOCKED` and hand it to `foreman`. If no mode matches and there is
+stop with `BLOCKED` and hand it to `team`. If no mode matches and there is
 no ticket/requirement, stop with `NEEDS_CONTEXT`.
 ## run
 > produces: verdict:builder + qa:checked
 1. Ensure ticket and checkpoint exist; record the mode in the checkpoint.
    Read these facts from `bbs autopilot snapshot --json`. Work happens on the current checkout —
-   autopilot never cuts a branch or worktree (a foreman that dispatched you
+   autopilot never cuts a branch or worktree (the Team that dispatched you
    already placed you in one; work in place). Record missing QA configuration as a handoff warning and point
    at `$bbs:setup-project` when it matters.
 2. **build and child modes (skip when init already seeded `plan.md`; a child
@@ -32,13 +32,13 @@ no ticket/requirement, stop with `NEEDS_CONTEXT`.
    `plan-draft` (user-facing work routes through `design-ui`, so the plan
    carries the UI spec + prototype). Write `plan.md` unless the task is XS.
    Don't stop for plan/prototype review — the human reviews once, at the
-   final handoff — unless `--stop-after=plan` was passed. A Foreman ticket
-   approves its plan by ticket size here instead (SKILL.md § Foreman ticket
+   final handoff — unless `--stop-after=plan` was passed. A Team ticket
+   approves its plan by ticket size here instead (SKILL.md § Team ticket
    assignment).
 3. **build / implement / child modes:** run `implement` against the
    requirement, plan, and (child mode) only the child scope. `implement`
    leaves its output uncommitted, and so does this workflow: gates bind the
-   tree's content, and committing belongs to the human or Foreman.
+   tree's content, and committing belongs to the human or the lead.
 4. Record each gate around its actual execution with autopilot
    references/verification.md; markdown verdicts never satisfy readiness.
    Run `review-pr --fix` in the current autopilot session via SKILL.md's
@@ -63,22 +63,22 @@ no ticket/requirement, stop with `NEEDS_CONTEXT`.
    Reconcile every acceptance criterion with executed evidence and require
    `bbs ticket readiness --action review --json` to report ready. Autopilot
    stops here, work uncommitted: never commit, push, or open a PR — the human
-   commits (or runs `create-pr`); under a foreman, Foreman seals the ticket
+   commits (or runs `create-pr`); under Team, the lead seals the ticket
    and lands it with its phase.
 7. Write a handoff: mode, checkout, changed files, deviations from the plan
    (the implement handoff's `## Deviations`), prototype path when `design-ui`
    produced one, QA evidence, concerns, next action, and any follow-up worth
    its own ticket with the evidence for it. Child mode targets
-   the parent foreman run. Cross-repo: list every touched repo with its
+   the parent Team run. Cross-repo: list every touched repo with its
    branch. Write it so a non-technical owner can act: lead with what was
    built and where to see it (URL), and give the next action as a copy-paste
    command. Confirm first: no debug leftovers, nothing outside the ticket's
    scope in the diff, checkpoint current.
-### Foreman-dispatched children
+### Team-dispatched children
 `origin.type=sub_ticket` scopes child mode; the current checkout is already the
-worktree foreman prepared. Never derive or check out a branch in this
+worktree Team prepared. Never derive or check out a branch in this
 workflow. The child handoff targets its parent and leaves sealing, phase
-integration, phase QA and landing to foreman.
+integration, phase QA and landing to Team.
 ### Cross-repo tasks (related repos)
 `setup-project` records siblings: meaning in `AGENTS.md` § Related Repos,
 machine-local paths in the workspace registry (`bbs config workspace show`), which
@@ -119,5 +119,5 @@ review and QA each repo's change against *its own* base, once per repo touched.
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: BUILT
 SUMMARY: <mode, checkout, files, QA evidence>
-NEXT: commit it or /bbs:create-pr — under a foreman, nothing: Foreman lands it with its phase
+NEXT: commit it or /bbs:create-pr — under Team, nothing: the lead lands it with its phase
 ```

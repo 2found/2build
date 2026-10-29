@@ -82,7 +82,7 @@ func TestForemanTaskLaunchAndReport(t *testing.T) {
 	}
 	calls, _ := os.ReadFile(log)
 	if strings.Contains(string(calls), "orchestration") || !strings.Contains(string(calls), "--surface terminal") ||
-		!strings.Contains(string(calls), "bbs foreman task show "+task+" --spec") {
+		!strings.Contains(string(calls), "bbs team task show "+task+" --spec") {
 		t.Fatalf("orca calls:\n%s", calls)
 	}
 	tk, _ := foreman.LoadTask(task)

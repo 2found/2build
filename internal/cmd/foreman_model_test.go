@@ -67,11 +67,11 @@ func TestForemanModelPolicyAndErrors(t *testing.T) {
 		}
 	}
 	out = captureStdout(t, func() {
-		if err := foremanModel([]string{"--agent", "omp", "--complexity", "simple", "--phase-class", "normal"}); err != nil {
+		if err := foremanModel([]string{"--agent", "omp", "--complexity", "normal", "--phase-class", "normal"}); err != nil {
 			t.Fatal(err)
 		}
 	})
-	if strings.Contains(out, `"effort"`) || !strings.Contains(out, `"@smol"`) {
+	if strings.Contains(out, `"effort"`) || !strings.Contains(out, `"@slow"`) {
 		t.Fatalf("OMP binding = %s", out)
 	}
 }
@@ -83,11 +83,11 @@ func TestForemanModelDefaultsMissingClassification(t *testing.T) {
 		args                    []string
 		complexity, phase, tier string
 	}{
-		{nil, "normal", "normal", "flash"},
-		{[]string{"--complexity", "normal"}, "normal", "normal", "flash"},
-		{[]string{"--phase-class", "normal"}, "normal", "normal", "flash"},
-		{[]string{"--phase-class", "critical"}, "normal", "critical", "flash"},
-		{[]string{"--phase-class", "design"}, "normal", "design", "max"},
+		{nil, "normal", "normal", "pro"},
+		{[]string{"--complexity", "normal"}, "normal", "normal", "pro"},
+		{[]string{"--phase-class", "normal"}, "normal", "normal", "pro"},
+		{[]string{"--phase-class", "critical"}, "normal", "critical", "pro"},
+		{[]string{"--phase-class", "design"}, "normal", "design", "pro"},
 		{[]string{"--complexity", "hard"}, "hard", "normal", "pro"},
 		{[]string{"--complexity", "hard", "--phase-class", "critical"}, "hard", "critical", "max"},
 	} {

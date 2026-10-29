@@ -26,7 +26,7 @@ import (
 // (Linux) closes that gap: the unit restarts a watcher that exits non-zero or
 // by signal, and starts one at login after a reboot.
 //
-// The unit runs `bbs foreman watch --supervised`, which stands by behind a
+// The unit runs `bbs team watch --supervised`, which stands by behind a
 // watcher that already holds the lock and exits 0 once no batch is open, so a
 // quiet machine costs one short process per login. The unit is installed per
 // BABYSIT_HOME (test homes never touch the real one) and rewritten only when
@@ -59,7 +59,7 @@ func supervisorFor(goos, userHome, babysitHome, bin string, env map[string]strin
 	logPath := filepath.Join(babysitHome, "watch", "watch.log")
 	// A deleted or moved binary exits 0: a unit must never restart-loop on a
 	// path that is gone, and the next batch rewrites it with the new path.
-	script := fmt.Sprintf("[ -x %[1]s ] || exit 0; exec %[1]s foreman watch --supervised", shellQuote(bin))
+	script := fmt.Sprintf("[ -x %[1]s ] || exit 0; exec %[1]s team watch --supervised", shellQuote(bin))
 	keys := make([]string, 0, len(env))
 	for k := range env {
 		keys = append(keys, k)
@@ -94,7 +94,7 @@ func supervisorFor(goos, userHome, babysitHome, bin string, env map[string]strin
 	case "linux":
 		label := "bbs-foreman-watch-" + suffix
 		var b strings.Builder
-		b.WriteString("[Unit]\nDescription=bbs foreman watch (" + babysitHome + ")\n\n[Service]\nType=simple\n")
+		b.WriteString("[Unit]\nDescription=bbs team watch (" + babysitHome + ")\n\n[Service]\nType=simple\n")
 		for _, k := range keys {
 			fmt.Fprintf(&b, "Environment=%s\n", strconv.Quote(k+"="+env[k]))
 		}
@@ -216,7 +216,7 @@ func uninstallSupervisor(s watchSupervisor) error {
 }
 
 const foremanSupervisorUsage = `Usage:
-  bbs foreman supervisor status|install|uninstall
+  bbs team supervisor status|install|uninstall
     The per-user launchd/systemd unit that restarts a dead watcher while a
     batch is open. install runs automatically on every batch handover.`
 

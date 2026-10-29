@@ -17,8 +17,8 @@ import (
 )
 
 const foremanBatchUsage = `Usage:
-  bbs foreman batch <foreman-id> --tasks <task,task,...>
-  bbs foreman batch show <foreman-id>
+  bbs team batch <foreman-id> --tasks <task,task,...>
+  bbs team batch show <foreman-id>
 
 Hands a dispatched batch to the detached watcher, after which the Foreman ends
 its turn. The watcher supervises the workers (nudging one whose pane sits idle
@@ -270,7 +270,7 @@ func foremanBatchCommand(args []string) error {
 	ensureWatchSupervisor()
 	fmt.Println("BATCH=" + b.ID)
 	fmt.Printf("BATCH_TASKS=%d\n", len(b.Tasks))
-	fmt.Println("NEXT=end this turn; bbs foreman watch wakes this Foreman when the batch settles or needs attention")
+	fmt.Println("NEXT=end this turn; bbs team watch wakes this lead when the batch settles or needs attention")
 	return nil
 }
 
@@ -310,7 +310,7 @@ func printBatchState(b foremanBatch) {
 	}
 	for _, q := range foreman.PendingQuestions(b.taskIDs()) {
 		fmt.Printf("QUESTION=%s TASK=%s ASKED=%s BODY=%s\n", q.ID, q.Task, q.AskedAt, strconv.Quote(q.Body))
-		fmt.Printf("ANSWER_WITH=bbs foreman task answer %s --id %s --body \"<answer>\"\n", q.Task, q.ID)
+		fmt.Printf("ANSWER_WITH=bbs team task answer %s --id %s --body \"<answer>\"\n", q.Task, q.ID)
 	}
 }
 
@@ -559,7 +559,7 @@ func batchWatchWorker(client *orca.Client, m *batchMember, handle string, o watc
 		m.Stalled = true
 		return "", "stalled:" + m.Task
 	}
-	nudge := fmt.Sprintf("Continue Task %s (Dispatch %s). If it is complete, persist the evidence and run `bbs foreman task done %s --dispatch %s` now; if you are blocked on a decision, use `bbs foreman task ask %s`.", m.Task, m.Dispatch, m.Task, m.Dispatch, m.Task)
+	nudge := fmt.Sprintf("Continue Task %s (Dispatch %s). If it is complete, persist the evidence and run `bbs team task done %s --dispatch %s` now; if you are blocked on a decision, use `bbs team task ask %s`.", m.Task, m.Dispatch, m.Task, m.Dispatch, m.Task)
 	if err := client.SendEnterHandle(handle, nudge); err != nil {
 		return fmt.Sprintf("WORKER-UNREACHABLE %s — %v", m.Task, err), ""
 	}
@@ -590,7 +590,7 @@ func batchFinish(client *orca.Client, r foreman.Record, b *foremanBatch, now tim
 
 // batchWake starts the Foreman's turn with one prompt naming the batch.
 func batchWake(client *orca.Client, r foreman.Record, b foremanBatch, summary string) string {
-	instruction := summary + ". Run `bbs foreman batch show " + r.ID + "` (batch, attention, pending questions and each project's next steps)."
+	instruction := summary + ". Run `bbs team batch show " + r.ID + "` (batch, attention, pending questions and each project's next steps)."
 	if _, err := watchSend(client, r, instruction); err != nil {
 		return fmt.Sprintf("UNREACHABLE %s — %s", r.ID, err)
 	}
@@ -630,7 +630,7 @@ func batchKeepWarm(client *orca.Client, r foreman.Record, b *foremanBatch, now t
 	if now.Sub(last) < ttl-keepWarmLead {
 		return ""
 	}
-	text := fmt.Sprintf("Prompt-cache keep-warm from bbs foreman watch: batch %s is still running (%d/%d settled). Run `bbs foreman batch show %s` once as a safety check: answer every QUESTION= line and handle any stalled, exited or lost worker; if nothing needs you, reply `ok` and end the turn.", b.ID, b.settled(), len(b.Tasks), r.ID)
+	text := fmt.Sprintf("Prompt-cache keep-warm from bbs team watch: batch %s is still running (%d/%d settled). Run `bbs team batch show %s` once as a safety check: answer every QUESTION= line and handle any stalled, exited or lost worker; if nothing needs you, reply `ok` and end the turn.", b.ID, b.settled(), len(b.Tasks), r.ID)
 	if err := client.SendEnter(foremanTerm(client, r), text); err != nil {
 		foreman.MarkUnreachable(r.ID)
 		return fmt.Sprintf("UNREACHABLE %s — %s", r.ID, err)

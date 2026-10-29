@@ -144,7 +144,7 @@ func statusSet(st *ticket.Store, status, actor string) error {
 					return err
 				}
 				if s.Completion != "verified" {
-					return fmt.Errorf("managed project completion requires bbs foreman complete")
+					return fmt.Errorf("managed project completion requires bbs team complete")
 				}
 			}
 		}

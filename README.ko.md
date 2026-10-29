@@ -36,7 +36,7 @@ bbs --version과 설치된 skills를 검증하고, 필요한 조건이 빠졌다
 재시작이 필요한지 설명하고, 첫 작은 작업을 실행할 수 있도록 이 agent에 맞는 정확한 Autopilot 호출을 알려 주세요.
 ```
 
-지원되는 coding agent와 기존 model 이용 권한이 필요합니다. Claude Code와 Codex는 CLI가 PATH에 있어야 합니다. 2build용 별도 model 계정은 필요 없으며 agent의 일반 이용 요금은 적용됩니다. **Orca는 Foreman에만 필요합니다.** [설치 및 문제 해결](docs/install.md)(영어)을 참고하세요.
+지원되는 coding agent와 기존 model 이용 권한이 필요합니다. Claude Code와 Codex는 CLI가 PATH에 있어야 합니다. 2build용 별도 model 계정은 필요 없으며 agent의 일반 이용 요금은 적용됩니다. **Orca는 Team에만 필요합니다.** [설치 및 문제 해결](docs/install.md)(영어)을 참고하세요.
 
 <details>
 <summary>직접 명령을 실행하려면: macOS / Linux의 Homebrew</summary>
@@ -95,30 +95,46 @@ bbs install
 
 ## 작업 내용으로 선택
 
-`/bbs:autopilot`은 하나의 ticket(기능 또는 bug 수정)을 plan, review, QA까지 진행합니다. `/bbs:foreman`은 여러 ticket으로 이루어진 프로젝트를 실행합니다. 특정 작업에는 skill을 직접 호출하세요.
+`/bbs:autopilot`은 하나의 작업(bug 수정, 기능, 하루 종일 걸리는 긴 변경)을 하나의 session에서 plan, review, QA까지 진행합니다. 여기서 시작하세요. 긴 session 하나가 context를 따뜻하게 유지하고 token을 가장 적게 씁니다. 프로젝트 전체를 `/bbs:team`에 맡기는 것은 session 하나로는 얻을 수 없는 것이 필요할 때만입니다([아래](#team)). 특정 작업에는 skill을 직접 호출하세요.
 
 개별 skill과 workflow 예제는 [skill 목록](docs/skills.md)을 참고하세요.
 
 <a id="foreman-설정"></a>
 <a id="foreman-여러-ticket으로-구성된-프로젝트"></a>
 
-## 더 큰 프로젝트: Foreman
+<a id="team"></a>
 
-여러 ticket에 의존성이 있다면 [Foreman](docs/foreman.md)을 사용하세요. [Orca](https://www.onorca.dev)로 전체 계획을 세우고, 자식 ticket을 worktree로 분리하고, 준비된 작업을 dispatch하며 프로젝트 전체 QA를 수행합니다. 기본적으로 프로덕션 작업을 dispatch하기 전에 부모 계획과 설계를 검토합니다. 명시적인 `--auto`는 해당 검토를 worker에 위임합니다. worker는 커밋하지 않으며, 각 phase는 phase QA 후 하나의 커밋으로 반영됩니다.
+## Team: 프로젝트 전체를 맡는 프로덕트 팀
+
+[Team](docs/team.md)은 고용한 프로덕트 팀처럼 일합니다. 여러분은 두 번만 만납니다:
+
+1. **의뢰** — 요구사항을 전달하고, 팀이 다시 써 온 spec을 확인하고(질문은 한 번에 모아서, 그 뒤로는 없음), basic design을 승인합니다: 아키텍처, 제품 전체의 prototype, release phase.
+2. **인도** — 완성된 제품을 증거와 함께 검토한 뒤 release go를 주거나 피드백을 보냅니다. spec 범위 안의 피드백은 팀이 스스로 고쳐 다시 인도하며 추가 미팅은 없습니다. spec을 넘는 요청은 design 변경으로 돌아옵니다.
+
+그 사이에 팀은 스스로 design, build, review, QA, integrate를 하고(phase마다 로컬 base에 커밋 하나) 여러분에게 아무것도 묻지 않습니다. worker는 커밋하지 않으며, Team에는 [Orca](https://www.onorca.dev)가 필요합니다. `/bbs:foreman`도 alias로 동작합니다.
+
+Autopilot보다 비용이 큽니다(lead session, design session, phase마다 integration session). 이유가 있을 때 쓰세요:
+
+- **손을 떼고 싶을 때** — session을 조종하는 대신 두 번만 관여하고, 마지막에 review를 마친 release 가능한 제품을 받습니다.
+- **phase별 release** — design 승인 때 허용한 단계적 프로덕션 release. 마지막에 큰 변경 하나를 내는 대신.
+- **독립 검증** — 새 session이 각 phase를 review하고 QA합니다. Autopilot은 코드를 쓴 session이 직접 review합니다.
+- **분리된 부분의 병렬 작업** — 고정된 contract로 이어진 별도 service나 repo를, 대기 시간이 중요할 때 병렬로 진행합니다.
+
+어느 것도 해당하지 않으면 하루 종일 걸리는 작업이라도 Autopilot 한 번이 더 빠르고 저렴합니다.
 
 <details>
 <summary>CLI 및 설정 세부 정보</summary>
 
 ## Skill과 CLI
 
-Skill은 agent용 workflow이고 `bbs`는 이를 지원하는 CLI입니다. `/bbs:foreman`은 프로젝트 조정자를 실행하며, `bbs foreman`은 model 정책 조회, 영구 Foreman 기록, phase(`seal`, `integrate`, `land`, `release`), 다음 단계 제안, 보고서를 관리하고, `bbs contract`는 병렬 ticket이 의존하는 인터페이스 계약을 관리합니다. `/bbs:autopilot`은 단일 ticket workflow를 실행하며, `bbs autopilot`은 checkpoint와 상태 관리 도구를 제공합니다. `bbs ticket`은 ticket 식별, DAG 관계, 증거, 테스트 환경 lease, seal된 작업 가져오기를 관리합니다.
+Skill은 agent용 workflow이고 `bbs`는 이를 지원하는 CLI입니다. `/bbs:team`은 프로덕트 팀을 실행하며, `bbs team`(alias `bbs foreman`)은 model 정책 조회, 영구 lead 기록, phase(`seal`, `integrate`, `land`, `release`), 다음 단계 제안, 보고서를 관리하고, `bbs contract`는 병렬 ticket이 의존하는 인터페이스 계약을 관리합니다. `/bbs:autopilot`은 단일 ticket workflow를 실행하며, `bbs autopilot`은 checkpoint와 상태 관리 도구를 제공합니다. `bbs ticket`은 ticket 식별, DAG 관계, 증거, 테스트 환경 lease, seal된 작업 가져오기를 관리합니다.
 
 자주 쓰는 CLI 명령:
 
 ```bash
 bbs dashboard
-bbs foreman report <parent-ticket>
-bbs foreman next <parent-ticket>
+bbs team report <parent-ticket>
+bbs team next <parent-ticket>
 bbs ticket dag <parent-ticket>
 bbs autopilot snapshot --json
 bbs autopilot recover --json
@@ -143,7 +159,7 @@ bbs config set semantic_decision_model clef-flash  # or clef
 
 ## 문서(영어)
 
-[설치 및 문제 해결](docs/install.md) · [Skill 선택](docs/skills.md) · [진행 확인](docs/companion-cli.md) · [프로젝트 조정](docs/foreman.md)
+[설치 및 문제 해결](docs/install.md) · [Skill 선택](docs/skills.md) · [진행 확인](docs/companion-cli.md) · [프로젝트 조정](docs/team.md)
 
 Coding agent는 [llms.txt](llms.txt)에서 Markdown 안내와 runtime 규약을 바로 참조할 수 있습니다.
 

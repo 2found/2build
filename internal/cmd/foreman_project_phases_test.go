@@ -353,9 +353,31 @@ func TestSinglePhaseProjectCompletesAfterItsRelease(t *testing.T) {
 	}
 }
 
+func TestContractAsksOnlyAtHandover(t *testing.T) {
+	st, _, _ := phasedFixture(t, []projectPhase{
+		{ID: "p1", Title: "Walking skeleton", Seeds: []string{"core"}, Release: "none"},
+		{ID: "p2", Title: "Extra", Seeds: []string{"extra"}, Release: "ask"},
+	}, "extra")
+	var c projectContract
+	if err := readProjectJSON(projectContractPath(st), &c); err != nil {
+		t.Fatal(err)
+	}
+	for _, modes := range [][2]string{{"none", "ask"}, {"auto", "ask"}, {"auto", "none"}, {"ask", "ask"}} {
+		c.Phases[0].Release, c.Phases[1].Release = modes[0], modes[1]
+		in := filepath.Join(t.TempDir(), "contract.json")
+		if err := writeJSONAtomic(in, c); err != nil {
+			t.Fatal(err)
+		}
+		err := foremanProjectCommand("contract", []string{"parent", "--file", in})
+		if midAsk := modes[0] == "ask"; midAsk != (err != nil) {
+			t.Fatalf("%v: contract err = %v", modes, err)
+		}
+	}
+}
+
 func TestAutoForemanCannotApproveALoweredReleaseMode(t *testing.T) {
 	st, _, _ := phasedFixture(t, []projectPhase{
-		{ID: "p1", Title: "Walking skeleton", Seeds: []string{"core"}, Release: "ask"},
+		{ID: "p1", Title: "Walking skeleton", Seeds: []string{"core"}, Release: "none"},
 		{ID: "p2", Title: "Extra", Seeds: []string{"extra"}, Release: "auto"},
 	}, "extra")
 	revise := func(p1, p2 string) (int, string) {
@@ -379,15 +401,17 @@ func TestAutoForemanCannotApproveALoweredReleaseMode(t *testing.T) {
 		return code, reason
 	}
 
-	// Raising a gate is the Foreman's to approve under --auto.
-	if code, reason := revise("ask", "ask"); code != 0 {
-		t.Fatalf("raising p2 to ask was refused: %d %s", code, reason)
+	// Raising a gate is the lead's to approve under --auto: p1 (none) now
+	// ships with the p2 handover instead of an auto release.
+	if code, reason := revise("none", "ask"); code != 0 {
+		t.Fatalf("moving both seeds behind the handover was refused: %d %s", code, reason)
 	}
 	if _, _, err := approvalResolve(st, "approve", "auto review", "foreman"); err != nil {
 		t.Fatal(err)
 	}
-	// Lowering any approved gate — even one raised by that approval — is not.
-	for _, modes := range [][2]string{{"auto", "ask"}, {"ask", "none"}} {
+	// Lowering any approved gate — even one raised by that approval — is not,
+	// including a none phase that would now ship in an auto release.
+	for _, modes := range [][2]string{{"auto", "ask"}, {"none", "auto"}} {
 		code, reason := revise(modes[0], modes[1])
 		if code != exitGrant || !strings.Contains(reason, "lowers an approved release mode") {
 			t.Fatalf("%v: lowered gate self-resolved: %d %s", modes, code, reason)
@@ -395,5 +419,33 @@ func TestAutoForemanCannotApproveALoweredReleaseMode(t *testing.T) {
 		if _, _, err := approvalResolve(st, "redirect", "keep the gates", "foreman"); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+// A money plan under a basic design the human approved is not asked again;
+// under one a Foreman approved for itself it still goes to a human.
+func TestHumanApprovedDesignCoversTicketFloor(t *testing.T) {
+	st, child, _ := phasedFixture(t, []projectPhase{{ID: "p1", Title: "Payments", Seeds: []string{"core"}, Release: "ask"}})
+	if err := os.WriteFile(filepath.Join(child.Home(), "plan.md"), []byte("Charge the card with Stripe payments"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := approvalPublish(child, "plan", "ticket plan", "developer"); err != nil {
+		t.Fatal(err)
+	}
+	rec := foreman.Record{ID: "fm-test"}
+	if code, _, reason := selfResolveGate(child, child.Env, rec, projectRubric); code != 0 {
+		t.Fatalf("human-approved design did not cover the plan: %d %s", code, reason)
+	}
+	if err := foreman.Save(rec); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := approvalPublish(st, "project-plan", "self review", "developer"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := approvalResolve(st, "approve", "auto review", "fm-test"); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, _ := selfResolveGate(child, child.Env, rec, projectRubric); code != exitFloor {
+		t.Fatalf("Foreman-approved design cleared the floor: %d", code)
 	}
 }

@@ -127,8 +127,8 @@ func projectEvent(st *ticket.Store, event, attempt, producer, detail string) {
 	doc := ticket.ReadDoc(st.IndexPath())
 	var progress projectProgress
 	_ = readProjectJSON(filepath.Join(st.Home(), "progress.json"), &progress)
-	runtime := currentSkillRuntimeRecord("foreman")
-	row := map[string]interface{}{"schema_version": 1, "harness": runtime.Harness, "model": runtime.Model, "invocation_id": orDefault(attempt, progress.Dispatch), "ts": isoNow(), "skill": "foreman", "event": event, "project": st.Env.Slug, "ticket": st.Env.Ticket, "parent": doc.Get("parent"), "run_id": progress.Run, "dispatch_id": progress.Dispatch, "attempt_id": attempt, "producer": producer, "detail": detail, "provider_usage": skillUsage{Reason: "provider usage not observed"}}
+	runtime := currentSkillRuntimeRecord("team")
+	row := map[string]interface{}{"schema_version": 1, "harness": runtime.Harness, "model": runtime.Model, "invocation_id": orDefault(attempt, progress.Dispatch), "ts": isoNow(), "skill": "team", "event": event, "project": st.Env.Slug, "ticket": st.Env.Ticket, "parent": doc.Get("parent"), "run_id": progress.Run, "dispatch_id": progress.Dispatch, "attempt_id": attempt, "producer": producer, "detail": detail, "provider_usage": skillUsage{Reason: "provider usage not observed"}}
 	b, err := json.Marshal(row)
 	if err != nil {
 		return

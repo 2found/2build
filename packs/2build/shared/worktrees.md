@@ -1,6 +1,6 @@
 # Worktrees
 
-Read this when a run is inside a ticket worktree — a Foreman batch (Foreman
+Read this when a run is inside a ticket worktree — a lead batch (the lead
 creates it, then starts autopilot there) or a human who ran
 `bbs ticket ensure --mode=worktree` to isolate one ticket. The flow itself is
 [git-flow.md](git-flow.md).
@@ -13,10 +13,10 @@ show up as untracked work in the primary checkout.
 
 ## Rules inside a ticket worktree
 
-- Work stays **uncommitted**. Gates bind the tree's content; Foreman seals it.
+- Work stays **uncommitted**. Gates bind the tree's content; the lead seals it.
 - Install and run what the ticket needs in its own worktree. Use the ports,
   databases and secrets `qa.yaml` names; never edit the primary checkout.
-- Need another ticket's work? `bbs foreman await` adopts sealed prerequisites;
+- Need another ticket's work? `bbs team await` adopts sealed prerequisites;
   `bbs ticket adopt <ticket>` adopts on demand. Resolve every `CONFLICT=`
   file, then rerun the affected checks.
 

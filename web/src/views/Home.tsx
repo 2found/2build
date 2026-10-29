@@ -117,7 +117,7 @@ export function Home({ snapshot }: { snapshot: Snapshot }) {
           {active.length === 0 ? (
             <EmptyState
               title="Nothing running"
-              body="No ticket is assigned to a foreman or open in a live session."
+              body="No ticket is assigned to a team or open in a live session."
             />
           ) : (
             <div

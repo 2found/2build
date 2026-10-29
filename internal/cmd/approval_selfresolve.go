@@ -107,7 +107,7 @@ func floorHits(text string) []string {
 	return out
 }
 
-// rubricKeys are the design-checkpoint rubric lines from foreman/SKILL.md.
+// rubricKeys are the design-checkpoint rubric lines from team/SKILL.md.
 // Every one must carry named evidence before any auto-approval — that is the
 // bar a grant explicitly does not lower.
 //
@@ -276,8 +276,8 @@ func runApprovalSelfResolve(st *ticket.Store, env identity.Env, args []string) {
 	fmID, rubricPath, rubric := os.Getenv("BABYSIT_FOREMAN"), "", ""
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "--foreman":
-			fmID, i = valueOf(args, i, "--foreman"), i+1
+		case "--team", "--foreman":
+			fmID, i = valueOf(args, i, args[i]), i+1
 		case "--rubric-file":
 			rubricPath, i = valueOf(args, i, "--rubric-file"), i+1
 		case "--rubric":
@@ -285,7 +285,7 @@ func runApprovalSelfResolve(st *ticket.Store, env identity.Env, args []string) {
 		}
 	}
 	if fmID == "" {
-		fmt.Fprintln(os.Stderr, "approval self-resolve: needs --foreman <id> (or BABYSIT_FOREMAN)")
+		fmt.Fprintln(os.Stderr, "approval self-resolve: needs --team <id> (or BABYSIT_FOREMAN)")
 		os.Exit(2)
 	}
 	if rubricPath != "" {
@@ -369,8 +369,11 @@ func runApprovalSelfResolve(st *ticket.Store, env identity.Env, args []string) {
 // a floor hit — without depending on statement order in the CLI wrapper.
 func selfResolveGate(st *ticket.Store, env identity.Env, rec foreman.Record, rubric string) (code int, filled map[string]string, reason string) {
 	// 1. Floor — before Allows, so no posture (default autonomy or
-	//    --unbounded grant) can reach a non-delegable path.
-	if hits := floorHits(designText(st, rubric)); len(hits) > 0 {
+	//    --unbounded grant) can reach a non-delegable path. A ticket plan
+	//    under a basic design a human approved is the exception: that review
+	//    saw the money/auth/data work (the design floor sent it to a human
+	//    even under --auto), so the plan that carries it out is not asked again.
+	if hits := floorHits(designText(st, rubric)); len(hits) > 0 && !humanApprovedDesignCovers(st) {
 		return exitFloor, nil, strings.Join(hits, ", ")
 	}
 
@@ -400,6 +403,36 @@ func selfResolveGate(st *ticket.Store, env identity.Env, rec foreman.Record, rub
 	return 0, filled, ""
 }
 
+// humanApprovedDesignCovers: this is a ticket plan, and an ancestor project's
+// current basic design was approved by a human rather than self-resolved by a
+// Foreman.
+func humanApprovedDesignCovers(st *ticket.Store) bool {
+	if ticket.ReadDoc(st.IndexPath()).Get("approval.kind") != "plan" {
+		return false
+	}
+	cur := st
+	for range 4 {
+		parent := ticket.ReadDoc(cur.IndexPath()).Get("parent")
+		if parent == "" {
+			return false
+		}
+		cur = storeForTicket(st.Env, parent)
+		doc := ticket.ReadDoc(cur.IndexPath())
+		if doc.Get("approval.kind") != "project-plan" {
+			continue
+		}
+		if state, _, _ := approvalRead(cur); state != "approved" {
+			return false
+		}
+		actor := strings.TrimSpace(doc.Get("approval.resolved.actor"))
+		if _, err := foreman.Load(actor); actor == "" || err == nil {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
 // logSelfResolvedApproval writes the filled rubric to the decisions log. This
 // is the audit surface for autonomous resolve: nobody watched the decision
 // happen, so the evidence it rested on has to be recoverable afterwards.
@@ -422,7 +455,7 @@ func logSelfResolvedApproval(env identity.Env, fmID string, rec foreman.Record, 
 	state, _ := json.Marshal(stateMap)
 	line, _ := json.Marshal(map[string]string{
 		"ts":        learnings.Timestamp(),
-		"skill":     "foreman",
+		"skill":     "team",
 		"tier":      "taste",
 		"type":      "design-checkpoint",
 		"ticket":    env.Ticket,

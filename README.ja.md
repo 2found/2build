@@ -35,7 +35,7 @@ bbs --version とインストール済み skills を検証し、前提条件が�
 再起動が必要かを説明し、最初の小さなタスクを実行するための、この agent 用の正確な Autopilot 呼び出しを教えてください。
 ```
 
-対応 coding agent と、その既存の model 利用環境が必要です。Claude Code と Codex は CLI が PATH 上に必要です。2build 用の model アカウントは不要ですが、agent の通常の利用料金は発生します。**Orca が必要なのは Foreman だけです。** [インストールとトラブル対処](docs/install.md)（英語）を参照してください。
+対応 coding agent と、その既存の model 利用環境が必要です。Claude Code と Codex は CLI が PATH 上に必要です。2build 用の model アカウントは不要ですが、agent の通常の利用料金は発生します。**Orca が必要なのは Team だけです。** [インストールとトラブル対処](docs/install.md)（英語）を参照してください。
 
 <details>
 <summary>コマンドで導入する場合：macOS / Linux の Homebrew</summary>
@@ -94,30 +94,46 @@ GitHub から直接ダウンロードできます。コマンドと前提条件�
 
 ## 仕事の内容で選ぶ
 
-`/bbs:autopilot` は 1 つの ticket(機能または bug 修正)を plan、review、QA まで進めます。`/bbs:foreman` は複数 ticket のプロジェクトを実行します。特定の作業には skill を直接呼び出してください。
+`/bbs:autopilot` は 1 つの作業(bug 修正、機能、丸一日かかる長い変更)を 1 つの session で plan、review、QA まで進めます。まずはこちらを使ってください。長い 1 session は context を温かく保ち、token 消費も最小です。プロジェクト全体を `/bbs:team` に任せるのは、1 session では得られないものが必要なときだけです([後述](#team))。特定の作業には skill を直接呼び出してください。
 
 個別 skill と workflow の例は [skill 一覧](docs/skills.md)を参照してください。
 
 <a id="foreman-の設定"></a>
 <a id="foreman複数-ticket-のプロジェクト"></a>
 
-## 大きなプロジェクト：Foreman
+<a id="team"></a>
 
-依存する複数 ticket には [Foreman](docs/foreman.md) を使います。[Orca](https://www.onorca.dev) 経由で全体計画、子 ticket の worktree 分離、実行可能な作業の dispatch、プロジェクト全体の QA を行います。既定では本番作業の dispatch 前に親計画・設計を確認します。明示的な `--auto` はその確認を worker に委任します。worker はコミットせず、各 phase は phase QA の後に 1 つのコミットとして着地します。
+## Team: プロジェクト全体を任せるプロダクトチーム
+
+[Team](docs/team.md) は、雇ったプロダクトチームのように働きます。あなたが関わるのは 2 回だけです:
+
+1. **依頼** — 要件を伝え、チームが書き戻した spec を確認し(質問は 1 回にまとめて、その後はなし)、basic design を承認します:アーキテクチャ、プロダクト全体の prototype、release phase。
+2. **納品** — 完成したプロダクトを証拠とともにレビューし、release の go を出すか、フィードバックを返します。spec の範囲内のフィードバックはチームが自分で直して再納品し、追加の打ち合わせは不要です。spec を超える要望は design の変更として戻ってきます。
+
+その間、チームは自分で design、build、review、QA、integrate を行い(phase ごとにローカル base 上の 1 コミット)、あなたには何も聞きません。worker はコミットせず、Team には [Orca](https://www.onorca.dev) が必要です。`/bbs:foreman` も alias として動作します。
+
+Autopilot より高くつきます(lead session、design session、phase ごとの integration session)。理由があるときに使ってください:
+
+- **手を離したい** — session を操縦する代わりに 2 回関わるだけで、最後に review 済みで release 可能なプロダクトを受け取る。
+- **phase ごとの release** — design 承認時に許可した本番への段階的 release。最後に大きな変更を 1 回出す代わりに。
+- **独立した検証** — 新しい session が各 phase を review・QA します。Autopilot はコードを書いた session 自身が review します。
+- **分離した部分の並列作業** — 固定した contract でつながる別々の service や repo を、待ち時間が重要なときに並列で進める。
+
+どれにも当てはまらなければ、丸一日かかる作業でも Autopilot 1 回のほうが速く安く済みます。
 
 <details>
 <summary>CLI と設定の詳細</summary>
 
 ## Skill と CLI
 
-Skill は agent 向けのワークフローで、`bbs` はそれを支える CLI。`/bbs:foreman` はプロジェクトの調整役を実行し、`bbs foreman` は model ポリシーの照会、永続的な Foreman 記録、phase（`seal`、`integrate`、`land`、`release`）、次の手順の提案、報告を扱い、`bbs contract` は並行 ticket が前提とするインターフェース契約を扱う。`/bbs:autopilot` は単一 ticket のワークフローを実行し、`bbs autopilot` は checkpoint と状態の補助コマンドを提供する。`bbs ticket` は ticket の識別、DAG 関係、証拠、テスト環境のリース、seal 済み作業の取り込みを管理する。
+Skill は agent 向けのワークフローで、`bbs` はそれを支える CLI。`/bbs:team` はプロダクトチームを実行し、`bbs team`(alias `bbs foreman`)は model ポリシーの照会、永続的な lead 記録、phase（`seal`、`integrate`、`land`、`release`）、次の手順の提案、報告を扱い、`bbs contract` は並行 ticket が前提とするインターフェース契約を扱う。`/bbs:autopilot` は単一 ticket のワークフローを実行し、`bbs autopilot` は checkpoint と状態の補助コマンドを提供する。`bbs ticket` は ticket の識別、DAG 関係、証拠、テスト環境のリース、seal 済み作業の取り込みを管理する。
 
 よく使う CLI コマンド：
 
 ```bash
 bbs dashboard
-bbs foreman report <parent-ticket>
-bbs foreman next <parent-ticket>
+bbs team report <parent-ticket>
+bbs team next <parent-ticket>
 bbs ticket dag <parent-ticket>
 bbs autopilot snapshot --json
 bbs autopilot recover --json
@@ -142,7 +158,7 @@ bbs config set semantic_decision_model clef-flash  # or clef
 
 ## ドキュメント（英語）
 
-[導入とトラブル対処](docs/install.md) · [Skill を選ぶ](docs/skills.md) · [進捗を確認する](docs/companion-cli.md) · [プロジェクトを調整する](docs/foreman.md)
+[導入とトラブル対処](docs/install.md) · [Skill を選ぶ](docs/skills.md) · [進捗を確認する](docs/companion-cli.md) · [プロジェクトを調整する](docs/team.md)
 
 Coding agent 向けには、[llms.txt](llms.txt) から Markdown ガイドと runtime の規約を直接参照できます。
 

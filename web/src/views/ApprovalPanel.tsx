@@ -32,7 +32,7 @@ import { SectionHeader } from '../components/SectionHeader';
 import { formatDate, formatRelative, snippet } from '../lib/format';
 import { gateProps, useControlPlane, useMutation } from '../contexts/ControlContext';
 
-// Verbatim from .claude/skills/foreman/SKILL.md § The design checkpoint — the
+// Verbatim from .claude/skills/team/SKILL.md § The design checkpoint — the
 // same five lines the foreman fills before it greenlights anything. Restating
 // them here in different words would create a second rubric to keep in sync.
 const RUBRIC: [string, string][] = [
@@ -413,7 +413,7 @@ function ResolvedRecord({
         </div>
       )}
       <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-        The foreman reads this from disk on its next tick — nothing here waits on it.
+        The team lead reads this from disk on its next tick — nothing here waits on it.
       </div>
     </div>
   );
@@ -464,7 +464,7 @@ function DecisionBar({
           hint={
             comments > 0
               ? `Optional — ${comments === 1 ? '1 inline comment goes' : `${comments} inline comments go`} with this redirect. Add a line here for anything that is about the plan as a whole.`
-              : 'Required — the foreman acts on this note, so a redirect without one is a dead end.'
+              : 'Required — the team lead acts on this note, so a redirect without one is a dead end.'
           }
         >
           {id => (
@@ -533,7 +533,7 @@ function DecisionBar({
         }
       >
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          The foreman stops work on this ticket; nothing is deleted. The requirement, plan,
+          The team lead stops work on this ticket; nothing is deleted. The requirement, plan,
           design and prototype all stay on disk, and a new decision can be published later.
         </p>
         {error && <ErrorBox title="Could not drop it" body={error} />}

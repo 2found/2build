@@ -179,7 +179,7 @@ func TestForemanVerbHelpPrintsUsage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s --help returned an error: %v", verb, err)
 		}
-		if !strings.Contains(out, "bbs foreman") {
+		if !strings.Contains(out, "bbs team") {
 			t.Fatalf("%s --help printed no usage: %q", verb, out)
 		}
 	}

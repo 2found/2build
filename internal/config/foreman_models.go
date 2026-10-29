@@ -22,11 +22,13 @@ type ModelBinding struct {
 
 func defaultForemanModels() ForemanModels {
 	return ForemanModels{
-		// Ticket workers (critical) implement on flash and reach max only for
-		// hard tasks; max is otherwise reserved for basic design.
+		// Ticket workers (critical) and phase integration, which now reviews
+		// the deferred small tickets, run on pro, as does basic design unless
+		// it is hard; max is reserved for hard tickets and hard designs, flash
+		// for simple mechanical re-checks.
 		Routing: map[string]map[string]string{
-			"simple": {"normal": "lite", "critical": "flash", "design": "pro"},
-			"normal": {"normal": "flash", "critical": "flash", "design": "max"},
+			"simple": {"normal": "flash", "critical": "pro", "design": "pro"},
+			"normal": {"normal": "pro", "critical": "pro", "design": "pro"},
 			"hard":   {"normal": "pro", "critical": "max", "design": "max"},
 		},
 		// Flash is each agent's implementation workhorse: sonnet, gpt-6.1-sol,

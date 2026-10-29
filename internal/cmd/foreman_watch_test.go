@@ -25,7 +25,7 @@ func watchFixture(t *testing.T) (*orca.Client, foreman.Record, string, string) {
 	log := filepath.Join(dir, "calls.log")
 	pane := filepath.Join(dir, "pane.txt")
 	titles := filepath.Join(dir, "titles")
-	write(t, titles, "bbs foreman\n")
+	write(t, titles, "bbs team\n")
 	write(t, pane, "worker A: building\n")
 
 	// PATH inside the stub is its own: the Go process runs with PATH=dir so it
@@ -75,7 +75,7 @@ esac
 	if err != nil {
 		t.Fatalf("preflight: %v", err)
 	}
-	r := foreman.Record{ID: "fm-test", WorkspaceTitle: "bbs foreman", Heartbeat: foreman.Now()}
+	r := foreman.Record{ID: "fm-test", WorkspaceTitle: "bbs team", Heartbeat: foreman.Now()}
 	if err := foreman.Save(r); err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestWatchIgnoresTrailingWhitespace(t *testing.T) {
 	if !strings.HasPrefix(line, "NUDGED") {
 		t.Fatalf("re-padded pane should still be idle, got %q", line)
 	}
-	if !strings.Contains(callLog(t, log), "terminal send --terminal term_0 --text /bbs:foreman --foreman-id fm-test check status --enter") {
+	if !strings.Contains(callLog(t, log), "terminal send --terminal term_0 --text /bbs:team --team-id fm-test check status --enter") {
 		t.Error("expected the nudge text to be sent")
 	}
 }
@@ -151,7 +151,7 @@ func TestWatchNudgesAfterIdle(t *testing.T) {
 		t.Fatalf("got %q", line)
 	}
 	calls := callLog(t, log)
-	if !strings.Contains(calls, "terminal send --terminal term_0 --text /bbs:foreman --foreman-id fm-test check status --enter") {
+	if !strings.Contains(calls, "terminal send --terminal term_0 --text /bbs:team --team-id fm-test check status --enter") {
 		t.Errorf("nudge text not sent and submitted; calls:\n%s", calls)
 	}
 }
@@ -228,7 +228,7 @@ func TestWatchStatusCheckOnMovingPane(t *testing.T) {
 	if !strings.HasPrefix(line, "STATUS fm-test") {
 		t.Fatalf("a moving pane must still get the status check, got %q", line)
 	}
-	if !strings.Contains(callLog(t, log), "terminal send --terminal term_0 --text /bbs:foreman --foreman-id fm-test check status --enter") {
+	if !strings.Contains(callLog(t, log), "terminal send --terminal term_0 --text /bbs:team --team-id fm-test check status --enter") {
 		t.Error("expected the status prompt to be sent")
 	}
 	if s := watchLoad(r.ID); s.Nudges != 0 || !s.PendingStatus {
@@ -394,6 +394,17 @@ func TestCompleteWritesRecapAndWatcherLeavesForemanOpen(t *testing.T) {
 	if len(targets) != 0 {
 		t.Fatalf("done foreman still watched: %+v", targets)
 	}
+	// Follow-up work after complete hands over a new batch: its workers'
+	// questions must still wake the Foreman.
+	if err := saveBatch(r.ID, foremanBatch{ID: r.ID + "-followup", Tasks: []batchMember{{Task: "t1"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if targets, err = watchTargets(client, ""); err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 1 || targets[0].ID != r.ID {
+		t.Fatalf("done foreman with an open batch is not watched: %+v", targets)
+	}
 	if calls := readCalls(t, log); strings.Contains(calls, "terminal close") {
 		t.Fatalf("completion closed the Foreman terminal:\n%s", calls)
 	}
@@ -537,7 +548,7 @@ func TestWatchDefaultWaitDoesNotNudgeBeforeReminder(t *testing.T) {
 	}
 }
 
-// The auto-started watcher makes `bbs foreman watch` re-entrant: adopt and
+// The auto-started watcher makes `bbs team watch` re-entrant: adopt and
 // spawn call it on every check-in, so a second invocation must exit cleanly
 // while the first holds the lock — and the lock must free when it exits.
 func TestWatchSingleInstance(t *testing.T) {
@@ -583,7 +594,7 @@ func TestWatchReportsOrphanedBatchOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := orphanedBatchLines(targets, "")
-	if len(lines) != 1 || !strings.HasPrefix(lines[0], "ORPHANED-BATCH foreman=fm-orphan batch=fm-orphan-1") || !strings.Contains(lines[0], "bbs foreman adopt fm-orphan") {
+	if len(lines) != 1 || !strings.HasPrefix(lines[0], "ORPHANED-BATCH foreman=fm-orphan batch=fm-orphan-1") || !strings.Contains(lines[0], "bbs team adopt fm-orphan") {
 		t.Fatalf("got %q", lines)
 	}
 	if again := orphanedBatchLines(targets, ""); len(again) != 0 {

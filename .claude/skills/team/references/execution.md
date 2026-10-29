@@ -1,13 +1,13 @@
 # Project execution contract
 
 Read at entry/cold resume with project-contract.md. The CLI owns mechanical
-validation; Foreman owns product judgment and the Orca lifecycle. These commands
+validation; the lead owns product judgment and the Orca lifecycle. These commands
 read existing ticket/approval/DAG state and never create branches or dispatch.
 
 ## Accepted scope and DAG admission
 
 Before publishing the parent project-plan approval, write `project.json` through
-`bbs foreman contract "$PARENT" --file <draft.json>`. The file is part of that
+`bbs team contract "$PARENT" --file <draft.json>`. The file is part of that
 approval's fingerprint. Stable seed keys exist before runtime ticket IDs:
 
 ```json
@@ -42,7 +42,7 @@ or scope revisits the project approval. Usage stays unknown without provider
 observations; do not invent cost or token totals.
 
 Allocate each phase's ticket and children when the phase opens (phases.md,
-topology.md), then bind each accepted seed with `bbs foreman bind "$PARENT" --seed <key> --child <ticket>`. One code
+topology.md), then bind each accepted seed with `bbs team bind "$PARENT" --seed <key> --child <ticket>`. One code
 repository per child keeps each evidence subject unambiguous; use dependent
 children across repos. Every required leaf must have one accepted seed. A
 cancelled child leaves unmet scope until an explicit contract revision removes
@@ -50,14 +50,14 @@ or replaces it.
 
 After parent approval, open phases as readiness allows and admit each open
 phase's tickets as SKILL.md's batch rule orders them — ready tickets first,
-then dependents that wait in session with `bbs foreman await` — within
+then dependents that wait in session with `bbs team await` — within
 resource bounds. Shared interfaces and edit ownership are
 fixed in the accepted plan; dependency edges enforce necessary ordering.
 
-At each full reconciliation use `bbs foreman snapshot "$PARENT" --json`. It returns
+At each full reconciliation use `bbs team snapshot "$PARENT" --json`. It returns
 scope coverage, child seals, current evidence, blockers, delivery, each
 phase's state, releases and problems, and observed time. Gate each phase step
-with `bbs foreman readiness "$PARENT" --action dispatch|integrate|land|release
+with `bbs team readiness "$PARENT" --action dispatch|integrate|land|release
 --phase <id> --json`; inspect each child's dependencies through the existing
 DAG as well. Before closing use `--action finish`. Each returns `ready`,
 specific reasons and, with `--phase`, the phase object; a zero exit code only
@@ -66,14 +66,14 @@ means the read succeeded. Reads never reconcile or mutate ticket status.
 ## Worker packet and verification
 
 Use the worker packet in SKILL.md and the Orca envelope in topology.md.
-Autopilot honors its **Foreman ticket assignment** contract on the assigned checkout.
+Autopilot honors its **Team ticket assignment** contract on the assigned checkout.
 
 Every ticket is created with a `schema_version: 2` checkpoint; an older one is
 refused by readiness, gates and seal until migrated as the producer reference
 says, and its gates then run again. Autopilot's
 [verification producer](../autopilot/references/verification.md) captures
 before/after subjects and archives logs. Seal each passing child as soon as it
-passes: `bbs foreman seal "$TICKET"`.
+passes: `bbs team seal "$TICKET"`.
 
 A seal snapshots the worker's uncommitted tree on `refs/bbs/tickets/<id>` and
 preserves gate attempts and log digests. An edit in the worktree after the
@@ -84,18 +84,18 @@ commit.
 
 Evidence-only projects explicitly approve `artifacts_only: true`. Their children
 keep the workflow verdict and durable outputs under the ticket directory. Seal
-with `bbs foreman seal "$TICKET" --file <artifacts.json>`, containing
+with `bbs team seal "$TICKET" --file <artifacts.json>`, containing
 `{"paths":["<absolute ticket output>"]}`. Code changes cannot be delivered
 through this path. Final acceptance checks still cover each criterion; there is
 no phase commit to integrate or land, and delivery reads `ARTIFACTS_READY`.
 
 ## Integrated checks and independent product review
 
-Build the phase commit first (`bbs foreman integrate`, [phases](phases.md#2-integrate-the-phase)).
+Build the phase commit first (`bbs team integrate`, [phases](phases.md#2-integrate-the-phase)).
 In its integration worktree, before testing, create a verification attempt:
 
 ```sh
-bbs foreman evidence "$PARENT" --begin --file /absolute/check-spec.json
+bbs team evidence "$PARENT" --begin --file /absolute/check-spec.json
 ```
 
 ```json
@@ -109,7 +109,7 @@ Store the returned attempt ID. Tests run in that worktree, against that exact
 commit; earlier phases' commits must already be on base. After tests, run:
 
 ```sh
-bbs foreman evidence "$PARENT" --attempt <id> --file /absolute/results.json
+bbs team evidence "$PARENT" --attempt <id> --file /absolute/results.json
 ```
 
 ```json
@@ -131,7 +131,7 @@ that SHA exactly. The probe must query the running build; echoing an expected
 SHA proves nothing. The dashboard labels the observation time, never current
 server availability.
 
-Release receipts and requests are phases.md's: `bbs foreman release --request`
+Release receipts and requests are phases.md's: `bbs team release --request`
 and `--file` write `release-request.json` on the phase ticket and
 `project-releases/<id>.json` on the parent, and the snapshot reads them back.
 
@@ -144,13 +144,13 @@ required preliminary check. Material findings require repair and fresh evidence;
 minor findings stay in the handoff.
 
 After the last phase is released (or landed, for `none`), release settled
-workers and leases, persist the report, then run `bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"`.
+workers and leases, persist the report, then run `bbs team complete "$PARENT" --team "$FOREMAN_ID"`.
 It writes the completion receipt only when all assigned parents are verified. Status edits or a raw done
 heartbeat cannot replace this receipt.
 
 ## Progress, waits and repair
 
-Write `bbs foreman progress <ticket> --file <report.json>` at a meaningful
+Write `bbs team progress <ticket> --file <report.json>` at a meaningful
 milestone or wait transition. Use the actual Task/Dispatch/attempt IDs
 (`run_id` carries the bbs Task id):
 
@@ -161,7 +161,7 @@ milestone or wait transition. Use the actual Task/Dispatch/attempt IDs
 ```
 
 `phase` names the ticket's loop step (`plan`, `approve`, `await`, `adopt`,
-`build`, `review`, `qa`, `repair`), not a release phase. An `approve` wait on Foreman is `wait_kind: approval`; an
+`build`, `review`, `qa`, `repair`), not a release phase. An `approve` wait on the lead is `wait_kind: approval`; an
 `await` on prerequisites is `wait_kind: dependency`.
 Only changed evidence advances `progress_at`; summary rewrites and extra edits
 do not. Waits add `wait_kind` (`test`, `dependency`, `approval`, `resource`),
@@ -170,7 +170,7 @@ ongoing waits, never a timer. Expiry is not failure or a reason to inspect a
 worker; Orca owns runtime state and runtime.md defines reconciliation triggers.
 
 A ticket session repairs its own failures first: autopilot's repair loop, then
-Foreman's `repair` follow-ups into a fresh session in the same worktree. When the ticket reports the
+the lead's `repair` follow-ups into a fresh session in the same worktree. When the ticket reports the
 same blocker `BLOCKED` after its retry budget, dispatch a fresh read-only
 diagnosis worker on the critical route with the failure evidence — a context
 that has not already failed three times is the point — then send its findings

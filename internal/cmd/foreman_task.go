@@ -17,17 +17,17 @@ import (
 )
 
 const foremanTaskUsage = `Usage:
-  bbs foreman task create <foreman-id> --ticket <ticket> --kind <kind> --spec-file <path>
-  bbs foreman task launch <task> --agent <id> --worktree <path> [--model <id>] [--effort <level>]
+  bbs team task create <foreman-id> --ticket <ticket> --kind <kind> --spec-file <path>
+  bbs team task launch <task> --agent <id> --worktree <path> [--model <id>] [--effort <level>]
                           [--host <host-id>] [--skill <name>] [--terminal <handle> [--created-terminal]]
-  bbs foreman task show <task> [--json] [--spec]
-  bbs foreman task list [<foreman-id>] [--open]
-  bbs foreman task done <task> --outcome succeeded|failed --summary <text>
+  bbs team task show <task> [--json] [--spec]
+  bbs team task list [<foreman-id>] [--open]
+  bbs team task done <task> --outcome succeeded|failed --summary <text>
                         [--dispatch <id>] [--report-path <path>] [--files-modified <a,b>]
                         [--no-gate <why>]
-  bbs foreman task ask <task> (--body <question> | --resume <question-id>) [--timeout <sec>]
-  bbs foreman task answer <task> --id <question-id> (--body <text> | --body-file <path>)
-  bbs foreman task abandon <task> --reason <text>
+  bbs team task ask <task> (--body <question> | --resume <question-id>) [--timeout <sec>]
+  bbs team task answer <task> --id <question-id> (--body <text> | --body-file <path>)
+  bbs team task abandon <task> --reason <text>
 
 A Task is one Foreman assignment; each launch of a worker for it is a
 Dispatch. bbs keeps both on disk: Orca only hosts the worker's terminal.
@@ -117,12 +117,12 @@ func foremanTaskCreate(args []string) error {
 // taskWorkerPrompt is the whole worker protocol. The assignment itself stays
 // on disk, so the prompt is short enough to type into any agent TUI.
 func taskWorkerPrompt(skillRef, task, dispatch string) string {
-	prompt := fmt.Sprintf("You are a bbs Foreman worker for Task %s, Dispatch %s. "+
-		"Read your assignment with `bbs foreman task show %s --spec` and run all of it in this session. "+
-		"Send no status or heartbeat messages; record milestones with `bbs foreman progress` only when the assignment asks. "+
-		"Ask Foreman only for a decision outside the assignment: `bbs foreman task ask %s --body \"<question>\"` (it blocks until answered). "+
+	prompt := fmt.Sprintf("You are a bbs Team worker for Task %s, Dispatch %s. "+
+		"Read your assignment with `bbs team task show %s --spec` and run all of it in this session. "+
+		"Send no status or heartbeat messages; record milestones with `bbs team progress` only when the assignment asks. "+
+		"Ask the lead only for a decision outside the assignment: `bbs team task ask %s --body \"<question>\"` (it blocks until answered). "+
 		"When finished, persist the handoff, then run exactly once: "+
-		"`bbs foreman task done %s --dispatch %s --outcome succeeded|failed --summary \"<did; found; left>\"`.",
+		"`bbs team task done %s --dispatch %s --outcome succeeded|failed --summary \"<did; found; left>\"`.",
 		task, dispatch, task, task, task, dispatch)
 	if skillRef != "" {
 		prompt = skillRef + " " + prompt
@@ -361,7 +361,7 @@ func foremanTaskDone(args []string) error {
 		return fmt.Errorf("foreman task done: %w", err)
 	}
 	printTask(t)
-	fmt.Println("NEXT=end this turn and stay idle; bbs foreman watch reports this to Foreman")
+	fmt.Println("NEXT=end this turn and stay idle; bbs team watch reports this to the lead")
 	return nil
 }
 
@@ -478,7 +478,7 @@ func foremanTaskAsk(args []string) error {
 		}
 		if !time.Now().Before(deadline) {
 			fmt.Println("QUESTION_PENDING=" + q.ID)
-			fmt.Printf("NEXT=run `bbs foreman task ask %s --resume %s` to keep waiting; never ask again\n", id, q.ID)
+			fmt.Printf("NEXT=run `bbs team task ask %s --resume %s` to keep waiting; never ask again\n", id, q.ID)
 			os.Exit(4)
 		}
 		time.Sleep(5 * time.Second)

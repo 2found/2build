@@ -13,7 +13,7 @@ import (
 // Orca and the coordinator close. Never present that snapshot as a live check.
 func foremanReport(args []string) error {
 	if len(args) != 1 || args[0] == "" || args[0] == "." || args[0] == ".." || strings.ContainsAny(args[0], `/\`) || strings.HasPrefix(args[0], "-") {
-		return fmt.Errorf("usage: bbs foreman report <parent-ticket>")
+		return fmt.Errorf("usage: bbs team report <parent-ticket>")
 	}
 	return readForemanReport(identity.Resolve().ProjectHome, args[0])
 }

@@ -1,29 +1,29 @@
 # Model routing
 
-The pack's canonical task/phase routing contract. Foreman obtains a new
+The pack's canonical task/phase routing contract. The lead obtains a new
 worker's agent from explicit intent, a compatible ticket pin, or destination-host
-Orca discovery; `bbs foreman model` selects its configured model tier.
+Orca discovery; `bbs team model` selects its configured model tier.
 The CLI owns defaults and settings merging; never copy model tables into skills.
 
-Foreman splits each release phase into tickets and selects one route per ticket from
+The lead splits each release phase into tickets and selects one route per ticket from
 its task complexity plus the assignment class; that one supervised session runs
 the ticket's whole loop (plan, build, review, QA) and every follow-up on it.
 Single-purpose assignments (basic design, diagnosis, phase integration,
 heavy QA, release, delivery in a fresh session) get their own routes.
 `autopilot` does not select models: every step in one invocation runs in the
-session opened by the human or Foreman. Neither skill switches a running worker's model.
+session opened by the human or the lead. Neither skill switches a running worker's model.
 
 ## Route inputs
 
 New worker routes select the explicit agent first, then a compatible ticket pin,
 then Orca's effective default on the destination host. Model and effort come
 from an explicit ticket override, a persisted route on resume, or the configured
-policy returned by `bbs foreman model`. Provider selection belongs to the agent's
+policy returned by `bbs team model`. Provider selection belongs to the agent's
 native configuration unless Orca advertises a supported explicit contract.
 
 `bbs agent detect --json` identifies the current harness without Orca;
 `bbs agent list --json` reports installed CLIs. Neither command chooses a new
-Foreman worker.
+Team worker.
 
 BBS global agent/provider/model/effort preferences and their worker/foreman
 environment selectors are retired (the legacy BBS YAML keys): new launches
@@ -48,7 +48,7 @@ the phase class below.
 | `normal`   | ordinary implementation work, including new modules, APIs, schemas, UI and work spanning services     |
 | `hard`     | the diff itself changes one named invariant below, where a mistake ships a real loss                  |
 
-`hard` needs exactly one `--hard-reason` on `bbs foreman route`, and the CLI
+`hard` needs exactly one `--hard-reason` on `bbs team route`, and the CLI
 rejects anything else (money, auth, security, live-data or concurrency):
 
 | `--hard-reason` | The assignment's own diff…                                                         |
@@ -69,7 +69,7 @@ decided in basic design, and size is split by topology.
 Hard is rare by design: expect about one ticket in seven, never more than one
 in five. When a phase plan has more, split each hard invariant into its own
 small ticket so the surrounding work (UI, API surface, wiring, tests) stays
-`normal` and runs on `flash` — but only where the invariant owns its own files
+`normal` and runs on `pro` — but only where the invariant owns its own files
 behind a frozen interface; one that shares files with its surroundings stays
 one `hard` ticket, since the second session would reload the same context
 ([split by context](topology.md#split-by-context)). Record the split in the
@@ -78,15 +78,15 @@ between `normal` and `hard`, choose `normal`: review and QA still gate it.
 
 ## Assignment routing
 
-Classify the assignment using this table, then query `bbs foreman model` with
+Classify the assignment using this table, then query `bbs team model` with
 the task complexity, its phase class and the selected agent.
 The CLI owns complexity-to-tier routing; settings can override it. `normal` names both a
 task complexity and a phase class; neither is a model tier.
 
-Routine work should stay in `lite`/`flash`/`pro`; `max` is for basic design
-(`design` phase class) and `hard` tickets only. A `critical` phase class alone does
+Routine work should stay in `lite`/`flash`/`pro`; `max` is for `hard`
+tickets and `hard` basic designs only. A `critical` phase class alone does
 not imply `max`. Use `normal` for an unclassified assignment; with no difficulty or
-importance signal, the built-in policy falls back to `flash`.
+importance signal, the built-in policy falls back to `pro`.
 
 | Assignment                                                                         | Phase class |
 | ---------------------------------------------------------------------------------- | ----------- |
@@ -101,10 +101,13 @@ importance signal, the built-in policy falls back to `flash`.
 
 A ticket worker is `critical` because it owns its ticket plan and landing review;
 implementation rides the same session instead of buying a cold start. Built in,
-`simple` and `normal` tickets run on `flash`, each agent's implementation
-workhorse, and only `hard` tickets — security, money, live
+`simple` and `normal` tickets run on `pro` (Claude `opus` at medium effort): a
+stronger model that lands the ticket in one session is cheaper than a
+follow-up, which costs a cold start. Phase integration (`normal`/`normal`)
+also runs on `pro`, because it reviews and fixes the small tickets that
+deferred their gates to it. Only `hard` tickets — security, money, live
 data, cross-system logic — reach `max`. Basic design is its own `design` class
-(`max` unless the design is `simple`), so overriding `routing.normal.critical`
+(`pro` unless the design is `hard`, then `max`), so overriding `routing.normal.critical`
 no longer moves project planning. The mechanical re-verification exception applies only to
 executing recorded checks. Reviewing changed code, assessing new findings or
 issuing a fresh judgment remains code review, even when the dispatch is called
@@ -115,22 +118,22 @@ a recheck.
 Read the effective policy (defaults merged with global then repo settings):
 
 ```bash
-bbs foreman model --dir "$REPO" --json
-bbs foreman model --dir "$REPO" --agent <selected-agent> \
+bbs team model --dir "$REPO" --json
+bbs team model --dir "$REPO" --agent <selected-agent> \
   --complexity <simple|normal|hard> --phase-class <normal|critical|design> --json
 ```
 
 The lookup returns `agent`, `complexity`, `phaseClass`, `selectedTier`, `model`
-and optional `effort`. Use these fields for `bbs foreman route`; do not infer a
+and optional `effort`. Use these fields for `bbs team route`; do not infer a
 model from a tier name. Without selection flags the command prints the whole
 effective policy. It needs no ticket or Orca connection. `--dir` defaults to
 cwd and resolves the Git root, including from a worktree subdirectory; outside
 Git it reads that directory's `.babysit/settings.json`.
 
 With `--agent`, omitted complexity and phase class each default to `normal`;
-`bbs foreman model --agent codex --json` therefore selects the configured
-`normal`/`normal` binding (`flash` in the built-in policy). Invalid explicit
-values still fail. `bbs foreman route --selected-tier` records the lookup's tier;
+`bbs team model --agent codex --json` therefore selects the configured
+`normal`/`normal` binding (`pro` in the built-in policy). Invalid explicit
+values still fail. `bbs team route --selected-tier` records the lookup's tier;
 it does not select or override a model. Only `lite`, `flash`, `pro`, and `max` are valid;
 `ultra` is not a tier and is rejected. Pass the lookup's model/effort as well.
 
@@ -165,7 +168,7 @@ These are routing policy, not vendor capability or price claims.
 
 Do not switch a worker's agent from quota or usage. Pin the harness at spawn
 or adopt: `--plan-worker`, `--implement-worker`, `--qa-worker` (default: this
-Foreman's own agent). `bbs foreman model --quota` is refused.
+the lead's own agent). `bbs team model --quota` is refused.
 
 Resolve configured aliases against the live native binding. For OMP, read the
 selected role's binding; its provider/model/effort belong to that role.
@@ -193,10 +196,10 @@ the Auto-Decision Framework.
 
 ## Autopilot session boundary
 
-A Foreman-dispatched Autopilot honors the supplied assignment and model, records the
+A Team-dispatched Autopilot honors the supplied assignment and model, records the
 routing metadata with observed launch settings, and reports conflicting launch
-evidence to Foreman before work. It does not classify tasks, select tiers or
-repair a route by spawning a worker. Foreman recovers missing legacy routing
+evidence to the lead before work. It does not classify tasks, select tiers or
+repair a route by spawning a worker. The lead recovers missing legacy routing
 evidence from the durable handoff before its next launch.
 
 Standalone Autopilot runs all steps in the human-opened session. It does not

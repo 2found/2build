@@ -14,7 +14,7 @@ under that phase's ticket.
    ticket; draw boundaries by [context, not size](#split-by-context). Never
    split one module across siblings merely to widen the DAG, and never
    split inside a worker. A worker that finds its ticket beyond one coherent plan, or a
-   sub-ticket needing its own worktree, returns the proposed split to Foreman
+   sub-ticket needing its own worktree, returns the proposed split to the lead
    for approval against accepted scope, bidirectional linkage and DAG
    admission; workers never own topology.
    Preserve real `blocked_by`/`blocks` dependencies, shared interfaces, edit
@@ -36,7 +36,10 @@ under that phase's ticket.
    its exact branch/worktree instead of calling `ensure` again.
 3. Initialize each child as a sub-ticket of its **phase ticket** from inside
    its own worktree: `bbs ticket init --parent <phase-ticket> --origin-type sub_ticket --seed <seed
-   path> --plan <parent plan> --position <n> --worktree <path>`. Running it
+   path> --plan <parent plan> --design-doc "<parent design.md>#<seed key>"
+   --position <n> --worktree <path>`, then `bbs ticket set-pointer design
+   <parent design.md>` so `plan-draft` and `implement` take the accepted
+   design and prototype as their baseline instead of designing anew. Running it
    from the worktree records the ticket branch in `pointers.branch`; from
    the primary it would record `main`. `init --parent` sets only the child's
    parent field, so add the parent-side membership after initialization:
@@ -52,8 +55,8 @@ under that phase's ticket.
    `BABYSIT_TICKET="$OLD_PREREQUISITE" bbs ticket remove-relation blocks "$DEPENDENT"`.
    Relationship commands lock one ticket index and append history; never edit
    `index.json` directly. Write `requirement.md` and assign parent and
-   children to this foreman.
-   Bind the accepted seed with `bbs foreman bind "$PARENT" --seed <key>
+   children to this team.
+   Bind the accepted seed with `bbs team bind "$PARENT" --seed <key>
    --child "$TICKET"` and include their parent acceptance IDs in the Task.
    The moment both sides of every relation are linked, emit the DAG with the
    dispatch plan — see [runtime](references/runtime.md), **Intake and DAG**.
@@ -64,7 +67,7 @@ under that phase's ticket.
    permission to replace it.
 5. Dependents launch with their prerequisites. The dependent's assignment
    names each prerequisite as `<ticket>:<orca-task>`; after its plan is
-   approved, its ticket worker runs `bbs foreman await --prereqs
+   approved, its ticket worker runs `bbs team await --prereqs
    <ticket>:<task>,...`, which blocks until each prerequisite's Dispatch has
    completed and its ticket passes readiness (review, or push when
    `pointers.deferred_heavy` defers its QA) and is sealed, then **adopts** each
@@ -97,10 +100,12 @@ where contexts separate:
   built only for it. Keep them in one ticket and one long session even when
   that makes it `L`: auto-compaction carries a long session, and the plan,
   code and fixtures it loaded stay warm for every later step.
-- **Disjoint contexts → separate tickets.** Different modules that share at
-  most an interface frozen in the basic design (a contract, schema or API
-  shape) before either starts, each separately testable and revertible. They
-  run in parallel without either reading the other's code.
+- **Disjoint contexts → separate tickets, only when all three hold:** the
+  modules share at most an interface frozen in the basic design (a contract,
+  schema or API shape) before either starts; each side is at least `M`; and
+  running them in parallel saves wall time the plan names. Each is separately
+  testable and revertible and never reads the other's code. An `XS`/`S` side
+  joins its neighbour's ticket: a cold start costs more than it saves.
 - **Order alone is not a seam.** A `blocked_by` pair in the same module is one
   ticket working in order, not a dependent that waits, adopts and re-verifies.
   Split a dependency only when the dependent works in another module against
@@ -115,7 +120,10 @@ Across phases, a later ticket on a module an earlier ticket built names that
 ticket's handoff, `plan.md` and last report in its spec, so its worker loads
 the module's decisions from a summary instead of re-deriving them from code.
 When the manifest gives two tickets of one phase the same files, merge them
-before the phase opens instead of sequencing them.
+before the phase opens instead of sequencing them. The lead checks every split
+in the manifest against these rules with the brief bar
+([project contract](project-contract.md#project-design-checkpoint)) and
+returns an unjustified one to the design worker to merge.
 
 **Every shared seam has one owner per phase.** The files parallel tickets each
 want one line in — a composition root, route or listener registration, a
@@ -132,12 +140,12 @@ while warm, instead of in a cold repair after `integrate` refuses the phase.
 ## Resource admission
 
 Resolve the worker bound on every fresh invocation or resume: parse
-`FOREMAN_MAX_WORKERS` from `bbs foreman resource status` (never `eval`). It is
+`FOREMAN_MAX_WORKERS` from `bbs team resource status` (never `eval`). It is
 `parallel_max_workers` when that is a positive integer, otherwise (unset or
 `auto`) min(16, max(2, CPUs - 2)); an invalid value fails the command, so
-report `BLOCKED`. It is the batch size and a per-Foreman
+report `BLOCKED`. It is the batch size and a per-the lead
 ceiling; every Dispatch also reserves machine-global weighted capacity before
-`bbs foreman task launch`. The broker serializes admission across foremen and derives the
+`bbs team task launch`. The broker serializes admission across foremen and derives the
 host CPU/RAM budget. `parallel_global_units` can lower that budget, never raise
 it. Current resource pressure queues starts without stopping running workers.
 
@@ -164,7 +172,7 @@ Resolve the agent route first with [worker routing](worker-routing.md), then
 pass its selected agent and destination host into quota admission:
 
 ```bash
-RESOURCE_OUT="$(bbs foreman resource reserve "$FOREMAN_ID" \
+RESOURCE_OUT="$(bbs team resource reserve "$FOREMAN_ID" \
   --ticket "$TICKET" --task "$TASK" --profile "$RESOURCE_PROFILE" \
   --agent "$ROUTE_AGENT" --host "$ROUTE_HOST")"
 ```
@@ -188,13 +196,13 @@ even when global capacity remains. The broker also checks
 `parallel_max_workers` atomically, counting current reservations rather than
 historical worker rows.
 
-A reservation is keyed by Foreman + Task and is idempotent across resume.
-After an interruption or a delayed launch, heartbeat the foreman and repeat
+A reservation is keyed by the lead + Task and is idempotent across resume.
+After an interruption or a delayed launch, heartbeat the team lead and repeat
 route plus `reserve` immediately before `task launch`; persist the returned
 lease id again. Each replacement reservation has a new id, so an old cleanup
 cannot release it. A launch reservation with no new Dispatch is reclaimed after
 ten minutes if its owner is stale or missing. A live Dispatch never expires
-merely because the foreman stopped heartbeating or the laptop slept.
+merely because the team lead stopped heartbeating or the laptop slept.
 
 `reserve`, `status` and the detached watcher reconcile leases. A settled
 Dispatch releases its lease; an open one whose terminal shows its agent has
@@ -203,23 +211,23 @@ Dispatch id, then released. Live or unverifiable workers (and a terminal that
 vanished) retain capacity (`RESOURCE_HELD`); never release by age. Retry
 proven failed Tasks through a new Dispatch, preserving worktrees
 and checkpoints. Release settled leases with
-`bbs foreman resource release "$RESOURCE_LEASE"`, clear `pointers.resource_lease`,
+`bbs team resource release "$RESOURCE_LEASE"`, clear `pointers.resource_lease`,
 and reserve the next Task's profile before reusing a worker. A settled ticket session
 holds no lease.
 
 ## Worker envelope
 
 Every worker Task spec must establish the execution envelope before naming its
-ticket work: this is a Foreman Dispatch (Task id named), its effective
+ticket work: this is a lead Dispatch (Task id named), its effective
 `AGENT_ROLE=orca`, and it is already spawned. It invokes autopilot with
 `--auto`, so the worker sets its own goal where its agent can and otherwise
-works the loop directly; Foreman never types `/goal` or any prompt into a
+works the loop directly; the lead never types `/goal` or any prompt into a
 worker pane. It also names the resource
-profile Foreman reserved for this Task, and whether it is a ticket assignment
+profile the lead reserved for this Task, and whether it is a ticket assignment
 or a follow-up (`repair`, `refresh`, `redirect`, `deliver`) on an existing
 ticket session, with the trigger evidence and the gates it invalidates. The worker invokes the installed skill
 directly in that turn, skips any developer `/goal` copy/paste handoff, uses
-`bbs foreman task ask` for a genuine User Challenge, and follows the
+`bbs team task ask` for a genuine User Challenge, and follows the
 [worker lifecycle](worker-lifecycle.md) through exactly one `task done`. This
 statement in the Task spec is load-bearing because `orca agent launch` does
 not expose an environment option; never assume a coordinator shell export reached the worker process.

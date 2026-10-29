@@ -85,7 +85,7 @@ func TestCursorSpawnUsesNativeDialectAndColdRecovery(t *testing.T) {
 	if err != nil || rec.Agent != "cursor" || rec.Session != "" {
 		t.Fatalf("invalid Cursor session handle: %+v %v", rec, err)
 	}
-	if calls := readCalls(t, log); !strings.Contains(calls, "cursor-agent --yolo --model 'configured-model' '/foreman --foreman-id fm-cursor'") {
+	if calls := readCalls(t, log); !strings.Contains(calls, "cursor-agent --yolo --model 'configured-model' '/team --team-id fm-cursor'") {
 		t.Fatalf("wrong Cursor command: %s", calls)
 	}
 }

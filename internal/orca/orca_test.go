@@ -101,7 +101,7 @@ func TestPreflightSucceedsWhenReady(t *testing.T) {
 }
 
 const listJSON = `{"ok":true,"result":{"terminals":[
-  {"handle":"term_4","title":"bbs foreman fm-a","connected":true,"worktreePath":"/repo"},
+  {"handle":"term_4","title":"bbs team fm-a","connected":true,"worktreePath":"/repo"},
   {"handle":"term_2","title":"Grok","connected":true,"worktreePath":"/other"}
 ]}}`
 
@@ -114,7 +114,7 @@ func fakeWithTerminals(t *testing.T) (*Client, string) {
   terminal)
     case "$2" in
       list) echo '`+listJSON+`' ;;
-      create) echo '{"ok":true,"result":{"terminal":{"handle":"term_9","title":"bbs foreman fm-a"}}}' ;;
+      create) echo '{"ok":true,"result":{"terminal":{"handle":"term_9","title":"bbs team fm-a"}}}' ;;
       read) echo '{"ok":true,"result":{"terminal":{"handle":"term_4","tail":["line one","line two"]}}}' ;;
       send|close) echo '{"ok":true,"result":{}}' ;;
       *) echo '{"ok":true,"result":{}}' ;;
@@ -132,7 +132,7 @@ esac`)
 func TestRefResolvesByTitle(t *testing.T) {
 	c, _ := fakeWithTerminals(t)
 
-	h, err := c.Ref("bbs foreman fm-a")
+	h, err := c.Ref("bbs team fm-a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,10 +202,10 @@ esac`)
 func TestPickPrefersALiveHandle(t *testing.T) {
 	c, _ := fakeWithTerminals(t)
 
-	if got := c.Pick("term_2", "bbs foreman fm-z"); got != "term_2" {
+	if got := c.Pick("term_2", "bbs team fm-z"); got != "term_2" {
 		t.Errorf("live handle: got %q, want term_2", got)
 	}
-	if got := c.Pick("term_gone", "bbs foreman fm-a"); got != "bbs foreman fm-a" {
+	if got := c.Pick("term_gone", "bbs team fm-a"); got != "bbs team fm-a" {
 		t.Errorf("stale handle: got %q, want the title", got)
 	}
 	if h, err := c.Ref("term_2"); err != nil || h != "term_2" {
@@ -225,7 +225,7 @@ func TestRefIgnoresUnrelatedTitle(t *testing.T) {
 func TestSendEnterUsesResolvedHandle(t *testing.T) {
 	c, log := fakeWithTerminals(t)
 
-	if err := c.SendEnter("bbs foreman fm-a", "check status"); err != nil {
+	if err := c.SendEnter("bbs team fm-a", "check status"); err != nil {
 		t.Fatal(err)
 	}
 	calls := readLog(t, log)
@@ -237,7 +237,7 @@ func TestSendEnterUsesResolvedHandle(t *testing.T) {
 func TestSetStatusMapsLaneAndUsesWorktree(t *testing.T) {
 	c, log := fakeWithTerminals(t)
 
-	if err := c.SetStatus("bbs foreman fm-a", "needs-attention"); err != nil {
+	if err := c.SetStatus("bbs team fm-a", "needs-attention"); err != nil {
 		t.Fatal(err)
 	}
 	calls := readLog(t, log)
@@ -249,7 +249,7 @@ func TestSetStatusMapsLaneAndUsesWorktree(t *testing.T) {
 func TestSetStatusRejectsUnknownLane(t *testing.T) {
 	c, log := fakeWithTerminals(t)
 
-	err := c.SetStatus("bbs foreman fm-a", "on-fire")
+	err := c.SetStatus("bbs team fm-a", "on-fire")
 	if err == nil {
 		t.Fatal("want an error for an unknown status")
 	}
@@ -261,7 +261,7 @@ func TestSetStatusRejectsUnknownLane(t *testing.T) {
 func TestCapturePaneJoinsTail(t *testing.T) {
 	c, _ := fakeWithTerminals(t)
 
-	got, err := c.CapturePane("bbs foreman fm-a", 40)
+	got, err := c.CapturePane("bbs team fm-a", 40)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +273,7 @@ func TestCapturePaneJoinsTail(t *testing.T) {
 func TestCloseMissingTerminalIsNotAnError(t *testing.T) {
 	c, log := fakeWithTerminals(t)
 
-	if err := c.Close("bbs foreman gone"); err != nil {
+	if err := c.Close("bbs team gone"); err != nil {
 		t.Fatalf("want nil, got %v", err)
 	}
 	if strings.Contains(readLog(t, log), "terminal close") {
@@ -291,10 +291,10 @@ esac`)
 		t.Fatal(err)
 	}
 
-	if _, err := c.CapturePane("bbs foreman fm-a", 10); errors.Is(err, ErrNoTerminal) || err == nil {
+	if _, err := c.CapturePane("bbs team fm-a", 10); errors.Is(err, ErrNoTerminal) || err == nil {
 		t.Fatalf("want the listing failure surfaced, got %v", err)
 	}
-	if err := c.Close("bbs foreman fm-a"); err == nil {
+	if err := c.Close("bbs team fm-a"); err == nil {
 		t.Fatal("Close reported success without ever seeing the terminal list")
 	}
 }
@@ -302,7 +302,7 @@ esac`)
 func TestCreateReturnsHandleAndRegistersRepo(t *testing.T) {
 	c, log := fakeWithTerminals(t)
 
-	ref, err := c.Create(CreateOpts{Title: "bbs foreman fm-a", Cwd: "/repo", Command: "claude"})
+	ref, err := c.Create(CreateOpts{Title: "bbs team fm-a", Cwd: "/repo", Command: "claude"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +313,7 @@ func TestCreateReturnsHandleAndRegistersRepo(t *testing.T) {
 	if !strings.Contains(calls, "repo add --path /repo --json") {
 		t.Errorf("create did not register the repo:\n%s", calls)
 	}
-	if !strings.Contains(calls, "terminal create --title bbs foreman fm-a --worktree path:/repo --command claude --json") {
+	if !strings.Contains(calls, "terminal create --title bbs team fm-a --worktree path:/repo --command claude --json") {
 		t.Errorf("create did not pass title/cwd/command:\n%s", calls)
 	}
 }
@@ -332,7 +332,7 @@ func TestCreateResolvesASymlinkedCwd(t *testing.T) {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
 
-	if _, err := c.Create(CreateOpts{Title: "bbs foreman fm-a", Cwd: link, Command: "claude"}); err != nil {
+	if _, err := c.Create(CreateOpts{Title: "bbs team fm-a", Cwd: link, Command: "claude"}); err != nil {
 		t.Fatal(err)
 	}
 	calls := readLog(t, log)
@@ -350,7 +350,7 @@ func TestCreateResolvesASymlinkedCwd(t *testing.T) {
 func TestNotifyWritesWorktreeComment(t *testing.T) {
 	c, log := fakeWithTerminals(t)
 
-	if err := c.Notify("bbs foreman fm-a", "bs-x waiting", "approve the plan"); err != nil {
+	if err := c.Notify("bbs team fm-a", "bs-x waiting", "approve the plan"); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(readLog(t, log), "worktree set --worktree path:/repo --comment bs-x waiting — approve the plan") {
@@ -367,7 +367,7 @@ esac`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.CapturePane("bbs foreman fm-a", 10)
+	_, err = c.CapturePane("bbs team fm-a", 10)
 	if err == nil || !strings.Contains(err.Error(), "no such terminal") {
 		t.Fatalf("want the envelope error, got %v", err)
 	}

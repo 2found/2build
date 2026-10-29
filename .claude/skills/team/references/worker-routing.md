@@ -2,9 +2,9 @@
 
 Read the canonical contract in [model routing](references/model-routing.md)
 for task/phase classification, tiers, ticket overrides and OMP role bindings.
-For Foreman Dispatches, this reference owns worker agent selection, launch
+For the lead Dispatches, this reference owns worker agent selection, launch
 and resume. New routes use explicit intent (`--plan-worker` / `--implement-worker` /
-`--qa-worker`, default this Foreman's harness) or a compatible ticket pin; BBS
+`--qa-worker`, default this lead's harness) or a compatible ticket pin; BBS
 preferences do not select an agent.
 
 ## Resolve and launch
@@ -12,8 +12,8 @@ preferences do not select an agent.
 Classify task complexity and phase class using the canonical contract. Select
 an agent from `--plan-worker` (basic design), `--implement-worker` (ticket
 sessions), or `--qa-worker` (phase QA / integration). Omitted means this
-Foreman's own harness. Then obtain model/effort and tier with
-`bbs foreman model --dir "$REPO" --agent <selected-agent> --complexity <simple|normal|hard> --phase-class <normal|critical|design> --json`.
+the lead's own harness. Then obtain model/effort and tier with
+`bbs team model --dir "$REPO" --agent <selected-agent> --complexity <simple|normal|hard> --phase-class <normal|critical|design> --json`.
 Do not pass `--quota` and do not replace the selected agent from usage.
 Use the assignment repo/worktree, not the coordinator repo in a multi-repo run.
 Explicit ticket overrides and valid persisted resume routes take precedence;
@@ -23,7 +23,7 @@ admission:
 
 ```bash
 ```bash
-bbs foreman route --ticket "$TICKET" --task "$TASK" \
+bbs team route --ticket "$TICKET" --task "$TASK" \
   [--agent <explicit-agent>] [--pinned-agent <ticket-agent>] \
   [--pinned-model <ticket-model>] [--pinned-effort <ticket-effort>] \
   [--model <selected-model>] [--effort <selected-effort>] [--host <host-id>] \
@@ -34,7 +34,7 @@ bbs foreman route --ticket "$TICKET" --task "$TASK" \
 ```
 
 `$TASK` is the bbs Task the worker will run: create it first with
-`bbs foreman task create "$FOREMAN_ID" --ticket "$TICKET" --kind <kind> --spec-file <spec>`
+`bbs team task create "$FOREMAN_ID" --ticket "$TICKET" --kind <kind> --spec-file <spec>`
 (the spec carries the assignment plus [worker-lifecycle.md](worker-lifecycle.md)).
 `--kind` is required: `ticket` for a ticket session and `repair|refresh|redirect`
 for its follow-ups (their `task done` is refused until the ticket's readiness
@@ -63,7 +63,7 @@ Reserve before launching. Omit unset fields in the examples below.
 ### Launch: `agent-launch`
 
 ```bash
-bbs foreman task launch "$TASK" --agent <selected-agent> \
+bbs team task launch "$TASK" --agent <selected-agent> \
   --worktree <assignment-worktree> [--model <selected-model>] [--effort <selected-effort>] \
   [--host <host-id>] [--skill autopilot]
 ```
@@ -77,7 +77,7 @@ model or effort, so the spec tells the worker to confirm its session's
 model/effort before ticket work and report a conflict, never switch the live
 model. It persists the sanitized launch evidence as a ticket handoff and
 prints `TASK`, `DISPATCH`, `TERMINAL`, `VERIFICATION`. A mismatch exits
-non-zero with the Dispatch still open on that terminal: `bbs foreman task
+non-zero with the Dispatch still open on that terminal: `bbs team task
 abandon`, close the terminal, release the lease, then relaunch. A launch that
 started no terminal settles its Dispatch as failed by itself.
 
@@ -94,14 +94,14 @@ worktree, wait for the agent to come up, then launch the Task into that exact
 terminal:
 
 ```bash
-bbs foreman worker-command --startup-only --dir "$REPO" \
+bbs team worker-command --startup-only --dir "$REPO" \
   --agent omp --model <selected-model> [--effort <selected-effort>]
 
 orca terminal create --worktree <assignment-worktree> \
   --command "<exact rendered startup command>" --json
 orca terminal wait --terminal "$TERMINAL" --for tui-idle --json
 
-bbs foreman task launch "$TASK" --agent omp --worktree <assignment-worktree> \
+bbs team task launch "$TASK" --agent omp --worktree <assignment-worktree> \
   --terminal "$TERMINAL" --created-terminal
 ```
 
@@ -113,7 +113,7 @@ detects there and reports `transport-matched`: it does not attest native
 settings, so persist the worker's observed agent/model/effort separately.
 `--created-terminal` records that this Dispatch owns the terminal, so the
 watcher closes it at settle; without it the terminal is never closed by
-Foreman. Never close a preexisting user's terminal or an uncertain live
+the lead. Never close a preexisting user's terminal or an uncertain live
 worker.
 
 ### Reuse a ticket session
@@ -124,20 +124,20 @@ for debugging). Otherwise start a fresh worker in
 the ticket worktree and point its spec at the ticket's handoffs. A follow-up on
 a ticket (`repair`, `refresh`, `redirect`, `deliver`) goes to that ticket's
 existing session only when its previous Dispatch settled with an accepted
-report, the handle is the exact one recorded for this ticket (`bbs foreman task
+report, the handle is the exact one recorded for this ticket (`bbs team task
 show`), and `orca terminal show` still names its agent. It inherits the ticket
 route, so skip model lookup and route resolution:
 
 ```bash
-bbs foreman task create "$FOREMAN_ID" --ticket "$TICKET" --kind <repair|refresh|redirect> --spec-file <follow-up spec>
+bbs team task create "$FOREMAN_ID" --ticket "$TICKET" --kind <repair|refresh|redirect> --spec-file <follow-up spec>
 # reserve the ticket's resource profile for the new Task first (topology.md)
 TICKET_WORKTREE=$(BABYSIT_TICKET="$TICKET" bbs ticket path worktree --read)
-bbs foreman task launch "$FOLLOWUP_TASK" --agent <ticket-agent> \
+bbs team task launch "$FOLLOWUP_TASK" --agent <ticket-agent> \
   --worktree "$TICKET_WORKTREE" --terminal "$TICKET_TERMINAL" [--created-terminal]
 ```
 
 `--terminal` takes no model or effort: the live session keeps the ticket route.
-Pass `--created-terminal` when an earlier Dispatch of this Foreman created that
+Pass `--created-terminal` when an earlier Dispatch of this lead created that
 terminal, so cleanup ownership moves to the new Dispatch. Require
 `transport-matched`. A refused reuse, a session with no agent, or a ticket whose
 route must change starts a fresh worker in the ticket worktree on the recorded
@@ -150,7 +150,7 @@ snapshots before retrying, and never switch accounts or downgrade tiers.
 
 Record task complexity, phase class, selected tier, override provenance,
 requested settings, model/effort pins and their pointer provenance, and the
-exact-session marker in the numbered ticket handoff written by `bbs foreman route`.
+exact-session marker in the numbered ticket handoff written by `bbs team route`.
 Include the route result, sanitized launch evidence, terminal ownership and
 separately observed session settings in the corresponding Task spec or handoff,
 including planning, finish audits, integration and delivery.
@@ -160,7 +160,7 @@ A ticket has one route, persisted on it under the `worker_` prefix with
 `bbs ticket set-pointer`: `worker_agent`, `worker_provider`, `worker_model`,
 `worker_effort`, for example
 `BABYSIT_TICKET="$TICKET" bbs ticket set-pointer worker_model "<model-or-role>"`.
-Pass these pins to `bbs foreman route` for a fresh ticket worker; provider is not
+Pass these pins to `bbs team route` for a fresh ticket worker; provider is not
 a launch selector unless Orca explicitly advertises support. Legacy
 `planner_`, `reviewer_` and `qa_` pointers from split-step tickets are read only
 to resume their exact recorded sessions. Persist other assignments (basic

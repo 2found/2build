@@ -28,7 +28,7 @@ python3 <skill-dir>/scripts/token_audit.py context --repo <repo> --days 30
   split by main thread vs subagents, token component (input, cache write
   5m/1h, cache read, output), active skill, model, subagent label, tool-result
   carry, and friction (errored calls, `--help` lookups, repeated commands and
-  skill runs). Scope Foreman workers with `--project babysit-worktrees`.
+  skill runs). Scope Team workers with `--project babysit-worktrees`.
 - `context`: every skill root the harness scans, each skill's listed chars and
   uses in the window, `disable-model-invocation` / `skillOverrides` state,
   duplicate and stale roots, and the instruction/memory files with their limits.

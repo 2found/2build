@@ -116,7 +116,7 @@ func appendForemanHandoff(ticketID, taskID, kind string, evidence any) (string, 
 	if err != nil {
 		return "", err
 	}
-	body := "# Foreman " + kind + " evidence\n\n```json\n" + string(payload) + "\n```\n"
+	body := "# Team " + kind + " evidence\n\n```json\n" + string(payload) + "\n```\n"
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		return "", err
 	}

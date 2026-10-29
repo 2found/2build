@@ -2,7 +2,7 @@
 """Build the `2build` soot pack from .claude/skills/.
 
 Every 2build skill becomes one capability (capability name == skill dir name,
-skill name == 2build_<skill>). `foreman` is excluded — its runtime depends on
+skill name == 2build_<skill>). `team` (and its `foreman` alias) is excluded — its runtime depends on
 Orca transport and does not port to a soot pack. Output layout:
 
     <out>/2build/            git-addable, self-contained pack folder
@@ -44,7 +44,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / ".claude" / "skills"
 DEFAULT_OUT = ROOT / "packs" / "2build"
-EXCLUDE = {"foreman", "references"}
+EXCLUDE = {"team", "foreman", "references"}
 SOOT_SKILL_LIMIT = 64 << 10  # matches internal/config/config.go maxPromptBytes
 
 # Soot inlines a skill body verbatim into the agent prompt and never resolves

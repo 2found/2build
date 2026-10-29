@@ -5,20 +5,20 @@ new document format; both are files the work already has.
 
 | Between | Agreement | Where it lives | Who changes it |
 |---|---|---|---|
-| human ↔ Foreman | **the SPEC**: the basic design — `requirement.md`, `design.md`, `prototype.html`, `plan.md`, `project.json` | the parent ticket | Foreman; the human's `project-plan` approval pins its exact revision, so any edit needs a new review |
-| ticket ↔ ticket, Foreman ↔ Foreman | **an interface contract**: an API doc, schema, types file, event list, CLI usage | repo files named in `.babysit/contracts.yaml` | its owner — a Foreman's phase, or anyone when unowned |
+| human ↔ Team | **the SPEC**: the basic design — `requirement.md`, `design.md`, `prototype.html`, `plan.md`, `project.json` | the parent ticket | The lead; the human's `project-plan` approval pins its exact revision, so any edit needs a new review |
+| ticket ↔ ticket, team ↔ team | **an interface contract**: an API doc, schema, types file, event list, CLI usage | repo files named in `.babysit/contracts.yaml` | its owner — a lead's phase, or anyone when unowned |
 
 ## When to declare one
 
 Only where two pieces of work meet and one could break the other: a backend
-and the UI that calls it built in parallel, two Foremen on one product, a
+and the UI that calls it built in parallel, two teams on one product, a
 schema several tickets read. A seam inside one ticket is not a contract. Name
 it in the basic design (`design.md` → "Contracts"), not later.
 
 ```yaml
 # .babysit/contracts.yaml — committed with the code
 api.search:
-  owner: fm-catalog              # optional: only this Foreman's phases may change it
+  owner: fm-catalog              # optional: only this team's phases may change it
   about: novel search API        # optional
   files: [docs/api/search.yaml, api/src/search/types.ts]   # "dir/" = every file under it
   checks: ["bun test api/test/search.contract.test.ts"]   # the consumers' tests
@@ -45,16 +45,16 @@ new one, git is the history, and there is nothing else to keep in sync.
 - **Ticket (consumer)**: `bbs contract pin <id>` while planning. If the
   contract later changes in the worktree, the ticket's readiness reports
   `contract:<id>:changed` and its gates are stale until it adapts and re-pins;
-  Foreman sends it a `refresh`.
+  the lead sends it a `refresh`.
 - **Ticket (provider)**: change the contract files first, then the code;
   run `bbs contract check <id>` before reporting.
-- **Phase**: `bbs foreman integrate` records the contracts the phase commit
+- **Phase**: `bbs team integrate` records the contracts the phase commit
   changes (`contracts_changed`, with their checks). Phase QA runs them —
   `bbs contract check <id>` in the integration worktree — beside the criteria.
-- **Two Foremen**: `integrate` refuses a phase that changes a contract another
-  Foreman owns. Ask the owner instead: write a ticket with the change you
+- **Two teams**: `integrate` refuses a phase that changes a contract another
+  the lead owns. Ask the owner instead: write a ticket with the change you
   need and `BABYSIT_TICKET=<it> bbs ticket assign <owner-foreman>`; it appears
-  in `bbs foreman inbox <owner>`. Build against the version on base until the
+  in `bbs team inbox <owner>`. Build against the version on base until the
   owner lands the new one.
 
 Contract checks prove the seam, not the product: phase QA still runs the

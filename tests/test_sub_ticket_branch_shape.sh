@@ -5,7 +5,7 @@ set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 AUTOPILOT="$ROOT/.claude/skills/autopilot/SKILL.md"
 BUILDER="$ROOT/.claude/skills/autopilot/workflows/builder.md"
-FOREMAN_DIR="$ROOT/.claude/skills/foreman"
+TEAM_DIR="$ROOT/.claude/skills/team"
 
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
@@ -19,25 +19,25 @@ else
 fi
 
 if grep -q 'origin.type=sub_ticket' "$BUILDER" \
-   && grep -q 'worktree foreman prepared' "$BUILDER"; then
+   && grep -q 'worktree Team prepared' "$BUILDER"; then
   ok "builder-consumes-prepared-child-worktree"
 else
   fail "builder-consumes-prepared-child-worktree"
 fi
 
-if grep -rq 'bbs ticket ensure --mode=worktree' "$FOREMAN_DIR" \
-   && grep -rq 'bbs foreman land' "$FOREMAN_DIR"; then
-  ok "foreman-owns-worktree-lifecycle"
+if grep -rq 'bbs ticket ensure --mode=worktree' "$TEAM_DIR" \
+   && grep -rq 'bbs team land' "$TEAM_DIR"; then
+  ok "team-owns-worktree-lifecycle"
 else
-  fail "foreman-owns-worktree-lifecycle"
+  fail "team-owns-worktree-lifecycle"
 fi
 
 if grep -q 'parent carrying `manifest.md`' "$AUTOPILOT" \
-   && grep -q 'hand it to `foreman`' "$AUTOPILOT" \
+   && grep -q 'hand it to `team`' "$AUTOPILOT" \
    && grep -q 'never dispatch or merge its children here' "$AUTOPILOT"; then
-  ok "decomposed-parent-routes-to-foreman"
+  ok "decomposed-parent-routes-to-team"
 else
-  fail "decomposed-parent-routes-to-foreman"
+  fail "decomposed-parent-routes-to-team"
 fi
 
 echo

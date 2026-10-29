@@ -37,7 +37,7 @@ func acquireWatchLock(id string) (func(), error) {
 	return func() { f.Close() }, nil
 }
 
-// startWatcher launches `bbs foreman watch` detached: own session, output to
+// startWatcher launches `bbs team watch` detached: own session, output to
 // watch.log, parent released. The child exits on its own when no foreman has
 // an open terminal, so there is no stop path to wire. Under go test the
 // executable is the test binary — spawning it recursively would run the suite
@@ -58,7 +58,7 @@ func startWatcher() error {
 		}
 	}
 	defer out.Close()
-	cmd := exec.Command(exe, "foreman", "watch")
+	cmd := exec.Command(exe, "team", "watch")
 	// The watcher belongs to no terminal. Inheriting the starter's handle (a
 	// worker's `task ask` can start it) would protect that worker's terminal
 	// from the settle-time close for the watcher's whole life.

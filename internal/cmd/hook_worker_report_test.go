@@ -18,7 +18,7 @@ func TestWorkerReportGate(t *testing.T) {
 	}{
 		{name: "outside Orca", status: "dispatched"},
 		{name: "ordinary Orca session", terminal: "term-other", status: "dispatched"},
-		{name: "report missing", terminal: "term-1", status: "dispatched", block: "bbs foreman task done task-w --dispatch task-w.d1"},
+		{name: "report missing", terminal: "term-1", status: "dispatched", block: "bbs team task done task-w --dispatch task-w.d1"},
 		{name: "question pending", terminal: "term-1", status: "dispatched", asked: true, block: "--resume"},
 		{name: "reported", terminal: "term-1", status: "completed"},
 	} {

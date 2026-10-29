@@ -122,6 +122,20 @@ func validateProjectPhases(c projectContract) error {
 	return nil
 }
 
+// validateHandoverRelease keeps the human out of the run: they approve the
+// basic design and give the release go at handover, nothing between. So only
+// the last phase may ask; an earlier phase lands and ships with the handover
+// (none) or releases on the approved design (auto). Checked when a contract
+// is written, not on read, so a project approved under the old rule resumes.
+func validateHandoverRelease(c projectContract) error {
+	for _, p := range c.Phases[:len(c.Phases)-1] {
+		if p.Release == "ask" {
+			return fmt.Errorf("phase %s: only the last phase asks for the release go (the handover); make it none (ships with the handover) or auto (released on the approved design)", p.ID)
+		}
+	}
+	return nil
+}
+
 func projectPhaseIndex(s projectSnapshot, id string) int {
 	for i, p := range s.Phases {
 		if p.ID == id {
@@ -292,7 +306,7 @@ func projectPhaseProgress(st *ticket.Store, s *projectSnapshot) {
 		}
 		p.Delivered = p.Integrated && (s.Contract.ArtifactsOnly || projectCandidateLanded(p.Candidate))
 		if p.Integrated && !p.Delivered {
-			p.Problems = append(p.Problems, "delivery: phase commit not landed on base (bbs foreman land)")
+			p.Problems = append(p.Problems, "delivery: phase commit not landed on base (bbs team land)")
 		}
 		for _, r := range releases {
 			if r.Phase != p.ID {
@@ -454,7 +468,7 @@ func projectPhaseReasons(s projectSnapshot, action, phase string) []string {
 	switch action {
 	case "dispatch":
 		if p.Ticket == "" {
-			reasons = append(reasons, "phase "+p.ID+": bind a phase ticket first (bbs foreman bind --phase)")
+			reasons = append(reasons, "phase "+p.ID+": bind a phase ticket first (bbs team bind --phase)")
 		}
 	case "integrate", "verify":
 		if !p.Sealed {
@@ -468,7 +482,7 @@ func projectPhaseReasons(s projectSnapshot, action, phase string) []string {
 			reasons = append(reasons, "phase "+p.ID+": "+strings.Join(unsealed, "; "))
 		}
 		if action == "verify" && p.Candidate == nil && !s.Contract.ArtifactsOnly {
-			reasons = append(reasons, "phase "+p.ID+": no current phase commit (bbs foreman integrate)")
+			reasons = append(reasons, "phase "+p.ID+": no current phase commit (bbs team integrate)")
 		}
 		if projectCandidateLanded(p.Candidate) {
 			reasons = append(reasons, "phase "+p.ID+": already landed")
@@ -478,7 +492,7 @@ func projectPhaseReasons(s projectSnapshot, action, phase string) []string {
 			reasons = append(reasons, "phase "+p.ID+": phase QA has not passed on the current phase commit ("+strings.Join(p.Problems, "; ")+")")
 		}
 		if p.Candidate == nil && !s.Contract.ArtifactsOnly {
-			reasons = append(reasons, "phase "+p.ID+": no current phase commit (bbs foreman integrate)")
+			reasons = append(reasons, "phase "+p.ID+": no current phase commit (bbs team integrate)")
 		}
 	case "release", "request":
 		if p.Release == "none" {
@@ -493,7 +507,7 @@ func projectPhaseReasons(s projectSnapshot, action, phase string) []string {
 		if p.Failed >= 2 && action == "release" && !p.ApprovalGo {
 			reasons = append(reasons, "stop the line: phase "+p.ID+" failed to release twice; a human release approval is required")
 		} else if p.Release == "ask" && action == "release" && !p.ApprovalGo {
-			reasons = append(reasons, "phase "+p.ID+": human release approval required (bbs foreman release --request)")
+			reasons = append(reasons, "phase "+p.ID+": human release approval required (bbs team release --request)")
 		}
 	default:
 		return []string{"readiness requires --action dispatch|integrate|land|release|finish"}
@@ -614,8 +628,9 @@ func projectReleaseCommand(st *ticket.Store, kv map[string]string) error {
 }
 
 // The release floor is the strictest release mode a human-or-Foreman approved
-// contract ever gave each seed. A later contract may raise it freely, but one
-// that lowers it (ask → auto/none) has dropped a human release gate, so only a
+// contract ever gave each seed, counting a none phase at the gate of the
+// release it ships in. A later contract may raise it freely, but one that
+// lowers it (ask → auto) has dropped a human release gate, so only a
 // human may approve it — `--auto` delegates design review, never releases.
 var releaseRank = map[string]int{"none": 0, "auto": 1, "ask": 2}
 
@@ -632,9 +647,15 @@ func projectSeedReleases(st *ticket.Store) map[string]string {
 	for _, seed := range c.Seeds {
 		modes[seed] = "" // unphased: no release gate at all
 	}
-	for _, p := range c.Phases {
-		for _, seed := range p.Seeds {
-			modes[seed] = p.Release
+	// A none phase ships with the next phase that releases, so its seeds
+	// carry that phase's gate; none only when nothing after it releases.
+	next := "none"
+	for i := len(c.Phases) - 1; i >= 0; i-- {
+		if r := c.Phases[i].Release; r != "none" {
+			next = r
+		}
+		for _, seed := range c.Phases[i].Seeds {
+			modes[seed] = next
 		}
 	}
 	return modes

@@ -7,7 +7,7 @@
 //
 // Orca's CLI is JSON-first. Every call here uses --json and reads
 // result.terminal.handle / result.terminals[].title. The durable handle is
-// the terminal title (spawn sets "bbs foreman <id>"); the runtime handle
+// the terminal title (spawn sets "bbs team <id>"); the runtime handle
 // (term_…) is what later calls take, and it is re-derived from the title
 // on every use because handles are issued per runtime session.
 package orca

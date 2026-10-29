@@ -36,11 +36,11 @@ this skill/profile, a dry run, a preparation request, or having credentials
 does not authorize executing a release. Honor explicit bounds and repo policy;
 escalate only unresolved scope, permission or irreversible-data decisions.
 Do not expand a service release to siblings or upgrade unrelated local tools.
-A Foreman phase-release assignment is such a request: it names the phase, the
+A Team phase-release assignment is such a request: it names the phase, the
 delivered source SHA and its go (the approved project design for an `auto`
 phase, the resolved `release` approval for an `ask` phase). Release exactly
-that SHA's base, and end with the Output block so Foreman can record the
-verdict and record path with `bbs foreman release --file`.
+that SHA's base, and end with the Output block so the lead can record the
+verdict and record path with `bbs team release --file`.
 
 ## Resolve the project contract
 

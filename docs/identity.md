@@ -65,7 +65,7 @@ Exit codes:
 The manifest walk needs a project home. `bbs ticket env` derives the slug
 from the git remote (falling back to the directory basename), and the
 project home is `~/.babysit/projects/$SLUG/` — under `$BABYSIT_HOME` when set,
-so a sandboxed home keeps its tickets beside its foremen and sessions.
+so a sandboxed home keeps its tickets beside its team leads and sessions.
 
 ---
 
@@ -88,7 +88,7 @@ repos:
     branch: feat/bs-abc12345_add-healthz
     canonical: .          # repo root; the absolute repo path for a worktree
                           # ticket (`ensure --mode=worktree`), which
-                          # `bbs foreman seal` and `integrate` resolve the
+                          # `bbs team seal` and `integrate` resolve the
                           # repo from
     worktree: .           # "." = the shared checkout (trunk tickets) — the
                           # resolver skips it by design, since several trunk

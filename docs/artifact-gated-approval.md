@@ -43,7 +43,7 @@ Only recognized push / PR-create / PR-merge shell commands pay the cost of
 ticket resolution. Other commands return silently. This is a workflow check,
 not a shell security sandbox: aliases, scripts, dynamically constructed
 commands, and tools outside the host's hook coverage can bypass classification.
-Run releases through 2build's workflows; `bbs foreman land` independently
+Run releases through 2build's workflows; `bbs team land` independently
 checks phase QA evidence.
 
 - No ticket: no objection.
@@ -87,13 +87,13 @@ looks it up in the bbs task store (`$BABYSIT_HOME/tasks`): it needs no Orca
 call. It never derives worker authority from a ticket, parses the transcript,
 or reports on the worker's behalf.
 
-An open Foreman Dispatch launched into this exact terminal blocks stopping
-with the `bbs foreman task done <task> --dispatch <id> --outcome …` command to
+An open Team Dispatch launched into this exact terminal blocks stopping
+with the `bbs team task done <task> --dispatch <id> --outcome …` command to
 run after persisting the handoff; a pending question blocks with its
 `task ask --resume <id>` command instead. The settled Dispatch then allows
-stopping. The worker does not wait for Foreman to reply. Foreman still verifies
+stopping. The worker does not wait for Team to reply. Team still verifies
 the persisted evidence. An earlier Dispatch's report cannot satisfy a new
-assignment, and a Dispatch Foreman abandoned no longer blocks: that worker no
+assignment, and a Dispatch Team abandoned no longer blocks: that worker no
 longer owns the assignment.
 
 Sessions without an Orca handle, and terminals no open Dispatch was launched
@@ -102,7 +102,7 @@ bypass the check; every continuation reads the store again.
 
 This requires an installed/trusted hook and `bbs` on the worker's PATH.
 Host stop-continuation limits, user interrupts, process crashes, and forced
-termination remain outside the guard. Keep Foreman's reconciliation backup.
+termination remain outside the guard. Keep Team's reconciliation backup.
 Other agents need an equivalent blocking stop event before claiming coverage.
 
 ## Removed audits

@@ -637,7 +637,7 @@ function ControlActions({
         }
       >
         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          This stops the foreman from dispatching {ticket}. It does not delete the ticket, its
+          This stops the team lead from dispatching {ticket}. It does not delete the ticket, its
           files, or its branch, and an in-flight worker is left alone. You can restore it to{' '}
           <span className="font-mono">{status}</span> at any time.
         </p>
@@ -690,10 +690,10 @@ function AssignRow({
       >
         {assignee || 'Unassigned'}
       </button>
-      <Popover open={open} onClose={() => setOpen(false)} label="Assign foreman" anchorRef={anchor} width={240}>
+      <Popover open={open} onClose={() => setOpen(false)} label="Assign team" anchorRef={anchor} width={240}>
         {options.length === 0 ? (
           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            No live foremen. Spawn one from <a href="#/foremen" style={{ color: 'var(--accent)' }}>Foremen</a>.
+            No live teams. Start one from <a href="#/foremen" style={{ color: 'var(--accent)' }}>Teams</a>.
           </div>
         ) : (
           <ul className="space-y-0.5">
@@ -1109,7 +1109,7 @@ function StatusStrip({
     { label: 'Running', value: running
         ? <span className="font-mono" style={{ color: 'var(--status-in_progress-text, var(--accent))' }}>{running}</span>
         : <span style={{ color: 'var(--text-muted)' }}>—</span> },
-    { label: 'Foreman', value: foreman },
+    { label: 'Team', value: foreman },
     { label: 'QA', value: <Tag tone={VERDICT_TONE[qa] ?? 'muted'}>{qa}</Tag> },
     { label: 'Review', value: <Tag tone={VERDICT_TONE[review] ?? 'muted'}>{review}</Tag> },
     { label: 'Readiness', value: detail.project_contract || detail.children?.length ? <span>See Project tab</span> : readinessValue(readiness) },

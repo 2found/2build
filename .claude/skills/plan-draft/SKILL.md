@@ -72,7 +72,7 @@ by path, not as `skill://`.
    `orchestration` with the proposed dependency boundaries to decide whether
    to split. If split, produce the ticket DAG and manifest below; splitting
    proposes work, it does not create tickets/worktrees or dispatch workers.
-   Foreman owns orchestration.
+   the lead owns orchestration.
 6. Before handoff, check coverage and review cost (below), then re-check size.
    If ≥40% of in-scope items were deferred to follow-up tickets, downgrade one
    tier using the hook in `../references/ticket-size-rubric.md`. Required child
@@ -133,12 +133,12 @@ affected system slice and boundary neighbors, not an inventory of the platform.
 Use plain Markdown/Mermaid; no external renderer or diagram skill is required.
 
 For decomposition, write `manifest.md` beside `plan.md` (not the identity file
-`manifest.yaml`). Foreman runs each row as one **phase**: a child ticket that a
+`manifest.yaml`). The lead runs each row as one **phase**: a child ticket that a
 single worker session plans, builds, reviews and QAs end to end, for hours or
 days if needed. Each phase is one coherent vertical slice that leaves the
 product working, sized `XS`–`L` on the
 [size rubric](../references/ticket-size-rubric.md); the size also picks who
-approves its plan (`L` plans go to Foreman). Every phase boundary costs a cold
+approves its plan (`L` plans go to the lead). Every phase boundary costs a cold
 session and a full review/QA cycle, so prefer fewer, larger phases and split
 by context, not size: work on one module, the same files or an interface still
 being shaped stays in one row; split only where modules are disjoint behind an
@@ -151,7 +151,7 @@ consistent with these rows. Prefer children delivering bounded, independently
 verifiable behavior; split by technical layer only when dependency/ownership
 boundaries justify it. Distinguish true prerequisites from shared-file conflicts;
 assign ownership or sequencing for conflicts instead of claiming false
-parallelism. Runtime ids/status are Foreman's concern. Phases are the
+parallelism. Runtime ids/status are the lead's concern. Phases are the
 tickets: show their DAG once in the plan and keep per-phase detail in the
 manifest.
 
@@ -181,5 +181,5 @@ creation does not bypass the caller's plan/project approval checkpoint.
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: PLANNED(<XS|S|M|L>) | DECOMPOSED(<N>)
 PLAN: <path or inline summary>
-NEXT: implement, Foreman for decomposition, or resolve named blockers
+NEXT: implement, the lead for decomposition, or resolve named blockers
 ```

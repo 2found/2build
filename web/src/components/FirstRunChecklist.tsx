@@ -40,10 +40,10 @@ export function FirstRunChecklist({
           </span>
           <div className="min-w-0">
             <h3 className="mb-0.5 text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>
-              Confirm the Foreman session
+              Confirm the Team session
             </h3>
             <p className="m-0 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-              Configure your agents in Orca, then start Foreman in your project.
+              Configure your agents in Orca, then start Team in your project.
             </p>
           </div>
           <a
@@ -60,7 +60,7 @@ export function FirstRunChecklist({
                   borderRadius: 'var(--radius-sm)',
                 }}
           >
-            Foremen
+            Teams
           </a>
         </li>
         <li
@@ -81,7 +81,7 @@ export function FirstRunChecklist({
             <p className="m-0 text-[13px]" style={{ color: 'var(--text-secondary)' }}>
               {hasProjects
                 ? 'Create a ticket here, or invoke Autopilot in the agent for one serial change.'
-                : 'Open your agent in a repository and invoke the Foreman skill with the project goal.'}
+                : 'Open your agent in a repository and invoke the team skill with the project goal.'}
             </p>
           </div>
           {onCreateTicket && (

@@ -37,7 +37,7 @@ any missing prerequisite instead of claiming success. Tell me whether I need to 
 and give me the exact Autopilot invocation for my agent to run my first small task.
 ```
 
-You need a supported coding agent and its existing model access. Claude Code and Codex also need their CLI on PATH. 2build has no separate model account to configure; your agent's normal usage charges apply. **Orca is only required for Foreman.** See [installation and troubleshooting](docs/install.md).
+You need a supported coding agent and its existing model access. Claude Code and Codex also need their CLI on PATH. 2build has no separate model account to configure; your agent's normal usage charges apply. **Orca is only required for Team.** See [installation and troubleshooting](docs/install.md).
 
 <details>
 <summary>Prefer terminal commands? Homebrew on macOS or Linux</summary>
@@ -96,30 +96,46 @@ Start with 2build for the engineering work; explore these products when the need
 
 ## Pick the work
 
-`/bbs:autopilot` carries one ticket — a feature or a bug fix — through plan, review and QA. `/bbs:foreman` runs a multi-ticket project. For a focused job, invoke a skill directly.
+`/bbs:autopilot` carries one piece of work — a bug fix, a feature, or a long change that takes all day — through plan, review and QA in one session. Start there: one long session keeps its context warm and spends the fewest tokens. Hand a whole project to `/bbs:team` only when you want what a single session cannot give ([below](#team)). For a focused job, invoke a skill directly.
 
 Browse the [skill index](docs/skills.md) for individual skills and workflow examples.
 
 <a id="configure-foreman"></a>
 <a id="foreman-multi-ticket-projects"></a>
 
-## Larger projects: Foreman
+<a id="team"></a>
 
-For dependent tickets and supervised workers, [Foreman](docs/foreman.md) uses [Orca](https://www.onorca.dev) to plan a project, isolate child tickets in worktrees, dispatch ready work and run project-wide QA. It presents the parent plan/design for review before production dispatch; explicit `--auto` delegates that review. Workers never commit; each phase lands as one commit after phase QA.
+## Team: a product team for a whole project
+
+[Team](docs/team.md) works like a product team you hire. You meet it twice:
+
+1. **Brief** — you give the requirement, confirm the spec it writes back (one batch of questions, then none), and approve its basic design: architecture, a prototype of the whole product, and the release phases.
+2. **Handover** — you review the finished product with its evidence, then give the release go or send feedback. In-scope feedback is fixed and handed over again without another meeting; a request beyond the spec comes back as a design change.
+
+Between those, the team designs, builds, reviews, QAs and integrates on its own, one commit per phase on your local base, and asks you nothing. Workers never commit, and Team needs [Orca](https://www.onorca.dev). `/bbs:foreman` still works as an alias.
+
+It costs more than Autopilot — a lead session, a design session and an integration session per phase — so use it for a reason:
+
+- **You want to step away** — two touchpoints instead of steering a session, and a reviewed, releasable product at the end.
+- **Phased releases** — production increments you allow at design time, instead of one large change at the end.
+- **Independent verification** — a fresh session reviews and QAs each phase; Autopilot reviews in the session that wrote the code.
+- **Parallel work on disjoint parts** — separate services or repos joined by a frozen contract, when wall time matters.
+
+Without one of these, a single Autopilot run, even a day-long one, is faster and cheaper.
 
 <details>
 <summary>CLI and configuration details</summary>
 
 ## Skills and CLI
 
-Skills are the agent-facing workflows; `bbs` is the companion CLI they use. `/bbs:foreman` runs the project coordinator; `bbs foreman` manages model policy lookups, durable Foreman records, phases (`seal`, `integrate`, `land`, `release`), suggested next steps, and reports; `bbs contract` manages the interface contracts parallel tickets build against. `/bbs:autopilot` runs the one-ticket workflow; `bbs autopilot` exposes its checkpoint and state helpers. `bbs ticket` owns ticket identity, DAG relations, evidence, test-surface leases, and adopting sealed work.
+Skills are the agent-facing workflows; `bbs` is the companion CLI they use. `/bbs:team` runs the product team; `bbs team` (alias `bbs foreman`) manages model policy lookups, durable lead records, phases (`seal`, `integrate`, `land`, `release`), suggested next steps, and reports; `bbs contract` manages the interface contracts parallel tickets build against. `/bbs:autopilot` runs the one-ticket workflow; `bbs autopilot` exposes its checkpoint and state helpers. `bbs ticket` owns ticket identity, DAG relations, evidence, test-surface leases, and adopting sealed work.
 
 Useful CLI entry points:
 
 ```bash
 bbs dashboard
-bbs foreman report <parent-ticket>
-bbs foreman next <parent-ticket>
+bbs team report <parent-ticket>
+bbs team next <parent-ticket>
 bbs ticket dag <parent-ticket>
 bbs autopilot snapshot --json
 bbs autopilot recover --json
@@ -152,7 +168,7 @@ for config paths, defaults, project limits and human-review behavior.
 
 ## Documentation
 
-[Install and troubleshoot](docs/install.md) · [Choose a skill](docs/skills.md) · [Inspect progress](docs/companion-cli.md) · [Coordinate a project](docs/foreman.md)
+[Install and troubleshoot](docs/install.md) · [Choose a skill](docs/skills.md) · [Inspect progress](docs/companion-cli.md) · [Coordinate a project](docs/team.md)
 
 For coding agents, [llms.txt](llms.txt) links directly to the Markdown guides and runtime contracts.
 

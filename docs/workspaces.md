@@ -1,7 +1,7 @@
 # Workspaces — the multi-repo registry
 
 A **workspace** is a named list of repos that make up one product. It answers
-which repos a foreman owns and where those repos live on this machine.
+which repos a team lead owns and where those repos live on this machine.
 
 ```bash
 bbs config workspace add-repo acme --git-url git@github.com:acme/web.git --path ~/src/web --role fe --repo-type polyrepo
@@ -47,7 +47,7 @@ QA config remains committed separately in `.babysit/qa.yaml`; secrets remain in 
 | worktree pool | `<repo>/.babysit/worktrees/<ticket>_<slug>` | **worktree** |
 | registry workspace | a named set of repos in `config.yaml` | **workspace acme** |
 
-`foreman` gains no extra field for the registry. Its `ProjectDir` is matched to
+`team` gains no extra field for the registry. Its `ProjectDir` is matched to
 the unified registry. `foreman.Record.WorkspaceDir`, `WorkspaceRef`, and
 `WorkspaceTitle` refer to the Orca terminal.
 

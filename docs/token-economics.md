@@ -3,7 +3,7 @@
 Where the tokens of an autopilot or review-pr run go once a session is running,
 what every session pays before it starts work, what was changed on 2026-10-25,
 and how to check the changes. The session and prompt-cache side (cold sessions,
-ticket boundaries, Foreman wakes) is in
+ticket boundaries, Team wakes) is in
 [foreman-cache-economics.md](foreman-cache-economics.md); this document covers
 what that one does not.
 
@@ -45,7 +45,7 @@ Main thread by active skill:
 | qa | 20% |
 | review-pr | 18% |
 | autopilot | 18% |
-| no skill yet (Foreman phase integration and setup) | 11% |
+| no skill yet (Team phase integration and setup) | 11% |
 | plan-draft | 6% |
 | browse | 5% |
 

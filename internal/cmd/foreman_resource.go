@@ -15,9 +15,9 @@ import (
 )
 
 const foremanResourceUsage = `Usage:
-  bbs foreman resource status
-  bbs foreman resource reserve <foreman-id> --ticket <ticket> --task <task> --profile <profile> [--agent <id>] [--host <host-id>]
-  bbs foreman resource release <lease-id>
+  bbs team resource status
+  bbs team resource reserve <foreman-id> --ticket <ticket> --task <task> --profile <profile> [--agent <id>] [--host <host-id>]
+  bbs team resource release <lease-id>
 
 Profiles: plan, standard, android-simulator, ios-simulator, local-ml
 status prints FOREMAN_MAX_WORKERS: parallel_max_workers, or min(16, max(2, CPUs-2)) when unset/auto.

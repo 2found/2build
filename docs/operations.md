@@ -9,10 +9,10 @@ bbs config set telemetry local       # off | local
 bbs config set update_check true     # false silences upgrade notifications
 bbs config set auto_upgrade false    # true runs bbs update on session start
 bbs config set proactive true        # false = only run skills typed explicitly
-bbs config set foreman_status_interval 3300  # seconds between foreman reconciliation ticks
+bbs config set foreman_status_interval 3300  # seconds between team lead reconciliation ticks
 bbs config set foreman_cache_ttl auto  # prompt-cache lifetime (auto: claude 3600, others 300)
-bbs config set parallel_max_workers auto  # min(16, max(2, CPUs-2)) per Foreman
-bbs config set parallel_global_units auto  # global weighted Foreman capacity
+bbs config set parallel_max_workers auto  # min(16, max(2, CPUs-2)) per Team
+bbs config set parallel_global_units auto  # global weighted Team capacity
 bbs config list                      # show saved YAML (not all effective defaults)
 ```
 
@@ -41,7 +41,7 @@ keys below and the configuration examples above.
 | `semantic_decision_model` | `bbs config set semantic_decision_model clef-flash` or `clef` | `clef-flash`, used only with `cloudflare` |
 | Semantic credentials | Edit `$BBS_CONFIG_DIR/.env` with `nano`; set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` | Environment wins, then user `.env`; project `.env` is ignored |
 | Project inference limits | Edit `<repo>/.babysit/semantic-decision.yaml` | Optional; can restrict external inference, not enable it or select provider/model |
-| Foreman model/effort routes | `bbs foreman model --json`; edit `~/.babysit/settings.json` or `<repo>/.babysit/settings.json` | Built-in policy, then user, then repo overrides; [schema](../.claude/skills/foreman/references/model-routing.md#model-tiers) |
+| Team model/effort routes | `bbs team model --json`; edit `~/.babysit/settings.json` or `<repo>/.babysit/settings.json` | Built-in policy, then user, then repo overrides; [schema](../.claude/skills/team/references/model-routing.md#model-tiers) |
 | Base branch | `bbs autopilot base-branch`; `BBS_BASE_BRANCH` or `bbs config set base_branch <name>` | `origin/HEAD`, then `main`; the only git setting ([git flow](../.claude/skills/references/git-flow.md)) |
 
 The semantic-decision step always exists. Selecting Cloudflare is the explicit
@@ -77,25 +77,25 @@ as default. This coverage audit separates judgments from enforced policy:
 | Decision | Consumer / kind | What still governs execution |
 |----------|-----------------|------------------------------|
 | Mechanical, Taste, or User Challenge | Auto-Decision Framework / `decision-tier` | Known User Challenges and missing authority cannot be downgraded |
-| Size, complexity, workflow and decomposition | Plan-draft, Foreman routing, Autopilot / `task-size`, `task-complexity`, `skill-route`, `orchestration` | Explicit user selections, rubric floors, workflow prerequisites |
+| Size, complexity, workflow and decomposition | Plan-draft, Team routing, Autopilot / `task-size`, `task-complexity`, `skill-route`, `orchestration` | Explicit user selections, rubric floors, workflow prerequisites |
 | Impacted tests and coverage | Implement, QA / `testcase` | Required criteria, regression reproducers and repo checks |
-| Finding validity and product severity | Review-pr, Fix-pr, Autopilot repair, Foreman product evaluator / `review-finding` | Cited disproof before refuting; broken criteria remain material |
+| Finding validity and product severity | Review-pr, Fix-pr, Autopilot repair, Team product evaluator / `review-finding` | Cited disproof before refuting; broken criteria remain material |
 | Extra review worth doing | Review-pr / `deep-review` | Mandatory phases of the selected effort still run |
-| Plan evidence sufficient; human input needed | Foreman parent/child review, Autopilot / `human-review` | Artifact freshness, delegation, holds, grants, safety floors and approval CLI |
+| Plan evidence sufficient; human input needed | Team parent/child review, Autopilot / `human-review` | Artifact freshness, delegation, holds, grants, safety floors and approval CLI |
 | Recoverable blocker or missing human input | Triage / `recovery` | Retry budget, ownership and dispatch authority |
 
-Foreman's parent plan requires human review unless explicit, persisted `--auto`
+Team's parent plan requires human review unless explicit, persisted `--auto`
 delegates it. Ticket plans are approved by size within the accepted parent plan
-and current bounds: `S`/`M` by the ticket worker as Foreman's delegate, `L` by
-Foreman itself; one that neither may approve parks that ticket only. A phase's
+and current bounds: `XS`/`S` have none, `M` by the ticket worker as Team's delegate, `L` by
+Team itself; one that neither may approve parks that ticket only. A phase's
 production release go is never delegated: `approval self-resolve` refuses kind
 `release` under every posture and grant. Semantic judgment evaluates the rubric; `approval
 self-resolve` still enforces floor → rubric → authority → approval. A model's
 `proceed` answer is not an approval record.
 
-Autopilot `--auto` (implied for every Foreman worker) never prints a `/goal`
+Autopilot `--auto` (implied for every Team worker) never prints a `/goal`
 paste block: the agent sets its own goal when it has a tool for that, otherwise
-it works the loop directly in the same session, so no human or Foreman wake is
+it works the loop directly in the same session, so no human or Team wake is
 needed to start execution. Autopilot honors `--stop-after` and invoker-held approvals, repairs routine
 findings itself, and escalates non-derivable User Challenges. Composed Taste
 choices go in its handoff; it never gains permission to push or release from a
@@ -110,11 +110,11 @@ resource admission, artifact hashes and release gates do not need inference.
 
 ### Machine-global worker admission
 
-`parallel_max_workers` is a per-Foreman ceiling and batch size. Its default,
+`parallel_max_workers` is a per-Team ceiling and batch size. Its default,
 `auto`, is min(16, max(2, CPUs - 2)): two CPUs stay free for the coordinator and
-OS. `bbs foreman resource status` prints the effective value as
-`FOREMAN_MAX_WORKERS`. It cannot protect one machine running several Foremen:
-three coordinators with a ceiling of six could otherwise launch 18 workers. Every Foreman therefore
+OS. `bbs team resource status` prints the effective value as
+`FOREMAN_MAX_WORKERS`. It cannot protect one machine running several teams:
+three coordinators with a ceiling of six could otherwise launch 18 workers. Every team lead therefore
 also reserves from one atomic weighted pool under `~/.babysit/resources/`.
 
 With `parallel_global_units: auto`, the pool uses the smaller of the
@@ -132,11 +132,11 @@ preempted.
 | `ios-simulator` | 4 | mobile simulator, GPU |
 | `local-ml` | 4 | GPU |
 
-Reservations are global across repositories and Foremen sharing the same
-`BABYSIT_HOME`. They are keyed by Foreman and bbs Task, making a retry
-idempotent. The broker enforces the per-Foreman worker ceiling atomically as
+Reservations are global across repositories and teams sharing the same
+`BABYSIT_HOME`. They are keyed by Team and bbs Task, making a retry
+idempotent. The broker enforces the per-Team worker ceiling atomically as
 well as the global weighted budget. Both `reserve` and `status`, and the detached
-watcher, recover leases across all owners without waiting for a dead Foreman:
+watcher, recover leases across all owners without waiting for a dead Team:
 
 - Settled Dispatches release capacity immediately.
 - An open Dispatch whose terminal shows its agent has exited (Orca's
@@ -159,22 +159,22 @@ cleanup of the previous attempt. Old mkdir lock directories are ignored by the
 new broker; do not run old and new broker binaries concurrently during upgrade.
 
 ```bash
-bbs foreman resource status
-bbs foreman resource reserve fm-project \
+bbs team resource status
+bbs team resource reserve fm-project \
   --ticket bs-child --task orca-task-id --profile ios-simulator
-bbs foreman resource release rsc-0123456789abcdef
+bbs team resource release rsc-0123456789abcdef
 ```
 
-`ADMISSION=queued` is backpressure, not a failed Task. Foreman may dispatch
+`ADMISSION=queued` is backpressure, not a failed Task. Team may dispatch
 other admitted work and retries the queued Task on its next reconcile tick.
 
 ### Project review and delivery evidence
 
-Foreman clarifies the requirement, then has one worker prepare the basic
+Team clarifies the requirement, then has one worker prepare the basic
 design — architecture, whole-product prototype, plan, ticket manifest and the
 release-phase plan in `project.json` — before creating any phase ticket or
 dispatching production work. Review that project checkpoint once; ticket plans
-are approved against it — `S`/`M` by their own worker, `L` by Foreman — without
+are approved against it — `M` by its own worker, `L` by Team, `XS`/`S` have none — without
 stopping the ticket session. Product scope/design changes return to the parent
 checkpoint. Approval is bound to the artifact revision, so changed documents
 require a new review.
@@ -184,13 +184,13 @@ gives the go), `auto` (the approved design is the go) or `none` (ships with the
 next phase). The CLI enforces the order:
 
 ```bash
-bbs foreman next <parent>                       # what to do now (advice; verbs keep their gates)
-bbs foreman readiness <parent> --action dispatch|integrate|land|release --phase <id> --json
-bbs foreman integrate <parent> --phase <id>     # one phase commit, detached worktree
-bbs foreman land <parent> --phase <id>          # after phase QA: fast-forward base
-bbs foreman bind <parent> --phase <id> --child <phase-ticket>
-bbs foreman release <parent> --phase <id> --request --note "<what ships>"   # ask: human go
-bbs foreman release <parent> --phase <id> --file receipt.json              # release-prd verdict
+bbs team next <parent>                       # what to do now (advice; verbs keep their gates)
+bbs team readiness <parent> --action dispatch|integrate|land|release --phase <id> --json
+bbs team integrate <parent> --phase <id>     # one phase commit, detached worktree
+bbs team land <parent> --phase <id>          # after phase QA: fast-forward base
+bbs team bind <parent> --phase <id> --child <phase-ticket>
+bbs team release <parent> --phase <id> --request --note "<what ships>"   # ask: human go
+bbs team release <parent> --phase <id> --file receipt.json              # release-prd verdict
 ```
 
 Phase `k` opens once phase `k-1` has landed, so it builds
@@ -206,45 +206,45 @@ approval even under `--auto`.
 To delegate the human design reviews too, explicitly pass `--auto`:
 
 ```text
-Claude Code  /bbs:foreman --auto <large project>
-OMP          /foreman --auto <large project>
-Codex        $bbs:foreman --auto <large project>
+Claude Code  /bbs:team --auto <large project>
+OMP          /team --auto <large project>
+Codex        $bbs:team --auto <large project>
 ```
 
-`bbs foreman spawn fm-project --auto` and direct adoption with `--auto` persist
-the choice on that Foreman record across resumes. It still creates and
+`bbs team spawn fm-project --auto` and direct adoption with `--auto` persist
+the choice on that lead record across resumes. It still creates and
 reviews the artifacts; hold/grant bounds, non-delegable decisions, code review,
 QA, and release modes remain in force. Existing records without
 `auto: true` use human project review; ticket plan approval is unchanged.
 `--auto` never gives a release go.
 
-`bbs foreman recap <parent-ticket>` renders that report with project state into
+`bbs team recap <parent-ticket>` renders that report with project state into
 `tickets/<parent>/recap.html` (also written by `complete`).
-`bbs foreman report <parent-ticket>` reads the last durable `report.md`, even
+`bbs team report <parent-ticket>` reads the last durable `report.md`, even
 after Orca closes. Each reconciliation writes the observation time, meaningful
 ticket titles, each phase's state and release, worker/loop step, sealed
 snapshot, gate evidence, phase commit and cleanup/blockers. It is explicitly a
-saved snapshot; ask the running Foreman to check status for a fresh
+saved snapshot; ask the running Team to check status for a fresh
 reconciliation. Execution, delivery and cleanup are separate: LANDED does not
 mean pushed or released. Missing evidence stays UNKNOWN.
 
 Workers never commit. Each phase becomes **one commit** on local base
-(`bbs foreman integrate`), built from the tickets' sealed snapshots in a
+(`bbs team integrate`), built from the tickets' sealed snapshots in a
 detached integration worktree, and one integration QA runs on exactly that
 commit. It tests every criterion of that phase and all earlier ones, so the
-last phase's run is the project's final QA. `bbs foreman land` then
+last phase's run is the project's final QA. `bbs team land` then
 fast-forwards local base to the tested commit; nothing is ever stashed or
 reset. Failures return to ticket repair, reseal and a fresh phase commit. The full protocol is in
-[the Foreman project contract](../.claude/skills/foreman/references/project-contract.md)
-and [phases](../.claude/skills/foreman/references/phases.md).
+[the Team project contract](../.claude/skills/team/references/project-contract.md)
+and [phases](../.claude/skills/team/references/phases.md).
 
 ### Which coding agent runs the work
 
 Configure enabled coding agents and the default agent in Orca. The dashboard's
-Foremen page shows agent ownership guidance (`#/settings` redirects there);
-no BBS form or config file controls agent preferences. Foreman uses Orca
+teams page shows agent ownership guidance (`#/settings` redirects there);
+no BBS form or config file controls agent preferences. Team uses Orca
 discovery on the destination host when
-starting new workers. Existing workers and foremen resume with their recorded
+starting new workers. Existing workers and team leads resume with their recorded
 agent/model rather than today's default.
 
 `bbs agent detect --json` identifies the current harness with evidence;
@@ -257,23 +257,23 @@ removed; configure new worker routes in Orca.
 Direct skill invocation is the normal entrypoint:
 
 ```text
-Claude Code  /bbs:foreman <large project>
-OMP          /foreman <large project>
-Codex        $bbs:foreman <large project>
+Claude Code  /bbs:team <large project>
+OMP          /team <large project>
+Codex        $bbs:team <large project>
 ```
 
-The skill's first operation is `bbs foreman adopt <id>`. It detects the agent,
+The skill's first operation is `bbs team adopt <id>`. It detects the agent,
 reads and renames the active Orca terminal, records the actual agent dialect,
 and makes dashboard/watchdog wakes addressable. Re-adoption after compaction is
 idempotent. It refuses to steal an id, terminal, or repo already bound to a
-different Foreman. `bbs foreman spawn` is optional convenience and recovery,
+different Team. `bbs team spawn` is optional convenience and recovery,
 not the required launch path. Direct invocation inherits the current CLI's
 permission mode, so configure that session for unattended tool use before
 leaving a multi-day run.
 
-New Foreman terminals use an explicit `--agent` when requested, otherwise the
+New Team terminals use an explicit `--agent` when requested, otherwise the
 current harness. Plan, implement, and QA workers follow `--plan-worker`,
-`--implement-worker`, and `--qa-worker` (default: that Foreman's harness).
+`--implement-worker`, and `--qa-worker` (default: that team lead's harness).
 Old BBS worker/foreman agent/provider/model/effort settings no longer affect
 launches. Legacy YAML bytes remain untouched; each launch command emits one
 warning when such values are present, and `bbs config set` rejects new writes.
@@ -297,7 +297,7 @@ Two things it does not own:
   | `codex` | `codex plugin marketplace add 2found/2build && codex plugin add bbs@babysit` | `$bbs:autopilot` |
   | `cursor` | make the skills available under `.cursor/skills` or `.agents/skills` | `/autopilot` |
 
-  `bbs foreman worker-command` preflights the binary and names the per-agent
+  `bbs team worker-command` preflights the binary and names the per-agent
   fix; the install itself is on the operator. Pass `--skill autopilot` rather
   than writing the prompt by hand — **omp plugin skills are a flat list, so they
   have no `bbs:` namespace**, while Codex uses a `$`
@@ -310,29 +310,29 @@ Two things it does not own:
   files therefore say to read those by path, and
   `tests/test_skill_reference_links.sh` guards both halves: that the targets
   resolve, and that every skill which names one says how to read it.
-  - **A foreman's session is pinned to the agent that minted it.** `spawn` records
+  - **A lead's session is pinned to the agent that minted it.** `spawn` records
     it and uses it on resume; contradictory explicit `--agent` requests refuse.
     Recorded model, effort, and historical provider values remain available for
     exact-session recovery. New sessions do not read retired BBS preferences.
 
   What the handle *is* depends on the agent, and only `claude` and `grok` can
   be told to use one we chose: they take `--session-id <uuid>`. `omp` has no
-  such flag, so a foreman on omp gets a private session directory
+  such flag, so a team lead on omp gets a private session directory
   (`--session-dir`) and resumes with `--continue` — unambiguous because nothing
-  else writes to that directory. `codex` and `cursor` have neither, so either closed foreman
+  else writes to that directory. `codex` and `cursor` have neither, so either closed team lead
   starts a fresh conversation and cold-resumes from ticket + Orca state. It
-  deliberately does not use repo-wide `resume --last`: several foremen may
+  deliberately does not use repo-wide `resume --last`: several team leads may
   share one repo, and "last" could attach the wrong project's goal. A uuid is
   never recorded against an agent that cannot be told to use it.
 
-  For multi-day runs, schedule `bbs foreman ensure <id>` to recreate a missing
+  For multi-day runs, schedule `bbs team ensure <id>` to recreate a missing
   Orca terminal. The watcher needs no scheduling: `adopt` and `spawn` start a
-  detached `bbs foreman watch` automatically. The unscoped watcher takes one
+  detached `bbs team watch` automatically. The unscoped watcher takes one
   global flock, while a scoped `watch <id>` takes an id-specific flock, so
-  repeat check-ins are no-ops without blocking other foremen. The watcher exits
-  on its own once no foreman has an open Orca terminal. `bbs foreman watch <id>
+  repeat check-ins are no-ops without blocking other team leads. The watcher exits
+  on its own once no team lead has an open Orca terminal. `bbs team watch <id>
   --once` remains available to refresh an idle one by hand. Both prompts reload
-  the Foreman skill and carry `--foreman-id <id>` so compaction or a cold start
+  the team skill and carry `--team-id <id>` so compaction or a cold start
   cannot erase coordinator identity.
 
 **grok needs the directory trusted first.** grok keeps a per-folder trust record
@@ -352,46 +352,46 @@ worktree.
 
 ### Provider, model and effort
 
-Orca owns enabled-agent and default-agent selection for new workers. Foreman
+Orca owns enabled-agent and default-agent selection for new workers. Team
 applies the ticket/tier routing table and destination-host discovery. Explicit
 per-dispatch `--agent`, `--model`, and `--effort` requests remain available
 through route and worker-command; managed `spawn` also accepts explicit fields
-for a new Foreman. Provider selection belongs in the agent's native
+for a new Team. Provider selection belongs in the agent's native
 configuration unless Orca advertises a supported selector. BBS global and
 role-specific environment fallbacks are retired; `bbs config set` rejects
 retired preferences.
 
 ```bash
-bbs foreman worker-command --agent omp --model '<your-model-id>' --effort high \
+bbs team worker-command --agent omp --model '<your-model-id>' --effort high \
   --skill autopilot --prompt 'Build the ticket'
-bbs foreman spawn fm-demo --agent codex --model '<your-model-id>'
+bbs team spawn fm-demo --agent codex --model '<your-model-id>'
 ```
 
 OMP worker routes return `launchMode: native-terminal`: render an idle command
-with `bbs foreman worker-command --startup-only --agent omp --model <selection>`,
+with `bbs team worker-command --startup-only --agent omp --model <selection>`,
 create an Orca terminal with that exact command, then call
-`bbs foreman task launch <task> --agent omp --worktree <path> --terminal <handle> --created-terminal`
+`bbs team task launch <task> --agent omp --worktree <path> --terminal <handle> --created-terminal`
 without launch overrides.
 `--startup-only` rejects prompts and skill selectors, so supervision delivers
 the assignment once. This preserves native aliases such as `@slow` without
 changing global OMP configuration or falling back to the native default.
 
-Managed Foreman records pin the selected agent, model and effort. Provider
+Managed Team records pin the selected agent, model and effort. Provider
 values recorded by earlier versions remain readable and are applied only when
 recovering that pinned session; new launches use native provider configuration.
 Changed explicit settings are refused for a pinned session.
 
-Foreman routes new supervised workers through `bbs foreman route` using the
+Team routes new supervised workers through `bbs team route` using the
 destination host's Orca facts and persists the selected route, then launches
-with `bbs foreman task launch`, which starts the agent through `orca agent
+with `bbs team task launch`, which starts the agent through `orca agent
 launch --surface terminal` and verifies the agent Orca detects in the returned
 terminal (`matched`). Launching into an existing terminal (a native OMP
 terminal, or a follow-up reusing a live session) returns `transport-matched`.
 Orca reports no effective model or effort, so the worker verifies its actual
 session settings before accepting ticket work. After settlement the watcher
 closes the worker's terminal only if its Dispatch created it. Direct `worker-command` uses the same route policy.
-See [model routing](../.claude/skills/foreman/references/model-routing.md) and the
-[worker launch reference](../.claude/skills/foreman/references/worker-routing.md).
+See [model routing](../.claude/skills/team/references/model-routing.md) and the
+[worker launch reference](../.claude/skills/team/references/worker-routing.md).
 
 ## Telemetry
 
@@ -441,21 +441,21 @@ go run ./cmd/bbs setup
 
 The `Lint Workflows` GitHub Action runs on pushes and PRs that touch workflow `.md` files. See `.github/workflows/lint-workflows.yml`.
 
-## Watching a foreman
+## Watching a team
 
-A foreman drives its batch from its own terminal, so its worst failure is the
+A team lead drives its batch from its own terminal, so its worst failure is the
 quiet one: the session finishes a thought, prints nothing more, and sits at an
 idle prompt while its workers wait for a design gate. Nothing detects that
-today — the record's heartbeat is written by the foreman itself, so a foreman
+today — the record's heartbeat is written by the team lead itself, so a team lead
 that stopped working also stopped reporting that it stopped.
 
-`bbs foreman watch` is the outside observer. It captures the last N lines of the
-foreman's Orca terminal on an interval; if those bytes are identical for longer than
+`bbs team watch` is the outside observer. It captures the last N lines of the
+lead's Orca terminal on an interval; if those bytes are identical for longer than
 `--idle`, it types a nudge into the pane — the same "check status" a human would
 send — and if the nudges stop landing, it says so and gives up rather than
 poking forever. Independently of the pane, every `--status-interval` it sends
-the same skill prompt as an active status check, so a busy foreman still gets
-asked; a foreman whose record says `done` leaves the watch set even while its
+the same skill prompt as an active status check, so a busy team lead still gets
+asked; a team lead whose record says `done` leaves the watch set even while its
 terminal stays open. The status interval defaults to the configured
 `foreman_status_interval` (3300 seconds, just inside a one-hour prompt cache so
 the prompt reads the cache instead of rewriting it). The idle threshold defaults to that
@@ -463,36 +463,36 @@ same interval; `--status-interval` overrides it for that watcher and `--idle`
 can independently override the idle threshold. Status reminders trigger full
 reconciliation.
 
-While a batch handed over with `bbs foreman batch <id> --tasks a,b` is open, the
-watcher holds those foreman prompts and supervises the batch instead: it types
+While a batch handed over with `bbs team batch <id> --tasks a,b` is open, the
+watcher holds those team lead prompts and supervises the batch instead: it types
 `Continue Task <id>…` into a worker pane idle for `--worker-idle` with its
 Dispatch open, up to `--worker-nudges` times, then reports it stalled. It wakes
-the foreman (one pane prompt) once when every Dispatch is settled, or early for
+the team lead (one pane prompt) once when every Dispatch is settled, or early for
 a new question (tracked by question id, so a second question after the first
 was answered still wakes), an exited worker (its terminal shows no agent), a
 stall, or a lost worker — an open Dispatch with no live terminal for the whole
 stall budget. Early attention is held for `--attention-window` (default 120 s)
 from the first item, so plan reviews and questions from tickets that started
 together cost one wake; `batch show` lists held items too. A wake that cannot be delivered stays owed and is retried each tick;
-a failed member the foreman retries is followed to its new Dispatch, so the
+a failed member the team lead retries is followed to its new Dispatch, so the
 batch does not settle under a running retry. Workers report into the bbs task
-store, never into the foreman's terminal, so nothing else types into it while
-a batch runs. `bbs foreman batch show <id>` prints the batch state the wake refers to — each
+store, never into the lead's terminal, so nothing else types into it while
+a batch runs. `bbs team batch show <id>` prints the batch state the wake refers to — each
 settled member with its ticket, kind, gate verdict, summary and report — and
-then the `NEXT=` steps of every project the foreman owns, so one read covers a
+then the `NEXT=` steps of every project the team lead owns, so one read covers a
 wake. A question counts as delivered only once `batch show` printed it: a wake
-typed while the Foreman is busy (an open dialog) can be swallowed, so
+typed while the team lead is busy (an open dialog) can be swallowed, so
 re-arming the batch wakes again for any pending question it never read.
 
-A batch outlasting the Foreman's prompt cache would make its wake a cold one:
+A batch outlasting the team lead's prompt cache would make its wake a cold one:
 the whole context rewritten at up to twice the input price instead of read at a
 tenth. When the cache lifetime (`foreman_cache_ttl`, default the agent's own:
 claude 3600 s, others 300 s) is at least 30 minutes, the watcher therefore
-types one plain keep-warm line (not a skill prompt) asking for one `bbs foreman
+types one plain keep-warm line (not a skill prompt) asking for one `bbs team
 batch show` — answer any pending question, handle any stalled, exited or lost
 worker, else reply ok and end the turn — once the batch has gone that lifetime minus ten minutes without
-prompting the Foreman, at most 8 per batch. Shorter caches get none. The same
-lifetime caps the default block of `bbs foreman await` and `bbs foreman task
+prompting the team lead, at most 8 per batch. Shorter caches get none. The same
+lifetime caps the default block of `bbs team await` and `bbs team task
 ask` (540 s, or a minute inside the lifetime) so a worker's re-run after a
 timeout reads its cache.
 
@@ -500,37 +500,37 @@ The watcher is built to outlive what goes wrong around it: every Orca call is
 bounded (60 s), a failing tick is logged as `TICK-FAILED` rather than ending
 the process, and while any batch is open an unreachable Orca is retried
 (`ORCA-DOWN`) instead of exiting. If the process dies anyway, the next `bbs`
-session-writer hook (at most once a minute per working agent) or `bbs foreman
+session-writer hook (at most once a minute per working agent) or `bbs team
 await` call restarts it; the watch lock keeps that to one watcher.
 
-While a batch is open, `bbs foreman batch` also installs an OS supervisor for
+While a batch is open, `bbs team batch` also installs an OS supervisor for
 the watcher — a launchd agent on macOS
 (`~/Library/LaunchAgents/dev.2found.bbs.foreman-watch.<hash>.plist`) or a
 systemd user unit on Linux (`bbs-foreman-watch-<hash>.service`), one per
-`BABYSIT_HOME`. It runs `bbs foreman watch --supervised`, which stands by
+`BABYSIT_HOME`. It runs `bbs team watch --supervised`, which stands by
 behind the live watcher's lock and takes over if that process dies, exits 0
 when no batch is open (so the OS never restart-loops it), and restarts at most
 once a minute after a crash. It carries only `PATH`, `HOME`, `BABYSIT_HOME` and
-the Orca CLI variables it was installed with. Inspect or manage it with `bbs foreman supervisor
+the Orca CLI variables it was installed with. Inspect or manage it with `bbs team supervisor
 status|install|uninstall`; set `BBS_WATCH_SUPERVISOR=off` to never install one.
 Windows has no supervisor; the hook restart above still applies.
 
 A batch normally holds every ticket of the open phases: a dependent ticket's worker waits for
-its prerequisites inside its own session with `bbs foreman await --prereqs
-<ticket>:<task>,...`, and an `L` ticket waits for Foreman's plan approval through
-`bbs foreman task ask`. Both run as foreground commands bounded below the
+its prerequisites inside its own session with `bbs team await --prereqs
+<ticket>:<task>,...`, and an `L` ticket waits for Team's plan approval through
+`bbs team task ask`. Both run as foreground commands bounded below the
 default 10-minute `--worker-idle` (540 s per call, then repeated), so a waiting
 worker is neither nudged nor reported stalled. `await` exits 0 with the verified
 heads to merge, 3 when a prerequisite settled without passing readiness (the
-dependent reports `BLOCKED` and Foreman later sends it a `refresh`), and 4 on
+dependent reports `BLOCKED` and Team later sends it a `refresh`), and 4 on
 timeout. A prerequisite Task not launched yet is still waiting, and a readiness read that fails
 is retried twice before it counts as not-ready.
 
 ```bash
-bbs foreman watch                       # every foreman with an open workspace
-bbs foreman watch fm-acme               # just this one
-bbs foreman watch --idle 300 --nudge "check status and report the board"
-bbs foreman watch --once                # one pass, for cron
+bbs team watch                       # every team lead with an open workspace
+bbs team watch fm-acme               # just this one
+bbs team watch --idle 300 --nudge "check status and report the board"
+bbs team watch --once                # one pass, for cron
 ```
 
 | flag | default | what it does |
@@ -545,27 +545,27 @@ bbs foreman watch --once                # one pass, for cron
 | `--worker-nudges <n>` | 2 | worker nudges before the batch reports it `stalled:<task>` |
 | `--attention-window <sec>` | 120 | early wakes arriving within this window of the first share one wake |
 | `--supervised` | off | the launchd/systemd form: stands by behind a running watcher, exits 0 once no batch is open |
-| `--once` | off | single pass then exit; prints a line per foreman |
+| `--once` | off | single pass then exit; prints a line per team lead |
 
 It is a foreground loop, not a daemon — but you rarely start it yourself:
-`bbs foreman adopt` and `bbs foreman spawn` launch an unscoped detached copy
+`bbs team adopt` and `bbs team spawn` launch an unscoped detached copy
 on every check-in. Its global flock keeps exactly one unscoped watcher running;
-scoped watchers use separate per-foreman flocks and cannot block other foremen.
+scoped watchers use separate per-foreman flocks and cannot block other team leads.
 It writes only its own clock and `watch.log` under `~/.babysit/watch/`, and
-exits when no foreman has an open Orca terminal. Output is events only — a
-foreman that is working produces no output at all.
+exits when no team lead has an open Orca terminal. Output is events only — a
+team lead that is working produces no output at all.
 
 ```text
 NUDGED fm-acme after 12m (1/3) — sent "check status"
 STATUS fm-acme after 60m — sent "check status"
-STALLED fm-acme — 3 nudges, no change in 41m; open "bbs foreman"
-GONE fm-acme — terminal "bbs foreman" is closed
+STALLED fm-acme — 3 nudges, no change in 41m; open "bbs team"
+GONE fm-acme — terminal "bbs team" is closed
 ```
 
-Two behaviours worth knowing. It selects foremen by **open Orca terminal, not
-by liveness** — a foreman wedged long enough to need a nudge is exactly the one
+Two behaviours worth knowing. It selects team leads by **open Orca terminal, not
+by liveness** — a team lead wedged long enough to need a nudge is exactly the one
 whose heartbeat has gone stale, so selecting on `Live()` would drop every
-foreman this exists to catch. And the nudge's own echo in the pane does not
+team lead this exists to catch. And the nudge's own echo in the pane does not
 refund the budget: real progress changes the pane on more than one tick, which
 is what keeps `--max-nudges` binding on a dead session. The status clock is
 separate from the idle clock on purpose: a status prompt neither spends a

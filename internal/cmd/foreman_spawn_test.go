@@ -210,7 +210,7 @@ func TestSpawnMintsAndRecordsTheSession(t *testing.T) {
 	}
 	// A workspace that comes up on a bare `claude` is a Claude session sitting
 	// in a repo, not a foreman.
-	if !strings.Contains(calls, "/bbs:foreman --foreman-id fm-a") {
+	if !strings.Contains(calls, "/bbs:team --team-id fm-a") {
 		t.Errorf("spawn did not open the session on the foreman skill:\n%s", calls)
 	}
 }
@@ -239,7 +239,7 @@ func TestSpawnResumesARecordedSessionWhenTheWorkspaceIsGone(t *testing.T) {
 	if again.Session != first.Session {
 		t.Errorf("resume changed the session: %q -> %q", first.Session, again.Session)
 	}
-	if !strings.Contains(readCalls(t, log), "--resume "+first.Session+" '/bbs:foreman --foreman-id fm-a'") {
+	if !strings.Contains(readCalls(t, log), "--resume "+first.Session+" '/bbs:team --team-id fm-a'") {
 		t.Errorf("re-spawn did not resume the recorded session on the skill:\n%s", readCalls(t, log))
 	}
 }
@@ -270,10 +270,10 @@ func TestEnsureKeepsOneLiveTerminalAndRecoversAClosedOne(t *testing.T) {
 // A workspace that is still open is a real collision, not a restart: resuming
 // would put a second Claude on the same conversation.
 func TestSpawnStillRefusesALiveWorkspace(t *testing.T) {
-	fakeOrcaFor(t, "bbs foreman fm-a")
+	fakeOrcaFor(t, "bbs team fm-a")
 
 	if err := foreman.Save(foreman.Record{
-		ID: "fm-a", WorkspaceTitle: "bbs foreman fm-a", Session: "abc", Heartbeat: foreman.Now(),
+		ID: "fm-a", WorkspaceTitle: "bbs team fm-a", Session: "abc", Heartbeat: foreman.Now(),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +293,7 @@ func TestSpawnLeavesAnExplicitCommandAlone(t *testing.T) {
 	}
 	calls := readCalls(t, log)
 	if strings.Contains(calls, "--session-id") || strings.Contains(calls, "--resume") ||
-		strings.Contains(calls, "/bbs:foreman") {
+		strings.Contains(calls, "/bbs:team") {
 		t.Errorf("session flags or the skill prompt leaked into an explicit command:\n%s", calls)
 	}
 	if rec, err := foreman.Load("fm-a"); err != nil || !rec.ManualCommand {
@@ -605,9 +605,9 @@ func TestDirectSkillInvocationAdoptsTheCurrentAgent(t *testing.T) {
 		agent string
 		ref   string
 	}{
-		{"claude", "/bbs:foreman"},
-		{"omp", "/foreman"},
-		{"codex", "$bbs:foreman"},
+		{"claude", "/bbs:team"},
+		{"omp", "/team"},
+		{"codex", "$bbs:team"},
 	} {
 		t.Run(tc.agent, func(t *testing.T) {
 			log, _ := fakeOrcaFor(t)
@@ -626,7 +626,7 @@ func TestDirectSkillInvocationAdoptsTheCurrentAgent(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if rec.Agent != tc.agent || rec.WorkspaceTitle != "bbs foreman "+id || rec.WorkspaceRef != "term_current" {
+			if rec.Agent != tc.agent || rec.WorkspaceTitle != "bbs team "+id || rec.WorkspaceRef != "term_current" {
 				t.Fatalf("direct adoption recorded the wrong identity: %+v", rec)
 			}
 			if got := strings.Count(readCalls(t, log), "terminal rename"); got != 1 {
@@ -637,7 +637,7 @@ func TestDirectSkillInvocationAdoptsTheCurrentAgent(t *testing.T) {
 			if got := s.wake(id, "check status"); got.state != "sent" {
 				t.Fatalf("wake did not reach adopted foreman: %+v", got)
 			}
-			if !strings.Contains(readCalls(t, log), "--text "+tc.ref+" --foreman-id "+id+" check status") {
+			if !strings.Contains(readCalls(t, log), "--text "+tc.ref+" --team-id "+id+" check status") {
 				t.Fatalf("wake used the wrong skill dialect:\n%s", readCalls(t, log))
 			}
 		})
@@ -645,11 +645,11 @@ func TestDirectSkillInvocationAdoptsTheCurrentAgent(t *testing.T) {
 }
 
 func TestDirectAdoptionRefusesToStealAnotherLiveForeman(t *testing.T) {
-	log, _ := fakeOrcaFor(t, "bbs foreman fm-a")
+	log, _ := fakeOrcaFor(t, "bbs team fm-a")
 	setFakeCurrent(t, log, "codex", "/repo")
 	if err := foreman.Save(foreman.Record{
 		ID: "fm-a", Agent: "codex", ProjectDir: "/repo", WorkspaceDir: "/repo",
-		WorkspaceTitle: "bbs foreman fm-a", WorkspaceRef: "term_0", Heartbeat: foreman.Now(),
+		WorkspaceTitle: "bbs team fm-a", WorkspaceRef: "term_0", Heartbeat: foreman.Now(),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -723,9 +723,9 @@ func TestAdoptedForemanRecoveryPinsEachAgent(t *testing.T) {
 // it last read the skill. Prose alone assumes a protocol the receiver has
 // forgotten; the invocation reloads it.
 func TestWakePrefixesThePokeWithTheForemanSkill(t *testing.T) {
-	log, _ := fakeOrcaFor(t, "bbs foreman fm-a")
+	log, _ := fakeOrcaFor(t, "bbs team fm-a")
 	if err := foreman.Save(foreman.Record{
-		ID: "fm-a", WorkspaceTitle: "bbs foreman fm-a", Heartbeat: foreman.Now(),
+		ID: "fm-a", WorkspaceTitle: "bbs team fm-a", Heartbeat: foreman.Now(),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -735,7 +735,7 @@ func TestWakePrefixesThePokeWithTheForemanSkill(t *testing.T) {
 		t.Fatalf("wake did not land: %+v", got)
 	}
 	calls := readCalls(t, log)
-	if !strings.Contains(calls, "--text /bbs:foreman --foreman-id fm-a ticket bs-x was assigned to you.") {
+	if !strings.Contains(calls, "--text /bbs:team --team-id fm-a ticket bs-x was assigned to you.") {
 		t.Errorf("poke was not prefixed with the skill:\n%s", calls)
 	}
 }
@@ -768,7 +768,7 @@ func TestBatchRebindsForemanWithDeadBinding(t *testing.T) {
 	setFakeCurrent(t, log, "claude", "/repo")
 	t.Setenv("ORCA_TERMINAL_HANDLE", "term_current")
 	if err := foreman.Save(foreman.Record{ID: "fm-dead", Agent: "claude", ProjectDir: "/repo", WorkspaceDir: "/repo",
-		WorkspaceRef: "term_dead", WorkspaceTitle: "bbs foreman fm-dead"}); err != nil {
+		WorkspaceRef: "term_dead", WorkspaceTitle: "bbs team fm-dead"}); err != nil {
 		t.Fatal(err)
 	}
 	client, err := orca.Preflight()
@@ -781,17 +781,17 @@ func TestBatchRebindsForemanWithDeadBinding(t *testing.T) {
 	if got.WorkspaceRef != "term_current" || !strings.Contains(out, "rebound foreman fm-dead") {
 		t.Fatalf("not rebound: %+v\n%s", got, out)
 	}
-	if saved, _ := foreman.Load("fm-dead"); saved.WorkspaceRef != "term_current" || saved.WorkspaceTitle != "bbs foreman fm-dead" {
+	if saved, _ := foreman.Load("fm-dead"); saved.WorkspaceRef != "term_current" || saved.WorkspaceTitle != "bbs team fm-dead" {
 		t.Fatalf("rebind not persisted: %+v", saved)
 	}
 }
 
 func TestBatchKeepsLiveBindingOfAnotherTerminal(t *testing.T) {
-	log, _ := fakeOrcaFor(t, "bbs foreman fm-live")
+	log, _ := fakeOrcaFor(t, "bbs team fm-live")
 	setFakeCurrent(t, log, "claude", "/repo")
 	t.Setenv("ORCA_TERMINAL_HANDLE", "term_current")
 	if err := foreman.Save(foreman.Record{ID: "fm-live", Agent: "claude", ProjectDir: "/repo",
-		WorkspaceRef: "term_0", WorkspaceTitle: "bbs foreman fm-live"}); err != nil {
+		WorkspaceRef: "term_0", WorkspaceTitle: "bbs team fm-live"}); err != nil {
 		t.Fatal(err)
 	}
 	client, err := orca.Preflight()

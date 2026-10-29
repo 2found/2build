@@ -20,7 +20,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	want := Record{
 		ID: "fm-a", Owner: "long",
 		ProjectDir: "/repo", WorkspaceDir: "/repo",
-		WorkspaceRef: "workspace:4", WorkspaceTitle: "bbs foreman fm-a",
+		WorkspaceRef: "workspace:4", WorkspaceTitle: "bbs team fm-a",
 		Session: "/s/abc.yaml", Status: "idle", Heartbeat: Now(),
 	}
 	if err := Save(want); err != nil {

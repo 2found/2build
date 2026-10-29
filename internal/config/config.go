@@ -52,13 +52,13 @@ const configHeader = `# babysit configuration — edit freely, changes take effe
 #                                 # value may only lower that budget.
 # foreman_status_interval: 3300   # seconds between full reconciliation ticks:
 #                                 #   the Foreman skill's fallback audit and
-#                                 #   bbs foreman watch's status/idle prompt
+#                                 #   bbs team watch's status/idle prompt
 #                                 #   defaults share this one value. Deliveries
 #                                 #   still wake the foreman immediately; this
 #                                 #   is only the missed-event/restart backup.
 #                                 #   Kept under a one-hour prompt cache so a
 #                                 #   status prompt reads the cache instead of
-#                                 #   rewriting it. bbs foreman watch
+#                                 #   rewriting it. bbs team watch
 #                                 #   --status-interval overrides it.
 # foreman_cache_ttl: auto         # seconds a prompt cache stays warm for the
 #                                 #   Foreman and its workers (auto: the
@@ -68,7 +68,7 @@ const configHeader = `# babysit configuration — edit freely, changes take effe
 #                                 #   warm through a long batch when it is at
 #                                 #   least 30 minutes.
 # foreman_keep_settled_workers: false   # true = leave a worker's terminal open after its
-#                                 # Dispatch settles. Default: bbs foreman watch
+#                                 # Dispatch settles. Default: bbs team watch
 #                                 # closes it at once (follow-ups go to a fresh
 #                                 # session; an idle agent costs memory and tokens).
 # ─── Workspaces ──────────────────────────────────────────────────────
@@ -293,7 +293,7 @@ func ForemanCacheTTLSeconds() (int, error) {
 }
 
 // ForemanStatusIntervalSeconds is the one configured reconciliation interval:
-// the default for `bbs foreman watch --status-interval` and the bound the
+// the default for `bbs team watch --status-interval` and the bound the
 // Foreman skill applies to its `check --wait` timeout. Absent or empty config
 // falls back to the default, matching Get's missing-file convention; a
 // present-but-invalid value is an error, never a silent tight loop. The upper

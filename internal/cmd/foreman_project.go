@@ -430,6 +430,9 @@ func foremanProjectCommand(verb string, args []string) error {
 		if err := validateProjectContract(c); err != nil {
 			return err
 		}
+		if err := validateHandoverRelease(c); err != nil {
+			return err
+		}
 		return withLock(st, func() error {
 			doc, err := ticket.ReadDocStrict(st.IndexPath())
 			if err != nil {

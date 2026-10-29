@@ -15,7 +15,7 @@ import (
 )
 
 const foremanAwaitUsage = `Usage:
-  bbs foreman await --prereqs <ticket>:<task>[,<ticket>:<task>...]
+  bbs team await --prereqs <ticket>:<task>[,<ticket>:<task>...]
                     [--timeout <sec>] [--interval <sec>]
 
 Run by a Foreman phase worker, in its own session, between its plan checkpoint
@@ -224,7 +224,7 @@ func awaitPrereqs(prereqs []prereq, probe prereqProbe, adopt adoptFunc, timeout,
 		case "conflict":
 			fmt.Fprintln(out, "NEXT=resolve the conflict markers in each CONFLICT file (keep both sides' intent), then continue; never commit")
 		case "not-ready":
-			fmt.Fprintln(out, "NEXT=do not edit yet; report `bbs foreman task done --outcome failed` (BLOCKED) naming the prerequisite — Foreman starts a refresh when it is repaired")
+			fmt.Fprintln(out, "NEXT=do not edit yet; report `bbs team task done --outcome failed` (BLOCKED) naming the prerequisite — the lead starts a refresh when it is repaired")
 		default:
 			fmt.Fprintln(out, "NEXT=run the same command again")
 		}

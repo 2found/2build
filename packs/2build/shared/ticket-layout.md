@@ -35,8 +35,8 @@ verdicts): `triage` → `backlog` → `planned` / `decomposed` → `in_progress`
 merge in git — and only ever forward: `requirement.md` → `backlog`, `plan.md`
 → `planned`, `manifest.md` → `decomposed`, a pushed manifest or a
 `pointers.pr` → `in_review`, and a ticket branch's own commits merged into base
-(a PR a human merged and pulled) → `done`. A Foreman ticket's scratch branch
-never gains a commit, so Foreman sets `done` when its phase lands. `in_progress` is nobody's derivation —
+(a PR a human merged and pulled) → `done`. A Team ticket's scratch branch
+never gains a commit, so the lead sets `done` when its phase lands. `in_progress` is nobody's derivation —
 nothing on disk distinguishes it. Verdicts stay out on purpose: a ticket with
 `qa` and `review-pr` both DONE that nobody closed out is *not* finished, and
 deriving `done` from the verdicts would hide precisely that gap. A
@@ -51,8 +51,8 @@ and `reconcile` skips any ticket with a `control.state`. Distinguish it from
 `status: cancelled`, which is a *terminal* rung meaning the work was abandoned;
 `control.state: cancelled` means a human pulled it out of dispatch and can put
 it back.
-**`assignee`** names the owning foreman (`bbs ticket assign <id>|--none`).
-Assignment lives on the ticket, so a foreman's inbox is derived by scanning
+**`assignee`** names the owning lead (`bbs ticket assign <id>|--none`).
+Assignment lives on the ticket, so a lead's inbox is derived by scanning
 tickets — there is no parallel queue that can drift.
 **`origin.type`**: `standalone` (default) | `sub_ticket` (has `parent`,
 `seed`, `plan`, `position`) | `hotfix` | `design-initiated` (has `design_doc`).
@@ -93,7 +93,7 @@ Slow-path: generates `bs-<8hex>`, seeds `requirement.md`, prints `CREATED=1`
 explicit `--mode` — that is all it does: no branch is cut and the
 `TICKET=<id>` line carries the identity (prefix later commands with
 `BABYSIT_TICKET`). Autopilot always runs it this way — `--no-branch` —
-because it works on the checkout it was started in. Only a Foreman dispatch
+because it works on the checkout it was started in. Only a lead dispatch
 or an explicit human `--mode=worktree` cuts a worktree from local base and
 prints `WORKTREE=<path>` — cd there; see [git-flow.md](git-flow.md).
 ## Accessing ticket files

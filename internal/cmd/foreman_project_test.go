@@ -153,7 +153,7 @@ func TestForemanAutoSurvivesSpawnResume(t *testing.T) {
 	if err != nil || !rec.Auto {
 		t.Fatalf("resume lost --auto: %+v %v", rec, err)
 	}
-	if !strings.Contains(readCalls(t, log), "--foreman-id fm-project --auto") {
+	if !strings.Contains(readCalls(t, log), "--team-id fm-project --auto") {
 		t.Fatal("resumed prompt lost --auto")
 	}
 }

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Contract checks for the Orca-native autonomous foreman.
+# Contract checks for the Orca-native autonomous team.
 
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-F="$ROOT/.claude/skills/foreman/SKILL.md"
+F="$ROOT/.claude/skills/team/SKILL.md"
 A="$ROOT/.claude/skills/autopilot/SKILL.md"
 C="$ROOT/.claude/skills/create-pr/SKILL.md"
 
@@ -13,7 +13,7 @@ C="$ROOT/.claude/skills/create-pr/SKILL.md"
 ENTRY="$F"
 F="$(mktemp)"
 trap 'rm -f "$F"' EXIT
-cat "$ENTRY" "$ROOT"/.claude/skills/foreman/references/*.md > "$F"
+cat "$ENTRY" "$ROOT"/.claude/skills/team/references/*.md > "$F"
 PASS=0; FAIL=0; FAIL_NAMES=()
 ok()   { PASS=$((PASS + 1)); printf '  \033[0;32mok\033[0m  %s\n' "$1"; }
 fail() { FAIL=$((FAIL + 1)); FAIL_NAMES+=("$1"); printf '  \033[0;31mFAIL\033[0m  %s\n' "$1"; }
@@ -28,7 +28,7 @@ has_all() {
 }
 
 has_all "autonomous-project-scope" \
-  'Autonomous Orca orchestrator' 'release phases for one human review' \
+  'An autonomous product team' 'The human touches a project twice' \
   'production release increment'
 
 has_all "one-git-flow" \
@@ -36,12 +36,12 @@ has_all "one-git-flow" \
   'task complexity, model tier'
 
 has_all "bbs-owned-worker-lifecycle" \
-  'worktrees and terminals only' 'bbs foreman task create' 'task launch' \
+  'worktrees and terminals only' 'bbs team task create' 'task launch' \
   'agent-launch' 'task abandon' 'durable bbs records'
 
 has_all "foreman-owns-topology" \
-  'bbs ticket ensure --mode=worktree' 'bbs foreman seal' 'bbs foreman integrate' \
-  'bbs foreman land' 'apply' 'in dependency order'
+  'bbs ticket ensure --mode=worktree' 'bbs team seal' 'bbs team integrate' \
+  'bbs team land' 'apply' 'in dependency order'
 
 has_all "finish-cleans-worker-workspace" \
   'every Dispatch of the' 'kept_worktrees' \
@@ -49,11 +49,11 @@ has_all "finish-cleans-worker-workspace" \
   'the snapshot ref keeps that work'
 
 has_all "bounded-worker-pool" \
-  'FOREMAN_MAX_WORKERS' 'bbs foreman resource status' 'min(16, max(2, CPUs - 2))' \
+  'FOREMAN_MAX_WORKERS' 'bbs team resource status' 'min(16, max(2, CPUs - 2))' \
   'positive integer' 'one writer per child worktree'
 
 has_all "global-weighted-admission" \
-  'machine-global weighted' 'bbs foreman resource reserve' 'parallel_global_units' 'ADMISSION' \
+  'machine-global weighted' 'bbs team resource reserve' 'parallel_global_units' 'ADMISSION' \
   'never expires' 'resource backpressure'
 
 
@@ -63,7 +63,7 @@ has_all "ticket-slice-sizing" \
   'sub-ticket needing its own worktree' 'returns' \
   'one worker' 'up to `L`' 'split inside a worker' 'Phase 1 is a walking skeleton' \
   '## Split by context' 'Same context → one ticket' 'Disjoint contexts → separate tickets' \
-  'Order alone is not a seam' 'One ticket per independent context in the phase' \
+  'Order alone is not a seam' 'One ticket per phase by default' \
   'Split by context, not by size' 'only where the invariant owns its own files'
 
 has_all "autopilot-worker-execution-envelope" \
@@ -71,7 +71,7 @@ has_all "autopilot-worker-execution-envelope" \
   'skips any developer `/goal`' 'task launch' \
   'exactly one `task done`'
 
-if grep -q 'An open Foreman Dispatch' "$A" \
+if grep -q 'An open Team Dispatch' "$A" \
    && grep -q "use the spec's worker lifecycle instead" "$A" \
    && grep -q 'developer `/goal` handoff' "$A"; then
   ok "autopilot-accepts-foreman-dispatch-envelope"
@@ -93,7 +93,7 @@ has_all "ticket-session-ownership" \
 
 has_all "plan-approval-by-ticket-size" \
   '### Plan approval by ticket size' 'Ticket plan checkpoints run inside the ticket session' \
-  'the worker self-approves as' 'Foreman reviews and approves' 'Foreman approves' \
+  'the worker self-approves as' 'the lead reviews and approves' 'the lead approves' \
   'Exit 4 (rubric)' 'Exit 3 (floor) or 5 (hold/grant)' 'parks the' \
   'Never implement on an unapproved plan record' 'after two redirects'
 
@@ -104,11 +104,11 @@ has_all "ticket-session-cache-economics" \
 
 has_all "whole-phase-one-wake" \
   'one wake per phase' 'Dependent tickets therefore launch' \
-  'bbs foreman await --prereqs' 'AWAIT=not-ready' 'Foreman stays light' \
+  'bbs team await --prereqs' 'AWAIT=not-ready' 'Stay light' \
   'dependent never displaces runnable work' '`messages:<n>` (an `L` plan review'
 
 has_all "watcher-self-heals-lost-workers" \
-  '`lost:<task>`' '`bbs foreman task abandon` it and close its terminal' \
+  '`lost:<task>`' '`bbs team task abandon` it and close its terminal' \
   'follows a retried Task to its new Dispatch' 'never babysit it'
 
 if grep -q -- '--unblocks\|settled:<task>' "$F"; then
@@ -125,12 +125,12 @@ has_all "workflow-aware-dispatch" \
   'pointers.workflow' '`builder` unless the project defines its own' 'evidence-only'
 
 has_all "phase-qa-gate" \
-  '## Phase integration QA' 'bbs foreman integrate' 'one integration worker session' \
+  '## Phase integration QA' 'bbs team integrate' 'one integration worker session' \
   'every criterion of' 'cross-ticket transitions' 'that exact commit'
 
 has_all "durable-resume-and-finish" \
-  'bbs foreman task list "$FOREMAN_ID"' 'Terminal handles are routing metadata' \
-  'bbs ticket readiness --action review --json' 'bbs foreman snapshot'
+  'bbs team task list "$FOREMAN_ID"' 'Terminal handles are routing metadata' \
+  'bbs ticket readiness --action review --json' 'bbs team snapshot'
 
 has_all "ensure-before-init-ordering" \
   'ensure --mode=worktree' '--from-input-file "$SEED_PATH"' \
@@ -155,15 +155,15 @@ else
 fi
 
 has_all "single-writer-multi-foreman" \
-  '--foreman-id <id>' 'bbs ticket claim' 'hard fence' 'Different parents may' \
-  'one mutating Foreman'
+  '--team-id <id>' 'bbs ticket claim' 'hard fence' 'Different parents may' \
+  'one mutating lead'
 
 has_all "direct-skill-invocation-is-primary" \
-  'Direct skill invocation' 'default entrypoint' 'bbs foreman adopt' 'its actual agent' \
+  'Direct skill invocation' 'default entrypoint' 'bbs team adopt' 'its actual agent' \
   '--agent <current-agent>' 'not a prerequisite' 'Re-adopt the current session'
 
 has_all "live-change-intake" \
-  'bbs foreman inbox' 'change-request' 'a settled ticket or silently replace a live assignment' \
+  'bbs team inbox' 'change-request' 'a settled ticket or silently replace a live assignment' \
   'prior Integration QA'
 
 has_all "dag-emission-contract" \
@@ -171,40 +171,46 @@ has_all "dag-emission-contract" \
   'never writes ticket state' 'user requests status'
 
 has_all "goal-compaction-and-days" \
-  'persistent goal facility' 'Compaction is a cold-resume boundary' 'bbs foreman ensure <id>' \
+  'persistent goal facility' 'Compaction is a cold-resume boundary' 'bbs team ensure <id>' \
   'never resume an ambiguous'
 
 has_all "batched-wake-reconciliation" \
-  'run `bbs foreman batch' 'then \*\*end the turn\*\*' 'Do not wait, actively check' \
-  'bbs foreman batch show' '`BATCH_STATE=settled`' '`stalled:<task>`' \
-  'start a polling timer' 'cold-resume boundary' 'hand it to `bbs foreman batch` and end the turn'
+  'run `bbs team batch' 'then \*\*end the turn\*\*' 'Do not wait, actively check' \
+  'bbs team batch show' '`BATCH_STATE=settled`' '`stalled:<task>`' \
+  'start a polling timer' 'cold-resume boundary' 'hand it to `bbs team batch` and end the turn'
 
 has_all "heavy-checks-deferred-and-merged" \
   'consolidated heavy QA' 'DEFERRED_HEAVY=' 'only when no light ticket is ready' \
   'never displaces light work' 'one simulator boot' 'BABYSIT_TICKET=<ticket>'
 has_all "ticket-closeout-inside-phase" \
   '## Ticket close-out and phase landing' 'unfinished work' \
-  'bbs foreman land "$PARENT" --phase "$K"' 'every prerequisite it adopted' \
+  'bbs team land "$PARENT" --phase "$K"' 'every prerequisite it adopted' \
   'never blind-retry' 'phase that does not compose'
 
 has_all "basic-design-gates-phase-topology" \
   'Before any phase opens, pass' 'Project design checkpoint' \
   'Append `--auto` only when explicitly requested' 'recorded `auto`' 'accepted design' \
-  'one prototype of the whole product' 'in \*\*one batch\*\*, now'
+  'one prototype of the whole product' 'the last place you ask'
 
 has_all "final-qa-is-last-phase-qa" \
   "last phase's cumulative QA is the project's final QA" 'Only then run' \
-  'unreleased phase, missing gate' 'before the Foreman `done` heartbeat'
+  'unreleased phase, missing gate' "before the lead's \`done\` heartbeat"
 
 has_all "phase-release-control" \
-  '## Human control points' 'human only\*\*, under every posture' \
-  'bbs foreman release "$PARENT" --phase "$K" --request' \
-  'bbs foreman release "$PARENT" --phase "$K" --file receipt.json' \
+  "## The human's two touchpoints" 'human only, under every posture' \
+  'release "$PARENT" --phase "$K" --request' \
+  'bbs team release "$PARENT" --phase "$K" --file receipt.json' \
   'refuses kind `release`' '\*\*stops the line\*\*' 'Pipeline one phase deep' \
   'cannot integrate until `k` is released' '`--auto` never grants a release' \
-  'lowers a phase' 'bbs foreman readiness "$PARENT" --action release --phase "$K" --json'
+  "lowers a seed's release gate" 'bbs team readiness "$PARENT" --action release --phase "$K" --json'
 
-PROJECT_CONTRACT="$ROOT/.claude/skills/foreman/references/project-contract.md"
+has_all "two-human-touchpoints" \
+  'No mid-run questions' 'write the \*\*spec\*\* back' 'the last place you ask' \
+  'contract refuses `ask` on any phase but the last' '## Hand over' \
+  'Decisions taken for you' 'bbs team recap "$PARENT"' 'Run one fix round alone' \
+  'the brief touchpoint' 'review it at `high` effort against the brief'
+
+PROJECT_CONTRACT="$ROOT/.claude/skills/team/references/project-contract.md"
 if python3 - "$PROJECT_CONTRACT" "$ROOT/.claude/skills/qa/SKILL.md" <<'PY'
 from pathlib import Path
 import sys
@@ -214,13 +220,13 @@ for required in (
     'Only current `approved` unlocks children',
     '`--auto` delegates the human design reviews',
     'auto: true', 'approval self-resolve',
-    'bbs foreman report <parent>', 'atomically\nreplace parent `report.md`',
+    'bbs team report <parent>', 'atomically\nreplace parent `report.md`',
     '`LANDED`', '`RELEASED`', 'UNKNOWN',
-    'bbs foreman integrate', 'bbs foreman land',
+    'bbs team integrate', 'bbs team land',
     'STALE and a rerun',
 ):
     assert required in contract, required
-assert 'Foreman integration mode' in qa
+assert 'Team integration mode' in qa
 assert 'tests that exact commit read-only' in qa
 assert 'integration worktree, commit or switch revisions' in qa
 assert 'seal --fixup' in qa
@@ -247,12 +253,12 @@ has_all "status-wake-full-snapshot" \
   'resource use and the DAG' 'IN_PROGRESS'
 
 has_all "terminal-done-heartbeat" \
-  'bbs foreman complete "$PARENT" --foreman "$FOREMAN_ID"' \
+  'bbs team complete "$PARENT" --team "$FOREMAN_ID"' \
   'A `done` heartbeat alone is not completion' \
   'leaves its terminal open and idle' 'recap.html' \
   'blocked ticket or unfinished cleanup'
 
-if ! grep -q 'bbs foreman mailbox' "$F" "$ROOT/.claude/skills/references/preamble.md" \
+if ! grep -q 'bbs team mailbox' "$F" "$ROOT/.claude/skills/references/preamble.md" \
    && ! grep -q 'sleep 20' "$F" \
    && ! grep -q 'Copy the block below' "$F"; then
   ok "no-pane-or-mailbox-coordination"
@@ -264,10 +270,10 @@ has_all "bbs-report-and-settlement" \
   'refused and completes nothing' 'worker exited without reporting' \
   'the report does not substitute for a verdict'
 
-PREAMBLE="$ROOT/.claude/skills/foreman/references/worker-lifecycle.md"
+PREAMBLE="$ROOT/.claude/skills/team/references/worker-lifecycle.md"
 if grep -q 'never to an Orca mailbox' "$PREAMBLE" \
-   && grep -q 'bbs foreman task ask' "$PREAMBLE" \
-   && grep -q 'bbs foreman task done' "$PREAMBLE" \
+   && grep -q 'bbs team task ask' "$PREAMBLE" \
+   && grep -q 'bbs team task done' "$PREAMBLE" \
    && grep -q -- '--resume <id>' "$PREAMBLE" \
    && grep -q 'whole Dispatch, not each nested skill' "$PREAMBLE" \
    && grep -q -- '--outcome succeeded|failed' "$PREAMBLE" \
@@ -286,20 +292,20 @@ else
 fi
 
 has_all "no-coordinator-polling-timer" \
-  'external missed-event/restart backup' 'Foreman never schedules its own status timer' \
+  'external missed-event/restart backup' 'The lead never schedules its own status timer' \
   'or polls on empty waits' 'adopt/spawn start it automatically'
 
-if grep -q 'bbs agent resolve --role worker' "$ROOT/.claude/skills/foreman/references/worker-routing.md"; then
+if grep -q 'bbs agent resolve --role worker' "$ROOT/.claude/skills/team/references/worker-routing.md"; then
   fail "worker-routing-avoids-coordinator-agent-resolution"
 else
   ok "worker-routing-avoids-coordinator-agent-resolution"
 fi
 
-REF="$ROOT/.claude/skills/foreman/references/model-routing.md"
+REF="$ROOT/.claude/skills/team/references/model-routing.md"
 if grep -q 'model-routing.md' "$F" \
    && ! grep -q 'model-routing.md' "$A" \
    && grep -q '## Assignment routing' "$REF" \
-   && grep -q 'bbs foreman model' "$REF" \
+   && grep -q 'bbs team model' "$REF" \
    && grep -q '~/.babysit/settings.json' "$REF" \
    && ! grep -q 'gpt-6.1-sol' "$REF"; then
   ok "canonical-model-policy-cli-owned"

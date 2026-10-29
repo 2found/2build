@@ -20,7 +20,7 @@ func foremanModel(args []string) error {
 		return fmt.Errorf("foreman model: unexpected argument %q", id)
 	}
 	if kv["quota"] != "" || kv["host"] != "" {
-		return fmt.Errorf("foreman model: --quota offload was removed; pin workers with bbs foreman spawn --plan-worker|--implement-worker|--qa-worker")
+		return fmt.Errorf("foreman model: --quota offload was removed; pin workers with bbs team spawn --plan-worker|--implement-worker|--qa-worker")
 	}
 	for key := range kv {
 		switch key {

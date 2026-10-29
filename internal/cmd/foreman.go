@@ -24,56 +24,56 @@ import (
 )
 
 const foremanUsage = `Usage:
-  bbs foreman list
-  bbs foreman inbox <id>
-  bbs foreman report <parent-ticket>     read the last durable project report
-  bbs foreman contract <parent> --file project.json
-  bbs foreman bind <parent> --seed <key> --child <ticket>
-  bbs foreman bind <parent> --phase <id> --child <phase-ticket>
-  bbs foreman next <parent> [--json]     suggested next steps (advice; every verb keeps its own gate)
-  bbs foreman snapshot <parent> --json
-  bbs foreman readiness <parent> --action dispatch|finish --json
-  bbs foreman readiness <parent> --action dispatch|integrate|land|release --phase <id> --json
-  bbs foreman integrate <parent> --phase <id> [--message <text>]
+  bbs team list
+  bbs team inbox <id>
+  bbs team report <parent-ticket>     read the last durable project report
+  bbs team contract <parent> --file project.json
+  bbs team bind <parent> --seed <key> --child <ticket>
+  bbs team bind <parent> --phase <id> --child <phase-ticket>
+  bbs team next <parent> [--json]     suggested next steps (advice; every verb keeps its own gate)
+  bbs team snapshot <parent> --json
+  bbs team readiness <parent> --action dispatch|finish --json
+  bbs team readiness <parent> --action dispatch|integrate|land|release --phase <id> --json
+  bbs team integrate <parent> --phase <id> [--message <text>]
                                          (compose the phase's sealed tickets into one commit)
-  bbs foreman land <parent> --phase <id> (fast-forward base to the QA'd phase commit)
-  bbs foreman release <parent> --phase <id> --request [--note <text>]
+  bbs team land <parent> --phase <id> (fast-forward base to the QA'd phase commit)
+  bbs team release <parent> --phase <id> --request [--note <text>]
                                          (publish the phase's human release approval)
-  bbs foreman release <parent> --phase <id> --file receipt.json
+  bbs team release <parent> --phase <id> --file receipt.json
                                          (record a release-prd verdict for the phase)
-  bbs foreman seal <child>... [--waive <review-pr|qa>[,<gate>] --reason <text>]
+  bbs team seal <child>... [--waive <review-pr|qa>[,<gate>] --reason <text>]
                                          preserve verified tickets' work before their phase integrates
                                          (--waive seals despite a missing or stale gate; recorded as a note;
                                          an XS/S ticket defers review-pr+qa and an M ticket qa to phase review)
-  bbs foreman seal <child> --fixup <finding>
+  bbs team seal <child> --fixup <finding>
                                          reseal a settled ticket after the integration session fixed a phase
                                          finding in its worktree; the next phase commit needs a fresh review
-  bbs foreman evidence <parent> --phase <id> --begin --file spec.json
-  bbs foreman evidence <parent> --phase <id> --carry --from <attempt-id>[,<attempt-id>] --reason <text> [--except <AC-id,...>]
+  bbs team evidence <parent> --phase <id> --begin --file spec.json
+  bbs team evidence <parent> --phase <id> --carry --from <attempt-id>[,<attempt-id>] --reason <text> [--except <AC-id,...>]
                                          (carry earlier passed checks of this phase onto the current subject;
                                          re-test the excepted criteria with a normal --begin attempt)
-  bbs foreman evidence <parent> --attempt <id> --file results.json
-  bbs foreman progress <ticket> --file progress.json
-  bbs foreman complete <parent> --foreman <id>
+  bbs team evidence <parent> --attempt <id> --file results.json
+  bbs team progress <ticket> --file progress.json
+  bbs team complete <parent> --foreman <id>
                                          (also writes the HTML recap; the Foreman terminal stays open)
-  bbs foreman recap <parent>             (re)write <parent>/recap.html from project state + report.md
-  bbs foreman register <id> [--dir <path>] [--workspace-title <title>] [--session <uuid>]
-  bbs foreman adopt [<id>] [--agent <name>] [--auto]
+  bbs team recap <parent>             (re)write <parent>/recap.html from project state + report.md
+  bbs team register <id> [--dir <path>] [--workspace-title <title>] [--session <uuid>]
+  bbs team adopt [<id>] [--agent <name>] [--auto]
                     [--plan-worker <name>] [--implement-worker <name>] [--qa-worker <name>]
-  bbs foreman heartbeat <id> [--status <status>] [--session <uuid>]
-  bbs foreman spawn [<id>] [--dir <path>] [--command <text>] [--agent <name>]
+  bbs team heartbeat <id> [--status <status>] [--session <uuid>]
+  bbs team spawn [<id>] [--dir <path>] [--command <text>] [--agent <name>]
                     [--model <id>] [--effort <level>] [--auto]
                     [--plan-worker <name>] [--implement-worker <name>] [--qa-worker <name>]
                     (workers default to this Foreman's --agent; names: claude|codex|omp|grok|cursor)
-  bbs foreman ensure <id>
-  bbs foreman model [--agent <id>] [--complexity <simple|normal|hard>] [--phase-class <normal|critical|design>]
+  bbs team ensure <id>
+  bbs team model [--agent <id>] [--complexity <simple|normal|hard>] [--phase-class <normal|critical|design>]
                     [--dir <repo-or-worktree>] [--json]
                     (with --agent, omitted complexity/phase-class default to normal)
-  bbs foreman worker-command (--prompt <text> [--skill <name>] | --startup-only) [--agent <id>] [--pinned-agent <id>]
+  bbs team worker-command (--prompt <text> [--skill <name>] | --startup-only) [--agent <id>] [--pinned-agent <id>]
                             [--pinned-model <id>] [--pinned-effort <level>] [--host <host-id>] [--exact-session] [--dir <path>]
                             [--model <id>] [--effort <level>]
                             (--startup-only starts idle; it cannot be combined with --prompt or --skill)
-  bbs foreman route --ticket <ticket> --task <task> [--agent <id>]
+  bbs team route --ticket <ticket> --task <task> [--agent <id>]
                     [--pinned-agent <id>] [--model <id>] [--effort <level>]
                     [--pinned-model <id>] [--pinned-effort <level>]
                     [--host <host-id>] [--exact-session]
@@ -81,14 +81,14 @@ const foremanUsage = `Usage:
                     [--hard-reason <money|auth|security|live-data|concurrency>] (required with --complexity hard)
                     [--selected-tier <lite|flash|pro|max>] [--override-provenance <source>]
                     [--pinned-model-provenance <source>] [--pinned-effort-provenance <source>]
-  bbs foreman task create|launch|show|list|done|ask|answer|abandon ...
+  bbs team task create|launch|show|list|done|ask|answer|abandon ...
                     (bbs-owned assignments: Tasks, their Dispatches and worker questions)
-  bbs foreman resource <status|reserve|release> ...
-  bbs foreman batch <id> --tasks <task,task,...>
-  bbs foreman batch show <id>
-  bbs foreman await --prereqs <ticket>:<task>[,...] [--timeout <sec>] [--interval <sec>]
+  bbs team resource <status|reserve|release> ...
+  bbs team batch <id> --tasks <task,task,...>
+  bbs team batch show <id>
+  bbs team await --prereqs <ticket>:<task>[,...] [--timeout <sec>] [--interval <sec>]
                     (phase worker: wait in-session for prerequisite phases to settle)
-  bbs foreman watch [<id>] [--interval <sec>] [--idle <sec>] [--lines <n>]
+  bbs team watch [<id>] [--interval <sec>] [--idle <sec>] [--lines <n>]
                     [--status-interval <sec>] [--nudge <text>] [--max-nudges <n>] [--once]
                     [--worker-idle <sec>] [--worker-nudges <n>] [--attention-window <sec>]
                     [--supervised]
@@ -96,14 +96,14 @@ const foremanUsage = `Usage:
                      --attention-window, default 120: early wakes arriving within it share one;
                      --supervised: the launchd/systemd form — stands by behind a running
                      watcher and exits 0 once no batch is open)
-  bbs foreman supervisor status|install|uninstall
-  bbs foreman retire <id> [--keep-workspace]
-  bbs foreman hold <id>
-  bbs foreman hold show <id>
-  bbs foreman hold release <id>
-  bbs foreman grant <id> [--hours <n>] [--max <n>] [--tickets <a,b>] [--unbounded]
-  bbs foreman grant show <id>
-  bbs foreman grant revoke <id>
+  bbs team supervisor status|install|uninstall
+  bbs team retire <id> [--keep-workspace]
+  bbs team hold <id>
+  bbs team hold show <id>
+  bbs team hold release <id>
+  bbs team grant <id> [--hours <n>] [--max <n>] [--tickets <a,b>] [--unbounded]
+  bbs team grant show <id>
+  bbs team grant revoke <id>
 `
 
 // foremanSkillName names the skill in the opening prompt every spawned foreman gets, and the
@@ -112,19 +112,19 @@ const foremanUsage = `Usage:
 // it is a foreman until something tells it, and a long-lived one loses the
 // skill to context compaction. Re-invoking is cheap and idempotent by the
 // skill's own design, so the prompt doubles as the refresh. Every generated
-// prompt also names --foreman-id; identity must survive compaction too.
+// prompt also names --team-id; identity must survive compaction too.
 //
 // Unquoted: the agent profile shell-quotes it when rendering the command line.
 // The `bbs:` prefix comes from the profile rather than being spelled here —
 // an agent that discovers skills through a flat directory list exposes them
 // bare, and a prompt naming the wrong prefix resolves to nothing at all.
-const foremanSkillName = "foreman"
+const foremanSkillName = "team"
 
 // foremanSkillPrompt always carries the durable coordinator identity. The
 // skill invocation reloads the protocol after compaction; the id prevents a
 // recovered session from guessing which foreman's inbox and claims it owns.
 func foremanSkillPrompt(prof agent.Profile, rec foreman.Record, instruction string) string {
-	prompt := prof.SkillRef(foremanSkillName) + " --foreman-id " + rec.ID
+	prompt := prof.SkillRef(foremanSkillName) + " --team-id " + rec.ID
 	if rec.Auto {
 		prompt += " --auto"
 	}
@@ -137,8 +137,9 @@ func foremanSkillPrompt(prof agent.Profile, rec foreman.Record, instruction stri
 
 func newForemanCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:                "foreman",
-		Short:              "manage foreman sessions and their Orca terminals",
+		Use:                "team",
+		Aliases:            []string{"foreman"},
+		Short:              "run Team projects: lead sessions, workers, phases and handover",
 		DisableFlagParsing: true,
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runForeman(args)
@@ -242,6 +243,9 @@ func foremanFlags(args []string) (id string, kv map[string]string, err error) {
 			return "", nil, fmt.Errorf("foreman: unexpected argument '%s'", a)
 		}
 		key := strings.TrimPrefix(a, "--")
+		if key == "team" { // the Team spelling of --foreman <id>
+			key = "foreman"
+		}
 		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "carry" || key == "exact-session" || key == "startup-only" || key == "open" || key == "spec" || key == "created-terminal" || key == "supervised" || key == "request" || key == "quota" { // the boolean flags
 			kv[key] = "1"
 			continue
@@ -432,7 +436,7 @@ func foremanAdopt(args []string) error {
 				matches[r.ID] = true
 			}
 		}
-		const prefix = "bbs foreman "
+		const prefix = "bbs team "
 		if strings.HasPrefix(term.Title, prefix) {
 			candidate := strings.TrimPrefix(term.Title, prefix)
 			if foreman.ValidID(candidate) == nil {
@@ -498,7 +502,7 @@ func foremanAdopt(args []string) error {
 			return fmt.Errorf("current Orca terminal is already adopted by foreman %s", other.ID)
 		}
 	}
-	title := "bbs foreman " + id
+	title := "bbs team " + id
 	if ref, refErr := client.Ref(title); refErr == nil && ref != term.Handle {
 		return fmt.Errorf("foreman %s is already running in another Orca terminal", id)
 	} else if refErr != nil && !errors.Is(refErr, orca.ErrNoTerminal) {
@@ -519,11 +523,11 @@ func foremanAdopt(args []string) error {
 	return nil
 }
 
-// bindForemanTerminal points r at term: it names the terminal "bbs foreman <id>"
+// bindForemanTerminal points r at term: it names the terminal "bbs team <id>"
 // and saves the record. Adopt and the batch auto-rebind share it, so both
 // leave the same binding behind.
 func bindForemanTerminal(client *orca.Client, r *foreman.Record, term orca.Terminal, dir, agentName string) error {
-	title := "bbs foreman " + r.ID
+	title := "bbs team " + r.ID
 	if term.Title != title {
 		if err := client.Rename(term.Handle, title); err != nil {
 			return err
@@ -557,7 +561,7 @@ func rebindForemanToCurrent(client *orca.Client, r foreman.Record) foreman.Recor
 	for _, t := range terms {
 		if (r.WorkspaceRef != "" && t.Handle == r.WorkspaceRef) || (r.WorkspaceTitle != "" && t.Title == r.WorkspaceTitle) {
 			if t.Handle != h {
-				fmt.Printf("warning: foreman %s is bound to another open Orca terminal (%s); not rebinding — run `bbs foreman adopt %s` there or retire it\n", r.ID, t.Handle, r.ID)
+				fmt.Printf("warning: foreman %s is bound to another open Orca terminal (%s); not rebinding — run `bbs team adopt %s` there or retire it\n", r.ID, t.Handle, r.ID)
 			}
 			return r
 		}
@@ -922,7 +926,7 @@ func spawnForemanWithOptions(id, dir, command string, opts foremanSpawnOptions, 
 	}
 	explicitCommand := command != ""
 
-	title := "bbs foreman " + id
+	title := "bbs team " + id
 	if command == "" {
 		// Only when we build the command ourselves: an explicit --command is the
 		// caller's business, and preflighting an agent it may not even invoke
@@ -1070,7 +1074,7 @@ func foremanHold(args []string) error {
 		return err
 	}
 	fmt.Printf("hold set on %s — design checkpoints escalate to a human\n", id)
-	fmt.Println("release with: bbs foreman hold release " + id)
+	fmt.Println("release with: bbs team hold release " + id)
 	return nil
 }
 
@@ -1108,7 +1112,7 @@ func foremanHoldShow(id string) error {
 // foremanGrant optionally bounds a foreman's design-checkpoint autonomy —
 // hours, max approvals, or ticket scope — in a form that survives the
 // session that said it. Autonomy itself is the default; grant is not
-// required for self-resolve. Use bbs foreman hold to put checkpoints back
+// required for self-resolve. Use bbs team hold to put checkpoints back
 // with a human.
 //
 // Bounds are opt-out rather than opt-in, and an unbounded grant has to be
@@ -1199,7 +1203,7 @@ func foremanGrantRevoke(id string) error {
 		return err
 	}
 	// Revoke removes bounds only. It does not force human-held; that is
-	// bbs foreman hold. Already-approved work is not rolled back.
+	// bbs team hold. Already-approved work is not rolled back.
 	fmt.Printf("revoked grant bound on %s — back to unbounded default autonomy\n", id)
 	fmt.Println("work already approved under the grant stands; in-flight workers keep going.")
 	return nil
@@ -1212,7 +1216,7 @@ func foremanGrantShow(id string) error {
 	}
 	if r.Grant == nil {
 		if r.Hold != nil {
-			fmt.Println("none — human hold (bbs foreman hold show " + id + ")")
+			fmt.Println("none — human hold (bbs team hold show " + id + ")")
 			return nil
 		}
 		fmt.Println("none — default autonomy")

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # autopilot runs every step in the session it was launched in — planning
-# included. Task/phase routing selects Foreman's launches; Autopilot executes
-# in the human-opened or Foreman-opened session without model selection.
+# included. Task/phase routing selects the lead's launches; Autopilot executes
+# in the human-opened or the lead-opened session without model selection.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SKILL="$ROOT/.claude/skills/autopilot/SKILL.md"
-REF="$ROOT/.claude/skills/foreman/references/model-routing.md"
+REF="$ROOT/.claude/skills/team/references/model-routing.md"
 WORKFLOWS="$ROOT/.claude/skills/autopilot/workflows"
 
 require() {
@@ -49,17 +49,17 @@ forbid 'OMP launch rule' "$SKILL"
 forbid 'automatic QA subagent' "$SKILL"
 forbid '../references/model-routing.md' "$SKILL"
 require 'Autopilot does not select a model tier or reroute the session' "$SKILL"
-require 'Foreman owns ticket decomposition, task classification and model selection before' "$SKILL"
-require '### Foreman ticket assignment' "$SKILL"
+require 'The lead owns ticket decomposition, task classification and model selection before' "$SKILL"
+require '### Team ticket assignment' "$SKILL"
 require 'only integration' "$SKILL"
 require 'Never implement on an unapproved plan record' "$SKILL"
 require 'Plan approval, by ticket size' "$SKILL"
-require 'bbs foreman await --prereqs' "$SKILL"
+require 'bbs team await --prereqs' "$SKILL"
 require 'AWAIT=not-ready' "$SKILL"
 require 'set-pointer deferred_heavy' "$SKILL"
 require 'Never commit, push or open a PR' "$SKILL"
 forbid 'may explicitly assign only' "$SKILL"
-require 'report the mismatch to Foreman before work' "$SKILL"
+require 'report the mismatch to the lead before work' "$SKILL"
 require 'human chooses the replacement session; Autopilot does not select another model' "$SKILL"
 forbid 'model to restart the run on' "$SKILL"
 forbid 'Native subagents need no new pane' "$SKILL"
@@ -70,9 +70,9 @@ for f in "$WORKFLOWS"/*.md; do
   forbid 'automatic QA path' "$f"
 done
 
-# --- foreman selects one route per ticket before opening its worker -------
+# --- team selects one route per ticket before opening its worker -------
 require '`autopilot` does not select models' "$REF"
-require 'Foreman splits each release phase into tickets and selects one route per ticket' "$REF"
+require 'The lead splits each release phase into tickets and selects one route per ticket' "$REF"
 forbid '`autopilot` routes its planner' "$REF"
 require 'bbs agent detect --json' "$REF"
 require 'bbs agent list --json' "$REF"
@@ -106,10 +106,10 @@ POLICY_DIR="$(mktemp -d)"
 trap 'rm -rf "$BBS_BIN_DIR" "$POLICY_DIR"' EXIT
 ( cd "$ROOT" && go build -o "$BBS_BIN_DIR/bbs" ./cmd/bbs ) || { echo "FAIL: go build" >&2; exit 1; }
 
-require 'bbs foreman model' "$REF"
+require 'bbs team model' "$REF"
 require 'The CLI owns complexity-to-tier routing' "$REF"
 
-"$BBS_BIN_DIR/bbs" foreman model --dir "$POLICY_DIR" --json > "$BBS_BIN_DIR/policy.json"
+"$BBS_BIN_DIR/bbs" team model --dir "$POLICY_DIR" --json > "$BBS_BIN_DIR/policy.json"
 python3 - "$REF" "$BBS_BIN_DIR/policy.json" <<'PY'
 import json, sys
 from pathlib import Path
@@ -118,8 +118,8 @@ policy = json.loads(Path(sys.argv[2]).read_text())
 
 
 assert policy["routing"] == {
-    "simple": {"normal": "lite",  "critical": "flash", "design": "pro"},
-    "normal": {"normal": "flash", "critical": "flash", "design": "max"},
+    "simple": {"normal": "flash", "critical": "pro",   "design": "pro"},
+    "normal": {"normal": "pro",   "critical": "pro",   "design": "pro"},
     "hard":   {"normal": "pro",   "critical": "max",   "design": "max"},
 }, policy["routing"]
 assert policy["tiers"] == {

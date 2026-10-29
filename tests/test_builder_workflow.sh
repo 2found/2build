@@ -80,7 +80,7 @@ else
 fi
 
 if ! grep -q 'CHILD_BRANCH=' "$B" \
-   && grep -q 'worktree foreman prepared' "$B"; then
+   && grep -q 'worktree Team prepared' "$B"; then
   ok "builder-has-no-topology"
 else
   fail "builder-has-no-topology"
@@ -115,7 +115,7 @@ if grep -q '### Autonomous entry (`--auto`)' "$AUTOPILOT_SKILL" \
    && grep -q 'never ask anyone to type it' "$AUTOPILOT_SKILL" \
    && grep -q 'enter the work loop directly in this session' "$AUTOPILOT_SKILL" \
    && grep -q 'set-pointer' "$AUTOPILOT_SKILL" \
-   && grep -q 'invokes autopilot with' "$SCRIPT_DIR/.claude/skills/foreman/references/topology.md"; then
+   && grep -q 'invokes autopilot with' "$SCRIPT_DIR/.claude/skills/team/references/topology.md"; then
   ok "auto-entry-needs-no-goal-paste"
 else
   fail "auto-entry-needs-no-goal-paste"

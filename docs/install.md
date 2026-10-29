@@ -79,7 +79,7 @@ The installer uses the CLI checkout's skills when available; otherwise it
 downloads the matching release tag using Git. It preserves sibling references,
 workflows, scripts and data, and only replaces bundles marked as managed by
 `bbs install`. This installs skills; it does not port Claude's hooks or add
-Antigravity worker dispatch to Foreman.
+Antigravity worker dispatch to Team.
 
 OMP uses the same marketplace (`babysit` from `2found/2build`) through
 [omp plugins](https://omp.sh/docs/plugins). `bbs install omp` adds the catalog
@@ -107,9 +107,9 @@ Antigravity and OMP; it does not install Grok.
   Use the agent's native invocation or ask it to run the installed `autopilot` skill.
 
 Confirm the agent discovers Autopilot and can read its shared references before
-starting a task. Skill compatibility does not install runtime hooks or add Foreman
+starting a task. Skill compatibility does not install runtime hooks or add Team
 worker support; see [hook adapters](artifact-gated-approval.md#installation-and-agent-contracts)
-and [Foreman](foreman.md) for those capabilities.
+and [Team](team.md) for those capabilities.
 
 ## What `bbs` gives you today
 

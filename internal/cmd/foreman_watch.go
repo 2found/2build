@@ -251,7 +251,7 @@ func watchOptsFrom(kv map[string]string) (watchOpts, error) {
 // errWatchRunning marks a second watcher for the same scope finding the lock
 // held. The unscoped watcher covers every foreman; scoped watchers are isolated
 // so a manual watch of one foreman cannot block the global watcher.
-var errWatchRunning = errors.New("another bbs foreman watch is already running")
+var errWatchRunning = errors.New("another bbs team watch is already running")
 
 // spawnWatcher is the check-in half of the fallback: adopt and spawn call it
 // so every foreman gets a watcher without a human scheduling one. It is
@@ -432,7 +432,7 @@ func orphanedBatchLines(targets []foreman.Record, id string) []string {
 	}
 	var lines []string
 	for _, r := range records {
-		if watched[r.ID] || r.ManualCommand || strings.EqualFold(r.Status, "done") {
+		if watched[r.ID] || r.ManualCommand || finishedIdle(r) {
 			continue
 		}
 		b, ok := loadBatch(r.ID)
@@ -445,19 +445,27 @@ func orphanedBatchLines(targets []foreman.Record, id string) []string {
 		}
 		s.OrphanWarned = b.ID
 		watchSave(r.ID, s)
-		lines = append(lines, fmt.Sprintf("ORPHANED-BATCH foreman=%s batch=%s — its Orca terminal is not open, so the batch is not watched; run `bbs foreman adopt %s` from the Foreman's terminal", r.ID, b.ID, r.ID))
+		lines = append(lines, fmt.Sprintf("ORPHANED-BATCH foreman=%s batch=%s — its Orca terminal is not open, so the batch is not watched; run `bbs team adopt %s` from the Foreman's terminal", r.ID, b.ID, r.ID))
 	}
 	return lines
 }
 
 // watchTargets is the set to poll: one named foreman, or every registered one
-// whose Orca terminal is still open. A done foreman is never selected: it is
-// idle by design, and a nudge or status prompt would wake it for nothing.
+// whose Orca terminal is still open. A done foreman is skipped while idle (see
+// finishedIdle).
 //
 // "Open terminal", not Live() — a foreman's heartbeat is written by the
 // foreman, so a session wedged long enough to need a nudge is exactly the one
 // that has gone stale. Selecting on liveness would drop every foreman this
 // command exists to catch.
+// finishedIdle reports a done foreman with no open batch: idle by design, so a
+// nudge or status prompt would wake it for nothing. A done foreman that hands
+// over a new batch (follow-up work after complete) still owes its workers the
+// batch wake — skipping it left their questions unanswered for hours.
+func finishedIdle(r foreman.Record) bool {
+	return strings.EqualFold(r.Status, "done") && !anyOpenBatch(r.ID)
+}
+
 // foremanTerm is the key that reaches r's terminal: its handle while live, else its title.
 func foremanTerm(client *orca.Client, r foreman.Record) string {
 	return client.Pick(r.WorkspaceRef, r.WorkspaceTitle)
@@ -484,7 +492,7 @@ func watchTargets(client *orca.Client, id string) ([]foreman.Record, error) {
 	for _, r := range records {
 		// Explicit commands may be shells or other user processes, not Foreman
 		// agents; never type the Foreman prompt into those panes.
-		if r.ManualCommand || strings.EqualFold(r.Status, "done") {
+		if r.ManualCommand || finishedIdle(r) {
 			continue
 		}
 		if r.WorkspaceTitle == "" && r.WorkspaceRef == "" {

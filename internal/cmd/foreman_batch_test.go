@@ -97,7 +97,7 @@ else:
 		t.Fatalf("preflight: %v", err)
 	}
 	f.client = client
-	f.record = foreman.Record{ID: "fm-batch", WorkspaceTitle: "bbs foreman", Agent: agentName, Heartbeat: foreman.Now()}
+	f.record = foreman.Record{ID: "fm-batch", WorkspaceTitle: "bbs team", Agent: agentName, Heartbeat: foreman.Now()}
 	if err := foreman.Save(f.record); err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func (f *batchFixture) writeTask(t *testing.T, id, dispatch, status, terminal st
 
 func (f *batchFixture) save(t *testing.T) {
 	t.Helper()
-	terms := []map[string]any{{"handle": "term_0", "title": "bbs foreman", "connected": true, "worktreePath": "/repo", "agentIdentity": f.record.Agent}}
+	terms := []map[string]any{{"handle": "term_0", "title": "bbs team", "connected": true, "worktreePath": "/repo", "agentIdentity": f.record.Agent}}
 	for task, status := range f.world.Dispatch {
 		handle := "term_w_" + task
 		if slices.Contains(f.world.NoTerm, task) {
@@ -285,7 +285,7 @@ func TestBatchWakesForemanOnceWhenAllSettle(t *testing.T) {
 	}
 	sends := f.sends(t)
 	if len(sends) != 1 || !strings.Contains(sends[0], "--terminal term_0") ||
-		!strings.Contains(sends[0], "bbs foreman batch show fm-batch") {
+		!strings.Contains(sends[0], "bbs team batch show fm-batch") {
 		t.Fatalf("wake sends = %v", sends)
 	}
 	b, _ := loadBatch(f.record.ID)
@@ -384,7 +384,7 @@ func TestBatchNudgesIdleWorkerThenReportsStall(t *testing.T) {
 		line := f.tick(t, at)
 		sends := f.sends(t)
 		if !strings.Contains(line, "NUDGED-WORKER task-a") || len(sends) != 1 ||
-			!strings.Contains(sends[0], "--terminal term_w_task-a") || !strings.Contains(sends[0], "bbs foreman task done task-a") {
+			!strings.Contains(sends[0], "--terminal term_w_task-a") || !strings.Contains(sends[0], "bbs team task done task-a") {
 			t.Fatalf("nudge at %s: line=%q sends=%v", at.Sub(now), line, sends)
 		}
 	}
@@ -465,7 +465,7 @@ func TestBatchDryRunWakesOnlyForQuestionsAndTheSettledBatch(t *testing.T) {
 		f.world.Panes["term_w_"+task] = fmt.Sprintf("%s: working (%dm)", task, min)
 	}
 
-	// Two hours of work. B sits in `bbs foreman await` (its spinner moves);
+	// Two hours of work. B sits in `bbs team await` (its spinner moves);
 	// C asks for its L plan review, is answered, then asks again.
 	for min := 0; min <= 120; min += 5 {
 		busy("phase-a", min)
@@ -798,8 +798,8 @@ func TestBatchKeepsTheForemanCacheWarm(t *testing.T) {
 	}
 	line, sends := tick(51 * time.Minute)
 	if !strings.Contains(line, "KEEP-WARM fm-batch") || len(sends) != 1 ||
-		!strings.Contains(sends[0], "reply `ok`") || !strings.Contains(sends[0], "bbs foreman batch show fm-batch") ||
-		strings.Contains(sends[0], "bbs:foreman") {
+		!strings.Contains(sends[0], "reply `ok`") || !strings.Contains(sends[0], "bbs team batch show fm-batch") ||
+		strings.Contains(sends[0], "bbs:team") {
 		t.Fatalf("keep-warm: %q %v", line, sends)
 	}
 	if line, sends := tick(52 * time.Minute); line != "" || len(sends) != 0 {

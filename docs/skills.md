@@ -8,7 +8,7 @@ judgment with the current LLM by default and optional Cloudflare inference.
 | Command | Use when | Stops at |
 |---------|----------|----------|
 | `/bbs:autopilot "<requirement>"` | Build one production ticket — feature or bug fix (auto-selects build/implement/child/verify) | QA-verified change, left uncommitted |
-| `/bbs:foreman "<project>"` | Decompose and orchestrate a multi-ticket project through Orca | Each phase landed as one commit after phase QA, then released; project-wide QA at the last phase |
+| `/bbs:team "<project>"` | Hand a whole project to an autonomous product team on Orca: you confirm the spec and approve the basic design, then review the handover | A reviewed product, one commit per phase with cumulative QA, released on your go at handover; in-scope feedback fixed by the team |
 
 `builder` is autopilot's only built-in workflow; a project may add its own under
 `.claude/workflows/`.

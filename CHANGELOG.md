@@ -1,5 +1,56 @@
 # Changelog
 
+## 1.114.0 — 2026-10-29
+
+Foreman is now **Team**: an autonomous product team the human meets twice —
+at the brief (requirement, spec, basic design) and at the handover (product
+review, release go). Everything between runs without them.
+
+### Changed
+
+- **Renamed.** The skill is `team` (`/bbs:team`) and the CLI `bbs team`;
+  `/bbs:foreman`, `bbs foreman`, `--foreman <id>` and `--foreman-id` keep
+  working as aliases, and `.babysit` state, `BABYSIT_FOREMAN`, the `foreman`
+  settings key and JSON fields are unchanged. New spawns use `--team-id`, and
+  new watcher supervisors run `bbs team watch`.
+- **Two human touchpoints.** Kickoff writes the spec back to the human with
+  every question in one batch and waits for confirmation before the costly
+  basic design. Only the last phase may be `ask`: `bbs team contract` refuses
+  `ask` on an earlier phase, which is `none` (ships with the handover) or
+  `auto` (the human allowed a mid-run release at design approval).
+- **Handover and feedback.** The last phase's release request is the
+  handover: a `## Handover` report rendered by `bbs team recap` (now titled
+  "Team handover"). A redirect of that request makes `bbs team next` suggest
+  a `repair` fix round; in-scope feedback is fixed and handed over again,
+  beyond-scope feedback goes back to the design review as a contract change.
+- **Safety floor at the design.** A money/auth/irreversible-data ticket plan
+  no longer waits on a human when a human approved the project design it
+  builds on: `approval self-resolve` clears the floor for it and the lead
+  reviews it at high effort. Under a self-approved (`--auto`) design it still
+  escalates.
+- **Release floor counts `none` phases at their release.** A seed in a `none`
+  phase carries the gate of the release it ships in, so moving it from the
+  handover into an `auto` release is a lowered gate a human must approve.
+- **Basic design carries a decision-complete brief per ticket** with
+  prototype ids; tickets get it as `origin.design_doc`, `M`/`L` plans record
+  only what it leaves open, and ticket-level `design-ui` only extends the
+  parent prototype.
+- **One ticket per phase by default.** A phase splits only where contexts are
+  disjoint, each side is at least `M` and the saved wall time is named;
+  `XS`/`S` tickets skip the plan and record `ticket_size` themselves.
+- **Model routing:** `simple` re-checks run on `flash`; `simple`/`normal`
+  ticket workers, integration and `normal` basic design run on `pro`.
+- READMEs in every language recommend Autopilot by default and give the
+  reasons to hand a project to Team; the dashboard says Teams.
+
+### Fixed
+
+- **A swallowed worker question wakes the lead again.** A question counts as
+  delivered only once `bbs team batch show` printed it, so a wake typed into a
+  busy pane (an open dialog) no longer loses it when the batch re-arms; the
+  keep-warm line now asks for one `batch show` and handles pending questions
+  and stalled, exited or lost workers.
+
 ## 1.113.0 — 2026-10-28
 
 Foreman merges small tickets first and reviews them together. A 4-hour sample

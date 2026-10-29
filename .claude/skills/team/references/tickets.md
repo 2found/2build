@@ -13,25 +13,26 @@ each ticket's `pointers.workflow`.
 
 For each ticket: **select its route once → launch its ticket worker → await the
 batch → lightly verify → finish (the worker is shut down when it reports done; a follow-up starts a fresh session)**. The
-ticket worker follows autopilot's **Foreman ticket assignment** contract:
+ticket worker follows autopilot's **Team ticket assignment** contract:
 
 | Loop step (one session) | Boundary |
 |---|---|
-| Plan | `plan-draft` scoped by the ticket seed and accepted parent artifacts; XS skips |
+| Plan | `XS`/`S` build from the ticket brief and record `ticket_size`; `M`/`L` run `plan-draft` for only what the brief leaves open |
 | Plan approval | By ticket size — see [plan approval](#plan-approval-by-ticket-size) |
-| Await prerequisites | `bbs foreman await` until every prerequisite ticket settles; no-op for a root ticket |
+| Await prerequisites | `bbs team await` until every prerequisite ticket settles; no-op for a root ticket |
 | Adopt prerequisites | `await` adopts each sealed prerequisite snapshot into the worktree as uncommitted changes; resolve `CONFLICT=` files, then reconcile the plan with the adopted code |
 | Implement | Code and focused checks (typecheck, lint, unit tests of the touched code), left uncommitted |
 | Review | By size: `XS`/`S` none (the phase reviews it), `M` `review-pr low --fix`, `L` `review-pr --fix` at `medium`; a follow-up reviews its delta from `review_tree` at `low` unless it touches money, auth or irreversible-data paths |
 | QA | `L` only: `qa` with the repair loop; `XS`–`M` leave it to phase QA; deferred heavy checks only recorded |
-| Report | Readiness, handoff and exactly one `bbs foreman task done`, which refuses success until readiness passes; no commit, push or PR |
+| Report | Readiness, handoff and exactly one `bbs team task done`, which refuses success until readiness passes; no commit, push or PR |
 
 The route is chosen once per ticket (phase class `critical`, because the session
 owns its own planning and review) and reused by every follow-up; see
 [model routing](model-routing.md#assignment-routing). Create its Task with
 `--kind ticket` (`repair`, `refresh` or `redirect` for a follow-up) so `task
 done` holds the session to its gates. Each assignment includes the ticket's
-**slice** of the accepted parent artifacts — the design sections, plan and
+**slice** of the accepted parent artifacts — its ticket brief
+(`design.md#<seed key>`), the prototype ids it owns, and the plan and
 manifest rows it owns, by path and heading, with the whole documents linked
 for lookup rather than read up front: whatever a worker reads first it re-reads
 from cache on every later turn, and whole parent documents measured about 35k
@@ -40,38 +41,46 @@ acceptance IDs, its prerequisites as `<ticket>:<task>` pairs (bbs Task ids),
 owned files and contracts, review effort, deferred heavy checks, selected
 route, resource lease and required evidence, plus the
 [worker lifecycle](worker-lifecycle.md): the worker is already spawned,
-executes immediately, and reports exactly one `bbs foreman task done` per
-Dispatch. Missing inputs come through `bbs foreman task ask`, answered with
+executes immediately, and reports exactly one `bbs team task done` per
+Dispatch. Missing inputs come through `bbs team task ask`, answered with
 `task answer` while the same live session waits — not a local human prompt.
 
 ### Plan approval by ticket size
 
-The plan step flows into implementation inside the same session; only an `L`
-plan waits, and it waits on Foreman, not a human. Size is the larger of the
+The plan step flows into implementation inside the same session; `XS` and `S`
+tickets have no plan step, and only an `L` plan waits, and it waits on the lead, not a human. Size is the larger of the
 manifest's and the plan's own `ticket_size`:
 
 | Size | Plan | Approval |
 |---|---|---|
-| `XS` | none | nothing to approve |
-| `S`, `M` | ticket `plan.md` | the worker self-approves as Foreman's delegate and continues |
-| `L` | ticket `plan.md` | the worker publishes it and asks Foreman; **Foreman reviews and approves**, and the worker continues in the same session |
+| `XS`, `S` | none | nothing to approve; an `S` touching money, auth or irreversible data plans as `M` |
+| `M` | ticket `plan.md` | the worker self-approves as the lead's delegate and continues |
+| `L` | ticket `plan.md` | the worker publishes it and asks the lead; **the lead reviews and approves**, and the worker continues in the same session |
 
 The exact commands and refusal handling are in
 [project contract](project-contract.md#project-design-checkpoint).
-To review an `L` plan, Foreman reads that ticket's `plan.md` (and `design.md`
-for UI) against the parent goal, the ticket's acceptance IDs and the shared
-contracts in the manifest — not the code — then either self-resolves the
+To review an `L` plan, the lead reads that ticket's `plan.md` (and `design.md`
+for UI) against its ticket brief, the parent goal, the ticket's acceptance IDs
+and the shared contracts in the manifest — not the code; a plan that redecides
+the brief is redirected, a gap the brief left is the plan's to fill — then either self-resolves the
 approval and answers `approved`, or resolves it `redirect` and answers with
 the exact changes; the worker revises in place and asks again. After two
-redirects Foreman decides: approve with named conditions, or park the ticket.
+redirects the lead approves with named conditions; a disagreement is never a
+reason to wait on the human.
 
 A plan the worker cannot self-approve — the CLI's money/auth/irreversible-data
-floor, a `bbs foreman hold`, a spent grant bound, or a material deviation from
-accepted scope or a shared contract — also goes to Foreman. Foreman answers
-whatever its own authority covers (scope it accepted, contract choices within
-the parent design). What only a human can approve **parks** that ticket: the
+floor, a `bbs team hold`, a spent grant bound, or a material deviation from
+accepted scope or a shared contract — also goes to the lead. The lead answers
+whatever its own authority covers: scope and contract choices within the
+approved design, and — when a human approved that design — the floor, which
+it reviews at `high` effort against the brief, because the human approved
+that money, auth or data change when they approved the design that names it.
+A change beyond the approved scope is not made mid-run: the ticket builds
+what the design says, and the change goes into the handover as a proposed
+follow-up. Only a hold, a spent grant or a floor under a design the lead
+approved for itself **parks** that ticket: the
 worker reports `NEEDS_CONTEXT` with the published approval, the ticket parks,
-Foreman records the decision under `Remaining` in the parent report and
+the lead records the decision under `Remaining` in the parent report and
 relays it through the preamble's channel, and the rest of the DAG continues.
 When the approval resolves, a `redirect` follow-up starts a fresh session in
 the ticket worktree.
@@ -110,10 +119,10 @@ still open.
 
 ### Batch dispatch: one wake per phase
 
-Every coordinator wake re-reads the whole Foreman context, so wakes, not worker
+Every coordinator wake re-reads the whole lead context, so wakes, not worker
 count, dominate cost. Dependent tickets therefore launch **with** their
 prerequisites and wait inside their own sessions — planning and approving
-while the prerequisites build — instead of waking Foreman once per DAG wave.
+while the prerequisites build — instead of waking the lead once per DAG wave.
 The bbs watcher waits and supervises:
 
 1. A batch is every ticket of the open phases not yet launched, in
@@ -123,16 +132,16 @@ The bbs watcher waits and supervises:
    ready tickets and light profiles take the slots first, so a waiting
    dependent never displaces runnable work. Never hold back ready work to
    align finish times.
-2. Launch every member, run `bbs foreman batch "$FOREMAN_ID" --tasks
+2. Launch every member, run `bbs team batch "$FOREMAN_ID" --tasks
    <task,task,...>`, then **end the turn**. Do not wait, actively check
    terminals, checkpoints, git state, inbox, resource status or
    project snapshots for progress, start a polling timer, invoke `watch --once`
-   or restart a live worker. The detached `bbs foreman watch` nudges a worker
-   whose pane sits idle with its Dispatch open (bounded), holds Foreman's own
-   status/stall prompts while the batch is open, and wakes Foreman with one
+   or restart a live worker. The detached `bbs team watch` nudges a worker
+   whose pane sits idle with its Dispatch open (bounded), holds the lead's own
+   status/stall prompts while the batch is open, and wakes the lead with one
    prompt naming the batch. Workers report into the bbs task store, never
-   into Foreman's terminal, so nothing else types into Foreman mid-batch.
-3. On that prompt run `bbs foreman batch show "$FOREMAN_ID"`; it ends with
+   into the lead's terminal, so nothing else types into the lead mid-batch.
+3. On that prompt run `bbs team batch show "$FOREMAN_ID"`; it ends with
    each owned project's `NEXT=` steps.
    `BATCH_STATE=settled` (failures included): read each member's report
    from its line (ticket, kind, gate, summary, report path), then verify, decide
@@ -146,13 +155,13 @@ The bbs watcher waits and supervises:
    delivered as one wake:
    handle only that — answer each `QUESTION=` with the `ANSWER_WITH=` command
    it prints, or recover that worker (an exited, stalled or lost Dispatch is a
-   concrete failure: `bbs foreman task abandon` it and close its terminal
+   concrete failure: `bbs team task abandon` it and close its terminal
    before relaunching)
-   — then re-run `bbs foreman batch` with the same Tasks plus any new ones,
+   — then re-run `bbs team batch` with the same Tasks plus any new ones,
    and end the turn. The watcher follows a retried Task to its new Dispatch,
    outlives Orca restarts, and any `bbs` call made by a working agent restarts
    it if it died, so never babysit it.
-4. The watcher never compacts Foreman; the agent compacts itself when its
+4. The watcher never compacts the lead; the agent compacts itself when its
    context fills. Keep durable state on disk anyway, so a wake after
    compaction recovers per [runtime](runtime.md).
 
@@ -171,7 +180,7 @@ Ticket workers run on `plan`/`standard` profiles. A check needing a heavy profil
 assignment names it deferred, the worker runs every other check, records
 `DEFERRED_HEAVY=<profile>: <checks>` in its handoff and
 `pointers.deferred_heavy`, and leaves the `qa` verdict open; dependents may
-build on it once its review passes. Foreman then
+build on it once its review passes. The lead then
 dispatches one **consolidated heavy QA** per profile covering every ticket
 waiting on it:
 
@@ -192,7 +201,7 @@ verdicts. A report alone is not a passing gate. For code tickets, read current r
 and `bbs ticket readiness --action review --json`;
 require `ok` and `data.ready`, and confirm each adopted prerequisite snapshot
 is still the one that prerequisite was sealed at. For evidence-only tickets,
-check their artifacts and acceptance coverage. Foreman does not repeat code
+check their artifacts and acceptance coverage. The lead does not repeat code
 review, rerun tests or implement fixes; any gap is a `repair` follow-up naming
 the exact evidence. Changed inputs invalidate gates.
 
@@ -202,12 +211,12 @@ the exact evidence. Changed inputs invalidate gates.
 | `integrate` reports the phase does not compose | `repair` on the later ticket named: `bbs ticket adopt <earlier>`, resolve, re-run its gates |
 | A prerequisite was resealed after a dependent adopted it, or a dependent stopped on `AWAIT=not-ready` and the prerequisite now passes | `refresh` on each affected dependent session, in dependency order |
 | A contract a ticket pinned changed under it (`contract:<id>:changed`) | `refresh` on that ticket's session: re-read the contract, adapt, re-verify, re-pin |
-| `integrate` refuses: the phase changes a contract another Foreman owns | ask the owner — a ticket assigned to it ([contracts](../references/contracts.md)) — and repair the ticket to build against the version on base |
+| `integrate` refuses: the phase changes a contract another team owns | ask the owner — a ticket assigned to it ([contracts](../references/contracts.md)) — and repair the ticket to build against the version on base |
 | A parked plan approval was resolved | `redirect` on the parked session |
 | Ticket reported `BLOCKED` after its own retry budget | Fresh read-only **critical** diagnosis worker, then `repair` with its findings |
 
 A `repair` or other follow-up spec should end with "record the `review-pr` and
-`qa` gates on the final tree", so a waiver (`bbs foreman seal --waive`,
+`qa` gates on the final tree", so a waiver (`bbs team seal --waive`,
 [delivery](delivery.md)) stays the exception rather than the way a worker
 skips its gates; `task done` refuses a gated kind's success until they pass,
 so a missing gate is fixed by the warm session instead of a cold one. A member
@@ -216,7 +225,7 @@ light verification below before it is sealed. If a worker still did not
 re-record them but its handoff shows the verification, seal with `--waive` and
 a reason instead of launching a worker only to re-stamp gates.
 
-As soon as a ticket passes, seal it (`bbs foreman seal`, several tickets in
+As soon as a ticket passes, seal it (`bbs team seal`, several tickets in
 one call): its uncommitted tree
 becomes the snapshot its phase is built from. Nothing about a ticket is
 committed, pushed or PR'd on its own; a ticket reaches base only inside its
@@ -224,7 +233,7 @@ phase commit ([delivery](delivery.md)).
 
 Once a ticket's phase has landed, archive worker output, release the ticket
 session and resource leases, and close the ticket's Orca terminals/worktree
-surfaces; `bbs foreman land` removed its worktree, or reported it kept because
+surfaces; `bbs team land` removed its worktree, or reported it kept because
 it changed after the seal. Cleanup need not wait for the release. Never close
 an active/unverifiable worker or delete kept work.
 

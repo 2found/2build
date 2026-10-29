@@ -109,6 +109,18 @@ func TestForemanNextFollowsThePhaseFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	expect("wait:p1:human create:p2:extra")
+	// A handover the human sends back is a repair round, then a new handover.
+	if _, _, err := approvalResolve(storeForTicket(st.Env, "ph-p1"), "redirect", "empty state copy is wrong", "human"); err != nil {
+		t.Fatal(err)
+	}
+	if steps := expect("repair:p1: create:p2:extra"); !strings.Contains(steps[0].Why, "empty state copy is wrong") {
+		t.Fatalf("handover redirect: %+v", steps)
+	}
+	captureStdout(t, func() { err = projectReleaseCommand(st, map[string]string{"phase": "p1", "request": "1"}) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	expect("wait:p1:human create:p2:extra")
 	if _, _, err := approvalResolve(storeForTicket(st.Env, "ph-p1"), "approve", "ship", "human"); err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +140,7 @@ func TestForemanNextFollowsThePhaseFlow(t *testing.T) {
 func TestBatchShowCarriesNextSteps(t *testing.T) {
 	phasedFixture(t, []projectPhase{{ID: "p1", Title: "Tasks", Seeds: []string{"core"}, Release: "none"}})
 	out := captureStdout(t, func() { printForemanNext("fm-test") })
-	if !strings.Contains(out, "NEXT=parent bind phase=p1") || !strings.Contains(out, "$ bbs foreman bind parent --phase p1") {
+	if !strings.Contains(out, "NEXT=parent bind phase=p1") || !strings.Contains(out, "$ bbs team bind parent --phase p1") {
 		t.Fatalf("next lines = %q", out)
 	}
 	if out := captureStdout(t, func() { printForemanNext("fm-other") }); out != "" {

@@ -1,21 +1,21 @@
-# Verified Foreman projects
+# Verified Team projects
 
-Foreman now has a shared project evaluator behind its CLI and the dashboard's
+Team now has a shared project evaluator behind its CLI and the dashboard's
 **Project** tab. It checks the accepted scope, child verification, integrated
 product, delivery and cleanup before issuing a completion receipt. A heartbeat
 or a worker's `DONE` message cannot issue that receipt.
 
 ## Start and resume
 
-Use `/bbs:foreman` for a project. The existing parent design checkpoint remains;
-`--auto` delegates that review. Foreman writes `project.json` before approval,
+Use `/bbs:team` for a project. The existing parent design checkpoint remains;
+`--auto` delegates that review. Team writes `project.json` before approval,
 binds each accepted seed to a child, and uses Autopilot gate evidence for code work.
 Changes to the accepted contract invalidate its approval and integrated evidence.
 
 ```sh
-bbs foreman snapshot PARENT --json
-bbs foreman readiness PARENT --action dispatch --json
-bbs foreman readiness PARENT --action finish --json
+bbs team snapshot PARENT --json
+bbs team readiness PARENT --action dispatch --json
+bbs team readiness PARENT --action finish --json
 ```
 
 Read `data.ready` and the reasons in the response. A zero exit status means the
@@ -24,7 +24,7 @@ change ticket state. Open the parent ticket in `bbs dashboard --server` to see t
 same criteria, blockers, worker progress and delivery observations.
 
 The full contract, evidence and progress formats are in the
-[execution reference](../.claude/skills/foreman/references/execution.md).
+[execution reference](../.claude/skills/team/references/execution.md).
 Workers use the [verification producer](../.claude/skills/autopilot/references/verification.md)
 to capture the current revision before a check and archive its actual results.
 Do not convert old verdict prose into typed evidence: a child checkpoint from
@@ -34,21 +34,21 @@ before `schema_version: 2` is refused until
 ## Delivery and recovery
 
 - Seal each code child while its verified checkout still exists
-  (`bbs foreman seal <ticket>...` takes several at once). The seal snapshots the
+  (`bbs team seal <ticket>...` takes several at once). The seal snapshots the
   uncommitted tree on a hidden ref and binds policy, accepted review/QA attempts
   and archived logs. Removed worktrees do not erase that proof. A later edit to
   the tree or changed logs invalidate it.
 - One code child owns one repository. Split cross-repository work into dependent
   children; final verification names every affected repository surface.
-- Each phase is composed into one commit (`bbs foreman integrate`) and QA'd on
-  exactly that commit; `bbs foreman land` then fast-forwards local base to it.
+- Each phase is composed into one commit (`bbs team integrate`) and QA'd on
+  exactly that commit; `bbs team land` then fast-forwards local base to it.
   The last phase's run is the final integration. Product review uses a separate
   evaluator identity. Capture the tested runtime revision for preview links.
-- `bbs foreman complete PARENT --foreman ID` checks readiness and cleanup again,
+- `bbs team complete PARENT --foreman ID` checks readiness and cleanup again,
   then writes the receipt and `<parent>/recap.html` — a self-contained page of
-  the Foreman's `report.md` (its `## Recap` first) plus phases, phase commits
-  and changed files, releases, acceptance coverage and tickets. The Foreman's
-  terminal stays open afterwards; `bbs foreman recap PARENT` re-renders the
+  the team lead's `report.md` (its `## Recap` first) plus phases, phase commits
+  and changed files, releases, acceptance coverage and tickets. The team lead's
+  terminal stays open afterwards; `bbs team recap PARENT` re-renders the
   page. Landing on local base, push and release are reported separately.
 - For documentation/research projects, explicitly approve `artifacts_only` and
   seal the child workflow's durable outputs. Production commits cannot use this

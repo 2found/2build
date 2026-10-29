@@ -118,23 +118,23 @@ export function Foremen({ snapshot }: { snapshot: Snapshot }) {
       onClick={() => setSpawnOpen(true)}
       {...gateProps(reason)}
     >
-      Spawn foreman
+      Start team
     </Button>
   );
 
   return (
     <>
-      <TopBar title="Foremen" count={foremen.length} actions={spawn} warnings={snapshot.meta.warnings} />
+      <TopBar title="Teams" count={foremen.length} actions={spawn} warnings={snapshot.meta.warnings} />
       <div className="px-6 py-4 w-full" ref={containerRef}>
         <p className="mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Configure agents in Orca before starting a foreman. Resumed workers keep their recorded agent and model.
+          Configure agents in Orca before starting a team. Resumed workers keep their recorded agent and model.
         </p>
         {rows.length === 0 ? (
           <div style={FRAME_STYLE}>
             <EmptyState
               icon={<HardHat size={32} strokeWidth={1.5} />}
-              title="No foremen"
-              body="A foreman watches the tickets you assign to it and dispatches a worker for each one."
+              title="No teams"
+              body="A team takes a project from brief to handover: it designs, builds, reviews and QAs the tickets you assign to it, and asks you only to approve the design and the release."
               action={spawn}
             />
           </div>
@@ -142,7 +142,7 @@ export function Foremen({ snapshot }: { snapshot: Snapshot }) {
           <div className="overflow-hidden" style={FRAME_STYLE} role="table">
             <DenseRow columns={COLUMNS} header role="row">
               <span />
-              <HeaderCell>Foreman</HeaderCell>
+              <HeaderCell>Team</HeaderCell>
               <HeaderCell>Owner</HeaderCell>
               <HeaderCell>Workspace dir</HeaderCell>
               <HeaderCell>Orca</HeaderCell>
@@ -335,7 +335,7 @@ function RetireModal({
         <div className="mt-3">
           <p className="text-sm" style={{ color: 'var(--status-blocked-text)' }}>
             {openTickets.length === 1 ? 'One unfinished ticket is' : `${openTickets.length} unfinished tickets are`} assigned
-            to it. Retiring leaves {openTickets.length === 1 ? 'it' : 'them'} assigned to a foreman that no longer
+            to it. Retiring leaves {openTickets.length === 1 ? 'it' : 'them'} assigned to a team that no longer
             exists, so nothing will dispatch {openTickets.length === 1 ? 'it' : 'them'} until you reassign:
           </p>
           <ul className="mt-1 font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -405,7 +405,7 @@ function SpawnModal({ open, onClose, defaultDir }: { open: boolean; onClose: () 
   }, [open, defaultDir]);
 
   const submit = async () => {
-    const ok = await run(() => spawnForeman(dir.trim(), id.trim()), `Foreman spawned in ${dir.trim()}`);
+    const ok = await run(() => spawnForeman(dir.trim(), id.trim()), `Team started in ${dir.trim()}`);
     if (ok) onClose();
   };
 
@@ -413,7 +413,7 @@ function SpawnModal({ open, onClose, defaultDir }: { open: boolean; onClose: () 
     <Modal
       open={open}
       onClose={onClose}
-      title="Spawn foreman"
+      title="Start team"
       actions={
         <>
           <Button size="lg" onClick={onClose}>Cancel</Button>
@@ -425,7 +425,7 @@ function SpawnModal({ open, onClose, defaultDir }: { open: boolean; onClose: () 
     >
       <Field
         label="Workspace folder"
-        hint="The repo checkout the foreman works in. An Orca terminal is created rooted here."
+        hint="The repo checkout the team works in. An Orca terminal is created rooted here."
       >
         {fid => (
           <input
@@ -438,7 +438,7 @@ function SpawnModal({ open, onClose, defaultDir }: { open: boolean; onClose: () 
           />
         )}
       </Field>
-      <Field label="Foreman id" hint="Prefilled with a fresh name — rename it if you want one you'll recognize.">
+      <Field label="Team id" hint="Prefilled with a fresh name — rename it if you want one you'll recognize.">
         {fid => (
           <input
             id={fid}

@@ -1,6 +1,6 @@
 ---
 name: autopilot
-description: "Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; use foreman for multi-ticket projects."
+description: "Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; the default for any size of change, including a day-long one. Use team only for phased releases, independent phase verification or parallel work on disjoint parts."
 ---
 
 > **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.
@@ -13,10 +13,10 @@ description: "Deliver one ticket end-to-end from a requirement or accepted plan 
 A **goal proxy**: the skill owns init — durable ticket state, requirement,
 plan — and the harness's work loop owns execution (`/goal` where supported),
 with persisted `review-pr`/`qa` verdicts as the terminal condition. Gates
-are proportional: under Foreman an `XS`/`S` ticket leaves `review-pr` and
-`qa` to its phase and an `M` ticket leaves `qa` (step 5 of the Foreman ticket
+are proportional: under Team an `XS`/`S` ticket leaves `review-pr` and
+`qa` to its phase and an `M` ticket leaves `qa` (step 5 of Team ticket
 assignment); a follow-up already verified on its final tree may be sealed by
-`foreman` with `bbs foreman seal --waive` and a reason. Record the gates your
+`team` with `bbs team seal --waive` and a reason. Record the gates your
 size owns, but do not invent work to satisfy the ones it defers. Keep
 state on disk; safe to re-enter until a terminal status prints.
 **Autopilot is an assistant, not an orchestrator.** It works on the checkout
@@ -24,9 +24,9 @@ it was started in and never manages its own git topology: no branch cutting,
 no worktrees, no commit, no push, no PR. Its work stays **uncommitted** in the
 checkout: gates bind the tree's content (`tree_digest`), so nothing needs a
 commit to be proven, and the checkpoint carries crash-resume. Who commits is
-decided above it — the human after a direct run, or `foreman`, which seals each
+decided above it — the human after a direct run, or `team`, which seals each
 ticket and lands **one commit per phase**
-([git flow](../shared/git-flow.md)). Foreman decomposes the project,
+([git flow](../shared/git-flow.md)). The lead decomposes the project,
 creates the worktrees, starts one autopilot assistant per ticket, and
 integrates, verifies and lands each phase. There is no parent/orchestrate exception inside
 autopilot.
@@ -63,7 +63,7 @@ for a required browser journey merely because the browser is unavailable.
 Autopilot advances **one evidence-bounded ticket** through one workflow. It
 never recursively invokes itself or turns a follow-up it noticed into accepted
 scope: it names the follow-up and its evidence in the handoff, and the human
-or a foreman decides whether to open a ticket for it.
+or a Team lead decides whether to open a ticket for it.
 ## Harness and terminal portability
 - Follow [the preamble](../shared/preamble.md) and
   [Auto-Decision Framework](../shared/auto-decision-framework.md) —
@@ -113,7 +113,7 @@ or a foreman decides whether to open a ticket for it.
    exports it inside the same shell invocation). `--no-branch` keeps the
    ticket on the checkout it was started in — autopilot never cuts a branch
    for itself and never diverts to a worktree. If the current checkout is
-   already a ticket worktree (a foreman put you here), that is fine: work in
+   already a ticket worktree (Team put you here), that is fine: work in
    place. When seeding `requirement.md`
    from free text, list open decisions explicitly instead of papering over
    them ([finding-unknowns](../shared/finding-unknowns.md)).
@@ -123,11 +123,11 @@ or a foreman decides whether to open a ticket for it.
    there.
    Stop here on `--stop-after=requirement`.
 3. A parent carrying `manifest.md` is a multi-ticket project: stop init and
-   hand it to `foreman`; never dispatch or merge its children here. Otherwise
+   hand it to `team`; never dispatch or merge its children here. Otherwise
    run `builder`, unless the invocation names a project workflow
    (`.claude/workflows/<name>.md`). Several *independent* requirements in one
    invocation → don't batch here: autopilot runs one ticket end-to-end;
-   parallel dispatch belongs to the `foreman` skill (one visible worker per
+   parallel dispatch belongs to the `team` skill (one visible worker per
    ticket, each running autopilot). `NEEDS_CONTEXT` only when there is no ticket,
    requirement, plan, manifest, or branch work at all.
 4. Seed the plan when the routed mode needs one (build or child mode, size
@@ -151,7 +151,7 @@ an external process: a routed planner is a second model, a second usage bill,
 and a second context to reconcile, selected by a run that can see neither its
 cost nor its state. There is no `--planner` flag and no per-step model
 selector. The planning model is a **launch** decision: the human chooses the
-session for a direct run; Foreman selects the model before opening a ticket worker.
+session for a direct run; the lead selects the model before opening a ticket worker.
 Autopilot does not select a model tier or reroute the session. The launched model
 executes every assigned step in this session.
 
@@ -168,15 +168,15 @@ Then inspect the artifacts, confirm they belong to this attempt, and read
 not a plan: re-run it in-session once, naming the gap. If the plan is
 inadequate because this session's model cannot carry it, that is a launch
 problem rather than a dispatch problem — stop with `NEEDS_CONTEXT` naming the
-observed capability or artifact gap and durable resume pointers. Foreman or the
+observed capability or artifact gap and durable resume pointers. The lead or the
 human chooses the replacement session; Autopilot does not select another model.
 Never silently replace an accepted plan. Record the session model, artifact
 paths, and result in the checkpoint/handoff.
 ## The work loop (`/goal`)
 ### Autonomous entry (`--auto`)
 `--auto` means nobody will paste a `/goal` block or answer a prompt: not a
-human, and not an orchestrator woken just to type one. A Foreman ticket
-assignment, `SPAWNED=true` and an open Foreman Dispatch imply it.
+human, and not an orchestrator woken just to type one. A Team ticket
+assignment, `SPAWNED=true` and an open Team Dispatch imply it.
 Record it once with `BABYSIT_TICKET="$TICKET" bbs ticket set-pointer
 autopilot_auto true` so re-entry and resume keep it. Under it:
 
@@ -193,7 +193,7 @@ autopilot_auto true` so re-entry and resume keep it. Under it:
 4. Init's design checkpoint is judged in-session: run
    `../semantic-decision/skill.md` kind `human-review` on the plan/prototype
    and continue on `proceed`; repair `revise` once in place. `--stop-after`,
-   invoker-held approvals (a Foreman plan approval) and the decision floors
+   invoker-held approvals (a lead plan approval) and the decision floors
    still stop the run; a genuine User Challenge ends it with a
    `NEEDS_CONTEXT` block through the invocation channel rather than a wait.
 
@@ -206,7 +206,7 @@ the block in the spawn prompt).
 Without `/goal` support, skip this paste/stop protocol and continue execution
 as specified above; `developer` alone never requires a `/goal` handoff.
 If `SPAWNED` is already true, you are that process: follow Autonomous entry.
-An open Foreman Dispatch (the launch prompt names it; `bbs foreman task show`
+An open Team Dispatch (the launch prompt names it; `bbs team task show`
 confirms it) is equivalent evidence even when a legacy state echo says
 `SPAWNED=false`: honor the Task spec's effective `AGENT_ROLE=orca`, execute in
 this turn, and use the spec's worker lifecycle instead of producing a
@@ -272,20 +272,20 @@ inline. Use `SKILL_REF` in prompts: Claude Code `/bbs:<name>`, Codex
 Planning: `plan-draft`. Coding: `implement`. Landing review: `review-pr`.
 QA: `qa` (no runnable target → record the fallback, use `browse` or a narrow
 local check). Debug: `investigate`. Committing and closing out is the human's
-(`create-pr`) or foreman's phase landing — never autopilot's.
+(`create-pr`) or the lead's phase landing — never autopilot's.
 ### Managed project evidence
 
 Read [verification.md](references/verification.md) before the review/QA loop.
 Its producer captures each gate's subject before checks and archives results
 afterwards; it is the only writer of gate evidence and of `verdicts/review-pr.md`
-and `verdicts/qa.md`. Under Foreman, keep parent acceptance IDs, dependency
+and `verdicts/qa.md`. Under Team, keep parent acceptance IDs, dependency
 revisions, and write scope in the durable plan/handoff; report milestones and
-bounded waits through `bbs foreman progress`. These are evidence
+bounded waits through `bbs team progress`. These are evidence
 responsibilities, not topology or sibling orchestration.
 
-### Foreman ticket assignment
+### Team ticket assignment
 
-An open Foreman Dispatch (`bbs foreman task show <task> --spec`) assigns either one
+An open Team Dispatch (`bbs team task show <task> --spec`) assigns either one
 **project ticket** — one ticket of a release phase, in its own worktree — or a
 **follow-up** on an existing ticket. Either way the whole assignment runs in this
 session on its launched model: everything it loads stays warm in the prompt
@@ -300,29 +300,42 @@ steps and ends when the ticket is ready for its phase's integration:
    accepted parent plan and design, which constrain it — read the sections the
    assignment names for this ticket, not the whole parent documents, since
    every later turn re-reads what you load first; reuse a current ticket
-   plan on resume; an XS ticket skips this step and step 2. Plan against the
+   plan on resume. An `XS` or `S` ticket skips this step and step 2: run
+   `bbs ticket set-pointer ticket_size <assigned size>` (the phase-review
+   deferral reads it, and an unset size counts as `M`), pin its contracts as
+   below, and build straight from the ticket brief. An `S` seed that
+   touches money, auth or irreversible data, or that its brief leaves
+   undecided, plans and approves as `M`. Plan against the
    prerequisites' accepted contracts and their `plan.md`; their code may not
    exist yet. For each interface contract the ticket builds against
    (`.babysit/contracts.yaml`), `bbs contract pin <id>`; a ticket that
    provides one changes its files first and runs `bbs contract check <id>`
    before reporting ([contracts](../shared/contracts.md)).
+
+   The ticket brief (`origin.design_doc`) and the parent prototype it links
+   are the accepted design: an `M`/`L` plan records only what the brief left
+   open and any deviation, without restating it. Ticket-level `design-ui`
+   only extends the parent prototype with a state the brief missed, linking
+   the parent id; never a new layout. Changing a brief's decision —
+   interface shape, data model, scope or a prototype flow — or needing a
+   screen the prototype lacks is a material deviation for the lead (step 2).
 2. **Plan approval, by ticket size** — the larger of the assigned size and
    the plan's `ticket_size`. Judge the plan with
    `../semantic-decision/skill.md` kind `human-review` against the accepted
    parent artifacts, write the five-line rubric with named evidence and run
-   `bbs ticket approval publish --kind plan`. `S`/`M`: resolve it yourself
-   with `bbs ticket approval self-resolve --foreman <assigned id>
+   `bbs ticket approval publish --kind plan`. `M` (or an `S` planned as `M`): resolve it yourself
+   with `bbs ticket approval self-resolve --team <assigned id>
    --rubric-file <path>`; exit 4 means repair the plan or rubric here, at most
    twice. `L`, or exit 3/5, a third refusal, a `needs-human`/`blocked`
    judgment, or a material deviation from accepted scope or a shared
-   contract: `bbs foreman task ask <task> --body` Foreman with the artifact
+   contract: `bbs team task ask <task> --body` the lead with the artifact
    paths and wait in this session (exit 4 is a timeout: `ask --resume
    <question-id>`).
    `approved` continues; a redirect is revised here and asked again; a park
    answer ends the Dispatch with `NEEDS_CONTEXT`.
    Never implement on an unapproved plan record.
 3. **Await prerequisites.** With prerequisites assigned, run
-   `bbs foreman await --prereqs <ticket>:<task>,...` in the foreground and
+   `bbs team await --prereqs <ticket>:<task>,...` in the foreground and
    repeat it on `AWAIT=timeout`. `AWAIT=not-ready` ends the Dispatch: report
    `BLOCKED` naming the prerequisite.
 4. **Adopt prerequisites.** On `AWAIT=ready`, `await` has already adopted
@@ -361,7 +374,7 @@ steps and ends when the ticket is ready for its phase's integration:
 6. **Report.** Require `bbs ticket readiness --action review --json` (`push`
    when heavy checks are deferred) for the gates your size owns, persist the checkpoint, handoff and gate
    evidence per `references/verification.md`, and report exactly once with
-   `bbs foreman task done`; it re-checks readiness and refuses success with
+   `bbs team task done`; it re-checks readiness and refuses success with
    `GATE=not-ready` and the missing reasons, or with `GATE=not-composing` and
    a `CONFLICT_WITH=<sibling>: <files>` line when a phase sibling already
    reported work this tree conflicts with (`bbs ticket adopt <sibling>`,
@@ -374,7 +387,7 @@ A follow-up carries a new Dispatch and names its kind and trigger evidence:
 `repair` fixes the named findings or failures, `refresh` re-runs steps 3–4
 for the named prerequisites (adopting them — never a rebase, which moves the
 base and reopens the whole review) (or re-reads a changed contract, adapts and
-re-pins it), `redirect` resumes from step 2 with Foreman's
+re-pins it), `redirect` resumes from step 2 with the lead's
 answer — each then re-runs every gate the change invalidates. A `repair`
 from phase integration QA names the failing criterion and the tested phase
 commit; reproduce it in this ticket's worktree. A `repair` because the phase
@@ -383,17 +396,17 @@ resolve every `CONFLICT=` file, rerun the affected gates. A consolidated heavy-Q
 several tickets and writes each one's `qa` verdict with
 `BABYSIT_TICKET=<ticket>` on that ticket's assigned head, without code fixes.
 
-Foreman owns ticket decomposition, task classification and model selection before
+The lead owns ticket decomposition, task classification and model selection before
 launch. Honor its assigned model; record the supplied routing metadata and
 observed launch settings in the handoff. If launch evidence conflicts with
-the assignment, report the mismatch to Foreman before work; never select a
+the assignment, report the mismatch to the lead before work; never select a
 replacement model or start a worker to fix it.
 Keep each assigned skill in this session on its launched model; never delegate
 the whole ticket, dispatch sibling Tasks or switch models. The review skill's
 internal analysis fan-out and the QA executor subagent remain allowed under
 Current-session gates below.
 Work beyond the ticket — another ticket's files or contracts, scope one
-coherent plan cannot hold, a scope change — is a handoff to Foreman with a
+coherent plan cannot hold, a scope change — is a handoff to the lead with a
 proposed split or change request, never absorbed silently. This explicit envelope takes
 precedence over the workflow files' mode selection and `/goal` handoff;
 ordinary direct autopilot invocations retain the full current-session loop.
@@ -539,7 +552,7 @@ Autopilot owns the lifecycle of every external process its steps start. Keep an
 ownership ledger in the checkpoint/handoff as processes are launched: exact
 browser session and namespace, supervised server/watcher/recorder/proxy
 handles, simulator UDIDs and drivers. Record the relevant pre-existing state
-first; a shared dev server, human browser, or Foreman-owned leased surface is
+first; a shared dev server, human browser, or Team-owned leased surface is
 not yours to stop.
 
 On every terminal path — success, `NEEDS_CONTEXT`, `BLOCKED`, or a failed step
@@ -566,7 +579,7 @@ does not replace normal cleanup.
 - Full reasoning depth at every step; requirement and plan are single-pass on
   wording, not on thinking. `review-pr` and `qa` are the gates — the
   evidence `bbs autopilot verification record` accepts for them is what the
-  push/PR hook and `foreman seal` check. They are proportional: Foreman may
+  push/PR hook and `bbs team seal` check. They are proportional: the lead may
   seal a simple or already-verified ticket with `--waive` and a reason, so
   re-record them after any change when you can, but a missing gate is a
   concern to report, not a reason to stall. `review-pr` only reports findings,
@@ -576,7 +589,7 @@ does not replace normal cleanup.
   unborn repo, and reading history.
   Never commit, push, stash, reset, rebase or open a PR, and never cut a
   branch for itself — the work stays uncommitted for the human (`create-pr`)
-  or the dispatching foreman (one commit per phase). Step skills edit the
+  or the dispatching Team lead (one commit per phase). Step skills edit the
   working tree and never commit either.
 - `INVOKER=developer`: lead every stop — handoff, `NEEDS_CONTEXT`, final
   status — with one plain-language sentence saying what happened and the
@@ -600,6 +613,6 @@ STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: PLANNED | BUILT | FIXED | HANDOFF
 SUMMARY: <acceptance results, final revision, review/QA evidence, release readiness>
 CLEANUP: <owned processes stopped and verified; pre-existing/shared resources retained>
-NEXT: commit it, or /bbs:create-pr for the verified change — under a foreman,
-nothing: Foreman seals the ticket and lands its phase
+NEXT: commit it, or /bbs:create-pr for the verified change — under a team lead,
+nothing: the lead seals the ticket and lands its phase
 ```

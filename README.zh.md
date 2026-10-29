@@ -36,7 +36,7 @@
 说明是否需要重启，并给出适合当前 agent 的准确 Autopilot 调用方式，让我运行第一个小任务。
 ```
 
-需要受支持的 coding agent 及其现有 model 访问权限。Claude Code 和 Codex 还需要 CLI 在 PATH 中。2build 无需单独的 model 账户；agent 的正常使用费用仍适用。**只有 Foreman 需要 Orca。** 参见[安装与排错](docs/install.md)（英文）。
+需要受支持的 coding agent 及其现有 model 访问权限。Claude Code 和 Codex 还需要 CLI 在 PATH 中。2build 无需单独的 model 账户；agent 的正常使用费用仍适用。**只有 Team 需要 Orca。** 参见[安装与排错](docs/install.md)（英文）。
 
 <details>
 <summary>想手动运行命令？macOS 或 Linux 上的 Homebrew</summary>
@@ -95,30 +95,46 @@ bbs install
 
 ## 按工作内容选择
 
-`/bbs:autopilot` 将一个 ticket(功能或 bug 修复)推进到 plan、review 和 QA。`/bbs:foreman` 运行多 ticket 项目。专项工作可直接调用 skill。
+`/bbs:autopilot` 在一个 session 中把一项工作(bug 修复、功能,或需要一整天的长变更)推进到 plan、review 和 QA。从这里开始:一个长 session 让 context 保持温热,token 消耗最少。只有需要单个 session 给不了的东西时,才把整个项目交给 `/bbs:team`([见下文](#team))。专项工作可直接调用 skill。
 
 在 [skill 索引](docs/skills.md)中查阅独立 skill 和 workflow 示例。
 
 <a id="配置-foreman"></a>
 <a id="foreman多-ticket-项目"></a>
 
-## 更大的项目：Foreman
+<a id="team"></a>
 
-对于存在依赖的多个 ticket，[Foreman](docs/foreman.md) 通过 [Orca](https://www.onorca.dev) 规划项目、用 worktree 隔离子 ticket、调度就绪任务并执行项目级 QA。默认先由你审阅父项目计划/设计，再派发生产工作；显式 `--auto` 将该审阅委托给 worker。worker 从不提交；每个 phase 在 phase QA 通过后作为一个提交落地。
+## Team:承接整个项目的产品团队
+
+[Team](docs/team.md) 像你雇来的一支产品团队。你只与它碰面两次:
+
+1. **委托** — 你给出需求,确认团队写回的 spec(问题一次问完,之后不再提问),并审批 basic design:架构、整个产品的 prototype 和 release phase。
+2. **交付** — 你连同证据一起审阅完成的产品,然后批准 release 或给出反馈。spec 范围内的反馈由团队自行修复后重新交付,无需再开会;超出 spec 的需求会作为 design 变更回到你这里。
+
+在这两次之间,团队自行完成 design、build、review、QA 和 integrate(每个 phase 是本地 base 上的一个提交),不会问你任何问题。worker 从不提交,Team 需要 [Orca](https://www.onorca.dev)。`/bbs:foreman` 仍可作为 alias 使用。
+
+它比 Autopilot 更贵(一个 lead session、一个 design session,以及每个 phase 一个 integration session),所以要有理由才用:
+
+- **你想放手** — 只参与两次而不是驾驶一个 session,最后拿到已 review、可 release 的产品。
+- **按 phase 发布** — 在审批 design 时允许的分阶段生产发布,而不是最后一次性上线大改动。
+- **独立验证** — 由一个新 session review 和 QA 每个 phase;Autopilot 在写代码的同一个 session 里 review。
+- **并行处理互不相交的部分** — 通过冻结的 contract 连接的独立 service 或 repo,在等待时间重要时并行推进。
+
+如果都不符合,单次 Autopilot 运行(哪怕要一整天)更快也更省。
 
 <details>
 <summary>CLI 与配置详情</summary>
 
 ## Skill 与 CLI
 
-Skill 是面向 agent 的工作流；`bbs` 是它们使用的配套 CLI。`/bbs:foreman` 运行项目协调器；`bbs foreman` 管理 model 策略查询、持久化的 Foreman 记录、phase（`seal`、`integrate`、`land`、`release`）、下一步建议和报告；`bbs contract` 管理并行 ticket 所依赖的接口契约。`/bbs:autopilot` 运行单 ticket 工作流；`bbs autopilot` 提供 checkpoint 和状态辅助命令。`bbs ticket` 管理 ticket 身份、DAG 关系、证据、测试环境租约和接收已 seal 的工作。
+Skill 是面向 agent 的工作流；`bbs` 是它们使用的配套 CLI。`/bbs:team` 运行产品团队；`bbs team`(alias `bbs foreman`)管理 model 策略查询、持久化的 lead 记录、phase（`seal`、`integrate`、`land`、`release`）、下一步建议和报告；`bbs contract` 管理并行 ticket 所依赖的接口契约。`/bbs:autopilot` 运行单 ticket 工作流；`bbs autopilot` 提供 checkpoint 和状态辅助命令。`bbs ticket` 管理 ticket 身份、DAG 关系、证据、测试环境租约和接收已 seal 的工作。
 
 常用 CLI 入口：
 
 ```bash
 bbs dashboard
-bbs foreman report <parent-ticket>
-bbs foreman next <parent-ticket>
+bbs team report <parent-ticket>
+bbs team next <parent-ticket>
 bbs ticket dag <parent-ticket>
 bbs autopilot snapshot --json
 bbs autopilot recover --json
@@ -143,7 +159,7 @@ bbs config set semantic_decision_model clef-flash  # or clef
 
 ## 文档（英文）
 
-[安装与排错](docs/install.md) · [选择 skill](docs/skills.md) · [查看进度](docs/companion-cli.md) · [协调项目](docs/foreman.md)
+[安装与排错](docs/install.md) · [选择 skill](docs/skills.md) · [查看进度](docs/companion-cli.md) · [协调项目](docs/team.md)
 
 对于 coding agent，[llms.txt](llms.txt) 直接链接到 Markdown 指南和 runtime 约定。
 

@@ -37,7 +37,7 @@ báo rõ, không kết luận thành công. Cho tôi biết có cần khởi đ�
 lời gọi Autopilot cho agent của tôi để chạy tác vụ nhỏ đầu tiên.
 ```
 
-Bạn cần coding agent được hỗ trợ và quyền dùng model sẵn có của nó. Claude Code và Codex cần CLI trên PATH. 2build không yêu cầu tài khoản model riêng; chi phí sử dụng agent vẫn áp dụng. **Chỉ Foreman cần Orca.** Xem [cài đặt và xử lý lỗi](docs/install.md) (tiếng Anh).
+Bạn cần coding agent được hỗ trợ và quyền dùng model sẵn có của nó. Claude Code và Codex cần CLI trên PATH. 2build không yêu cầu tài khoản model riêng; chi phí sử dụng agent vẫn áp dụng. **Chỉ Team cần Orca.** Xem [cài đặt và xử lý lỗi](docs/install.md) (tiếng Anh).
 
 <details>
 <summary>Muốn tự chạy lệnh? Homebrew trên macOS hoặc Linux</summary>
@@ -96,30 +96,46 @@ Bắt đầu với 2build cho công việc engineering; tìm hiểu các sản p
 
 ## Chọn theo công việc
 
-`/bbs:autopilot` đưa một ticket — tính năng hoặc sửa bug — qua plan, review và QA. `/bbs:foreman` chạy dự án nhiều ticket. Việc nhỏ, chuyên biệt thì gọi skill trực tiếp.
+`/bbs:autopilot` đưa một phần việc — sửa bug, tính năng, hay một thay đổi dài cả ngày — qua plan, review và QA trong một session. Hãy bắt đầu từ đây: một session dài giữ ngữ cảnh luôn nóng và tốn ít token nhất. Chỉ giao cả dự án cho `/bbs:team` khi bạn cần điều mà một session không làm được ([bên dưới](#team)). Việc nhỏ, chuyên biệt thì gọi skill trực tiếp.
 
 Xem [danh mục skill](docs/skills.md) để chọn skill riêng và ví dụ workflow.
 
 <a id="cấu-hình-foreman"></a>
 <a id="foreman-dự-án-nhiều-ticket"></a>
 
-## Dự án lớn hơn: Foreman
+<a id="team"></a>
 
-Với nhiều ticket phụ thuộc nhau, [Foreman](docs/foreman.md) dùng [Orca](https://www.onorca.dev) để lên kế hoạch tổng thể, tách ticket con vào worktree, giao việc đã sẵn sàng và QA toàn dự án. Mặc định bạn duyệt kế hoạch/thiết kế trước khi giao việc triển khai; `--auto` giao bước duyệt đó cho worker. Worker không bao giờ commit; mỗi phase vào base thành đúng một commit sau phase QA.
+## Team: một team product cho cả dự án
+
+[Team](docs/team.md) làm việc như một team product bạn thuê. Bạn chỉ gặp team hai lần:
+
+1. **Giao việc** — bạn đưa yêu cầu, xác nhận spec team viết lại (một lượt câu hỏi, sau đó không hỏi nữa) và duyệt basic design: kiến trúc, prototype của cả sản phẩm và các phase release.
+2. **Bàn giao** — bạn review sản phẩm đã hoàn thành cùng bằng chứng, rồi chốt release hoặc gửi góp ý. Góp ý trong phạm vi spec được team tự sửa rồi bàn giao lại, không cần họp thêm; yêu cầu vượt spec quay về thành thay đổi design.
+
+Giữa hai lần đó, team tự design, build, review, QA và integrate — mỗi phase là một commit trên base local — và không hỏi bạn gì. Worker không bao giờ commit, và Team cần [Orca](https://www.onorca.dev). `/bbs:foreman` vẫn chạy như alias.
+
+Team tốn hơn Autopilot — thêm một session lead, một session design và một session integration cho mỗi phase — nên chỉ dùng khi có lý do:
+
+- **Bạn muốn rời bàn phím** — hai lần chạm thay vì lái một session, và cuối cùng nhận một sản phẩm đã review, release được.
+- **Release theo phase** — các bản production tăng dần mà bạn cho phép ngay lúc duyệt design, thay vì một thay đổi lớn ở cuối.
+- **Kiểm tra độc lập** — một session mới review và QA từng phase; Autopilot review ngay trong session đã viết code.
+- **Làm song song các phần tách rời** — các service hoặc repo riêng nối nhau bằng một contract đã chốt, khi thời gian chờ là quan trọng.
+
+Không có lý do nào ở trên thì một lần chạy Autopilot, kể cả dài cả ngày, nhanh và rẻ hơn.
 
 <details>
 <summary>Chi tiết CLI và cấu hình</summary>
 
 ## Skill và CLI
 
-Skill là các quy trình dành cho agent; `bbs` là CLI hỗ trợ chúng. `/bbs:foreman` chạy bộ điều phối dự án; `bbs foreman` quản lý tra cứu chính sách model, bản ghi Foreman bền vững, các phase (`seal`, `integrate`, `land`, `release`), gợi ý bước tiếp theo và báo cáo; `bbs contract` quản lý các quy ước giao diện mà các ticket song song dựa vào. `/bbs:autopilot` chạy quy trình một ticket; `bbs autopilot` cung cấp các công cụ checkpoint và trạng thái. `bbs ticket` quản lý danh tính ticket, quan hệ DAG, bằng chứng, khóa môi trường kiểm thử và nhận công việc đã seal.
+Skill là các quy trình dành cho agent; `bbs` là CLI hỗ trợ chúng. `/bbs:team` chạy team product; `bbs team` (alias `bbs foreman`) quản lý tra cứu chính sách model, bản ghi lead bền vững, các phase (`seal`, `integrate`, `land`, `release`), gợi ý bước tiếp theo và báo cáo; `bbs contract` quản lý các quy ước giao diện mà các ticket song song dựa vào. `/bbs:autopilot` chạy quy trình một ticket; `bbs autopilot` cung cấp các công cụ checkpoint và trạng thái. `bbs ticket` quản lý danh tính ticket, quan hệ DAG, bằng chứng, khóa môi trường kiểm thử và nhận công việc đã seal.
 
 Một số lệnh CLI hữu ích:
 
 ```bash
 bbs dashboard
-bbs foreman report <parent-ticket>
-bbs foreman next <parent-ticket>
+bbs team report <parent-ticket>
+bbs team next <parent-ticket>
 bbs ticket dag <parent-ticket>
 bbs autopilot snapshot --json
 bbs autopilot recover --json
@@ -144,7 +160,7 @@ bbs config set semantic_decision_model clef-flash  # or clef
 
 ## Tài liệu (tiếng Anh)
 
-[Cài đặt và xử lý lỗi](docs/install.md) · [Chọn skill](docs/skills.md) · [Xem tiến độ](docs/companion-cli.md) · [Điều phối dự án](docs/foreman.md)
+[Cài đặt và xử lý lỗi](docs/install.md) · [Chọn skill](docs/skills.md) · [Xem tiến độ](docs/companion-cli.md) · [Điều phối dự án](docs/team.md)
 
 Với coding agent, [llms.txt](llms.txt) dẫn thẳng đến hướng dẫn Markdown và các quy ước runtime.
 

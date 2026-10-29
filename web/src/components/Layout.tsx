@@ -21,7 +21,7 @@ import { pendingApprovals } from './WaitingOnYou';
 const PRIMARY_ITEMS = [
   { hash: '#/',              label: 'Home',         kbd: 'H', Icon: HomeIcon },
   { hash: '#/tickets',       label: 'Tickets',      kbd: 'T', Icon: Inbox },
-  { hash: '#/foremen',       label: 'Foremen',      kbd: 'F', Icon: HardHat },
+  { hash: '#/foremen',       label: 'Teams',        kbd: 'F', Icon: HardHat },
 ] as const;
 
 const MORE_ITEMS = [

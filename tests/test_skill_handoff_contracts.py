@@ -26,7 +26,7 @@ def test_orca_contract_is_owned_and_injected_only_by_foreman():
             assert not re.search(r'orca|worker_done|skills/orchestration',
                                  path.read_text(), re.IGNORECASE), path
     assert 'references/worker-lifecycle.md' in skill('foreman')
-    adapter = (SKILLS / 'foreman/references/worker-lifecycle.md').read_text()
+    adapter = (SKILLS / 'team/references/worker-lifecycle.md').read_text()
     for contract in ('every worker Task', 'SPAWNED=true', 'AGENT_ROLE=orca',
                      'bbs foreman task ask', 'bbs foreman task done',
                      'Send no status messages',

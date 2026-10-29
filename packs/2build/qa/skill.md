@@ -62,8 +62,8 @@ Exercise the application like a user and leave reproducible evidence.
    UDID, Appium or other driver). Prefer supervised process handles over
    detached shell jobs. Ownership, not process name, decides what cleanup may
    stop.
-   **Foreman integration mode:** a Task explicitly assigned a phase's
-   integration worktree (detached at the phase commit `bbs foreman integrate`
+   **Team integration mode:** a Task explicitly assigned a phase's
+   integration worktree (detached at the phase commit `bbs team integrate`
    built) plus the cumulative acceptance (every criterion of this phase and
    earlier ones) tests that exact commit read-only, and runs
    `bbs contract check <id>` there for each contract the phase changed
@@ -71,8 +71,8 @@ Exercise the application like a user and leave reproducible evidence.
    clean at that commit before and after testing. Do not edit the
    integration worktree, commit or switch revisions while testing. Once the
    attempt is recorded, the session fixes small findings in the owning
-   ticket's worktree per Foreman's phases reference (`seal --fixup`,
-   integrate again, re-test what changed); report the rest to Foreman for
+   ticket's worktree per the lead's phases reference (`seal --fixup`,
+   integrate again, re-test what changed); report the rest to the lead for
    ticket repairs; persist evidence/verdict on the parent.
    Inside a ticket worktree, install and serve from that worktree with the
    ports, databases and secrets `qa.yaml` names. When the run uses a resource
@@ -133,7 +133,7 @@ Exercise the application like a user and leave reproducible evidence.
    Automated coverage never replaces the executed journeys below.
 5. Execute the flows end-to-end with a real client. Whenever the harness has
    a subagent tool, steps 2, 5, 7 and 8 run in one **Executor mode**
-   subagent with a fresh context — in every mode, Foreman integration
+   subagent with a fresh context — in every mode, Team integration
    included; a caller's own executor assignment (autopilot § Current-session
    gates) satisfies this. This session keeps only the matrix, the returned
    block and the failures it triages; run inline only when no subagent tool
