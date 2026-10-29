@@ -15,6 +15,12 @@ Before phase tickets, worktrees, or production dispatch:
    - `design.md`: architecture — components, data model and migrations,
      interfaces between tickets, risks, rollout and rollback per phase — then
      one **ticket brief** per seed under a `## <seed key>` heading (below).
+     Its `## Alternatives considered` section first lists 3–6 criteria taken
+     from the spec (acceptance criteria, constraints, named risks), then names
+     1–2 structurally different shapes for the one-way decisions —
+     architecture, data model and migrations, ticket interfaces, phase plan —
+     and why each lost against those criteria. "None viable" with the reason
+     is an answer; the human reads this section at design review.
    - `prototype.html`: one prototype of the whole product across all phases,
      with transitions and empty/error states, each screen and state under an
      element id the owning brief links to. Non-UI designs use interfaces,
@@ -38,7 +44,7 @@ Before phase tickets, worktrees, or production dispatch:
    bar and returns gaps to the design worker's session: a seed without a
    brief, an interface without one owner and an exact shape, a user-facing
    seed without prototype ids, an architecture, data-model or contract
-   choice left to a ticket, or a phase split into several tickets without a
+   choice left to a ticket, a one-way decision with no alternative weighed, or a phase split into several tickets without a
    reason [split by context](topology.md#split-by-context) accepts.
 
    Planning/review may precede approval; phase tickets and production edits

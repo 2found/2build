@@ -57,7 +57,8 @@ Reconcile only for cold resume, an explicit status request, an external recovery
 reminder, a concrete failure, or final completion:
 
 1. Re-adopt the current session, heartbeat, re-claim the parent, read inbox and
-   controls. A pause/cancellation stops new dispatch.
+   controls. A pause/cancellation stops new dispatch. On a cold resume, log a
+   `--phase start` row to the [decision trail](delivery.md#decision-trail).
 2. Read the relevant Tasks/Dispatches (`bbs team task list --open`) and
    actual worker terminals. On full recovery use `bbs team resource status`
    to reconcile leases. Silence never proves worker exit: only a terminal whose

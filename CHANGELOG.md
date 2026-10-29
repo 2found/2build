@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.115.0 — 2026-10-29
+
+Team keeps a decision trail the handover is written from, and its basic
+design shows the alternatives it weighed.
+
+### Added
+
+- **`bbs team log`** appends a judgment the team took for the human —
+  decision, why, an evidence pointer (commit, `path[:line]`, URL or rubric
+  row) and a result — to `<parent>/decisions.jsonl`. Rows are append-only; a
+  correction supersedes (`--supersedes <id>`). The lead logs assumptions,
+  `--auto` and `L`/money/auth plan approvals, resizes, waiver reasons,
+  pivots, surviving blockers and the human's handover answer, plus a `start`
+  row on a cold resume, and writes *Decisions taken for you* from the trail.
+- **Recap: Decisions and Check first.** `bbs team recap` renders the trail
+  (superseded rows hidden and counted) and checks every evidence pointer
+  offline: an unknown commit, a missing path, a line past the end of a file,
+  or a result other than `verified` is listed under **Check first**, above
+  the handover. A project with no trail says so.
+
+### Changed
+
+- **Alternatives in the basic design.** `design.md` opens with
+  `## Alternatives considered`: criteria from the spec, then 1–2
+  structurally different shapes for each one-way decision (architecture,
+  data model, ticket interfaces, phase plan) and why each lost. The lead's
+  brief bar rejects a one-way decision with no alternative weighed, and the
+  human reads it at design review.
+- **Autopilot repair loop.** Triage of a review/QA finding needs a
+  reproduction that was run, or names it when it cannot run. Before the
+  second attempt at a blocker the fix's premise is recorded and observed on
+  the real artifact; a premise that fails stops fixing and goes to
+  `investigate`.
+
 ## 1.114.0 — 2026-10-29
 
 Foreman is now **Team**: an autonomous product team the human meets twice —

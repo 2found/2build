@@ -399,7 +399,7 @@ Skill runs append JSON Lines to `~/.babysit/analytics/skill-usage.jsonl`. Becaus
 
 Nothing summarizes that file on demand — the reader is the `/bbs:analytics-review` skill. Dispatch it by hand (`/bbs:analytics-review`) when you want a report; to look at the raw rows, read the JSONL directly.
 
-The companion file `~/.babysit/analytics/decisions.jsonl` is the audit trail for ticket-level events (size resizes, approval self-resolves) — one line per decision. Grep or `jq` it directly.
+The companion file `~/.babysit/analytics/decisions.jsonl` is the audit trail for ticket-level events (size resizes, approval self-resolves) — one line per decision. Grep or `jq` it directly. It is machine-wide telemetry; a Team project's own record of the judgments it took is `<parent>/decisions.jsonl`, written by `bbs team log` and rendered in the recap.
 
 ## Auto-update
 

@@ -84,7 +84,8 @@ Present it for **human review before any phase ticket or production
 dispatch**, as one reviewable package: the prototype first, then the phase
 plan in product terms (what the human can use after each phase, which phases
 ship to production on their own and which wait for the handover), then the
-architecture and briefs for whoever wants them. Ask them to mark any phase
+alternatives weighed for the one-way decisions, then the architecture and
+briefs for whoever wants them. Ask them to mark any phase
 they want released mid-run as `auto`; the default is one release, at the
 handover ([phases](phases.md#the-phase-plan)).
 

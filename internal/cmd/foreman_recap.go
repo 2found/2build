@@ -60,8 +60,32 @@ func renderProjectRecap(st *ticket.Store, s projectSnapshot) string {
 		b.WriteString("</ul></section>")
 	}
 
+	rows, rowsErr := readDecisionRows(st)
+	live, hidden, flags := auditDecisions(st, s, rows)
+	if len(flags) > 0 {
+		b.WriteString(`<section class="card warn"><h2>Check first</h2><p class=meta>Decisions whose evidence does not resolve or whose result is not verified.</p><ul>`)
+		for _, f := range flags {
+			fmt.Fprintf(&b, "<li><code>%s</code> %s</li>", esc(f.Row), esc(f.Reason))
+		}
+		b.WriteString("</ul></section>")
+	}
+
 	if body, err := os.ReadFile(filepath.Join(st.Home(), "report.md")); err == nil && strings.TrimSpace(string(body)) != "" {
 		fmt.Fprintf(&b, `<section class=card><h2>Handover</h2><div class=md>%s</div></section>`, recapMarkdown(string(body)))
+	}
+
+	if rowsErr == nil {
+		b.WriteString(`<section class=card><h2>Decisions</h2><div class=scroll><table><tr><th>Row</th><th>Phase</th><th>Decision</th><th>Why</th><th>Evidence</th><th>Result</th></tr>`)
+		for _, r := range live {
+			fmt.Fprintf(&b, "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>", esc(r.ID), esc(r.Phase), esc(r.Decision), esc(r.Why), recapInline("`"+r.Evidence+"`"), recapBadge(r.Result))
+		}
+		b.WriteString("</table></div>")
+		if hidden > 0 {
+			fmt.Fprintf(&b, "<p class=note>%d superseded row(s) hidden; decisions.jsonl keeps them.</p>", hidden)
+		}
+		b.WriteString("</section>")
+	} else {
+		b.WriteString(`<section class=card><h2>Decisions</h2><p class=note>No decision trail: this project wrote no decisions.jsonl.</p></section>`)
 	}
 
 	if len(s.Phases) > 0 {

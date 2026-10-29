@@ -210,6 +210,11 @@ has_all "two-human-touchpoints" \
   'Decisions taken for you' 'bbs team recap "$PARENT"' 'Run one fix round alone' \
   'the brief touchpoint' 'review it at `high` effort against the brief'
 
+has_all "decision-trail-and-alternatives" \
+  'bbs team log "$PARENT" --phase' 'written from that trail, not memory' \
+  '--supersedes <id>' '\*\*Check first\*\*' '`--phase start` row' \
+  '## Alternatives considered' 'a one-way decision with no alternative weighed'
+
 PROJECT_CONTRACT="$ROOT/.claude/skills/team/references/project-contract.md"
 if python3 - "$PROJECT_CONTRACT" "$ROOT/.claude/skills/qa/SKILL.md" <<'PY'
 from pathlib import Path

@@ -524,6 +524,8 @@ func foremanProjectCommand(verb string, args []string) error {
 		}
 		fmt.Println("RECAP=" + path)
 		return nil
+	case "log":
+		return projectLogCommand(st, kv)
 	case "release":
 		return projectReleaseCommand(st, kv)
 	case "integrate":

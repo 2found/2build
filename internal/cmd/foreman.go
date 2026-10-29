@@ -57,6 +57,11 @@ const foremanUsage = `Usage:
   bbs team complete <parent> --foreman <id>
                                          (also writes the HTML recap; the Foreman terminal stays open)
   bbs team recap <parent>             (re)write <parent>/recap.html from project state + report.md
+  bbs team log <parent> --phase <id|design|handover|start> --decision <text> --why <text>
+                    --evidence <sha|path[:line]|url|rubric row> --result <verified|failed|open|inconclusive|...>
+                    [--ticket <id>] [--actor <id>] [--supersedes <row-id>]
+                                         (append a judgment to <parent>/decisions.jsonl; the recap lists it
+                                         and flags evidence that does not resolve)
   bbs team register <id> [--dir <path>] [--workspace-title <title>] [--session <uuid>]
   bbs team adopt [<id>] [--agent <name>] [--auto]
                     [--plan-worker <name>] [--implement-worker <name>] [--qa-worker <name>]
@@ -182,7 +187,7 @@ func dispatchForeman(args []string) error {
 		return foremanReport(rest)
 	case "seal":
 		return foremanSealMany(rest)
-	case "contract", "bind", "snapshot", "readiness", "next", "evidence", "progress", "complete", "recap", "release", "integrate", "land":
+	case "contract", "bind", "snapshot", "readiness", "next", "evidence", "progress", "complete", "recap", "log", "release", "integrate", "land":
 		return foremanProjectCommand(sub, rest)
 	case "register":
 		return foremanRegister(rest)

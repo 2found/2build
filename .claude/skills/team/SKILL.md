@@ -151,7 +151,9 @@ read them by path, not as `skill://`.
 **No mid-run questions.** Between the two touchpoints decide everything:
 Mechanical and Taste choices by the framework, scope questions by the
 approved spec and design, and anything they leave open as the reversible
-option — then list it under *Decisions taken for you* in the handover. Only
+option. Record each such judgment when you take it with `bbs team log`
+([delivery](references/delivery.md#decision-trail)); the handover's
+*Decisions taken for you* is written from that trail, not memory. Only
 three things reach the human mid-run: a `bbs team hold` they placed, a
 release that failed twice, and a blocker that survived three attempts or
 needs something only they hold (a credential, an account, a legal call).

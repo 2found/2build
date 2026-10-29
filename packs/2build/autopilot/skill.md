@@ -516,7 +516,9 @@ back evidence, never a verdict.
 Apply this loop to every production workflow before its final handoff:
 
 1. Triage every review/QA finding using semantic-decision kind `review-finding`
-   with reproduction, cited guards/callers and the review verdict ladder;
+   with a reproduction you ran (a test, script or CLI call against the real
+   code; name it when it cannot run), cited guards/callers and the review
+   verdict ladder;
    reuse a recorded decision only while its evidence is current. Fix in-scope
    defects autonomously; use
    `investigate` when the cause is unclear. Record evidence for refuted or
@@ -527,8 +529,14 @@ Apply this loop to every production workflow before its final handoff:
    with review and QA covering the same final tree, base, requirement, and
    plan.
 3. Persist failures, attempted fixes, and their results in the checkpoint or
-   handoff. Retry with a changed hypothesis; three failed attempts at the same
-   blocker end in `BLOCKED` with reproduction and exact missing capability or
+   handoff. Retry with a changed hypothesis. Before the second attempt at a
+   blocker, record in the checkpoint `premise: the fix assumes <X>` — the
+   fact the failed fix and the next one both rest on — and observe X directly
+   on the real artifact, recording `holds`, `fails` or `inconclusive`.
+   `fails` stops fixing: hand the premise and its evidence to `investigate`.
+   `inconclusive` continues but is reported as unconfirmed. A resume reads
+   the recorded premise instead of re-checking it. Three failed attempts at
+   the same blocker end in `BLOCKED` with reproduction and exact missing capability or
    decision. Never reset that count on resume, or count a live check/wait as a
    failure. Keep completing independent in-scope work before escalating.
 4. Reconcile the acceptance/evidence mapping, refresh the checkpoint, and read both verdict bodies. Run

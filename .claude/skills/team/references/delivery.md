@@ -121,8 +121,13 @@ run, in one place.
    **What ships** — the release go deploys <services>; rollback is <how>.
    ```
 
+   Write *Decisions taken for you* from the [decision trail](#decision-trail).
    Then `bbs team recap "$PARENT"` renders it with the phases, commits,
-   coverage and tickets into `<parent>/recap.html` (`RECAP=`).
+   coverage, tickets and the trail into `<parent>/recap.html` (`RECAP=`).
+   Its **Check first** section lists trail rows whose evidence does not
+   resolve or whose result is not `verified`: fix a wrong row with a
+   superseding one, and name what stays open under *Limits and follow-ups* —
+   never hand over a recap that flags a row you can correct.
 3. **Ask for the go**: `bbs team release "$PARENT" --phase "$LAST" --request
    --note "Handover: <recap path>"`, relay it through the preamble's channel,
    and end the turn. Earlier `auto` phases are already in production; say so
@@ -183,3 +188,36 @@ NEEDS_CONTEXT | BLOCKED`, link the parent `recap.html` and `report.md`, and end 
 Distinguish landed-on-local-base from released (pushed and deployed).
 Normal worker activity stays in Orca; report state changes, requests and
 terminal evidence.
+
+## Decision trail
+
+`<parent>/decisions.jsonl` is the project's append-only record of the
+judgments the team took for the human. Project state already records seals,
+waivers, integrations, landings and releases; log what it cannot reconstruct:
+
+```bash
+bbs team log "$PARENT" --phase <id|design|handover|start> [--ticket <id>] \
+  --decision "<what was chosen>" --why "<rule or evidence it rests on>" \
+  --evidence <commit SHA | path[:line] | URL | rubric row> \
+  --result <verified|failed|open|inconclusive|reverted>
+```
+
+- **Log**: an assumption or Taste choice the spec left open; a project-plan
+  approval you resolved under `--auto` and each `L` or money/auth/
+  irreversible-data plan you approved; a resize; the reason behind a waiver,
+  a carry or a fixup; a worker replaced, a pivot or revert and its trigger; a
+  blocker that survived its attempts and what was done instead; the human's
+  handover answer. A worker's `M` self-approval reaches you in its handoff —
+  log it if it decided something the brief left open.
+- **Skip**: routine commands, passing checks, a worker's reasoning that never
+  changed the plan.
+- **Resume**: a resumed lead first logs a `--phase start` row naming its
+  session and any decisions of the previous session it could not recover.
+- **Correct**: never edit the file. Log a new row with `--supersedes <id>`;
+  the recap hides the superseded row and counts it.
+
+Evidence is a pointer, never prose; relative paths resolve in the parent
+ticket directory, then each project repository. The recap checks each
+pointer offline: an unknown commit, a missing path or a line past the end of
+the file is flagged under **Check first**, as is any result other than
+`verified`.
