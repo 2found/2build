@@ -22,8 +22,10 @@ unfinished job**: the work counts only when its phase commit is on base.
    from local base (scratch branch `<type>/<id>_<slug>`; it never gains a
    commit). `--mode=trunk` (the default) rides the current checkout.
 2. The worker plans, builds, reviews and QAs there. Verification evidence is
-   bound to the **content** of the tree (`tree_digest`), so a commit is never
-   needed to prove anything, and any edit after a gate makes it stale.
+   bound to the **content** of the ticket's own change (`tree_digest`: paths that
+   differ from the ticket's start, minus files already dirty then), so a commit
+   is never needed to prove anything, and an edit to those paths after a gate
+   makes it stale; unrelated edits in a shared checkout do not.
 3. A dependent ticket runs `bbs team await`: when its prerequisites are
    sealed, their work is **adopted** into its worktree as uncommitted changes
    (three-way merged; `CONFLICT=` names files to resolve). `bbs ticket adopt

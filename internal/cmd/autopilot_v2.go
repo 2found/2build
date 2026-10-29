@@ -219,7 +219,7 @@ func collectAutopilotSnapshotOnceIn(a *apState, ticketID, ticketHome, dir string
 		return nil, &snapshotError{Code: "NOT_A_REPOSITORY", Message: "snapshot requires a git repository", Exit: 3}
 	}
 	policy := snapshotBasePolicy(top)
-	gitState, err := snapshotGitState(top, policy.Effective["base_branch"])
+	gitState, err := snapshotGitState(top, policy.Effective["base_branch"], ticketTreeDigestFunc(ticketHome))
 	if err != nil {
 		var se *snapshotError
 		if errors.As(err, &se) {
@@ -327,13 +327,13 @@ func snapshotBasePolicy(dir string) snapshotPolicy {
 	return snapshotPolicy{Effective: effective, Provenance: map[string]string{}, Digest: digestJSON(map[string]interface{}{"effective": effective})}
 }
 
-func snapshotGitState(dir, base string) (snapshotGit, error) {
+func snapshotGitState(dir, base string, digest func(string) (string, error)) (snapshotGit, error) {
 	for attempt := 0; attempt < 2; attempt++ {
-		first, err := snapshotGitStateOnce(dir, base)
+		first, err := snapshotGitStateOnce(dir, base, digest)
 		if err != nil {
 			return snapshotGit{}, err
 		}
-		second, err := snapshotGitStateOnce(dir, base)
+		second, err := snapshotGitStateOnce(dir, base, digest)
 		if err != nil {
 			return snapshotGit{}, err
 		}
@@ -344,7 +344,7 @@ func snapshotGitState(dir, base string) (snapshotGit, error) {
 	return snapshotGit{}, &snapshotError{Code: "STATE_CHANGED", Message: "git state changed while it was being read", Retryable: true, Exit: 3}
 }
 
-func snapshotGitStateOnce(dir, base string) (snapshotGit, error) {
+func snapshotGitStateOnce(dir, base string, digest func(string) (string, error)) (snapshotGit, error) {
 	head, err := gitOutputStrict(dir, "rev-parse", "HEAD")
 	if err != nil {
 		return snapshotGit{}, err
@@ -354,7 +354,7 @@ func snapshotGitStateOnce(dir, base string) (snapshotGit, error) {
 	if err != nil {
 		return snapshotGit{}, err
 	}
-	treeDigest, err := workingTreeDigest(dir)
+	treeDigest, err := digest(dir)
 	if err != nil {
 		return snapshotGit{}, err
 	}

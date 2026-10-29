@@ -9,8 +9,15 @@ evidence. Run the real review-pr and qa skills in the current session; QA's mech
 execution may go to its executor subagent (SKILL.md § Current-session gates),
 whose `run-<n>.json` feeds `record`.
 
-Never commit for a gate: the subject is the working tree's content, untracked
-files included. Capture it **before** verification:
+Never commit for a gate: the subject is the content of the ticket's own change,
+untracked files included. The first checkpoint written from the work records a
+baseline (HEAD and the paths already dirty); the subject covers every path that
+differs from that HEAD except the baseline-dirty ones, so another session's or
+the owner's edits to files that were dirty at start never void a gate. An edit
+to a ticket path, or a new path joining the change (a new file), does. If the
+ticket also edits a baseline-dirty file, run `bbs autopilot verification claim
+<path>...` first (voids an open gate). A checkpoint with no baseline binds the
+whole tree. Capture the subject **before** verification:
 
 ```sh
 BABYSIT_TICKET="$TICKET" bbs autopilot verification begin --gate review-pr \
@@ -53,7 +60,7 @@ It records failures as failures. A successful `record` command means persisted,
 not passed: re-read `bbs ticket readiness --action review --json` and require
 `data.ready: true` after both gates.
 
-If review/QA repairs changed the captured tree, begin fresh gates on the repaired tree.
+If review/QA repairs changed the ticket's change, begin fresh gates on the repaired tree.
 `review-pr --fix` does exactly that whenever it applies a fix, so its `record`
 answers `verification subject changed` and fails the attempt: expected, not an
 error to debug. Begin a new review gate whose target is the fix delta

@@ -504,6 +504,11 @@ func (a *apState) checkpointV2(input checkpointV2Input) error {
 				cp["first_iteration_at"] = now
 			}
 		}
+		if cp["baseline"] == nil && stringValue(cp["head_sha"]) == "" {
+			if b := captureBaseline(); b != nil {
+				cp["baseline"] = b // first checkpoint from the work: see autopilot_scope.go
+			}
+		}
 		cp["ticket"], cp["workflow"], cp["step"], cp["status"] = input.Ticket, input.Workflow, input.Step, input.Status
 		cp["note"], cp["branch"], cp["head_sha"], cp["slug"], cp["depth"] = jsonSafe(input.Note), a.branch, gitOut("rev-parse", "HEAD"), a.slug, input.Depth
 		cp["updated_at"] = now

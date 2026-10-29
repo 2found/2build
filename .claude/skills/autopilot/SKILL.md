@@ -15,7 +15,8 @@ state on disk; safe to re-enter until a terminal status prints.
 **Autopilot is an assistant, not an orchestrator.** It works on the checkout
 it was started in and never manages its own git topology: no branch cutting,
 no worktrees, no commit, no push, no PR. Its work stays **uncommitted** in the
-checkout: gates bind the tree's content (`tree_digest`), so nothing needs a
+checkout: gates bind the content of the ticket's own change (`tree_digest`,
+[verification.md](references/verification.md)), so nothing needs a
 commit to be proven, and the checkpoint carries crash-resume. Who commits is
 decided above it — the human after a direct run, or `team`, which seals each
 ticket and lands **one commit per phase**

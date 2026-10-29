@@ -21,10 +21,13 @@ func (a *apState) verification(args []string) {
 
 func (a *apState) verificationCommand(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("verification needs begin|record")
+		return fmt.Errorf("verification needs begin|record|claim")
 	}
 	env := identity.Env{Slug: a.slug, Branch: a.branch, Ticket: a.ticket, ProjectHome: a.stateRoot}
 	st := ticket.New(env)
+	if args[0] == "claim" {
+		return a.claimPaths(env, args[1:])
+	}
 	if args[0] == "begin" {
 		gate, owner := argValue(args, "--gate"), argValue(args, "--owner")
 		if gate != "review-pr" && gate != "qa" {
@@ -59,7 +62,7 @@ func (a *apState) verificationCommand(args []string) error {
 		return nil
 	}
 	if args[0] != "record" {
-		return fmt.Errorf("verification needs begin|record")
+		return fmt.Errorf("verification needs begin|record|claim")
 	}
 	id := argValue(args, "--attempt")
 	if !idRe.MatchString(id) {
