@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.117.0 — 2026-10-29
+
+### Fixed
+
+- **OMP hook survives `bbs` upgrades.** `hooks/omp.ts` resolved the sibling
+  `bbs` binary once at plugin load; the plugin cache dir is versioned
+  (`…___<version>`), so `bbs install` deleting the old version broke every
+  Bash call in a live session (`ENOENT` from the release gate and the worker
+  report check). The sibling path is now re-checked on each call and falls
+  back to `bbs` on PATH.
+
 ## 1.116.0 — 2026-10-29
 
 Verification gates now bind the ticket's own change, not the whole checkout.
