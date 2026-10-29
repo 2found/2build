@@ -9,7 +9,6 @@ import type { ExtensionAPI, ExtensionContext } from "@oh-my-pi/pi-coding-agent";
 // so an in-repo extension exercises the same code the tests do; otherwise the
 // installed `bbs` on PATH serves it (`bbs setup` / brew both put it there).
 const repoRoot = resolve(dirname(realpathSync(fileURLToPath(import.meta.url))), "..");
-const bbs = ["bbs", "bbs.exe"].map((n) => resolve(repoRoot, n)).find(existsSync) ?? "bbs";
 
 export default function babysit(pi: ExtensionAPI) {
   async function run(name: string, ctx: ExtensionContext, input = {}) {
@@ -18,7 +17,11 @@ export default function babysit(pi: ExtensionAPI) {
       cwd: ctx.cwd, tool_input: input,
     });
     // pi.exec has no stdin channel — the payload travels as an argv value,
-    // never interpolated into shell code.
+    // never interpolated into shell code. The sibling path is re-checked on
+    // every call because the plugin cache dir is versioned (`…___<version>`):
+    // an upgrade deletes the old sibling out from under a live session, and a
+    // path captured once at module load would go stale.
+    const bbs = ["bbs", "bbs.exe"].map((n) => resolve(repoRoot, n)).find(existsSync) ?? "bbs";
     return pi.exec(bbs, ["hooks", name, "--payload", payload], { cwd: ctx.cwd, timeout: 10000 });
   }
 

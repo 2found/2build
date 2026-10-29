@@ -151,3 +151,26 @@ test("OMP executes the compiled hooks without a model or release command", async
     rmSync(state, { recursive: true });
   }
 });
+
+test("OMP falls back to PATH when the sibling bbs disappears mid-session", async () => {
+  // Plugin cache dirs are versioned (`…___<version>`): `bbs install` deletes
+  // the old sibling binary while a live session keeps running. The sibling
+  // lookup must re-evaluate per call instead of replaying a stale path.
+  const sibling = join(import.meta.dir, "..", "bbs");
+  const existed = existsSync(sibling);
+  const state = mkdtempSync(join(tmpdir(), "bbs-omp-fallback-"));
+  if (!existed) await Bun.write(sibling, ""); // placeholder sibling
+  try {
+    const { handlers, calls, ctx } = harness();
+    await handlers.get("tool_call")!({ toolName: "bash", input: {} }, ctx);
+    expect(calls[0][0]).toBe(sibling);
+    rmSync(sibling);
+    await handlers.get("tool_call")!({ toolName: "bash", input: {} }, ctx);
+    expect(calls[1][0]).toBe("bbs");
+  } finally {
+    if (!existed && existsSync(sibling)) rmSync(sibling);
+    else if (existed && !existsSync(sibling))
+      spawnSync("go", ["build", "-o", sibling, "./cmd/bbs"], { cwd: join(import.meta.dir, "..") });
+    rmSync(state, { recursive: true });
+  }
+});
