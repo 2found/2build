@@ -8,7 +8,7 @@
   "markets": ["US"],
   "languages": ["en"],
   "platforms": ["tiktok", "x"],
-  "voice_engine": "files",
+  "voice_engine": null,
   "brand": {
     "names": ["{{PRODUCT}}"],
     "say": {},

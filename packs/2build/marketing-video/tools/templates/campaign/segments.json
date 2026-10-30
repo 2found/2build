@@ -1,0 +1,23 @@
+{
+  "_template": true,
+  "_about": "Stage 2 audience. Segments in their own words, with evidence. evidence[].type: url | file | user | measured | inference (inference alone FAILs a priority-1 segment).",
+  "segments": [
+    {
+      "id": "A1",
+      "priority": 1,
+      "name": "",
+      "who": "age, situation, what they already do",
+      "pains": ["in their words"],
+      "jobs": ["what they want done"],
+      "objections": ["what they will comment"],
+      "triggers": ["the moment they would search for this"],
+      "language": {"register": "how they talk", "words": ["their slang"], "avoid": ["words that read as an ad to them"]},
+      "platforms": {
+        "tiktok": {"habits": ["when and how they watch"], "search_terms": ["what they type in TikTok search"], "creators": ["@who they follow"]},
+        "x": {"habits": [""], "communities": ["who they follow / which conversations"]}
+      },
+      "evidence": [{"type": "url", "ref": "https://…", "quote": "a real comment or review"}]
+    }
+  ],
+  "anti_segments": [{"name": "", "why": "sees the video but is not the target; expect their comments"}]
+}

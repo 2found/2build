@@ -1,0 +1,15 @@
+{
+  "_template": true,
+  "_about": "Stage 1 product analysis. One line in the viewer's words, then facts a script may claim. Every number, superlative or 'free' on screen must point at a fact id. kind: feature | benefit | proof | price | number | limit | differentiator | audience.",
+  "one_liner": "",
+  "category": "",
+  "jobs": ["the job a viewer hires this product for, in their words"],
+  "alternatives": [{"name": "what they use today", "why_switch": "", "why_stay": ""}],
+  "facts": [
+    {"id": "F1", "kind": "feature", "claim": "", "source": {"type": "url", "ref": "https://…", "quote": "verbatim text from the page"}, "checked": "YYYY-MM-DD"},
+    {"id": "F2", "kind": "proof", "claim": "", "source": {"type": "measured", "ref": "how and where it was measured"}, "checked": "YYYY-MM-DD"},
+    {"id": "F3", "kind": "limit", "claim": "what it does NOT do", "source": {"type": "file", "ref": "repo/path.md", "quote": ""}, "checked": "YYYY-MM-DD"}
+  ],
+  "demo_moments": [{"what": "the 3 seconds of real product that prove the promise", "screen": "url or app path", "facts": ["F1"]}],
+  "assets": [{"path": "brand/…", "what": "real screenshot / recording"}]
+}

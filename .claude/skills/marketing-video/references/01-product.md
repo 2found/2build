@@ -34,6 +34,6 @@ a public demo page, a recent QA screenshot set. Crop test-account names. Note
 the sample data on the screens (names, titles): the script's jokes and examples
 use that same data so demo and story are one. Never draw a UI.
 
-Gate (apply yourself): every fact has a source with quote and date; no `price`
+Gate (`mvf check product`, plus by eye for screens and competitors): every fact has a source with quote and date; no `price`
 or `number` fact older than 30 days; at least one `limit`; one demo moment has a
 real screen file; competitor claims recorded.

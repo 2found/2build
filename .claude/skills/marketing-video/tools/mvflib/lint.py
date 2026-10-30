@@ -21,7 +21,7 @@ VOICE_MODES = {"recorded", "clone", "design", "preset", "none"}
 # A bare ordinal ("Chapter 1", "Part 2") is not a claim; a number with a unit, a
 # multiplier, a currency or a percent is.
 QTY = (r"[$€£¥₫]\s*\d|\d[\d.,]*\s*(%|x\b|×|k\b|m\b|tr\b|đ\b|usd|vnd|vnđ|\$|lần|times|million|billion|thousand|"
-       r"triệu|nghìn|ngàn|tỷ|users?|người|readers?|chapters?|chương|characters?|ký\s*tự|chars?|words?|chữ|"
+       r"triệu|nghìn|ngàn|tỷ|users?|people|customers?|teams?|downloads?|installs?|reviews?|người|readers?|chapters?|chương|characters?|ký\s*tự|chars?|words?|chữ|"
        r"seconds?|giây|minutes?|phút|hours?|giờ|days?|ngày|languages?|ngôn\s*ngữ|novels?|truyện|stars?|sao)")
 CLAIM = re.compile(QTY + r"|%|\b((tốt|nhanh|rẻ|hay|mạnh|dễ|chuẩn|đỉnh)\s*nhất|số\s*1|duy\s*nhất|miễn\s*phí|đảm\s*bảo|"
                    r"cam\s*kết|gấp\s*\w+\s*lần|"

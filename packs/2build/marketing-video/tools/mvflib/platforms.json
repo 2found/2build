@@ -1,0 +1,77 @@
+{
+  "_about": "Platform limits the tool enforces. `hard` values FAIL, `recommend` values WARN. Every number names its source and the day it was read; re-read the source before trusting a number older than 90 days.",
+  "tiktok": {
+    "label": "TikTok",
+    "canvas": "9x16",
+    "sound_default": "on",
+    "hard": {
+      "min_s": 3,
+      "max_s": 600,
+      "max_mb": 287,
+      "caption_chars": 4000
+    },
+    "recommend": {
+      "min_s": 15,
+      "max_s": 60,
+      "hook_s": 2.5,
+      "proposition_s": 3.0,
+      "hashtags": [3, 5]
+    },
+    "encode": {"width": 1080, "height": 1920, "fps": 30, "vcodec": "libx264", "profile": "high", "pix_fmt": "yuv420p", "crf": 18, "maxrate": "12M", "acodec": "aac", "abitrate": "192k", "ar": 48000, "lufs": -14},
+    "safe": {"top": 168, "bottom_text": 1330, "right_rail": 140, "left": 60},
+    "sources": [
+      {"what": "proposition in 3 s, hook in 6 s, 9:16, >=720p, 3-5 creatives per ad group", "url": "https://ads.tiktok.com/help/article/creative-best-practices?lang=en", "read": "2026-10-27"},
+      {"what": "safe band 168-1330 px on 1080x1920, right rail", "url": "hyperframes skill references/types/vertical.md", "read": "2026-10-27"},
+      {"what": "287 MB is the iPhone upload ceiling; desktop allows more. Max 10 min is the reliable ceiling for every account", "url": "https://www.hopperhq.com/blog/tiktok-dimensions/", "read": "2026-10-27", "note": "third-party; TikTok's own help page was not reachable"},
+      {"what": "hook <= 2.5 s, measured on native shorts", "url": "", "read": "2026-10-27"}
+    ]
+  },
+  "x": {
+    "label": "X",
+    "canvas": "9x16",
+    "sound_default": "off",
+    "hard": {
+      "min_s": 0.5,
+      "max_s": 140,
+      "max_mb": 512,
+      "post_weight": 280
+    },
+    "recommend": {
+      "min_s": 10,
+      "max_s": 45,
+      "hook_s": 2.0,
+      "hashtags": [0, 2]
+    },
+    "encode": {"width": 1080, "height": 1920, "fps": 30, "vcodec": "libx264", "profile": "high", "pix_fmt": "yuv420p", "crf": 18, "maxrate": "10M", "acodec": "aac", "abitrate": "192k", "ar": 48000, "lufs": -14},
+    "safe": {"top": 120, "bottom_text": 1500, "right_rail": 0, "left": 60},
+    "sources": [
+      {"what": "140 s for accounts without Premium, 512 MB, MP4/MOV H.264 + AAC, aspect 1:3..3:1", "url": "https://dopost.featurebase.app/help/articles/5252120-x-twitter", "read": "2026-10-27", "note": "third-party; help.x.com answered 403 to the fetch"},
+      {"what": "280 weighted characters per post for accounts without Premium", "url": "https://github.com/twitter/twitter-text/tree/master/config", "read": "2026-10-27"},
+      {"what": "autoplays muted in the timeline: the picture and burned-in captions carry the hook", "url": "https://help.x.com/en/using-x/x-videos", "read": "2026-10-27", "note": "page answered 403; long-standing documented behaviour, re-check"}
+    ]
+  },
+  "x-api": {
+    "label": "X (API upload)",
+    "canvas": "9x16",
+    "sound_default": "off",
+    "hard": {"min_s": 0.5, "max_s": 140, "max_mb": 512, "post_weight": 280, "max_long_side": 1280, "max_short_side": 1024},
+    "recommend": {"min_s": 10, "max_s": 45, "hook_s": 2.0, "hashtags": [0, 2]},
+    "encode": {"width": 720, "height": 1280, "fps": 30, "vcodec": "libx264", "profile": "high", "pix_fmt": "yuv420p", "bitrate": "6M", "acodec": "aac", "abitrate": "160k", "ar": 48000, "lufs": -14},
+    "safe": {"top": 120, "bottom_text": 1500, "right_rail": 0, "left": 60},
+    "sources": [
+      {"what": "between 32x32 and 1280x1024, 720x1280 recommended for portrait, <= 60 fps, H.264 High, AAC LC (no HE-AAC), >= 5000 kbps video, >= 128 kbps audio", "url": "https://docs.x.com/x-api/media/quickstart/best-practices", "read": "2026-10-27"}
+    ]
+  },
+  "canvases": {
+    "9x16": {"width": 1080, "height": 1920},
+    "1x1": {"width": 1080, "height": 1080},
+    "4x5": {"width": 1080, "height": 1350},
+    "16x9": {"width": 1920, "height": 1080}
+  },
+  "speech_wps": {
+    "_about": "Words per second at TTS speed 1.0, used only to estimate timing before a voice exists. Measured values replace these after `mvf voice`. en 3.2 measured on a cloned narrator, 2026-10-27 (estimate 33.4 s vs measured 27.2 s at 2.6).",
+    "vi": 4.7,
+    "en": 3.2,
+    "default": 3.0
+  }
+}

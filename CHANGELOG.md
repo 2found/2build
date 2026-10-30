@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.119.0 — 2026-10-31
+
+### Added
+
+- **`/bbs:marketing-video` skill (manual).** Plans and produces short marketing
+  videos (TikTok and X first) for your own product: brief and material,
+  product facts, audience, trends, strategy, a script with A/B hooks,
+  pre-test, production and per-platform delivery files you post yourself.
+  It never uploads, logs in to a platform or spends money. It is
+  `disable-model-invocation: true`, so it loads only when invoked.
+- **`mvf` campaign tool** (`.claude/skills/marketing-video/tools/mvf.py`,
+  stdlib Python 3 + ffmpeg; HyperFrames renders need Node 22+). Commands for
+  every stage: `init`, `status`, `gather`, `check`, `new-script`, `lint`,
+  `voice`, `scaffold`, `score --bed FILE|--none`, `pretest-brief`, `export`,
+  `qa`, `extensions [ls|init]`.
+- **Gitignored extensions.** Data sources, voice engines, material kinds and
+  recipes load from `<campaign>/extensions/`, then
+  `.babysit/marketing-video/extensions/`, then `$MVF_EXTENSIONS`, then the
+  skill's own `tools/extensions/` (first definition wins). `mvf init` and
+  `mvf extensions init` write the `.gitignore` files. Extensions read only and
+  take secrets from environment variables. Voice engines are either an
+  in-process `run()` or an external `command` with a JSON job/manifest
+  contract (`references/07-production.md#extensions-gitignored-per-project-or-per-campaign`).
+- **Voice engines.** Built-in `files` (your own recordings, one file per
+  line, timed by silence detection) and the `omnivoice` extension (local
+  OmniVoice TTS via `uv run`, clone/design/rehear). No reference voices ship;
+  put consented voices in the campaign's or `.babysit`'s `voices/`.
+
+### Changed
+
+- **Soot pack manifest.** `packs/2build/pack.json` lists `skills` directly
+  (`soot/v1`); the `use` default recipe and per-skill `capabilities` are gone.
+  Select the pack with `"packs": ["2build"]`. The pack now has 21 skills.
+- **`release-prd`** notes that a 2found tool release also refreshes the
+  agent-facing docs snapshot on `2found.dev`.
+
 ## 1.118.0 — 2026-10-31
 
 ### Added

@@ -6,10 +6,10 @@ Everything later (angle, hook, search terms, pre-test personas) is written for i
 
 ```json
 { "segments": [{ "id": "A1", "priority": 1, "name": "", "who": "concrete situation and what they already do",
-  "pains": ["in their words"], "objections": ["what they will comment"],
-  "platforms": {"tiktok": {"search_terms": ["", "", ""], "habits": ""}, "x": {"habits": ""}},
-  "anti_segments": ["who will see it and must not be targeted"],
-  "evidence": [{"type": "url|file|user|measured|inference", "ref": "", "quote": ""}] }] }
+  "pains": ["in their words"], "jobs": ["what they are trying to get done"], "objections": ["what they will comment"],
+  "platforms": {"tiktok": {"search_terms": ["", "", ""], "habits": [""]}, "x": {"habits": [""]}},
+  "evidence": [{"type": "url|file|user|measured|inference", "ref": "", "quote": ""}] }],
+  "anti_segments": ["who will see it and must not be targeted"] }
 ```
 - `who` is concrete ("indie devs shipping a SaaS alone past 20 customers"), not
   "developers 18-34". The hook is usually a pain line.
@@ -20,5 +20,5 @@ Everything later (angle, hook, search terms, pre-test personas) is written for i
   knowledge of users (`user`). `inference` is allowed but a priority-1 segment
   may not rest on inference alone.
 
-Gate: every segment has at least one real voice; priority-1 has 3 search terms,
+Gate (`mvf check audience`): every segment has at least one real voice; priority-1 has 3 search terms,
 2 objections and 1 anti-segment; its pains read as something they would say.

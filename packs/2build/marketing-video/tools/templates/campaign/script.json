@@ -1,0 +1,86 @@
+{
+  "_template": true,
+  "_about": "Stage 5 script. One beat = one scene. vo is spoken (display spelling; brand pronunciations live in campaign.brand.say). voice.mode: recorded (you read the lines; the built-in files engine), clone (ref = a voice in voices/), design (pick a ref first), preset (name = an engine's stock voice) or none; voice.engine overrides campaign.voice_engine. Variants replace beat B01 only, so hooks can be A/B tested on one body. recipe (mvflib/recipes.json) names what the script is built from; beats[].material cites the 00-material item ids each beat stands on (mvf material ls), the way facts cites F ids. Delete this _about when done.",
+  "id": "{{SID}}",
+  "angle": "G1",
+  "format": "problem-solution",
+  "recipe": "product-demo",
+  "language": "en",
+  "value": "what the viewer walks away with",
+  "voice": {
+    "mode": "recorded",
+    "speed": 1.0
+  },
+  "beats": [
+    {
+      "id": "B01",
+      "role": "hook",
+      "vo": "",
+      "onscreen": "",
+      "visual": "frame 0: the subject in motion, never a logo",
+      "facts": [],
+      "keys": [],
+      "material": []
+    },
+    {
+      "id": "B02",
+      "role": "problem",
+      "vo": "",
+      "onscreen": "",
+      "visual": ""
+    },
+    {
+      "id": "B03",
+      "role": "demo",
+      "vo": "",
+      "onscreen": "",
+      "visual": "the real screen, pushed in on the control that matters",
+      "facts": [
+        "F1"
+      ]
+    },
+    {
+      "id": "B04",
+      "role": "payoff",
+      "vo": "",
+      "onscreen": "",
+      "visual": "",
+      "material": []
+    },
+    {
+      "id": "B05",
+      "role": "cta",
+      "vo": "",
+      "onscreen": "",
+      "visual": "product on screen + handle"
+    }
+  ],
+  "variants": [
+    {
+      "id": "H2",
+      "vo": "",
+      "onscreen": "",
+      "visual": ""
+    },
+    {
+      "id": "H3",
+      "vo": "",
+      "onscreen": "",
+      "visual": ""
+    }
+  ],
+  "platforms": {
+    "tiktok": {
+      "canvas": "9x16",
+      "caption": "",
+      "sound": "original",
+      "cover_text": ""
+    },
+    "x": {
+      "canvas": "9x16",
+      "post": "",
+      "thread": [],
+      "cover_text": ""
+    }
+  }
+}

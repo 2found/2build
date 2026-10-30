@@ -9,8 +9,12 @@ script; sounds and hashtags are short-lived and risky.
 { "trends": [{ "id": "T1", "platform": "tiktok|x|cross", "kind": "format|meme|topic|hashtag|sound|creator|event|search",
   "stage": "rising|peak|fading|evergreen", "url": "", "metric": "412k views, ER 6.1%", "observed_at": "YYYY-MM-DD",
   "decision": "use|adapt|watch|avoid", "fit": {"segments": ["A1"], "how": "exactly how a script uses it"},
-  "risk": {"license": ""} }] }
+  "risk": {"license": ""} }],
+  "references": [] }
 ```
+`mvf trend-video URL… [--frames]` reads a reference post's public metadata
+(views, engagement rate, sound, duration; needs `yt-dlp`) into `references`, and
+with `--frames` cuts its first 3 s into a hook sheet.
 Freshness: a rising or peak trend older than 14 days is re-observed; older than
 30 days with use/adapt is dropped. Per platform: at least 3 trends including one `format`.
 
@@ -31,5 +35,5 @@ views and ER under 2% is paid reach, so `avoid` the format. A licensed pop
 track is `avoid` for a business account (use the platform's commercial music
 library at upload). Copying a video is not adapting a format.
 
-Gate: per platform you can name 2-3 formats to use, the one to avoid and why,
+Gate (`mvf check trends`): per platform you can name 2-3 formats to use, the one to avoid and why,
 each with a number and date; every use/adapt has `fit.how`.

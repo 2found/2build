@@ -185,7 +185,15 @@ than undoing a package publication or declaring the whole release complete.
    version, or prove the upgrade channel resolves to this release. Verify any
    website/download catalog the release is expected to update. Restore local
    mode's workflow states on success, failure or interruption; missing
-   restoration blocks completion. Finish only after required post-release work.
+   restoration blocks completion. For the 2found tools, a release also
+   publishes agent-facing docs: `2found.dev` serves a committed snapshot
+   (`content/<product>/source/` + `snapshot.json` + `catalog.json`), and the
+   start guide links those pages for the agent to read. After the tool release
+   lands, sync that snapshot to the released revision and release
+   `2found.dev` — then verify the updated pages actually render. A release
+   that leaves the docs pointing at the old source SHA ships stale
+   instructions to new agents; record it as a concern. Finish only after
+   required post-release work.
 
 ## Output
 

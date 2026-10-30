@@ -10,27 +10,41 @@ dev who has no marketing team. Manual stopgap until 2found's marketing product
 telemetry; shared refs are filesystem paths beside this skill's directory, so
 read them by path, not as `skill://`.
 
-One campaign = one folder, suggested `marketing/campaigns/<slug>/`. Gitignore
-large media (`07-video/`, `08-delivery/`, `*.mp4`, `*.wav`); commit the
-Markdown/JSON artifacts. Each stage writes one artifact, each artifact has a
-gate checklist you apply to it yourself, and nothing moves forward on a FAIL.
-There is no tool to run: artifacts are plain JSON/Markdown whose shapes are in
-the stage references. Ask the user for the product, goal and where it lives if
-the request does not say; otherwise decide and note the assumption.
+One campaign = one folder, `marketing/campaigns/<slug>/` by default. Each
+stage writes one artifact and each artifact has a gate. Nothing moves forward
+on a FAIL. Ask the user for the product, goal and where it lives if the request
+does not say; otherwise decide and note the assumption.
+
+## Tool
+`mvf` is a stdlib Python CLI. It needs python3 and ffmpeg; trend references
+also need `yt-dlp`, and rendering needs Node 22+ for `npx hyperframes`. Run it
+by path as `python3 <this-skill-dir>/tools/mvf.py <cmd>` from anywhere inside
+a campaign, and set `PYTHONDONTWRITEBYTECODE=1`. `mvf --help` lists every
+command and `mvf status` says what is next. `mvf init` writes the campaign's
+`.gitignore`: commit the JSON/Markdown and never takes, recordings, renders,
+deliveries, voices or campaign extensions.
+
+Generic by default, extended locally. Built in: the `manual` data source (hand
+research as a JSON file) and the `files` voice engine (your own recordings).
+OmniVoice ships as an extension with no voices. Other data sources, voice
+engines, material kinds and recipes are gitignored extensions in
+`<campaign>/extensions/` or `.babysit/marketing-video/extensions/`
+(`mvf extensions init`). The contract is in
+[07-production](references/07-production.md#extensions-gitignored-per-project-or-per-campaign).
 
 ## The flow
-| # | Stage -> artifact | Do | Reference |
-| --- | --- | --- | --- |
-| 0 | brief -> `campaign.json` | goal + KPI, markets, languages, platforms, brand (names, pronunciations, colors, font, handles), constraints | [00](references/00-brief-material.md) |
-| 0.5 | material -> `00-material/index.json` | gather what people already like or know: best-loved feature, public posts, reviews, official assets, ranked lists | [00](references/00-brief-material.md) |
-| 1 | product -> `01-product/facts.json` | every claim the video may make, quoted from a source with a check date; real screens in `01-product/screens/` | [01](references/01-product.md) |
-| 2 | audience -> `02-audience/segments.json` | 1-3 segments from evidence, pains in their words, search terms, anti-segments | [02](references/02-audience.md) |
-| 3 | trends -> `03-trends/trends.json` | formats, hooks, sounds observed this fortnight with URL + metric + decision | [03](references/03-trends.md) |
-| 4 | strategy -> `04-strategy/angles.json` | 2-3 angles = segment x insight x promise x format, each standing on facts | [04](references/04-strategy.md) |
-| 5 | script -> `05-scripts/<sid>.json` | beats (one beat = one scene), 2-3 hook variants, platform copy | [05](references/05-script.md) |
-| 6 | pre-test -> `06-pretest/<round>/decision.json` | simulated panel, honest small human panel, or skipped with a reason | [06](references/06-pretest.md) |
-| 7 | video -> `07-video/<sid>/<hook>/` | voice, scenes, captions, sound bed | [07](references/07-production.md) |
-| 8 | delivery -> `08-delivery/<sid>/<hook>/<platform>/` | render, master, encode per platform, QA, captions, cover, copy | [08](references/08-delivery.md) |
+| # | Stage -> artifact | Do | Tool | Reference |
+| --- | --- | --- | --- | --- |
+| 0 | brief -> `campaign.json` | goal + KPI, markets, languages, platforms, brand (names, pronunciations, colors, font, handles), constraints | `init`, `check brief` | [00](references/00-brief-material.md) |
+| 0.5 | material -> `00-material/index.json` | gather what people already like or know: best-loved feature, public posts, reviews, official assets, ranked lists | `gather`, `material` | [00](references/00-brief-material.md) |
+| 1 | product -> `01-product/facts.json` | every claim the video may make, quoted from a source with a check date; real screens in `01-product/screens/` | `check product` | [01](references/01-product.md) |
+| 2 | audience -> `02-audience/segments.json` | 1-3 segments from evidence, pains in their words, search terms, anti-segments | `check audience` | [02](references/02-audience.md) |
+| 3 | trends -> `03-trends/trends.json` | formats, hooks, sounds observed this fortnight with URL + metric + decision | `trend-video`, `check trends` | [03](references/03-trends.md) |
+| 4 | strategy -> `04-strategy/angles.json` | 2-3 angles = segment x insight x promise x format, each standing on facts | `check strategy` | [04](references/04-strategy.md) |
+| 5 | script -> `05-scripts/<sid>.json` | beats (one beat = one scene), 2-3 hook variants, platform copy | `new-script`, `lint` | [05](references/05-script.md) |
+| 6 | pre-test -> `06-pretest/<round>/decision.json` | simulated panel, honest small human panel, or skipped with a reason | `pretest-brief` | [06](references/06-pretest.md) |
+| 7 | video -> `07-video/<sid>/<canvas>-<hook>/` | voice, scenes, captions, sound bed | `voice`, `scaffold`, `score` | [07](references/07-production.md) |
+| 8 | delivery -> `08-delivery/<sid>/<hook>/<canvas>/<platform>/` | render, master, encode per platform, QA, captions, cover, copy | `export`, `qa` | [08](references/08-delivery.md) |
 
 Open only the reference of the stage you are in. Stages 1-4 are research: a
 guess is written down as `inference`, never as a fact. Iterate backwards freely:
@@ -55,7 +69,9 @@ the user needs (research only, or script only) and say where you stopped.
 - **No AI likeness of a real person**, and never prompt an image model with a
   real person's name.
 - **Trend sounds are added in the app** at upload. Never bake a licensed track
-  into the file; the fallback is a royalty-free or generated bed you may use.
+  into the file; the fallback is a royalty-free bed the user may use.
+- **Extensions read, never act.** A source or voice extension never posts, logs
+  in to a platform or spends money; secrets come from env vars, never files.
 
 ## Boundary
 Never log in to, upload to or post on any platform, and never spend money

@@ -26,5 +26,5 @@ format**, standing on at least one fact and using the trends that fit.
 | Sound | trend or library sound added in-app, or a bed | bed only; captions carry it |
 | Proof | the real screen | the real screen, readable muted |
 
-Gate: 2-3 angles, each with all fields, a fact id that exists, a trend id that
+Gate (`mvf check strategy`): 2-3 angles, each with all fields, a fact id that exists, a trend id that
 exists (or none), at least 2 formats overall, a `plan` entry per script.

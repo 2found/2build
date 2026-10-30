@@ -14,7 +14,7 @@ TREND_STAGES = {"rising", "peak", "fading", "evergreen"}
 TREND_DECISIONS = {"use", "adapt", "watch", "avoid"}
 CAMPAIGN_PLATFORMS = {"tiktok", "x"}
 STALE_DAYS, DEAD_DAYS, PRICE_DAYS = 14, 30, 30
-PRETEST_METHODS = {"simulated-panel", "human-panel", "skipped"}
+PRETEST_METHODS = {"simulated-panel", "human-panel", "agent-panel", "skipped"}
 
 
 def _ids(items, kind, where, r: Report) -> set:

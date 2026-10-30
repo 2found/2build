@@ -48,6 +48,11 @@
       "description": "Debug a failure before fixing it. Use when the user asks why something is broken, wants root cause analysis, or reports an error, regression, flaky test, crash, or unexpected behavior."
     },
     {
+      "name": "2build_marketing-video",
+      "file": "marketing-video/skill.md",
+      "description": "Plan and produce short marketing videos (TikTok and X first) for your own product, from product facts and audience research to a script with A/B hooks, production and per-platform files; you post them."
+    },
+    {
       "name": "2build_plan-draft",
       "file": "plan-draft/skill.md",
       "description": "Draft a technical plan before implementation. Use when the user asks for a plan, architecture, ticket breakdown, or wants to turn a requirement into plan.md without coding yet."

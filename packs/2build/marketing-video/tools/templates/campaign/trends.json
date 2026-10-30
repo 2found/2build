@@ -1,0 +1,16 @@
+{
+  "_template": true,
+  "_about": "Stage 3 trend research. Each trend: where it was seen, a number, the day, and a decision. kind: hashtag | sound | format | meme | topic | creator | event | search. stage: rising | peak | fading | evergreen. decision: use | adapt | watch | avoid.",
+  "observed_with": "e.g. TikTok Creative Center (cloakbrowser), TikTok search suggestions, X Explore, yt-dlp metadata",
+  "trends": [
+    {
+      "id": "T1", "platform": "tiktok", "kind": "format", "name": "", "stage": "rising",
+      "url": "https://…", "metric": "e.g. #12 in VN, +240% posts in 7 days", "observed_at": "YYYY-MM-DD",
+      "examples": ["https://www.tiktok.com/@…/video/…"],
+      "decision": "adapt",
+      "fit": {"segments": ["A1"], "how": "exactly how a script uses it"},
+      "risk": {"license": "", "notes": "brand-safety, music licence, shelf life"}
+    }
+  ],
+  "references": []
+}

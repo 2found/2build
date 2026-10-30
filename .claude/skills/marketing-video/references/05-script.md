@@ -1,16 +1,19 @@
 # Stage 5 - Script
 
-Output: `05-scripts/<sid>.json`. One script carries the video, the hook
-variants, the X post and thread and the cover text.
+Output: `05-scripts/<sid>.json` (`mvf new-script <sid>`). One script carries
+the video, the hook variants, the X post and thread and the cover text. `recipe`
+names what it is built from (`tools/mvflib/recipes.json`: product-demo,
+social-proof, stat-hook, listicle, quote, community; extensions add more).
 
 ```json
-{ "id": "s01-name", "angle": "G1", "format": "problem-solution", "language": "en",
+{ "id": "s01-name", "angle": "G1", "format": "problem-solution", "recipe": "product-demo", "language": "en",
   "value": "what the viewer walks away with",
-  "voice": {"mode": "own-recording|tts|none", "ref": "who/what voice, with rights note", "speed": 1.0},
+  "voice": {"mode": "recorded|clone|design|preset|none", "ref": "clone reference", "name": "preset voice",
+            "engine": "optional override", "speed": 1.0},
   "beats": [{"id": "B01", "role": "hook", "vo": "spoken line", "onscreen": "<= 5 words per line",
              "visual": "what the picture does", "facts": [], "material": [], "keys": ["words to emphasise"]}],
   "variants": [{"id": "H2", "vo": "", "onscreen": "", "visual": ""}],
-  "platforms": {"tiktok": {"caption": "", "cover_text": "", "sound": "in-app|bed"},
+  "platforms": {"tiktok": {"caption": "", "cover_text": "", "sound": "original|trend:T1"},
                 "x": {"post": "", "thread": [], "cover_text": "", "facts": []}} }
 ```
 Roles: hook, context, problem, tension, turn, demo, proof, payoff, reaction,
@@ -18,7 +21,9 @@ beat, cta, end. One beat = one scene. Variants H2..H9 replace B01 only, so B01
 is a pure hook; any setup the body needs lives in B02+. Re-read the body after
 each variant.
 
-## Checks (apply each; FAIL blocks, WARN gets a note)
+## Checks (`mvf lint <sid>`; FAIL blocks, WARN gets a note)
+The lint measures on the latest take's timing once one exists, else on an
+estimate it labels as such.
 - **Structure:** at least 3 beats; B01 is the hook; unique ids; `value`, `format`,
   `angle` set and the angle exists.
 - **Hook:** first spoken line ends within 2.5 s (TikTok) / 2.0 s (X) of frame 0

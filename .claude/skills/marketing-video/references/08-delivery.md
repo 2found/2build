@@ -1,8 +1,8 @@
 # Stage 8 - Delivery
 
-Output: `08-delivery/<sid>/<hook>/<platform>/` with the video, `captions.srt`,
+Output: `08-delivery/<sid>/<hook>/<canvas>/<platform>/` with the video, `captions.srt`,
 `caption.txt` (TikTok) or `post.txt` plus thread (X), `cover.jpg` (frame 0),
-`contact.jpg`, `qa.md`.
+`contact.jpg`, 5 spot frames, `qa.json` (or `qa.md` by hand).
 
 Do not deliver (draft only) while placeholders remain, timing is estimated, or
 the audio is from an older script than the picture.
@@ -18,13 +18,20 @@ the audio is from an older script than the picture.
 Sources: TikTok ads creative best practices; X media best practices (docs.x.com).
 
 ## Steps
+`mvf export <proj> --platforms tiktok,x` runs all five on a HyperFrames project
+and writes the folder above plus `qa.json` and `delivery.json` (`--draft` for
+a rough cut; `mvf qa <video> --platform P --proj D` re-measures one file). It
+refuses a delivery export while placeholders remain, timing is estimated or
+the script changed after scaffold. Outside HyperFrames, do the same by hand:
+
 1. Render at delivery quality.
-2. Master audio to about -14 LUFS integrated, true peak <= -1.5 dBFS (ffmpeg
-   `loudnorm`).
+2. Master audio to -14 LUFS integrated with a static gain plus an oversampled
+   limiter (peak about -1.5 dBFS after AAC). Not `loudnorm`'s dynamic mode:
+   it would undo the voice/bed balance.
 3. Encode per platform: H.264 High, yuv420p, 30 fps, CRF about 18 with a
    maxrate of 10-12 Mb/s (X API: 720x1280 about 6 Mb/s), AAC LC stereo 48 kHz
    192 kb/s, `+faststart`. Never upscale.
-4. QA each file with `ffprobe`/ffmpeg and write `qa.md`: codec, pix_fmt, fps,
+4. QA each file with `ffprobe`/ffmpeg and write `qa.json` or `qa.md`: codec, pix_fmt, fps,
    size and aspect correct; audio AAC LC, at most 2 channels; duration inside
    platform limits and within 0.2 s of the storyboard; file size under the limit;
    loudness within 1.5 LU of target and peak under ceiling; frame 0 not black; no
@@ -36,7 +43,7 @@ Sources: TikTok ads creative best practices; X media best practices (docs.x.com)
 Numbers are not ears. Watch each delivered file once with sound and once muted
 (for X): the hook reads at 0 s, captions never cover the subject, the real
 screen is legible, the voice is clear over the bed, the CTA matches its fact.
-Look at the contact sheet for dead stretches. Mark `qa.md` `PENDING LISTEN` until
+Look at the contact sheet for dead stretches. Leave `PENDING LISTEN` in the QA file until
 you or the user have done this; you cannot hear it yourself.
 
 ## Hand-off (the user posts)
