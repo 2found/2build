@@ -1,0 +1,35 @@
+{
+  "_about": "A recipe names the material a script is built from. `needs`: cited items the script must carry (kind, at least `min`, `signal`: true = with a measured popularity number). A script names its recipe in `recipe`; lint M3 checks the cited ids cover it. Pick by what the data is best at, not by habit. Extensions add recipes with RECIPES = {name: {...}}.",
+  "recipes": {
+    "product-demo": {
+      "about": "A product/feature shown working; facts (01-product) carry it, material optional",
+      "needs": [],
+      "optional": ["feature", "metric", "trend", "asset"]
+    },
+    "social-proof": {
+      "about": "What users said, in their words: a review or post with a measured signal, then the product proving it",
+      "needs": [{"kind": "review|post|quote", "min": 1, "signal": true}],
+      "optional": ["feature", "metric", "asset", "person"]
+    },
+    "stat-hook": {
+      "about": "A measured number is the surprise (10,000 teams this month, 4.8 stars from 2,000 reviews)",
+      "needs": [{"kind": "metric|ranking|product", "min": 1, "signal": true}],
+      "optional": ["feature", "asset"]
+    },
+    "listicle": {
+      "about": "A ranked list (features, use cases, a chart the product sits on) and what makes each worth it",
+      "needs": [{"kind": "ranking|feature", "min": 3}],
+      "optional": ["metric", "asset", "review"]
+    },
+    "quote": {
+      "about": "One line someone said, given its setup: the value is the line itself",
+      "needs": [{"kind": "quote|review|post", "min": 1}],
+      "optional": ["person", "asset"]
+    },
+    "community": {
+      "about": "What users made, performed or argued about: their line, their voice",
+      "needs": [{"kind": "post", "min": 1, "signal": true}],
+      "optional": ["review", "product"]
+    }
+  }
+}

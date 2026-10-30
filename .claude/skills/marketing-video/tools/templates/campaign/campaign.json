@@ -1,0 +1,23 @@
+{
+  "_template": true,
+  "_about": "Stage 0 brief. Every later stage reads this. Edit the values; keep the keys.",
+  "slug": "{{SLUG}}",
+  "product": "{{PRODUCT}}",
+  "goal": "awareness",
+  "kpi": "e.g. 3-second view rate >= 35% and 50 profile visits per 10k views on TikTok; 2% video completion on X",
+  "markets": ["US"],
+  "languages": ["en"],
+  "platforms": ["tiktok", "x"],
+  "voice_engine": "files",
+  "brand": {
+    "names": ["{{PRODUCT}}"],
+    "say": {},
+    "handle": {"tiktok": "@…", "x": "@…"},
+    "url": "https://…",
+    "logo": null,
+    "colors": {"bg": "#0d0f14", "fg": "#f6f4ef", "accent": "#ffcf4a", "muted": "#9aa3b2"},
+    "fonts": {"display": "Montserrat", "body": "Inter", "caption": "Montserrat"}
+  },
+  "constraints": ["no competitor names", "no prices on screen unless a fact is checked this week"],
+  "budget": {"videos": 3, "hook_variants_per_video": 3}
+}
