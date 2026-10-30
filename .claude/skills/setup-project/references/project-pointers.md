@@ -9,6 +9,11 @@ link its project-specific sources of truth with a short note on when to read:
   document(s), whether named `ARCHITECT*.md`, `ARCHITECTURE*.md` or a maintained
   section of another document. In a multi-service repo, map each service to the
   relevant document instead of presenting an undifferentiated list.
+- **Product — when present:** what is being built, for whom and what customers
+  said — for example `docs/SPEC.md`, a clickable `prototype/`, market-test and
+  feedback logs (the shape [2found's start guide](https://2found.dev/start/)
+  writes). Link the files that exist, say to read the spec before planning a
+  feature, and keep any product ground rules already in `AGENTS.md` intact.
 - **Design — when applicable:** UI/UX rules, design system, tokens and shared
   components for projects with a visual/user-facing surface. Link the existing
   design authority and say to read it before visual/UI changes.
