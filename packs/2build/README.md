@@ -45,11 +45,11 @@ From your existing Soot project, add the pack:
 soot add https://github.com/2found/2build --path packs/2build
 ```
 
-Start with Autopilot in the Soot definition for a complete one-ticket
-workflow:
+Select the pack in the Soot definition; start with Autopilot for a complete
+one-ticket workflow:
 
 ```json
-{"use": ["2build/autopilot"]}
+{"packs": ["2build"]}
 ```
 
 Run `soot check --show` to inspect the resolved configuration before
@@ -69,12 +69,12 @@ the task or prove the resulting code works.
 worker runtime. See the [full product](https://github.com/2found/2build)
 for that workflow.
 
-## Full capability inventory
+## Full skill inventory
 
 <details>
 <summary>Browse all 20 skills and their packaged sizes</summary>
 
-| Capability | Bytes | When to use |
+| Skill | Bytes | When to use |
 | --- | --- | --- |
 | `agent-first-docs` | 3256 | Write a product's docs, quick start or marketing page around one copyable coding-agent prompt, and serve docs as agent-readable Markdown (llms.txt, .md URLs). Use for onboarding docs, quick starts, product pages, heroes and CTAs. |
 | `analytics-review` | 3373 | Review babysit telemetry. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED. |
@@ -103,11 +103,11 @@ for that workflow.
 
 Shared 2build references live under `shared/`; skill files reference
 them by relative path where the original skill did. Auxiliary skill
-assets (references/, workflows/, data/) ship under each capability dir.
+assets (references/, workflows/, data/) ship under each skill dir.
 The CLI prerequisite is inlined at the top of every `skill.md`.
 
-Direct `use` selectors load the skills you choose. The default recipe,
-`"packs": ["2build"]`, selects every capability in `pack.json`.
+A Soot that selects the pack (`"packs": ["2build"]`) reads every
+skill in `pack.json`; the pack has no tools.
 
 This README is generated from `scripts/build-2build-pack.py` in the
 2build repository. Edit that source and regenerate the pack to update it.

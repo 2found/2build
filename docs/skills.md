@@ -43,6 +43,7 @@ command.
 | Audit AGENTS.md, CLAUDE.md and related harness files | `/bbs:harness-audit` *(manual)* |
 | Evaluate external code | `/bbs:recon` *(manual)* |
 | Docs, quick start or marketing page built around one agent prompt; agent-readable Markdown | `/bbs:agent-first-docs` *(manual)* |
+| Short marketing videos for your own product: facts, audience, trends, script with A/B hooks, per-platform files you post | `/bbs:marketing-video` *(manual)* |
 
 ## Skill boundary
 

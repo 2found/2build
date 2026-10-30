@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the `2build` soot pack from .claude/skills/.
 
-Every 2build skill becomes one capability (capability name == skill dir name,
+Every 2build skill becomes one pack skill (the dir is named after the skill,
 skill name == 2build_<skill>). `team` (and its `foreman` alias) is excluded — its runtime depends on
 Orca transport and does not port to a soot pack. Output layout:
 
@@ -9,15 +9,14 @@ Orca transport and does not port to a soot pack. Output layout:
         pack.json
         README.md
         build-meta.json      version/commit provenance (release builds only)
-        <skill>/skill.md     one per capability
+        <skill>/skill.md     one per skill
         <skill>/…            aux files (references/, workflows/, data/)
         shared/              .claude/skills/references/ (Markdown paths translated)
 
 Install into a soot deployment:
     soot add <2build-repo> --path packs/2build
-    # then pick capabilities in the Soot definition:
-    #   "packs": ["2build"]            → default recipe (pack.use)
-    #   "use": ["2build/implement", …] → direct selectors
+    # then select the pack in the Soot definition:
+    #   "packs": ["2build"]            → every skill in pack.json
 
 CI / release usage:
     python3 scripts/build-2build-pack.py --check-tree          # CI drift check
@@ -197,7 +196,7 @@ def resolve_version(flag_value):
 
 
 def build(out, version, commit):
-    capabilities = {}
+    skills = []
     rows = []
     failures = []
     for skill_dir in sorted(p for p in SKILLS.iterdir() if p.is_dir()):
@@ -219,13 +218,11 @@ def build(out, version, commit):
             failures.append(f"{name}: no description in SKILL.md frontmatter")
             continue
         copy_skill(out / name, skill_dir)
-        capabilities[name] = {
-            "skills": [{
-                "name": f"2build_{name}",
-                "file": f"{name}/skill.md",
-                "description": description,
-            }]
-        }
+        skills.append({
+            "name": f"2build_{name}",
+            "file": f"{name}/skill.md",
+            "description": description,
+        })
         rows.append((name, packed, description))
 
     shared = SKILLS / "references"
@@ -243,8 +240,7 @@ def build(out, version, commit):
     manifest = {
         "api_version": "soot/v1",
         "id": "2build",
-        "use": sorted(capabilities),
-        "capabilities": capabilities,
+        "skills": skills,
     }
     data = json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"
     if len(data.encode()) > 64 << 10:
@@ -259,7 +255,7 @@ def build(out, version, commit):
         return 1
 
     if version:
-        meta = {"pack": "2build", "version": version, "skills": len(capabilities)}
+        meta = {"pack": "2build", "version": version, "skills": len(skills)}
         if commit:
             meta["source_commit"] = commit
         (out / "build-meta.json").write_text(json.dumps(meta, indent=2) + "\n")
@@ -273,7 +269,7 @@ def build(out, version, commit):
         "fixes issues. For UI work, it creates a prototype first. You can",
         "follow progress without reminding the agent to do each step.",
         "",
-        f"The pack contains {len(capabilities)} skills for product engineering and growth.",
+        f"The pack contains {len(skills)} skills for product engineering and growth.",
         "The companion `bbs` CLI keeps progress and evidence on disk.",
         "",
         "A 2found product. With [Soot](https://trysoot.com), powered by 2agent,",
@@ -312,11 +308,11 @@ def build(out, version, commit):
         "soot add https://github.com/2found/2build --path packs/2build",
         "```",
         "",
-        "Start with Autopilot in the Soot definition for a complete one-ticket",
-        "workflow:",
+        "Select the pack in the Soot definition; start with Autopilot for a complete",
+        "one-ticket workflow:",
         "",
         "```json",
-        '{"use": ["2build/autopilot"]}',
+        '{"packs": ["2build"]}',
         "```",
         "",
         "Run `soot check --show` to inspect the resolved configuration before",
@@ -336,12 +332,12 @@ def build(out, version, commit):
         "worker runtime. See the [full product](https://github.com/2found/2build)",
         "for that workflow.",
         "",
-        "## Full capability inventory",
+        "## Full skill inventory",
         "",
         "<details>",
-        f"<summary>Browse all {len(capabilities)} skills and their packaged sizes</summary>",
+        f"<summary>Browse all {len(skills)} skills and their packaged sizes</summary>",
         "",
-        "| Capability | Bytes | When to use |",
+        "| Skill | Bytes | When to use |",
         "| --- | --- | --- |",
     ]
     lines += [f"| `{n}` | {b} | {d} |" for n, b, d in rows]
@@ -353,11 +349,11 @@ def build(out, version, commit):
         "",
         "Shared 2build references live under `shared/`; skill files reference",
         "them by relative path where the original skill did. Auxiliary skill",
-        "assets (references/, workflows/, data/) ship under each capability dir.",
+        "assets (references/, workflows/, data/) ship under each skill dir.",
         "The CLI prerequisite is inlined at the top of every `skill.md`.",
         "",
-        "Direct `use` selectors load the skills you choose. The default recipe,",
-        "`\"packs\": [\"2build\"]`, selects every capability in `pack.json`.",
+        "A Soot that selects the pack (`\"packs\": [\"2build\"]`) reads every",
+        "skill in `pack.json`; the pack has no tools.",
         "",
         "This README is generated from `scripts/build-2build-pack.py` in the",
         "2build repository. Edit that source and regenerate the pack to update it.",
@@ -367,7 +363,7 @@ def build(out, version, commit):
     print(json.dumps({
         "pack": str(out),
         "version": version or "dev",
-        "capabilities": len(capabilities),
+        "skills": len(skills),
         "manifest_bytes": len(data.encode()),
     }))
     return 0
