@@ -49,7 +49,7 @@ func TestGenerateComposesPortableHarnessAndProvenance(t *testing.T) {
 	writeFile(t, filepath.Join(root, "templates/hono-bun/dist/unused"), "build output")
 	target := filepath.Join(t.TempDir(), "my-api")
 	verified := false
-	lock, err := Generate(root, target, "hono-bun", "", func(stage string, template Template) error {
+	lock, err := Generate(root, target, "hono-bun", "", nil, func(stage string, template Template) error {
 		verified = true
 		if _, err := os.Stat(target); !os.IsNotExist(err) {
 			t.Fatal("target published before verification")
@@ -88,7 +88,7 @@ func TestGenerateComposesPortableHarnessAndProvenance(t *testing.T) {
 	if err != nil || project != target {
 		t.Fatalf("nested provenance lookup failed: %s %v", project, err)
 	}
-	_, err = Generate(root, target, "hono-bun", "", nil)
+	_, err = Generate(root, target, "hono-bun", "", nil, nil)
 	if err == nil {
 		t.Fatal("overwrote an existing project")
 	}
@@ -96,7 +96,7 @@ func TestGenerateComposesPortableHarnessAndProvenance(t *testing.T) {
 	if unchanged != lock {
 		t.Fatal("rejected generation changed project")
 	}
-	second, err := Generate(root, filepath.Join(t.TempDir(), "second-api"), "hono-bun", "", nil)
+	second, err := Generate(root, filepath.Join(t.TempDir(), "second-api"), "hono-bun", "", nil, nil)
 	if err != nil || second.Revision != lock.Revision {
 		t.Fatalf("local snapshot digest is not reproducible: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestGenerateFailuresLeaveNoTargetOrStagingFiles(t *testing.T) {
 			case "target race":
 				verify = func(string, Template) error { writeFile(t, filepath.Join(target, "sentinel"), "preserve"); return nil }
 			}
-			if _, err := Generate(root, target, id, "", verify); err == nil {
+			if _, err := Generate(root, target, id, "", nil, verify); err == nil {
 				t.Fatal("expected generation rejection")
 			}
 			entries, err := os.ReadDir(parent)
@@ -149,6 +149,59 @@ func TestGenerateFailuresLeaveNoTargetOrStagingFiles(t *testing.T) {
 				t.Fatalf("left files behind after failure: %v", entries)
 			}
 		})
+	}
+}
+
+func TestGenerateScaffoldRunsFirstAndStarterFilesOverlayIt(t *testing.T) {
+	root := sourceFixture(t)
+	catalog := catalogFixture()
+	web := catalog.Templates["hono-bun"]
+	web.Path, web.Upgrade = "templates/web", "upgrades/web.md"
+	web.Scaffold = [][]string{{"create", "__PROJECT_NAME__", "."}}
+	catalog.Templates["web"] = web
+	b, err := json.Marshal(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(root, "catalog.json"), string(b))
+	writeFile(t, filepath.Join(root, "templates/web/README.md"), "# __PROJECT_NAME__ overlay\n")
+
+	scaffold := func(dir string, argv []string) error {
+		if filepath.Base(dir) != "my-web" || strings.Join(argv, " ") != "create my-web ." {
+			t.Fatalf("scaffold ran as %v in %s", argv, dir)
+		}
+		writeFile(t, filepath.Join(dir, "README.md"), "upstream readme")
+		writeFile(t, filepath.Join(dir, "app/page.tsx"), "upstream page")
+		writeFile(t, filepath.Join(dir, ".git/HEAD"), "ref: refs/heads/main")
+		return nil
+	}
+	target := filepath.Join(t.TempDir(), "my-web")
+	if _, err := Generate(root, target, "web", "", nil, nil); err == nil {
+		t.Fatal("a scaffold template generated without a runner")
+	}
+	if _, err := Generate(root, target, "web", "", scaffold, nil); err != nil {
+		t.Fatal(err)
+	}
+	for path, expected := range map[string]string{"README.md": "# my-web overlay\n", "app/page.tsx": "upstream page", "AGENTS.md": "# my-web\n"} {
+		if b, err := os.ReadFile(filepath.Join(target, path)); err != nil || string(b) != expected {
+			t.Fatalf("%s: %q %v", path, b, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(target, ".git")); !os.IsNotExist(err) {
+		t.Fatal("scaffold Git metadata was published")
+	}
+
+	parent := t.TempDir()
+	failing := func(string, []string) error { return errors.New("registry unavailable") }
+	if _, err := Generate(root, filepath.Join(parent, "my-web"), "web", "", failing, nil); err == nil {
+		t.Fatal("expected scaffold failure")
+	}
+	writeFile(t, filepath.Join(root, "templates/web/AGENTS.md"), "collision")
+	if _, err := Generate(root, filepath.Join(parent, "my-web"), "web", "", scaffold, nil); err == nil || !strings.Contains(err.Error(), "collision") {
+		t.Fatalf("common/template collision must still fail over scaffold output: %v", err)
+	}
+	if entries, _ := os.ReadDir(parent); len(entries) != 0 {
+		t.Fatalf("failed scaffold left files behind: %v", entries)
 	}
 }
 
@@ -206,7 +259,7 @@ func TestRelevantUpdatesAndVersionOrdering(t *testing.T) {
 func TestReleaseCheckCachesAndFallsBackWithoutChangingProject(t *testing.T) {
 	root := sourceFixture(t)
 	project := filepath.Join(t.TempDir(), "my-api")
-	lock, err := Generate(root, project, "hono-bun", "", nil)
+	lock, err := Generate(root, project, "hono-bun", "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

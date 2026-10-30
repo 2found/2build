@@ -142,7 +142,7 @@ func TestStarterNoticeIsAdvisoryAndSkipsNonStarterProjects(t *testing.T) {
 		t.Fatal("ordinary repo incurred a starter network check")
 	}
 	source, target := commandStarterFixture(t), filepath.Join(dir, "my-api")
-	if _, err := starter.Generate(source, target, "hono-bun", "", nil); err != nil {
+	if _, err := starter.Generate(source, target, "hono-bun", "", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	starterNotice(target, &out, check)
@@ -168,7 +168,7 @@ func TestStarterPreambleReportsCachedUpdatesAndHonorsUserConfig(t *testing.T) {
 	bin := buildTestBBS(t)
 	source := commandStarterFixture(t)
 	project := filepath.Join(t.TempDir(), "my-api")
-	if _, err := starter.Generate(source, project, "hono-bun", "", nil); err != nil {
+	if _, err := starter.Generate(source, project, "hono-bun", "", nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	state := t.TempDir()

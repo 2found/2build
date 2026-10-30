@@ -24,6 +24,10 @@ type Template struct {
 	Summary string     `json:"summary"`
 	Dev     []string   `json:"dev"`
 	Verify  [][]string `json:"verify"`
+	// Scaffold commands run in the empty staging directory before common/ and
+	// the template overlay are copied, so an upstream generator (for example
+	// create-next-app) owns framework files instead of a vendored copy.
+	Scaffold [][]string `json:"scaffold,omitempty"`
 	// Revision changes only when this template or the common harness changes.
 	Revision int    `json:"revision"`
 	Upgrade  string `json:"upgrade"`
@@ -58,7 +62,8 @@ func ParseCatalog(data []byte) (Catalog, error) {
 		if !ValidName(id) || !safeRelative(t.Path) || !strings.HasPrefix(t.Path, "templates/") || t.Revision < 1 || t.Summary == "" || !safeRelative(t.Upgrade) || !strings.HasPrefix(t.Upgrade, "upgrades/") || len(t.Dev) == 0 || len(t.Verify) == 0 {
 			return c, fmt.Errorf("invalid starter template %q", id)
 		}
-		for _, command := range append([][]string{t.Dev}, t.Verify...) {
+		commands := append([][]string{t.Dev}, t.Verify...)
+		for _, command := range append(commands, t.Scaffold...) {
 			if len(command) == 0 || command[0] == "" {
 				return c, fmt.Errorf("template %q has an empty command", id)
 			}

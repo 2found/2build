@@ -66,13 +66,16 @@ func newBootstrapCmd() *cobra.Command {
 			if !starter.ValidVersion(cliVersion) || starter.CompareVersion(cliVersion, catalog.MinCLI) < 0 {
 				return fmt.Errorf("starter requires bbs >= %s; current version is %s", catalog.MinCLI, cliVersion)
 			}
+			run := func(dir string, argv []string) error {
+				fmt.Fprintf(cmd.ErrOrStderr(), "→ %s\n", strings.Join(argv, " "))
+				command := exec.CommandContext(cmd.Context(), argv[0], argv[1:]...)
+				command.Dir = dir
+				command.Stdout, command.Stderr = cmd.ErrOrStderr(), cmd.ErrOrStderr()
+				return command.Run()
+			}
 			verify := func(dir string, t starter.Template) error {
 				for _, argv := range t.Verify {
-					fmt.Fprintf(cmd.ErrOrStderr(), "→ %s\n", strings.Join(argv, " "))
-					command := exec.CommandContext(cmd.Context(), argv[0], argv[1:]...)
-					command.Dir = dir
-					command.Stdout, command.Stderr = cmd.ErrOrStderr(), cmd.ErrOrStderr()
-					if err := command.Run(); err != nil {
+					if err := run(dir, argv); err != nil {
 						return fmt.Errorf("%s: %w", strings.Join(argv, " "), err)
 					}
 				}
@@ -81,7 +84,7 @@ func newBootstrapCmd() *cobra.Command {
 			if noVerify {
 				verify = nil
 			}
-			lock, err := starter.Generate(source, target, template, revision, verify)
+			lock, err := starter.Generate(source, target, template, revision, run, verify)
 			if err != nil {
 				return err
 			}

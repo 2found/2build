@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Starter scaffold step.** A starter catalog template may declare `scaffold`
+  argv commands that `bbs bootstrap` runs in an empty stage named after the
+  project before `common/` and the template overlay it. Starter files replace
+  scaffolded files; a `common/`/template collision still fails; scaffold Git
+  metadata is dropped and a failed scaffold leaves no project. This lets the
+  `nextjs-pnpm` starter run `create-next-app@latest` at bootstrap time instead
+  of vendoring a Next.js tree. Starter releases using it require this CLI.
+
 ## 1.117.0 — 2026-10-29
 
 ### Fixed

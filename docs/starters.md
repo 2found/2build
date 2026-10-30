@@ -1,14 +1,16 @@
 # Project starters
 
 `bbs bootstrap` creates a runnable project from the separately versioned
-`2found/2build-starters` catalog. The initial template is `hono-bun`. These commands
-are available in CLI 1.95.0+; the first stable starter release is `0.1.0`.
+`2found/2build-starters` catalog. Templates: `hono-bun` (API) and, from starter
+release `0.2.0` with CLI 1.118.0+, `nextjs-pnpm` (web). These commands are available
+in CLI 1.95.0+; the first stable starter release is `0.1.0`.
 Bootstrap uses published releases by default; `--source` supports local development.
 
 ```bash
 bbs bootstrap my-api --template hono-bun
 bbs bootstrap another-api --template hono-bun --version 0.1.0
 bbs bootstrap local-api --source /path/to/2build-starters --template hono-bun
+bbs bootstrap my-web --template nextjs-pnpm
 bbs starter check --dir my-api --json
 ```
 
@@ -19,6 +21,16 @@ the catalog's CLI requirement, composes common/template files in a temporary
 directory, runs the template's verification commands, and publishes the project
 only when they pass. Commands execute directly, not through shell interpolation.
 It never initializes Git, commits, pushes, or deploys.
+
+A template may declare `scaffold` commands (catalog argv arrays; `__PROJECT_NAME__`
+is substituted). They run first, in an empty stage directory named after the
+project, so an upstream generator (e.g. `create-next-app@latest`) owns framework
+files at bootstrap time instead of a vendored copy; the lockfile it writes records
+the versions actually resolved. `common/` and the template then overlay that output: a starter file
+replaces a scaffolded file, while a `common/`/template collision still fails. Any
+`.git` the scaffolder creates is removed. Scaffolding needs the template's package
+manager and registry access and runs even with `--no-verify`; a failed scaffold
+leaves no project behind.
 
 `--json` prints the generated directory, dev argv, provenance and `verified` status;
 verification logs go to stderr. `--no-verify` writes files without installing or

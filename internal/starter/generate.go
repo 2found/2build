@@ -11,9 +11,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Runner executes one argv in dir; bootstrap supplies it for scaffold commands.
+type Runner func(dir string, argv []string) error
+
 // Generate builds in a sibling temporary directory and refuses existing targets.
-// Verification runs before publication; failed generation leaves no project behind.
-func Generate(root, target, id, revision string, verify func(string, Template) error) (Lock, error) {
+// Scaffold commands run first in the empty stage; common/ and the template then
+// overlay their output. Verification runs before publication; failed generation
+// leaves no project behind.
+func Generate(root, target, id, revision string, run Runner, verify func(string, Template) error) (Lock, error) {
 	var lock Lock
 	target, err := filepath.Abs(target)
 	if err != nil {
@@ -42,11 +47,37 @@ func Generate(root, target, id, revision string, verify func(string, Template) e
 	if !ok {
 		return lock, fmt.Errorf("unknown starter template %q", id)
 	}
-	stage, err := os.MkdirTemp(filepath.Dir(target), ".bbs-starter-")
+	// The stage is named after the project: scaffolders such as create-next-app
+	// derive the package name from the directory they generate into.
+	staging, err := os.MkdirTemp(filepath.Dir(target), ".bbs-starter-")
 	if err != nil {
 		return lock, err
 	}
-	defer os.RemoveAll(stage)
+	defer os.RemoveAll(staging)
+	stage := filepath.Join(staging, name)
+	if err := os.Mkdir(stage, 0o755); err != nil {
+		return lock, err
+	}
+	if len(template.Scaffold) > 0 {
+		if run == nil {
+			return lock, fmt.Errorf("starter template %q needs a scaffold runner", id)
+		}
+		for _, argv := range template.Scaffold {
+			substituted := make([]string, len(argv))
+			for i, arg := range argv {
+				substituted[i] = strings.ReplaceAll(arg, "__PROJECT_NAME__", name)
+			}
+			if err := run(stage, substituted); err != nil {
+				return lock, fmt.Errorf("starter scaffold failed; target was not created: %s: %w", strings.Join(substituted, " "), err)
+			}
+		}
+		// Bootstrap never initializes Git; the caller owns repository creation.
+		if err := os.RemoveAll(filepath.Join(stage, ".git")); err != nil {
+			return lock, err
+		}
+	}
+	// Starter files may replace scaffold output, never each other.
+	copied := map[string]bool{}
 	digest := sha256.New()
 	// Include catalog bytes and source files in local snapshot provenance.
 	body, err := os.ReadFile(filepath.Join(root, "catalog.json"))
@@ -103,6 +134,18 @@ func Generate(root, target, id, revision string, verify func(string, Template) e
 			fmt.Fprintf(digest, "%s/%s\x00%d\x00", folder, filepath.ToSlash(rel), len(b))
 			digest.Write(b)
 			b = []byte(strings.ReplaceAll(string(b), "__PROJECT_NAME__", name))
+			if copied[rel] {
+				return fmt.Errorf("starter file collision: %s", rel)
+			}
+			copied[rel] = true
+			if info, err := os.Lstat(destination); err == nil {
+				if !info.Mode().IsRegular() {
+					return fmt.Errorf("starter file collision: %s", rel)
+				}
+				if err := os.Remove(destination); err != nil {
+					return err
+				}
+			}
 			f, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 			if err != nil {
 				return fmt.Errorf("starter file collision: %s: %w", rel, err)
@@ -124,6 +167,9 @@ func Generate(root, target, id, revision string, verify func(string, Template) e
 	lock = Lock{SchemaVersion: 1, Source: Source, Release: catalog.Version, Template: id, TemplateRevision: template.Revision, Revision: revision}
 	data, err := yaml.Marshal(lock)
 	if err != nil {
+		return lock, err
+	}
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(stage, LockPath)), 0o755); err != nil {
 		return lock, err
 	}
 	if err := os.WriteFile(filepath.Join(stage, LockPath), data, 0o644); err != nil {
