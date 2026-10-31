@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.121.0 — 2026-11-01
+
+### Changed
+
+- **Phase conflicts resolve in place, not in cold repair sessions.**
+  `bbs team integrate` now lays ticket-vs-ticket and ticket-vs-base conflicts
+  out in the phase worktree with markers (`CONFLICT=`, `RESOLVE_IN=`) and
+  exits non-zero; whoever ran it resolves there and integrates again, which
+  commits the resolution (naming the files). A reseal restarts the layout; a
+  `repair` session is reserved for conflicts needing real rework.
+- **`land` composes on a moved base and tolerates local edits.** Base having
+  advanced since `integrate` is normal: `land` recomposes the phase on the
+  new tip itself (`REINTEGRATED=`). Uncommitted work in a base checkout rides
+  along unless it overlaps the phase's files — then land stops and lists it
+  (`LOCAL_CHANGES=`), and `land --commit-local "<message>"` commits it with
+  the human's go, then lands on top. Nothing is stashed or reset.
+- **`BASE_DRIFT=` early warning.** `bbs team next`/`batch` output now warns
+  when base changed a file the ticket's worktree is also changing — a `refresh`
+  while the ticket is fresh is cheaper than three chained repairs at
+  integrate. Advisory only; integrate still resolves whatever remains.
+- **`seal`/`task done` treat sibling conflicts as advisory** (`COMPOSE_WARNING=`):
+  they are resolved where the phase composes and no longer cost a follow-up.
+  `task done` keeps verdicts staled only by outside work adopted into the
+  reviewed diff (`GATE="carried: …"`).
+- **Auto-phase release confirmation.** An `auto` phase whose release would
+  also carry work outside the project (other sessions' commits, uncommitted
+  base changes) asks the human once with a deadline; unanswered, it is
+  skipped and ships with a later release.
+- **Quieter worker wakes.** Foreman batch wakes now prompt the lead with one
+  plain line instead of re-invoking the skill — a live lead already has it in
+  context, and each appended copy was re-read every later turn.
+
 ## 1.120.0 — 2026-10-31
 
 ### Changed
