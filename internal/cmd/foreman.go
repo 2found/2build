@@ -35,10 +35,16 @@ const foremanUsage = `Usage:
   bbs team readiness <parent> --action dispatch|finish --json
   bbs team readiness <parent> --action dispatch|integrate|land|release --phase <id> --json
   bbs team integrate <parent> --phase <id> [--message <text>]
-                                         (compose the phase's sealed tickets into one commit)
-  bbs team land <parent> --phase <id> (fast-forward base to the QA'd phase commit)
-  bbs team release <parent> --phase <id> --request [--note <text>]
-                                         (publish the phase's human release approval)
+                                         (compose the phase's sealed tickets into one commit on base;
+                                          conflicts are laid out in the phase worktree — resolve, run again)
+  bbs team land <parent> --phase <id> [--commit-local <message>]
+                                         (fast-forward base to the phase commit, composing again if base
+                                          moved; --commit-local commits overlapping local changes first)
+  bbs team release <parent> --phase <id> --request [--note <text>] [--wait <duration>]
+                                         (publish the phase's human release approval; on an auto phase
+                                          it is a confirmation that skips when unanswered by --wait, 30m)
+  bbs team release <parent> --phase <id> --skip [--reason <text>]
+                                         (skip an auto phase's release; it ships with a later one)
   bbs team release <parent> --phase <id> --file receipt.json
                                          (record a release-prd verdict for the phase)
   bbs team seal <child>... [--waive <review-pr|qa>[,<gate>] --reason <text>]
@@ -251,7 +257,7 @@ func foremanFlags(args []string) (id string, kv map[string]string, err error) {
 		if key == "team" { // the Team spelling of --foreman <id>
 			key = "foreman"
 		}
-		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "carry" || key == "exact-session" || key == "startup-only" || key == "open" || key == "spec" || key == "created-terminal" || key == "supervised" || key == "request" || key == "quota" { // the boolean flags
+		if key == "keep-workspace" || key == "unbounded" || key == "once" || key == "ack" || key == "auto" || key == "json" || key == "begin" || key == "carry" || key == "exact-session" || key == "startup-only" || key == "open" || key == "spec" || key == "created-terminal" || key == "supervised" || key == "request" || key == "skip" || key == "quota" { // the boolean flags
 			kv[key] = "1"
 			continue
 		}

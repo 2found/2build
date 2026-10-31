@@ -1,14 +1,15 @@
 # Team worker transport
 
-The lead owns this adapter. Include these instructions in every worker Task
-spec (`bbs team task create --spec-file`); member skills do not load this
-reference. The outer worker applies the lifecycle once around its assigned
-skill, including on resume or failure.
-
-Declare `SPAWNED=true` and `AGENT_ROLE=orca` in the assignment, with the Task
-id, the ticket and stop boundary, and this escalation channel. The launch
-prompt names the Task and Dispatch ids; `bbs team task show <task>` is the
-authority for them, never env or ticket guesses.
+The lead owns this adapter; member skills do not load this reference. A
+Task spec (`bbs team task create --spec-file`) carries only the assignment
+and its stop boundary: `bbs team task show <task> --spec` adds the
+transport header (`SPAWNED=true`, `AGENT_ROLE=orca`, Task, ticket, lead, the
+`BABYSIT_PROJECT_HOME`/`BABYSIT_TICKET` export), the lifecycle below in
+short, and — on a relaunched Task — a Resume section naming the earlier
+Dispatches. The outer worker applies the lifecycle once around its assigned
+skill, including on resume or failure. The launch prompt names the Task and
+Dispatch ids; `bbs team task show <task>` is the authority for them, never
+env or ticket guesses.
 
 ## Worker lifecycle
 

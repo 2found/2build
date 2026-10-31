@@ -30,12 +30,15 @@ const (
 )
 
 type Task struct {
-	ID         string     `json:"id"`
-	Foreman    string     `json:"foreman"`
-	Ticket     string     `json:"ticket"`
-	Kind       string     `json:"kind,omitempty"`
-	CreatedAt  string     `json:"created_at"`
-	Dispatches []Dispatch `json:"dispatches,omitempty"`
+	ID      string `json:"id"`
+	Foreman string `json:"foreman"`
+	Ticket  string `json:"ticket"`
+	Kind    string `json:"kind,omitempty"`
+	// ProjectHome is the lead's project home, where Ticket lives; the
+	// rendered spec tells the worker to export it.
+	ProjectHome string     `json:"project_home,omitempty"`
+	CreatedAt   string     `json:"created_at"`
+	Dispatches  []Dispatch `json:"dispatches,omitempty"`
 }
 
 type Dispatch struct {

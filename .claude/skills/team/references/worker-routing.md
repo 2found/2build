@@ -35,7 +35,8 @@ bbs team route --ticket "$TICKET" --task "$TASK" \
 
 `$TASK` is the bbs Task the worker will run: create it first with
 `bbs team task create "$FOREMAN_ID" --ticket "$TICKET" --kind <kind> --spec-file <spec>`
-(the spec carries the assignment plus [worker-lifecycle.md](worker-lifecycle.md)).
+(the spec carries only the assignment; bbs adds the transport and lifecycle of
+[worker-lifecycle.md](worker-lifecycle.md) when the worker reads it).
 `--kind` is required: `ticket` for a ticket session and `repair|refresh|redirect`
 for its follow-ups (their `task done` is refused until the ticket's readiness
 passes); any other name — `phase-qa`, `diagnosis`, `product-review`, `release`

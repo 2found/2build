@@ -85,11 +85,11 @@ keep work on warm context.
      ticket|repair|refresh|redirect` on `task create`) until the ticket's
      readiness passes — and a follow-up for a finished ticket goes to a
      **fresh** session in the same worktree, carrying every gap that ticket
-     has at once. `task done` also refuses a tree that conflicts with a
-     sibling which already reported (`GATE=not-composing`), and keeps
-     verdicts staled only by adopting work outside the reviewed diff
-     (`GATE="carried: …"`; `seal` carries them the same way), so neither
-     costs a follow-up.
+     has at once. `task done` keeps verdicts staled only by adopting work
+     outside the reviewed diff (`GATE="carried: …"`; `seal` carries them
+     the same way), and only warns about a conflict with a sibling
+     (`COMPOSE_WARNING=`): conflicts are resolved where the phase composes,
+     so neither costs a follow-up.
    - **Build fast, merge early, verify once.** A ticket runs focused
      checks only and reports; `review-pr` and `qa` are left to its phase at
      every size (`GATE="deferred to phase review: …"`; `seal` and `await`
@@ -159,9 +159,14 @@ approved spec and design, and anything they leave open as the reversible
 option. Record each such judgment when you take it with `bbs team log`
 ([delivery](references/delivery.md#decision-trail)); the handover's
 *Decisions taken for you* is written from that trail, not memory. Only
-three things reach the human mid-run: a `bbs team hold` they placed, a
-release that failed twice, and a blocker that survived three attempts or
-needs something only they hold (a credential, an account, a legal call).
+five things reach the human mid-run: a `bbs team hold` they placed, a
+release that failed twice, a blocker that survived three attempts or
+needs something only they hold (a credential, an account, a legal call),
+permission to commit someone's uncommitted work on base when it blocks
+a land (`LOCAL_CHANGES=`, [git flow](../references/git-flow.md) step 7),
+and a mid-run release whose base carries work outside the project — a
+confirmation with a deadline: unanswered, the release is skipped and the
+phase ships with a later one ([phases](references/phases.md#5-release)).
 Even then park only the ticket or phase that needs it; independent work
 continues, and what can ship behind a flag or a stub does.
 
@@ -197,8 +202,8 @@ On a settled batch wake:
 
    | Trigger | Follow-up on a fresh session in the ticket worktree |
    |---|---|
-   | verification gap, review/QA finding, phase QA failure, phase does not compose | `repair` naming the exact evidence |
-   | a prerequisite was resealed, or now passes after `AWAIT=not-ready`; a pinned contract changed | `refresh` |
+   | verification gap, review/QA finding, phase QA failure | `repair` naming the exact evidence |
+   | a prerequisite was resealed, or now passes after `AWAIT=not-ready`; a pinned contract changed; `BASE_DRIFT=` (base changed the ticket's files since it started) | `refresh` |
    | a parked plan approval was answered | `redirect` |
    | `BLOCKED` after the worker's own retry budget | fresh read-only critical diagnosis worker, then `repair` |
 
@@ -215,12 +220,18 @@ On a settled batch wake:
    (**pipeline one phase deep**; a phase cannot integrate until the earlier
    one is verified and released), integrate and land, hand phase review + QA
    to one integration worker (it fixes small findings itself), release.
+   Base moving under a phase and conflicts are routine: `integrate`/`land`
+   lay a conflict out in the phase worktree — resolve a mechanical one
+   yourself in that wake and integrate again; hand the rest to the phase
+   integration worker ([git flow](../references/git-flow.md) steps 5–7).
 4. Launch everything runnable as **one batch** — follow-ups, new tickets,
    integration QA, release workers — then `bbs team batch` and end the turn.
 
 On an early wake, handle only the attention named — answer the question or
 plan review with `bbs team task answer` (the asking worker is blocked on
-it), or recover that one worker (`task abandon`, then relaunch) — re-run
+it), or recover that one worker (`task abandon`, then `task launch` the
+same Task: its spec gains a Resume section naming what the earlier
+Dispatch did, so write no resume spec) — re-run
 `bbs team batch` with the same Tasks plus any new ones, and end the turn.
 Plans are self-approved by their workers; one reaches you only when the
 worker escalates it (floor, repeated refusal, material deviation) — review

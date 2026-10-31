@@ -133,9 +133,9 @@ The manifest's owned-files column lists every file a ticket edits, wiring
 lines included; a seam file goes to exactly one ticket of the phase, or to an
 earlier phase's producer that leaves the hook the others fill. If two rows of
 one phase still need the same file, merge them or move the seam earlier.
-`task done` backs this up mechanically: a ticket whose tree conflicts with a
-sibling that already reported is refused `GATE=not-composing` and adopts it
-while warm, instead of in a cold repair after `integrate` refuses the phase.
+A conflict that slips through is not a repair: `task done` warns
+(`COMPOSE_WARNING=`) and `integrate` lays it out in the phase worktree for
+resolution in place ([git flow](../references/git-flow.md) step 6).
 
 ## Resource admission
 

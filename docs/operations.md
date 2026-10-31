@@ -189,13 +189,14 @@ bbs team readiness <parent> --action dispatch|integrate|land|release --phase <id
 bbs team integrate <parent> --phase <id>     # one phase commit, detached worktree
 bbs team land <parent> --phase <id>          # after phase QA: fast-forward base
 bbs team bind <parent> --phase <id> --child <phase-ticket>
-bbs team release <parent> --phase <id> --request --note "<what ships>"   # ask: human go
+bbs team release <parent> --phase <id> --request --note "<what ships>"   # ask: human go (auto phase over outside work: confirm, --wait 30m)
+bbs team release <parent> --phase <id> --skip --reason "<why>"          # auto phase: skip, ship with a later release
 bbs team release <parent> --phase <id> --file receipt.json              # release-prd verdict
 ```
 
 Phase `k` opens once phase `k-1` has landed, so it builds
 while `k-1` waits on its release; it integrates only after every earlier phase
-is released. A `ROLLED_BACK` or `PARTIAL` receipt stops the line until the
+is released (or its release skipped). A `ROLLED_BACK` or `PARTIAL` receipt stops the line until the
 phase is fixed forward and released; from the second failure every phase needs
 a human go. To give an `ask` go, approve the release record on the phase
 ticket like any approval (`BABYSIT_TICKET=<phase-ticket> bbs ticket approval
@@ -475,11 +476,13 @@ stall, or a lost worker — an open Dispatch with no live terminal for the whole
 stall budget. Early attention is held for `--attention-window` (default 120 s)
 from the first item, so plan reviews and questions from tickets that started
 together cost one wake; `batch show` lists held items too. A wake that cannot be delivered stays owed and is retried each tick;
-a failed member the team lead retries is followed to its new Dispatch, so the
+a failed member the team lead retries is followed to its new Dispatch (its spec
+names the earlier Dispatches so the retry resumes), so the
 batch does not settle under a running retry. Workers report into the bbs task
 store, never into the lead's terminal, so nothing else types into it while
 a batch runs. `bbs team batch show <id>` prints the batch state the wake refers to — each
-settled member with its ticket, kind, gate verdict, summary and report — and
+settled member with its ticket, kind, gate verdict, summary and report, a
+`BASE_DRIFT=` line for a ticket whose files base has changed since it started — and
 then the `NEXT=` steps of every project the team lead owns, so one read covers a
 wake. A question counts as delivered only once `batch show` printed it: a wake
 typed while the team lead is busy (an open dialog) can be swallowed, so

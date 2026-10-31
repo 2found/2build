@@ -339,3 +339,57 @@ func TestForemanTaskDoneRetryKeepsTheFirstReport(t *testing.T) {
 		t.Fatalf("retry overwrote the report: %+v", d)
 	}
 }
+
+// The lead writes only the assignment; the spec a worker reads carries the
+// transport header and the lifecycle, with the lead's project home.
+func TestForemanTaskSpecCarriesTransport(t *testing.T) {
+	fm, _ := taskFixture(t)
+	t.Setenv("BABYSIT_PROJECT_HOME", "/proj/home")
+	task := createTask(t, fm)
+	out := captureStdout(t, func() {
+		if err := foremanTask([]string{"show", task, "--spec"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	for _, want := range []string{
+		"SPAWNED=true · AGENT_ROLE=orca · task " + task + " (kind phase-qa) · ticket bs-child · lead " + fm,
+		"`export BABYSIT_PROJECT_HOME=/proj/home BABYSIT_TICKET=bs-child`",
+		"Run autopilot for bs-child.",
+		"bbs team task ask " + task + " --body",
+		"bbs team task done " + task + " --dispatch",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("spec missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// A Task relaunched after its worker exited tells the new worker what the
+// earlier Dispatch did, so the lead writes no resume spec.
+func TestForemanTaskSpecNamesEarlierDispatchesOnRelaunch(t *testing.T) {
+	fm, _ := taskFixture(t)
+	task := createTask(t, fm)
+	launch := func() {
+		t.Helper()
+		captureStdout(t, func() {
+			if err := foremanTask([]string{"launch", task, "--agent", "codex", "--worktree", t.TempDir()}); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	launch()
+	if _, err := foreman.UpdateTask(task, func(tk *foreman.Task) error {
+		return tk.DispatchByID(task+".d1").Settle(foreman.DispatchFailed, "worker exited")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	launch()
+	out := captureStdout(t, func() {
+		if err := foremanTask([]string{"show", task, "--spec"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(out, "## Resume") || !strings.Contains(out, task+".d1 failed (worker exited)") || strings.Contains(out, task+".d2") {
+		t.Fatalf("resume section:\n%s", out)
+	}
+}

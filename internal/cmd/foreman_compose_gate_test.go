@@ -16,10 +16,10 @@ func stubCompose(t *testing.T, conflicts map[string][]string) {
 	t.Cleanup(func() { taskDoneCompose = old })
 }
 
-// A ticket whose work conflicts with a sibling that already reported is
-// refused while its worker is warm, naming the sibling to adopt; --no-gate
-// still reports.
-func TestForemanTaskDoneRefusesWorkThatDoesNotCompose(t *testing.T) {
+// A ticket whose work conflicts with a sibling that already reported still
+// reports: the conflict is resolved where the phase composes, so the report
+// only warns, naming the sibling and files.
+func TestForemanTaskDoneWarnsOnWorkThatDoesNotCompose(t *testing.T) {
 	fm, _ := taskFixture(t)
 	old := taskDoneGate
 	taskDoneGate = func(string) (string, []string, error) { return "ready", nil, nil }
@@ -36,18 +36,11 @@ func TestForemanTaskDoneRefusesWorkThatDoesNotCompose(t *testing.T) {
 	out := captureStdout(t, func() {
 		err = foremanTask([]string{"done", task, "--outcome", "succeeded", "--summary", "s"})
 	})
-	if err == nil || !strings.Contains(out, "GATE=not-composing") || !strings.Contains(out, "CONFLICT_WITH=bs-sib: api/routes.ts, api/index.ts") || !strings.Contains(out, "bbs ticket adopt bs-sib") {
+	if err != nil || !strings.Contains(out, "COMPOSE_WARNING=bs-sib: api/routes.ts, api/index.ts") {
 		t.Fatalf("conflicting done: %v %q", err, out)
 	}
-	if _, status, _ := taskDispatchState(task); status != foreman.DispatchOpen {
-		t.Fatalf("refused done settled the dispatch as %s", status)
-	}
-	stubCompose(t, nil)
-	captureStdout(t, func() {
-		err = foremanTask([]string{"done", task, "--outcome", "succeeded", "--summary", "s"})
-	})
-	if tk, _ := foreman.LoadTask(task); err != nil || tk.Current().Gate != "ready" {
-		t.Fatalf("composing done: %v", err)
+	if tk, _ := foreman.LoadTask(task); tk.Current().Gate != "ready" {
+		t.Fatalf("gate = %q", tk.Current().Gate)
 	}
 }
 

@@ -38,8 +38,8 @@ from cache on every later turn, and whole parent documents measured about 35k
 tokens of each worker's base context — the ticket requirement/seed, size and
 acceptance IDs, its prerequisites as `<ticket>:<task>` pairs (bbs Task ids),
 owned files and contracts, review effort, deferred heavy checks, selected
-route, resource lease and required evidence, plus the
-[worker lifecycle](worker-lifecycle.md): the worker is already spawned,
+route, resource lease and required evidence; bbs adds the
+[worker lifecycle](worker-lifecycle.md) itself: the worker is already spawned,
 executes immediately, and reports exactly one `bbs team task done` per
 Dispatch. Missing inputs come through `bbs team task ask`, answered with
 `task answer` while the same live session waits — not a local human prompt.
@@ -71,7 +71,7 @@ After every accepted report, the next owner is therefore always a **fresh
 session**:
 
 1. **Follow-up** — a `repair` (verification gap, review/QA finding,
-   heavy/integration failure, a phase that does not compose), a `refresh` (a
+   heavy/integration failure, a conflict that needs real rework of the ticket), a `refresh` (a
    prerequisite changed or settled after this ticket stopped waiting for it)
    or a `redirect` (a parked or redirected plan was answered): create the
    follow-up Task (`--kind repair|refresh|redirect`) and start a fresh worker
@@ -181,7 +181,7 @@ the exact evidence. Changed inputs invalidate gates.
 | Trigger | Next owner |
 |---|---|
 | Light verification gap, heavy QA or phase QA failure | `repair` on the ticket session (fresh ticket worker if gone) |
-| `integrate` reports the phase does not compose | `repair` on the later ticket named: `bbs ticket adopt <earlier>`, resolve, re-run its gates |
+| `integrate` lays out a conflict | Resolve it in the phase worktree, `integrate` again ([git flow](../references/git-flow.md) step 6); a `repair` only when it needs real rework of one ticket |
 | A prerequisite was resealed after a dependent adopted it, or a dependent stopped on `AWAIT=not-ready` and the prerequisite now passes | `refresh` on each affected dependent session, in dependency order |
 | A contract a ticket pinned changed under it (`contract:<id>:changed`) | `refresh` on that ticket's session: re-read the contract, adapt, re-verify, re-pin |
 | `integrate` refuses: the phase changes a contract another team owns | ask the owner — a ticket assigned to it ([contracts](../references/contracts.md)) — and repair the ticket to build against the version on base |

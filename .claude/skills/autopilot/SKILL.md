@@ -365,11 +365,10 @@ steps and ends when the ticket is ready for its phase's integration:
    when heavy checks are deferred) for the gates your size owns, persist the checkpoint, handoff and gate
    evidence per `references/verification.md`, and report exactly once with
    `bbs team task done`; it re-checks readiness and refuses success with
-   `GATE=not-ready` and the missing reasons, or with `GATE=not-composing` and
-   a `CONFLICT_WITH=<sibling>: <files>` line when a phase sibling already
-   reported work this tree conflicts with (`bbs ticket adopt <sibling>`,
-   resolve, review the resolution delta), which this session fixes and then
-   reports again — a later session would have to reload everything you hold.
+   `GATE=not-ready` and the missing reasons, which this session fixes and
+   then reports again — a later session would have to reload everything you
+   hold. A `COMPOSE_WARNING=<sibling>: <files>` line is advisory: the lead
+   resolves that conflict when the phase composes.
    Record workflow completion only when the gates your size owns and
    readiness are current. Never commit, push or open a PR.
 
@@ -380,9 +379,10 @@ base and reopens the whole review) (or re-reads a changed contract, adapts and
 re-pins it), `redirect` resumes from step 2 with the lead's
 answer — each then re-runs every gate the change invalidates. A `repair`
 from phase integration QA names the failing criterion and the tested phase
-commit; reproduce it in this ticket's worktree. A `repair` because the phase
-does not compose names the colliding ticket: `bbs ticket adopt <ticket>`,
-resolve every `CONFLICT=` file, rerun the affected gates. A consolidated heavy-QA assignment lists
+commit; reproduce it in this ticket's worktree. A `repair` for a conflict
+that needs real rework names the colliding ticket or base change: `bbs
+ticket adopt <ticket>` (or work against the new base), resolve every
+`CONFLICT=` file, rerun the affected gates. A consolidated heavy-QA assignment lists
 several tickets and writes each one's `qa` verdict with
 `BABYSIT_TICKET=<ticket>` on that ticket's assigned head, without code fixes.
 

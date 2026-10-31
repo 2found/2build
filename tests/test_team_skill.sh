@@ -44,8 +44,8 @@ has_all "foreman-owns-topology" \
   'bbs team land' 'apply' 'in dependency order'
 
 has_all "finish-cleans-worker-workspace" \
-  'every Dispatch of the' 'kept_worktrees' \
-  'terminal close --worktree path:<worktreePath> --all' 'never substitute' \
+  'closed_terminals' 'kept_worktrees' \
+  'workspace-status completed' 'never substitute' \
   'the snapshot ref keeps that work'
 
 has_all "bounded-worker-pool" \
@@ -138,7 +138,7 @@ has_all "ensure-before-init-ordering" \
   'from inside' 'landed on' 'env -u BABYSIT_TICKET bbs ticket ensure --no-branch'
 
 has_all "land-never-stashes" \
-  'Never stash, reset or overwrite them' 'integrate` again' 'base moved since `integrate`'
+  'Never stash, reset or overwrite them' 'integrate` again' 'land --commit-local' 'RESOLVE_IN='
 
 has_all "native-task-list-init" \
   'native task list from parent, children' \

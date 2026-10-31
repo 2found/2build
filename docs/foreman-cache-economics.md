@@ -160,14 +160,14 @@ Changes (v1.111.0):
 
 | # | Change | Where |
 |---|---|---|
-| 8 | **Compose check at `task done`.** A ticket whose tree conflicts with a phase sibling that already reported is refused `GATE=not-composing` with `CONFLICT_WITH=<sibling>: <files>`; the warm worker adopts and resolves it. Seam files (composition roots, registrations, module `index`, catalogs, generated types) get one owner per phase in the manifest. | `internal/cmd/foreman_compose_gate.go`, `topology.md` |
+| 8 | **Compose check at `task done`.** A ticket whose tree conflicts with a phase sibling that already reported gets an advisory `COMPOSE_WARNING=<sibling>: <files>` (it was a refusal, `GATE=not-composing`, until conflicts moved to `integrate`, which lays them out in the phase worktree for in-place resolution). Seam files (composition roots, registrations, module `index`, catalogs, generated types) get one owner per phase in the manifest. | `internal/cmd/foreman_compose_gate.go`, `topology.md` |
 | 9 | **Carried gates.** When every path changed since `review_tree` came verbatim from an adopted snapshot and none is in the ticket's own diff, `task done` records `GATE="carried: …"` and `seal` waives the stale verdicts with that reason. No review or QA re-run for a disjoint refresh. | same file, `foreman_project.go`, `autopilot/SKILL.md` |
 | 10 | **One session for phase QA and product review**, all findings grouped into one repair per owning ticket, and the re-check carries both attempts' passed checks. | `phases.md`, `product-review.md`, `execution.md` |
 | 11 | **Follow-up review at `low` effort on the delta**, unless it touches money, auth or irreversible-data paths. | `autopilot/SKILL.md`, `tickets.md` |
 
 Re-check with the same report after a few projects: expect sessions per
 worktree back under 2, refresh Dispatches under 20 minutes, at most one
-product-review attempt per phase, and `GATE="carried: …"` / `not-composing`
+product-review attempt per phase, and `GATE="carried: …"` / `COMPOSE_WARNING`
 appearing in task records. Projects run on `omp` leave no transcripts, so for
 those judge by Dispatch durations in the task records.
 

@@ -45,6 +45,9 @@ type projectCandidateRepo struct {
 	// against the landed Whole. Empty on a first build (BaseHead, Commit).
 	PhaseBase string `json:"phase_base,omitempty"`
 	Whole     string `json:"whole,omitempty"`
+	// Files whose conflicts were resolved in the phase worktree; the phase
+	// review covers them with the rest of the phase diff.
+	Resolved []string `json:"resolved,omitempty"`
 }
 
 func projectCandidatePath(st *ticket.Store, phase string) string {
@@ -124,6 +127,80 @@ func commitIdentityEnv(dir string) []string {
 	return snapshotIdentity
 }
 
+// A phase that does not compose is not a failure: its conflicts are laid out
+// with markers in the phase worktree, resolved there by whoever runs
+// integrate, and the next integrate commits the resolution. The pending
+// resolution is keyed by the phase subject, so a reseal starts it over.
+type projectResolution struct {
+	Version int                     `json:"version"`
+	Phase   string                  `json:"phase"`
+	Subject string                  `json:"subject"`
+	Repos   []projectResolutionRepo `json:"repos"`
+}
+
+type projectResolutionRepo struct {
+	Canonical string `json:"canonical"`
+	// Stage "compose": the tickets' snapshots conflict with each other or
+	// with base, laid out on On. Stage "apply": a fix after land conflicts
+	// with what base gained since, laid out on On (the base tip).
+	Stage    string   `json:"stage"`
+	On       string   `json:"on"`
+	Worktree string   `json:"worktree"`
+	Files    []string `json:"files"`
+}
+
+func projectResolutionPath(st *ticket.Store, phase string) string {
+	return filepath.Join(st.Home(), "project-phases", phase+".resolve.json")
+}
+
+// resolvedTree reads a laid-out resolution back once no conflict markers
+// remain, and moves it onto on when base advanced while it was resolved.
+func resolvedTree(r projectResolutionRepo, on string) (string, error) {
+	var marked []string
+	for _, f := range r.Files {
+		b, err := os.ReadFile(filepath.Join(r.Worktree, f))
+		if err != nil {
+			continue // resolved by deletion
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(line, "<<<<<<< ") || strings.HasPrefix(line, ">>>>>>> ") {
+				marked = append(marked, f)
+				break
+			}
+		}
+	}
+	if len(marked) > 0 {
+		return "", fmt.Errorf("conflict markers remain in %s (%s)", r.Worktree, strings.Join(marked, ", "))
+	}
+	tree, err := worktreeTree(r.Worktree)
+	if err != nil || on == r.On {
+		return tree, err
+	}
+	resolved, err := commitTree(r.Canonical, snapshotIdentity, tree, "bbs resolution (plumbing)", r.On)
+	if err != nil {
+		return "", err
+	}
+	tree, files, err := mergeTreeOnBase(r.Canonical, r.On, on, resolved)
+	if err == nil && len(files) > 0 {
+		err = fmt.Errorf("base moved while the conflicts were resolved and the resolution conflicts with it in %s", strings.Join(files, ", "))
+	}
+	return tree, err
+}
+
+// layOutConflicts checks on out in the phase worktree with tree's content —
+// conflict markers included — as uncommitted changes to resolve in place.
+func layOutConflicts(canonical, path, name, on, tree string) (string, error) {
+	wt, err := checkoutDetached(canonical, path, name, on)
+	if err != nil {
+		return "", err
+	}
+	if _, err := gitPlumb(wt, nil, "read-tree", "--reset", "-u", tree); err != nil {
+		return "", err
+	}
+	_, err = gitPlumb(wt, nil, "reset", "-q")
+	return wt, err
+}
+
 // projectIntegrateCommand builds (or reuses) the phase commit and checks it
 // out in the phase's integration worktree.
 func projectIntegrateCommand(st *ticket.Store, kv map[string]string) error {
@@ -139,157 +216,231 @@ func projectIntegrateCommand(st *ticket.Store, kv map[string]string) error {
 		if reasons := projectPhaseReasons(s, "integrate", kv["phase"]); len(reasons) > 0 {
 			return fmt.Errorf("phase not ready to integrate: %v", reasons)
 		}
-		p := s.Phases[k]
 		if s.Contract.ArtifactsOnly {
 			return fmt.Errorf("artifact-only projects have no code to integrate")
 		}
-		message := strings.TrimSpace(kv["message"])
-		if message == "" {
-			message = p.Title + " (phase " + p.ID + ")"
-		}
-		var phaseChildren []projectChild
-		for _, child := range s.Children {
-			if slices.Contains(p.Children, child.ID) {
-				phaseChildren = append(phaseChildren, child)
-			}
-		}
-		byRepo := map[string][]projectChild{}
-		var repos []string
-		for _, child := range projectPhaseOrder(phaseChildren) {
-			for _, r := range child.Repos {
-				if byRepo[r.Canonical] == nil {
-					repos = append(repos, r.Canonical)
-				}
-				byRepo[r.Canonical] = append(byRepo[r.Canonical], child)
-			}
-		}
-		prior := projectReadCandidate(st, p)
-		// The last candidate under any subject: its worktree is reused, and
-		// when it landed, this build is a fix on top of it.
-		var last projectCandidate
-		if readProjectJSON(projectCandidatePath(st, p.ID), &last) != nil || last.Version != 1 {
-			last = projectCandidate{}
-		}
-		c := projectCandidate{Version: 1, Phase: p.ID, Subject: p.Subject, Message: message, BuiltAt: isoNow(), Repos: []projectCandidateRepo{}}
-		for _, canonical := range repos {
-			base := baseBranchIn(canonical)
-			baseHead := gitOutIn(canonical, "rev-parse", "--verify", "-q", "refs/heads/"+base+"^{commit}")
-			if baseHead == "" {
-				return fmt.Errorf("%s: local base branch %s not found", canonical, base)
-			}
-			r := projectCandidateRepo{Canonical: canonical, Base: base, BaseHead: baseHead, Tickets: []string{}}
-			// A retry reuses the phase's worktree wherever it was created
-			// (Orca's workspace dir or .babysit/worktrees/).
-			var landed *projectCandidateRepo
-			for i, pr := range last.Repos {
-				if pr.Canonical != canonical {
-					continue
-				}
-				if fi, err := os.Stat(pr.Worktree); pr.Worktree != "" && err == nil && fi.IsDir() {
-					r.Worktree = pr.Worktree
-				}
-				if last.LandedAt != "" && gitOKIn(canonical, "merge-base", "--is-ancestor", pr.Commit, baseHead) {
-					landed = &last.Repos[i]
-				}
-			}
-			snapshots, owner := []string{}, map[string]string{}
-			for _, child := range byRepo[canonical] {
-				for _, cr := range child.Repos {
-					if cr.Canonical == canonical {
-						snapshots = append(snapshots, cr.Head)
-						owner[cr.Head] = child.ID
-					}
-				}
-				r.Tickets = append(r.Tickets, child.ID)
-			}
-			// Same subject, same base: the tested commit is reused, so a
-			// retry never invalidates QA already recorded against it.
-			if prior != nil && prior.Message == message {
-				for _, pr := range prior.Repos {
-					if pr.Canonical == canonical && pr.BaseHead == baseHead {
-						r.Commit, r.PhaseBase, r.Whole = pr.Commit, pr.PhaseBase, pr.Whole
-					}
-				}
-			}
-			composeOn := baseHead
-			if r.Commit == "" && landed != nil {
-				composeOn = orDefault(landed.PhaseBase, landed.BaseHead)
-			}
-			if r.Commit == "" {
-				tree, _, conflicts, err := mergeCommits(canonical, composeOn, snapshots)
-				if err != nil {
-					return err
-				}
-				if len(conflicts) > 0 {
-					var parts []string
-					for _, snap := range snapshots {
-						if files := conflicts[snap]; len(files) > 0 {
-							parts = append(parts, owner[snap]+": "+strings.Join(files, ", "))
-						}
-					}
-					return fmt.Errorf("phase %s does not compose; repair the later ticket (bbs ticket adopt the earlier one, resolve, reseal): %s", p.ID, strings.Join(parts, "; "))
-				}
-				body := message + "\n\nPhase " + p.ID + " of " + st.Env.Ticket + ": " + strings.Join(r.Tickets, ", ")
-				if landed != nil {
-					// Base already holds the landed phase: land only the fix.
-					whole, err := commitTree(canonical, commitIdentityEnv(canonical), tree, body, composeOn)
-					if err != nil {
-						return err
-					}
-					if tree, err = mergeTreeOnBase(canonical, orDefault(landed.Whole, landed.Commit), baseHead, whole); err != nil {
-						return fmt.Errorf("phase %s fix does not apply on base: %v", p.ID, err)
-					}
-					r.PhaseBase, r.Whole, body = composeOn, whole, "Fix: "+body
-				}
-				if r.Commit, err = commitTree(canonical, commitIdentityEnv(canonical), tree, body, baseHead); err != nil {
-					return err
-				}
-			}
-			changed, err := contractsChanged(canonical, baseHead, r.Commit)
-			if err != nil {
-				return err
-			}
-			if conflicts := contractOwnerConflicts(changed, ticket.ReadDoc(st.IndexPath()).Get("assignee")); len(conflicts) > 0 {
-				return fmt.Errorf("phase %s changes contracts another team owns: %s; ask the owner for the change (bbs ticket assign a ticket to it) and build against its new version", p.ID, strings.Join(conflicts, ", "))
-			}
-			if len(changed) > 0 {
-				after, _ := readContracts(canonical, r.Commit)
-				r.Contracts = map[string][]string{}
-				for id := range changed {
-					r.Contracts[id] = after[id].Checks
-				}
-			}
-			if _, err := gitPlumb(canonical, nil, "update-ref", phaseCandidateRef(st.Env.Ticket, p.ID), r.Commit); err != nil {
-				return err
-			}
-			if r.Worktree, err = checkoutDetached(canonical, r.Worktree, st.Env.Ticket+"_phase-"+p.ID, r.Commit); err != nil {
-				return err
-			}
-			c.Repos = append(c.Repos, r)
-		}
-		if err := writeJSONAtomic(projectCandidatePath(st, p.ID), c); err != nil {
+		c, err := projectComposePhase(st, s, s.Phases[k], kv["message"])
+		if err != nil {
 			return err
 		}
-		projectEvent(st, "phase_integrated", p.ID, "", p.Subject)
 		printV2Envelope(c)
 		return nil
 	})
 }
 
+// projectComposePhase composes the phase's sealed snapshots on local base
+// into one commit (a fix delta once the phase landed), checks it out in the
+// phase worktree and records it. Conflicts are laid out there for resolution.
+func projectComposePhase(st *ticket.Store, s projectSnapshot, p projectPhaseState, message string) (*projectCandidate, error) {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		message = p.Title + " (phase " + p.ID + ")"
+	}
+	var phaseChildren []projectChild
+	for _, child := range s.Children {
+		if slices.Contains(p.Children, child.ID) {
+			phaseChildren = append(phaseChildren, child)
+		}
+	}
+	byRepo := map[string][]projectChild{}
+	var repos []string
+	for _, child := range projectPhaseOrder(phaseChildren) {
+		for _, r := range child.Repos {
+			if byRepo[r.Canonical] == nil {
+				repos = append(repos, r.Canonical)
+			}
+			byRepo[r.Canonical] = append(byRepo[r.Canonical], child)
+		}
+	}
+	prior := projectReadCandidate(st, p)
+	// The last candidate under any subject: its worktree is reused, and
+	// when it landed, this build is a fix on top of it.
+	var last projectCandidate
+	if readProjectJSON(projectCandidatePath(st, p.ID), &last) != nil || last.Version != 1 {
+		last = projectCandidate{}
+	}
+	// A resolution laid out for another subject (a ticket was resealed
+	// since) no longer matches what composes: start over.
+	var pending projectResolution
+	if readProjectJSON(projectResolutionPath(st, p.ID), &pending) != nil || pending.Subject != p.Subject {
+		pending = projectResolution{}
+	}
+	resolving := projectResolution{Version: 1, Phase: p.ID, Subject: p.Subject, Repos: []projectResolutionRepo{}}
+	c := projectCandidate{Version: 1, Phase: p.ID, Subject: p.Subject, Message: message, BuiltAt: isoNow(), Repos: []projectCandidateRepo{}}
+	for _, canonical := range repos {
+		base := baseBranchIn(canonical)
+		baseHead := gitOutIn(canonical, "rev-parse", "--verify", "-q", "refs/heads/"+base+"^{commit}")
+		if baseHead == "" {
+			return nil, fmt.Errorf("%s: local base branch %s not found", canonical, base)
+		}
+		r := projectCandidateRepo{Canonical: canonical, Base: base, BaseHead: baseHead, Tickets: []string{}}
+		// A retry reuses the phase's worktree wherever it was created
+		// (Orca's workspace dir or .babysit/worktrees/).
+		var landed *projectCandidateRepo
+		for i, pr := range last.Repos {
+			if pr.Canonical != canonical {
+				continue
+			}
+			if fi, err := os.Stat(pr.Worktree); pr.Worktree != "" && err == nil && fi.IsDir() {
+				r.Worktree = pr.Worktree
+			}
+			if last.LandedAt != "" && gitOKIn(canonical, "merge-base", "--is-ancestor", pr.Commit, baseHead) {
+				landed = &last.Repos[i]
+			}
+		}
+		var resolution *projectResolutionRepo
+		for i, pr := range pending.Repos {
+			if pr.Canonical == canonical {
+				resolution = &pending.Repos[i]
+				r.Worktree = pr.Worktree
+			}
+		}
+		snapshots, owner := []string{}, map[string]string{}
+		for _, child := range byRepo[canonical] {
+			for _, cr := range child.Repos {
+				if cr.Canonical == canonical {
+					snapshots = append(snapshots, cr.Head)
+					owner[cr.Head] = child.ID
+				}
+			}
+			r.Tickets = append(r.Tickets, child.ID)
+		}
+		// Same subject, same base: the tested commit is reused, so a
+		// retry never invalidates QA already recorded against it.
+		if prior != nil && prior.Message == message && resolution == nil {
+			for _, pr := range prior.Repos {
+				if pr.Canonical == canonical && pr.BaseHead == baseHead {
+					r.Commit, r.PhaseBase, r.Whole, r.Resolved = pr.Commit, pr.PhaseBase, pr.Whole, pr.Resolved
+				}
+			}
+		}
+		name := st.Env.Ticket + "_phase-" + p.ID
+		composeOn := baseHead
+		if r.Commit == "" && landed != nil {
+			composeOn = orDefault(landed.PhaseBase, landed.BaseHead)
+		}
+		if r.Commit == "" {
+			tree, _, conflicts, err := mergeCommits(canonical, composeOn, snapshots)
+			if err != nil {
+				return nil, err
+			}
+			if resolution != nil && resolution.Stage == "compose" {
+				if tree, err = resolvedTree(*resolution, composeOn); err != nil {
+					return nil, fmt.Errorf("phase %s: %v", p.ID, err)
+				}
+				conflicts, r.Resolved = nil, resolution.Files
+			}
+			if len(conflicts) > 0 {
+				var files []string
+				for _, snap := range snapshots {
+					for _, f := range conflicts[snap] {
+						if !slices.Contains(files, f) {
+							files = append(files, f)
+						}
+						fmt.Println("CONFLICT=" + owner[snap] + ": " + f)
+					}
+				}
+				wt, err := layOutConflicts(canonical, r.Worktree, name, composeOn, tree)
+				if err != nil {
+					return nil, err
+				}
+				resolving.Repos = append(resolving.Repos, projectResolutionRepo{Canonical: canonical, Stage: "compose", On: composeOn, Worktree: wt, Files: files})
+				continue
+			}
+			body := message + "\n\nPhase " + p.ID + " of " + st.Env.Ticket + ": " + strings.Join(r.Tickets, ", ")
+			if landed != nil {
+				// Base already holds the landed phase: land only the fix.
+				whole, err := commitTree(canonical, commitIdentityEnv(canonical), tree, body, composeOn)
+				if err != nil {
+					return nil, err
+				}
+				fixTree, files, err := mergeTreeOnBase(canonical, orDefault(landed.Whole, landed.Commit), baseHead, whole)
+				if err != nil {
+					return nil, fmt.Errorf("phase %s fix: %v", p.ID, err)
+				}
+				if resolution != nil && resolution.Stage == "apply" {
+					if fixTree, err = resolvedTree(*resolution, baseHead); err != nil {
+						return nil, fmt.Errorf("phase %s fix: %v", p.ID, err)
+					}
+					files, r.Resolved = nil, resolution.Files
+				}
+				if len(files) > 0 {
+					for _, f := range files {
+						fmt.Println("CONFLICT=base: " + f)
+					}
+					wt, err := layOutConflicts(canonical, r.Worktree, name, baseHead, fixTree)
+					if err != nil {
+						return nil, err
+					}
+					resolving.Repos = append(resolving.Repos, projectResolutionRepo{Canonical: canonical, Stage: "apply", On: baseHead, Worktree: wt, Files: files})
+					continue
+				}
+				tree = fixTree
+				r.PhaseBase, r.Whole, body = composeOn, whole, "Fix: "+body
+			}
+			if len(r.Resolved) > 0 {
+				body += "\n\nConflicts resolved on integrate: " + strings.Join(r.Resolved, ", ")
+			}
+			if r.Commit, err = commitTree(canonical, commitIdentityEnv(canonical), tree, body, baseHead); err != nil {
+				return nil, err
+			}
+		}
+		changed, err := contractsChanged(canonical, baseHead, r.Commit)
+		if err != nil {
+			return nil, err
+		}
+		if conflicts := contractOwnerConflicts(changed, ticket.ReadDoc(st.IndexPath()).Get("assignee")); len(conflicts) > 0 {
+			return nil, fmt.Errorf("phase %s changes contracts another team owns: %s; ask the owner for the change (bbs ticket assign a ticket to it) and build against its new version", p.ID, strings.Join(conflicts, ", "))
+		}
+		if len(changed) > 0 {
+			after, _ := readContracts(canonical, r.Commit)
+			r.Contracts = map[string][]string{}
+			for id := range changed {
+				r.Contracts[id] = after[id].Checks
+			}
+		}
+		if _, err := gitPlumb(canonical, nil, "update-ref", phaseCandidateRef(st.Env.Ticket, p.ID), r.Commit); err != nil {
+			return nil, err
+		}
+		if r.Worktree, err = checkoutDetached(canonical, r.Worktree, name, r.Commit); err != nil {
+			return nil, err
+		}
+		c.Repos = append(c.Repos, r)
+	}
+	if len(resolving.Repos) > 0 {
+		if err := writeJSONAtomic(projectResolutionPath(st, p.ID), resolving); err != nil {
+			return nil, err
+		}
+		var where []string
+		for _, r := range resolving.Repos {
+			fmt.Println("RESOLVE_IN=" + r.Worktree)
+			where = append(where, r.Worktree+" ("+strings.Join(r.Files, ", ")+")")
+		}
+		fmt.Println("NEXT=resolve each CONFLICT file in RESOLVE_IN (keep both sides' intent; regenerate generated files), run the focused checks there, then run bbs team integrate " + st.Env.Ticket + " --phase " + p.ID + " again to commit the resolution")
+		return nil, fmt.Errorf("phase %s: conflicts laid out for resolution in %s", p.ID, strings.Join(where, "; "))
+	}
+	_ = os.Remove(projectResolutionPath(st, p.ID))
+	if err := writeJSONAtomic(projectCandidatePath(st, p.ID), c); err != nil {
+		return nil, err
+	}
+	projectEvent(st, "phase_integrated", p.ID, "", p.Subject)
+	return &c, nil
+}
+
 // mergeTreeOnBase three-way merges theirs into ours over an explicit merge
-// base and returns the tree; a conflict is an error naming the files.
-func mergeTreeOnBase(dir, base, ours, theirs string) (string, error) {
+// base. On conflict it still returns the tree, with markers, and the files.
+func mergeTreeOnBase(dir, base, ours, theirs string) (string, []string, error) {
 	c := exec.Command("git", "merge-tree", "--write-tree", "--name-only", "--no-messages", "--merge-base="+base, ours, theirs)
 	c.Dir = dir
 	out, err := c.Output()
 	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
-	if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() == 1 && len(lines) > 1 {
-		return "", fmt.Errorf("conflicts in %s", strings.Join(lines[1:], ", "))
+	if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() == 1 && len(lines) > 1 && lines[0] != "" {
+		return lines[0], lines[1:], nil
 	}
 	if err != nil || lines[0] == "" {
-		return "", fmt.Errorf("git merge-tree failed: %v", err)
+		return "", nil, fmt.Errorf("git merge-tree failed: %v", err)
 	}
-	return lines[0], nil
+	return lines[0], nil, nil
 }
 
 // checkoutDetached puts the phase's dedicated worktree at commit and returns
@@ -355,6 +506,13 @@ func branchCheckout(canonical, branch string) string {
 // projectLandCommand fast-forwards each repo's local base to the phase
 // commit as soon as the phase is sealed and integrated; phase QA runs on the
 // landed commit, and its worktrees stay for QA and fixes until it passes.
+//
+// Base moving after the tickets started is normal: land composes the phase
+// again on the new tip (nothing is tested yet, so this costs nothing) and
+// lays out any conflict for resolution. Local edits in a checkout of base
+// ride along; ones that overlap the phase are listed for the human, and
+// --commit-local "<message>" — after the human allowed it — commits that
+// checkout's local changes on base first, then lands on top of them.
 func projectLandCommand(st *ticket.Store, kv map[string]string) error {
 	return withLock(st, func() error {
 		s, err := projectRead(st)
@@ -373,13 +531,46 @@ func projectLandCommand(st *ticket.Store, kv map[string]string) error {
 		if c == nil {
 			return fmt.Errorf("phase %s has no phase commit to land (artifact-only phases are delivered by their evidence)", p.ID)
 		}
-		// Base moved since integrate: nothing is tested yet, so rebuilding the
-		// phase commit on the new tip is cheap. Refuse before anything moves.
+		blocked := landOverlaps(c)
+		if len(blocked) > 0 {
+			msg := strings.TrimSpace(kv["commit-local"])
+			if msg == "" {
+				for dir := range blocked {
+					fmt.Println("LOCAL_CHANGES=" + dir + ": " + strings.Join(localChanges(dir), ", "))
+				}
+				fmt.Println("NEXT=ask the human to allow committing the LOCAL_CHANGES of that checkout on base, then bbs team land " + st.Env.Ticket + " --phase " + p.ID + " --commit-local \"<message>\"; nothing was moved")
+				var parts []string
+				for dir, files := range blocked {
+					parts = append(parts, dir+" ("+strings.Join(files, ", ")+")")
+				}
+				sort.Strings(parts)
+				return fmt.Errorf("local changes in a checkout of base overlap phase %s: %s", p.ID, strings.Join(parts, "; "))
+			}
+			for dir := range blocked {
+				if _, err := gitPlumb(dir, nil, "add", "-A"); err != nil {
+					return err
+				}
+				if _, err := gitPlumb(dir, commitIdentityEnv(dir), "commit", "-q", "-m", msg); err != nil {
+					return fmt.Errorf("commit local changes in %s: %v", dir, err)
+				}
+				fmt.Println("COMMITTED_LOCAL=" + dir + " " + gitOutIn(dir, "rev-parse", "--short", "HEAD"))
+			}
+		}
+		moved := false
 		for _, r := range c.Repos {
 			ref := "refs/heads/" + r.Base
 			tip := gitOutIn(r.Canonical, "rev-parse", "--verify", "-q", ref+"^{commit}")
-			if tip != r.BaseHead && !gitOKIn(r.Canonical, "merge-base", "--is-ancestor", r.Commit, ref) {
-				return fmt.Errorf("%s moved since phase %s was integrated (%s → %s); run bbs team integrate again, then land", r.Base, p.ID, short(r.BaseHead), short(tip))
+			moved = moved || (tip != r.BaseHead && !gitOKIn(r.Canonical, "merge-base", "--is-ancestor", r.Commit, ref))
+		}
+		if moved {
+			if c, err = projectComposePhase(st, s, p, c.Message); err != nil {
+				return fmt.Errorf("base moved since phase %s was integrated; composing it again on the new tip: %v", p.ID, err)
+			}
+			fmt.Println("REINTEGRATED=" + p.ID)
+			if blocked := landOverlaps(c); len(blocked) > 0 {
+				for dir, files := range blocked {
+					return fmt.Errorf("local changes in %s overlap phase %s (%s); nothing was moved", dir, p.ID, strings.Join(files, ", "))
+				}
 			}
 		}
 		for _, r := range c.Repos {
@@ -405,17 +596,43 @@ func projectLandCommand(st *ticket.Store, kv map[string]string) error {
 	})
 }
 
-// fastForwardCheckout moves branch ref from old to new in the checkout dir
-// that has it, carrying local changes along. Every path the phase changes
-// must hold, in both the index and the working tree, either its old content
-// (it is updated) or already its new content — a trunk ticket's own
-// uncommitted work, which the phase commit now records. Any other local edit
-// on such a path refuses the whole land before anything moves; paths the
-// phase does not touch are never read or written. Nothing is stashed or reset.
-func fastForwardCheckout(dir, ref, old, new string) error {
-	type change struct{ path, blob string }
-	var updates []change
-	var overlap []string
+// landOverlaps checks every repo before anything moves: the checkouts of
+// base whose local edits overlap the paths the phase changes, with those paths.
+func landOverlaps(c *projectCandidate) map[string][]string {
+	out := map[string][]string{}
+	for _, r := range c.Repos {
+		if gitOKIn(r.Canonical, "merge-base", "--is-ancestor", r.Commit, "refs/heads/"+r.Base) {
+			continue
+		}
+		if dir := branchCheckout(r.Canonical, r.Base); dir != "" {
+			if _, overlap := fastForwardPlan(dir, r.BaseHead, r.Commit); len(overlap) > 0 {
+				out[dir] = overlap
+			}
+		}
+	}
+	return out
+}
+
+// localChanges lists every uncommitted path in dir — what --commit-local
+// would commit.
+func localChanges(dir string) []string {
+	var files []string
+	for _, line := range strings.Split(gitOutIn(dir, "status", "--porcelain", "--untracked-files=all"), "\n") {
+		if len(line) > 3 {
+			files = append(files, strings.TrimSpace(line[3:]))
+		}
+	}
+	return files
+}
+
+type ffChange struct{ path, blob string }
+
+// fastForwardPlan sorts the paths that differ between old and new in the
+// checkout dir: each must hold, in both the index and the working tree,
+// either its old content (it is updated) or already its new content — a
+// trunk ticket's own uncommitted work, which the phase commit now records.
+// Any other local edit on such a path is an overlap.
+func fastForwardPlan(dir, old, new string) (updates []ffChange, overlap []string) {
 	for _, path := range strings.Split(gitOutIn(dir, "diff", "--name-only", "--no-renames", old, new), "\n") {
 		if path == "" {
 			continue
@@ -434,11 +651,20 @@ func fastForwardCheckout(dir, ref, old, new string) error {
 		case wt != oldBlob && wt != newBlob, idx != oldBlob && idx != newBlob:
 			overlap = append(overlap, path)
 		default:
-			updates = append(updates, change{path, newBlob})
+			updates = append(updates, ffChange{path, newBlob})
 		}
 	}
+	return updates, overlap
+}
+
+// fastForwardCheckout moves branch ref from old to new in the checkout dir
+// that has it, carrying local changes along. An overlapping local edit
+// refuses before anything moves; paths the phase does not touch are never
+// read or written. Nothing is stashed or reset.
+func fastForwardCheckout(dir, ref, old, new string) error {
+	updates, overlap := fastForwardPlan(dir, old, new)
 	if len(overlap) > 0 {
-		return fmt.Errorf("local changes there overlap the phase (%s); the owner of that checkout must commit or move them, then land again", strings.Join(overlap, ", "))
+		return fmt.Errorf("local changes there overlap the phase (%s); ask the human to allow committing them (land --commit-local), then land again", strings.Join(overlap, ", "))
 	}
 	if _, err := gitPlumb(dir, nil, "update-ref", ref, new, old); err != nil {
 		return err

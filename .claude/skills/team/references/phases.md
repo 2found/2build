@@ -124,10 +124,12 @@ out detached in the phase worktree `<parent>_phase-<k>`
 and base reuses the commit. Its JSON names each repository's `commit` and
 `worktree`. Land it right away (§3).
 
-A phase that does not compose is refused with each ticket and file:
-`repair` the later ticket — it runs `bbs ticket adopt <earlier ticket>`,
-resolves the conflict, re-runs its gates and is resealed — then integrate
-again. Never resolve a conflict outside a ticket session.
+A phase that does not compose — tickets against each other or against a
+base that moved since they started — is laid out in the phase worktree with
+markers; resolve it there and integrate again
+([git flow](../references/git-flow.md) steps 5–6 own the rules). The
+resolution needs no review of its own: it is part of the phase diff §4
+reviews.
 
 ### 3. Land
 
@@ -137,10 +139,10 @@ bbs team land "$PARENT" --phase "$K"
 
 Requires the phase sealed and integrated — no evidence yet. It fast-forwards
 local base to exactly the phase commit; the phase and ticket worktrees stay
-for QA and fixes. Local edits in a checkout of base ride along unless they
-touch a file the phase changes; then land refuses before anything moves and
-names the files. If base moved since `integrate`, land refuses: integrate
-again (nothing is tested yet, so the rebuild costs nothing) and land.
+for QA and fixes. A base that moved since `integrate` is composed again by
+land itself; a dirty base checkout that overlaps the phase needs the human's
+permission to commit it (`land --commit-local`) — [git flow](../references/git-flow.md)
+step 7.
 
 ### 4. Cumulative QA and product review
 
@@ -156,8 +158,8 @@ from the phase commit:
 ```
 
 then **reviews the phase diff once**: `review-pr --fix` is not used here —
-run `review-pr medium` on `git diff <base_head> <phase commit>` (`high` when
-any changed path touches money, auth or irreversible data) and record it as
+run `review-pr` on `git diff <base_head> <phase commit>` at the effort in
+[review effort](#review-effort) and record it as
 the check `{"criterion":"<phase id>","kind":"review"}` whose log is the
 review report. Readiness requires a passing one whenever a ticket of the phase
 deferred `review-pr` (every ticket off the floor) or took a fixup. It then runs the `qa` skill's
@@ -191,8 +193,8 @@ contract, or a money/auth/irreversible-data path):
    fresh review;
 3. `bbs team integrate "$PARENT" --phase "$K"` again — it composes onto
    base, which already holds the landed phase, so the new commit is the fix
-   delta — and `land` it; then the re-check below: review only that delta at
-   `low` and record a fresh `<phase>/review` check, and re-test the criteria
+   delta — and `land` it; then the re-check below: review only that delta
+   ([review effort](#review-effort)) and record a fresh `<phase>/review` check, and re-test the criteria
    the fixes touched.
 
 Its report lists every finding it could not fix that way, by owning ticket.
@@ -228,6 +230,19 @@ touched. After three failed
 attempts on the same blocker, park the phase and escalate; independent work
 continues.
 
+### Review effort
+
+Review spends effort on logic, not on merge mechanics:
+
+| Change | Review |
+|---|---|
+| A whole phase diff | `medium`; `high` when any changed path touches money, auth or irreversible data |
+| A fix delta, an `XS`/`S` repair, or a conflict resolution that changed logic | `low`, on that delta only |
+| A mechanical resolution (regenerated files, lockfiles, imports, both-sides list entries) with build and focused tests passing | none — the resolved files are named in the commit; log it |
+
+A `repair` or fixup of size `XS`/`S` seals with `--waive review-pr` and the
+focused checks in its handoff; the phase's `low` delta review covers it.
+
 ### 5. Release
 
 Readiness `release` requires the phase landed and its phase QA passed,
@@ -247,7 +262,25 @@ bbs team readiness "$PARENT" --action release --phase "$K" --json
   must you. End the turn; the answer is picked up at the next wake (the
   watcher's periodic status prompt), never by polling. A redirect is
   feedback: `bbs team next` turns it into a fix round.
-- **`auto`** — the approved project design is the durable go.
+- **`auto`** — the approved project design is the durable go, on a clean
+  base. When base also carries **work outside the project** — commits its
+  upstream lacks that no phase made (other sessions, `land --commit-local`)
+  or uncommitted changes in the base checkout — readiness lists it
+  (`outside` in the snapshot) and the release needs a human go, because a
+  release would ship or build from it. `bbs team release "$PARENT" --phase
+  "$K" --request` publishes a confirmation naming that work, with a deadline
+  (`--wait`, default `30m`). Ask without blocking: say it in your turn — the
+  question, what the outside work is, *release* or *skip (recommended)*, and
+  the deadline — and keep working; never `AskUserQuestion` here, it would
+  hold you past the deadline. The human answers in the dashboard or tells
+  you; record their answer with `BABYSIT_TICKET=<phase ticket> bbs ticket
+  approval resolve --action approve|drop --note "<their words>"`. A go
+  releases (the CHANGELOG names the outside commits it ships). A drop, or no
+  answer by the deadline (`bbs team next` names it at the first wake after),
+  is a skip: `bbs team release "$PARENT" --phase "$K" --skip --reason
+  "<why>"`. A skipped phase resolves like `none` — the next phase integrates
+  on it and it ships with a later release, whose QA covers it. The last
+  phase is never skipped, and a failed release is fixed, not skipped.
 
 With a go, `release-prd` runs for the repository's release profile from local
 base, including hypercare: it pushes base and deploys. For an `auto` phase the

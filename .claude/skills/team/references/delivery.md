@@ -27,16 +27,18 @@ bbs team seal "$CHILD" --waive review-pr,qa --reason "docs only; checked in hand
 result, unresolved material findings, a manifest or snapshot change. The
 waiver (gates, state, reason, time) is stored in the seal and shown as a note
 in `bbs team snapshot` and `readiness`: a concern to report, never a
-blocker. Prefer a real gate when it is cheap; a waiver is the exception.
+blocker. An `XS`/`S` repair or fixup waives `review-pr` by default; the
+phase's delta review covers it ([review effort](phases.md#review-effort)).
 
 An evidence-only child is sealable when its workflow verdict, acceptance
 evidence are current and its worktree holds no code
 change; seal its artifacts (`bbs team seal "$CHILD" --file`). If any code
 changed, use the code-bearing path instead.
 
-A ticket's worker is shut down when it reports done; a phase QA failure or a
-phase that does not compose comes back as a `repair` on a fresh session in the
-ticket worktree, pointed at the ticket's handoffs.
+A ticket's worker is shut down when it reports done; a phase QA failure comes
+back as a `repair` on a fresh session in the ticket worktree, pointed at the
+ticket's handoffs. A phase that does not compose does not: its conflicts are
+resolved in the phase worktree ([git flow](../references/git-flow.md) step 6).
 
 ### When the phase is landed and verified
 
@@ -57,29 +59,14 @@ A `kept_worktrees` entry holds edits made after its seal: report it; never
 delete it. Remove one that is only held open by a stale handle with
 `bbs ticket worktree-remove <path>` (bounded NTFS open-handle retries).
 
-Archive settled output, release the worker's resource lease, then close the
-ticket's Orca surfaces. Before bulk close, require every Dispatch of the
-ticket's Tasks settled (`bbs team task list "$FOREMAN_ID"`; `task abandon` a
-stuck one first) and `orca terminal list --worktree path:<worktreePath> --json`
-to show no agent you did not launch. Close only surfaces owned by the exact worktree:
-
-```bash
-orca terminal close --worktree path:<worktreePath> --all --json
-orca tab list --worktree path:<worktreePath> --json        # then per row:
-orca tab close --page <browserPageId> --json
-orca emulator list --worktree path:<worktreePath> --json   # then per row:
-orca emulator kill --emulator <id> --json
-orca terminal list --worktree path:<worktreePath> --json   # verify: zero rows
-orca worktree set --worktree path:<worktreePath> \
-  --workspace-status completed --json
-orca automations list --json                               # rows whose
-                                                          #   runContext.path matches
-orca automations edit <id> --disabled --json               #   disable, keep history
-```
-
-`selector_not_found` means Orca tracks nothing there. Never substitute
-`orca worktree rm`; a stale Orca card after the Git worktree is removed is
-expected.
+Archive settled output and release the worker's resource lease. The
+evidence record already closed the terminals of removed worktrees; close
+what it does not cover only where it exists — browser tabs (`orca tab
+list|close`), emulators (`orca emulator list|kill`) and automations
+(`orca automations edit <id> --disabled`) whose context is that worktree —
+then `orca worktree set --worktree path:<path> --workspace-status completed`.
+Never substitute `orca worktree rm`; a stale Orca card after the Git
+worktree is removed is expected.
 
 ## Failure and resume
 
@@ -89,9 +76,10 @@ Failure routing — never blind-retry an unchanged state or schedule retry ticks
 |---|---|
 | Surface lease held | Queue until release/resource notification or bounded recovery |
 | Stale evidence / `ready:false` | Re-run affected gates, then reseal |
-| `integrate`: phase does not compose | `repair` on the later ticket named: `bbs ticket adopt <earlier>`, resolve, re-run its gates, reseal; then integrate again |
-| `land`: base moved since `integrate` | `bbs team integrate` again, then land (nothing was tested yet) |
-| `land`: local changes in a checkout of base overlap the phase | Report the files and the checkout; its owner commits or moves them. Never stash, reset or overwrite them |
+| `integrate` / `land`: `CONFLICT=` laid out in `RESOLVE_IN=` | Resolve in place, focused checks, `integrate` again ([git flow](../references/git-flow.md) step 6) |
+| `land`: `LOCAL_CHANGES=` in a checkout of base | Ask the human to allow committing them; with the go, `land --commit-local "<message>"` (git flow step 7). Never stash, reset or overwrite them |
+| release readiness: base carries work outside the project | Confirmation with a deadline, then release or `--skip` ([phases §5](phases.md#5-release)) |
+| a worker exited, was lost or abandoned mid-task (a release included) | `task launch` the same Task: its spec gains a Resume section from the earlier Dispatches; a release resumes with `release-prd --resume <tag>` |
 | cleanup: worktree kept | Report it; keep the work |
 
 On resume, read `bbs team snapshot` first: a phase whose commit is on base
@@ -120,10 +108,18 @@ run, in one place.
    **Evidence** — per acceptance criterion: PASS and its evidence link.
    **Decisions taken for you** — each with the reason and how to reverse it.
    **Limits and follow-ups** — known gaps, waived gates, carried evidence,
-     anything parked; what is out of scope by the spec.
+     anything parked; what is out of scope by the spec. Every open finding
+     of MEDIUM or above is a backlog ticket, listed by id; owner steps
+     (credentials, live accounts, store review) are listed as such.
    **What ships** — the release go deploys <services>; rollback is <how>.
    ```
 
+   Fix what the last fix round can; file each MEDIUM-or-above finding left
+   open as its own ticket from the repo it belongs to — `env -u
+   BABYSIT_TICKET bbs ticket ensure --mode=trunk --from-input-file
+   <finding.md> --reason team-backlog`, then `BABYSIT_TICKET=<new> bbs
+   ticket add-relation related "$PARENT"` — so the human receives a backlog
+   autopilot can run, not prose.
    Write *Decisions taken for you* from the [decision trail](#decision-trail).
    Then `bbs team recap "$PARENT"` renders it with the phases, commits,
    coverage, tickets and the trail into `<parent>/recap.html` (`RECAP=`).

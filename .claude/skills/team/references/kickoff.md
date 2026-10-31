@@ -13,10 +13,8 @@ none of it.
 | | approves the basic design and the release plan — which phases may ship mid-run (`auto`) | `project-plan` approval (step 2); `--auto` delegates it to you |
 | **2. Handover** | reviews the built product, then gives the release go or feedback | the last phase's `release` approval ([delivery](delivery.md#hand-over)); human only, under every posture |
 
-Nothing else waits on them. Exceptions, each parking only what it blocks: a
-`bbs team hold` they placed, a release that failed twice (the CLI demands a
-new go), and a blocker that survived three attempts or needs something only
-they hold. Money, auth and irreversible-data work is not an exception: the
+Nothing else waits on them; the few mid-run exceptions are listed in the
+skill (*No mid-run questions*), each parking only what it blocks. Money, auth and irreversible-data work is not an exception: the
 human approved it when they approved the design that names it, and you review
 those ticket plans at `high` effort on their behalf.
 
@@ -73,7 +71,11 @@ per seed ([project contract](project-contract.md#project-design-checkpoint);
 a prototype or design the human supplied is reused, only its gaps are made)
 — sized, ordered and release-safe per
 [the phase plan rules](phases.md#the-phase-plan), and tickets per
-[topology](topology.md#decompose-and-prepare-topology).
+[topology](topology.md#decompose-and-prepare-topology). When what ships has
+public surfaces beyond the product itself — a docs or marketing site, SDK/CLI
+reference, examples, e2e or fixture scripts, store listings — the last phase
+carries a **launch** ticket that brings them in line with what ships, so the
+handover does not leave "docs not synced" to the human.
 
 Where tickets or teams will build against each other in parallel, the
 design names those seams as **interface contracts** — repo files indexed in

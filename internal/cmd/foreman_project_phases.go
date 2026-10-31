@@ -45,8 +45,15 @@ type projectPhaseState struct {
 	Problems []string         `json:"problems"`
 	// Notes are transparency lines (seal waivers, carried evidence); never blockers.
 	Notes []string `json:"notes,omitempty"`
+	// Outside is what a release of this landed phase would carry besides the
+	// project's own commits: other work on local base, uncommitted changes in
+	// the base checkout. An auto phase releases over it only with a human go.
+	Outside []string `json:"outside,omitempty"`
 
 	Sealed, Integrated, Delivered, Released bool `json:"-"`
+	// Skipped: the release of this subject was skipped; the phase ships with
+	// a later release, like a none phase.
+	Skipped bool `json:"-"`
 	// Failed counts ROLLED_BACK/PARTIAL receipts; LastFailed is true while
 	// the newest receipt is one of them (the line is stopped).
 	Failed     int  `json:"failed_releases"`
@@ -66,6 +73,7 @@ type projectRelease struct {
 	Tag     string               `json:"tag,omitempty"`
 	Record  string               `json:"record"`
 	Repos   []projectReleaseRepo `json:"repos"`
+	Note    string               `json:"note,omitempty"`
 }
 
 type projectReleaseRepo struct {
@@ -84,7 +92,15 @@ type projectReleaseRequest struct {
 	// given before a failed release never authorizes the retry.
 	FailedBefore int    `json:"failed_before"`
 	Note         string `json:"note,omitempty"`
+	// Outside lists the other work the release would carry. Deadline, on an
+	// auto phase's confirmation, is when an unanswered request means skip.
+	Outside  []string `json:"outside,omitempty"`
+	Deadline string   `json:"deadline,omitempty"`
 }
+
+// releaseConfirmWait is how long a mid-run release confirmation waits for
+// the human before the team skips that release and continues.
+const releaseConfirmWait = 30 * time.Minute
 
 var releaseVerdicts = map[string]bool{"RELEASED": true, "ROLLED_BACK": true, "PARTIAL": true}
 
@@ -319,14 +335,18 @@ func projectPhaseProgress(st *ticket.Store, s *projectSnapshot) {
 				continue
 			}
 			p.Releases = append(p.Releases, r)
-			if r.Verdict != "RELEASED" {
+			if r.Verdict != "RELEASED" && r.Verdict != "SKIPPED" {
 				p.Failed++
 			}
 		}
 		if n := len(p.Releases); n > 0 {
 			last := p.Releases[n-1]
-			p.LastFailed = last.Verdict != "RELEASED"
-			p.Released = !p.LastFailed && last.Subject == p.Subject
+			p.LastFailed = last.Verdict != "RELEASED" && last.Verdict != "SKIPPED"
+			p.Released = last.Verdict == "RELEASED" && last.Subject == p.Subject
+			p.Skipped = last.Verdict == "SKIPPED" && last.Subject == p.Subject
+		}
+		if p.Release != "none" && p.Delivered && p.Integrated && !p.Released && !p.Skipped && p.Candidate != nil {
+			p.Outside = projectOutsideWork(st.Env.Ticket, p.Candidate)
 		}
 		if p.Ticket != "" {
 			p.ApprovalGo = projectReleaseApproved(st, *p)
@@ -371,6 +391,8 @@ func projectPhaseStateName(p projectPhaseState) string {
 		return "release_failed"
 	case p.Released:
 		return "released"
+	case p.Skipped:
+		return "skipped"
 	case p.Delivered && p.Integrated:
 		return "delivered"
 	case p.Delivered:
@@ -388,7 +410,7 @@ func projectPhaseStateName(p projectPhaseState) string {
 // projectPhaseResolved: a release phase is done when released; a phase that
 // ships with a later one is done when landed and its phase QA passed.
 func projectPhaseResolved(p projectPhaseState) bool {
-	if p.Release == "none" {
+	if p.Release == "none" || p.Skipped {
 		return p.Delivered && p.Integrated
 	}
 	return p.Released && p.Delivered && p.Integrated
@@ -513,6 +535,8 @@ func projectPhaseReasons(s projectSnapshot, action, phase string) []string {
 			reasons = append(reasons, "stop the line: phase "+p.ID+" failed to release twice; a human release approval is required")
 		} else if p.Release == "ask" && action == "release" && !p.ApprovalGo {
 			reasons = append(reasons, "phase "+p.ID+": human release approval required (bbs team release --request)")
+		} else if len(p.Outside) > 0 && action == "release" && !p.ApprovalGo {
+			reasons = append(reasons, "phase "+p.ID+": base carries work outside this project ("+strings.Join(p.Outside, " | ")+"); ask the human to confirm (bbs team release --request), or skip this release (bbs team release --skip)")
 		}
 	default:
 		return []string{"readiness requires --action dispatch|integrate|land|release|finish"}
@@ -550,13 +574,30 @@ func projectReleaseCommand(st *ticket.Store, kv map[string]string) error {
 				}
 			}
 			ps := storeForTicket(st.Env, p.Ticket)
-			req := projectReleaseRequest{Version: 1, Parent: st.Env.Ticket, Phase: p.ID, Subject: p.Subject, Evidence: p.Evidence, Heads: heads, FailedBefore: p.Failed, Note: kv["note"]}
+			req := projectReleaseRequest{Version: 1, Parent: st.Env.Ticket, Phase: p.ID, Subject: p.Subject, Evidence: p.Evidence, Heads: heads, FailedBefore: p.Failed, Note: kv["note"], Outside: p.Outside}
+			if p.Release == "auto" && k < len(s.Phases)-1 {
+				// A mid-run confirmation never holds the line: no answer by
+				// the deadline skips this release.
+				wait := releaseConfirmWait
+				if kv["wait"] != "" {
+					if wait, err = time.ParseDuration(kv["wait"]); err != nil || wait <= 0 {
+						return fmt.Errorf("release --wait needs a positive duration such as 30m")
+					}
+				}
+				req.Deadline = time.Now().UTC().Add(wait).Format(time.RFC3339)
+			}
 			if err := writeJSONAtomic(projectReleaseRequestPath(ps), req); err != nil {
 				return err
 			}
 			note := kv["note"]
 			if note == "" {
 				note = "Release phase " + p.ID + " (" + p.Title + ") to production?"
+			}
+			if len(p.Outside) > 0 {
+				note += "\nThe release would also carry work outside this project: " + strings.Join(p.Outside, " | ")
+			}
+			if req.Deadline != "" {
+				note += "\nApprove to release, or drop to skip it (recommended); no answer by " + req.Deadline + " skips it, and the phase ships with a later release."
 			}
 			conflict, err := approvalPublish(ps, "release", note, actorRole())
 			if err != nil {
@@ -565,6 +606,9 @@ func projectReleaseCommand(st *ticket.Store, kv map[string]string) error {
 			projectEvent(st, "release_requested", p.ID, "", p.Subject)
 			printV2Envelope(map[string]interface{}{"phase": p.ID, "ticket": p.Ticket, "approval": "pending", "conflict": conflict, "request": req})
 			return nil
+		}
+		if kv["skip"] == "1" {
+			return projectSkipRelease(st, s, p, kv["reason"])
 		}
 		var in struct {
 			Verdict string               `json:"verdict"`
@@ -630,6 +674,81 @@ func projectReleaseCommand(st *ticket.Store, kv map[string]string) error {
 		printV2Envelope(r)
 		return nil
 	})
+}
+
+// projectSkipRelease records that this phase's release is skipped: the phase
+// is resolved like a none phase and ships with a later release, whose QA
+// covers it cumulatively. Only a mid-run (auto, not last) release can be
+// skipped — the handover's go is the human's — and never after a failed
+// attempt, which stops the line until it ships.
+func projectSkipRelease(st *ticket.Store, s projectSnapshot, p projectPhaseState, reason string) error {
+	switch {
+	case p.Release != "auto":
+		return fmt.Errorf("phase %s: only an auto phase's release can be skipped (release: %s)", p.ID, p.Release)
+	case p.Released || p.Skipped:
+		return fmt.Errorf("phase %s: already %s", p.ID, p.State)
+	case p.LastFailed:
+		return fmt.Errorf("phase %s: its last release failed; fix forward and release it", p.ID)
+	case !p.Delivered || !p.Integrated:
+		return fmt.Errorf("phase %s: not landed and verified by phase QA (%s)", p.ID, p.State)
+	case projectPhaseIndex(s, p.ID) == len(s.Phases)-1:
+		return fmt.Errorf("phase %s is the last phase: no later release ships it; its release is the human's call", p.ID)
+	}
+	reason = orDefault(strings.TrimSpace(reason), "release skipped")
+	if p.Ticket != "" {
+		ps := storeForTicket(st.Env, p.Ticket)
+		if ticket.ReadDoc(ps.IndexPath()).Get("approval.kind") == "release" {
+			_, _, _ = approvalResolve(ps, "drop", "skipped: "+reason, actorRole())
+		}
+	}
+	r := projectRelease{Version: 1, ID: newInvocationID(), Phase: p.ID, Subject: p.Subject, At: time.Now().UTC().Format(time.RFC3339Nano), Verdict: "SKIPPED", Repos: []projectReleaseRepo{}, Note: reason}
+	if err := writeJSONAtomic(filepath.Join(st.Home(), "project-releases", r.ID+".json"), r); err != nil {
+		return err
+	}
+	projectEvent(st, "release_skipped", r.ID, p.ID, reason)
+	printV2Envelope(r)
+	return nil
+}
+
+// projectOutsideWork lists what a release of the phase would carry besides
+// the project's own commits: commits on local base that its upstream lacks
+// and no phase of this project made (every phase commit names "Phase <id>
+// of <parent>:"), and uncommitted changes in the checkout of base.
+func projectOutsideWork(parent string, c *projectCandidate) []string {
+	var out []string
+	for _, r := range c.Repos {
+		name := filepath.Base(r.Canonical)
+		upstream := gitOutIn(r.Canonical, "rev-parse", "--abbrev-ref", "--symbolic-full-name", r.Base+"@{upstream}")
+		if upstream == "" && gitOKIn(r.Canonical, "rev-parse", "--verify", "-q", "refs/remotes/origin/"+r.Base) {
+			upstream = "origin/" + r.Base
+		}
+		if upstream != "" {
+			var foreign []string
+			for _, entry := range strings.Split(gitOutIn(r.Canonical, "log", "--format=%h%x00%s%x00%b%x1e", upstream+"..refs/heads/"+r.Base), "\x1e") {
+				f := strings.SplitN(strings.TrimSpace(entry), "\x00", 3)
+				if len(f) < 3 || strings.Contains(f[2], " of "+parent+":") {
+					continue
+				}
+				foreign = append(foreign, f[0]+" "+f[1])
+			}
+			if len(foreign) > 0 {
+				out = append(out, fmt.Sprintf("%s: %d commit(s) not from this project: %s", name, len(foreign), capList(foreign, 10)))
+			}
+		}
+		if dir := branchCheckout(r.Canonical, r.Base); dir != "" {
+			if files := localChanges(dir); len(files) > 0 {
+				out = append(out, fmt.Sprintf("%s: uncommitted in %s: %s", name, dir, capList(files, 10)))
+			}
+		}
+	}
+	return out
+}
+
+func capList(items []string, n int) string {
+	if len(items) <= n {
+		return strings.Join(items, "; ")
+	}
+	return strings.Join(items[:n], "; ") + fmt.Sprintf("; +%d more", len(items)-n)
 }
 
 // The release floor is the strictest release mode a human-or-Foreman approved

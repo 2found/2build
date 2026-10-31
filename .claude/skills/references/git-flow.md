@@ -33,19 +33,39 @@ unfinished job**: the work counts only when its phase commit is on base.
 4. `bbs team seal` snapshots the worktree on a hidden ref
    `refs/bbs/tickets/<id>` — plumbing, never on a branch.
 5. `bbs team integrate "$PARENT" --phase k` composes the phase's snapshots
-   into **one commit** on local base, checked out (detached) in
-   the phase worktree `<parent>_phase-<k>` (its JSON names the path). A conflict names the
-   ticket and files; the later ticket adopts the earlier one, resolves and
-   reseals.
-6. `bbs team land "$PARENT" --phase k` fast-forwards local base to it right
-   away — no QA first, so parallel work builds on it at once. Local edits in
-   a checkout of base ride along; one that touches a file the phase changes
-   stops the land with the file named — nothing is ever stashed or reset. If
-   base moved since `integrate`, land refuses: integrate again, land.
-7. Phase QA runs in the phase worktree, on exactly that landed commit. A
+   into **one commit** on the current tip of local base, checked out
+   (detached) in the phase worktree `<parent>_phase-<k>` (its JSON names the
+   path). Base having moved since the tickets started is normal: it is a
+   three-way merge, nothing more.
+6. **Conflicts are resolved in place.** When tickets conflict with each
+   other or with base, `integrate` lays the merge out in the phase worktree
+   with conflict markers (`CONFLICT=<ticket|base>: <file>`, `RESOLVE_IN=`)
+   and exits non-zero. Whoever ran it — the lead for a mechanical conflict
+   (generated files: regenerate; imports, lists, both-sides additions), the
+   phase integration worker otherwise — resolves there, keeping both sides'
+   intent, runs the focused checks, and runs `integrate` again, which commits
+   the resolution (the commit body names the resolved files). A reseal in
+   between starts the layout over. A cold `repair` session is only for a
+   conflict that needs real rework of one ticket (base replaced the layer it
+   builds on); then one repair carries all of it.
+7. `bbs team land "$PARENT" --phase k` fast-forwards local base to it right
+   away — no QA first, so parallel work builds on it at once. If base moved
+   since `integrate`, land composes again on the new tip itself
+   (`REINTEGRATED=`); a conflict there is laid out as in step 6.
+   **A dirty base checkout** is normal too. Local edits that do not touch the
+   phase's files ride along. Edits that do stop the land before anything
+   moves, listing every uncommitted file (`LOCAL_CHANGES=<checkout>: …`):
+   ask the human once, through the preamble's channel, to allow committing
+   them on base; with the go, `land --commit-local "<message>"` commits that
+   checkout's changes, composes the phase on top and lands. Park only this
+   land while waiting; other work continues. Nothing is ever stashed or reset.
+8. Phase QA runs in the phase worktree, on exactly that landed commit. A
    failure is fixed forward: reseal the owning ticket, integrate (the fix
-   delta), land, re-check what changed. Passing QA removes the phase's
-   worktrees.
-8. `release-prd` pushes and deploys base, only once phase QA passed.
+   delta, conflicts with newer base laid out as in step 6), land, re-check
+   what changed. Passing QA removes the phase's worktrees.
+9. `release-prd` pushes and deploys base, only once phase QA passed. A
+   mid-run release over work outside the project (commits no phase made,
+   uncommitted changes in the base checkout) waits for a human go or is
+   skipped at its deadline (`bbs team release --request`, `--skip`).
 
 Base history gains one commit per phase, plus one per QA fix round.

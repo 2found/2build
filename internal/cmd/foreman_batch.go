@@ -13,7 +13,9 @@ import (
 
 	"github.com/2found/2build/internal/agent"
 	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/identity"
 	"github.com/2found/2build/internal/orca"
+	"github.com/2found/2build/internal/ticket"
 )
 
 const foremanBatchUsage = `Usage:
@@ -174,6 +176,7 @@ func foremanBatchCommand(args []string) error {
 			return fmt.Errorf("foreman batch show: no batch recorded for %s", args[1])
 		}
 		printBatchState(b)
+		printBaseDrift(b)
 		markQuestionsRead(args[1], b)
 		printForemanNext(args[1])
 		return nil
@@ -589,9 +592,18 @@ func batchFinish(client *orca.Client, r foreman.Record, b *foremanBatch, now tim
 }
 
 // batchWake starts the Foreman's turn with one prompt naming the batch.
+// batchWake prompts the Foreman with one plain line, not a skill prompt: the
+// skill is already in a live lead's context, and re-invoking it on every wake
+// appended another full copy that every later turn re-read. Only a lead that
+// lost it to compaction re-invokes it, as the line says.
 func batchWake(client *orca.Client, r foreman.Record, b foremanBatch, summary string) string {
-	instruction := summary + ". Run `bbs team batch show " + r.ID + "` (batch, attention, pending questions and each project's next steps)."
-	if _, err := watchSend(client, r, instruction); err != nil {
+	prof, err := agent.ByName(batchAgent(r))
+	if err != nil {
+		return fmt.Sprintf("UNREACHABLE %s — %s", r.ID, err)
+	}
+	text := "bbs team watch (team " + r.ID + "): " + summary + ". Run `bbs team batch show " + r.ID + "` (batch, attention, pending questions and each project's next steps). If the team skill's instructions are no longer in your context, run " + foremanSkillPrompt(prof, r, "") + " first."
+	if err := client.SendEnter(foremanTerm(client, r), text); err != nil {
+		foreman.MarkUnreachable(r.ID)
 		return fmt.Sprintf("UNREACHABLE %s — %s", r.ID, err)
 	}
 	return fmt.Sprintf("WOKE %s — %s", r.ID, summary)
@@ -645,4 +657,66 @@ func batchAgent(r foreman.Record) string {
 		return agent.Default
 	}
 	return r.Agent
+}
+
+// printBaseDrift warns when local base, since a batch ticket's worktree was
+// cut, changed files that ticket is changing — the early sign that base
+// replaced a layer the ticket builds on (measured: a store swap found only at
+// integrate cost three chained repairs). A refresh while the ticket is fresh
+// is cheaper; integrate still resolves whatever remains. Advisory only.
+func printBaseDrift(b foremanBatch) {
+	env := identity.Resolve()
+	if env.ProjectHome == "" {
+		return
+	}
+	primary := gitPrimary()
+	seen := map[string]bool{}
+	for _, member := range b.Tasks {
+		t, err := foreman.LoadTask(member.Task)
+		if err != nil || !gatedTaskKinds[t.Kind] || seen[t.Ticket] {
+			continue
+		}
+		seen[t.Ticket] = true
+		m, err := ticket.ReadManifest(storeForTicket(env, t.Ticket).ManifestPath())
+		if err != nil {
+			continue
+		}
+		repo := m.FindRepo(func(r ticket.Repo) bool { return r.Worktree != "" && r.Base != "" })
+		if repo == nil {
+			continue
+		}
+		dir := repo.Worktree
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(primary, dir)
+		}
+		if n, files := baseDrift(dir, repo.Base); len(files) > 0 {
+			fmt.Printf("BASE_DRIFT=%s: base gained %d commit(s) since it started that change its files: %s\n", t.Ticket, n, capList(files, 8))
+		}
+	}
+}
+
+// baseDrift lists the files the worktree in dir changes that base has also
+// changed since the worktree's start (HEAD), with different content.
+func baseDrift(dir, base string) (int, []string) {
+	head := gitOutIn(dir, "rev-parse", "--verify", "-q", "HEAD^{commit}")
+	tip := gitOutIn(dir, "rev-parse", "--verify", "-q", "refs/heads/"+base)
+	if head == "" || tip == "" || head == tip {
+		return 0, nil
+	}
+	mine := map[string]bool{}
+	for _, f := range localChanges(dir) {
+		mine[f] = true
+	}
+	var files []string
+	for _, f := range nameOnlyDiff(dir, head, tip) {
+		// Base already holding exactly this content (the ticket's own landed
+		// work) is not drift.
+		if mine[f] && gitOutIn(dir, "rev-parse", "-q", "--verify", tip+":"+f) != gitOutIn(dir, "hash-object", "--", f) {
+			files = append(files, f)
+		}
+	}
+	if len(files) == 0 {
+		return 0, nil
+	}
+	return len(strings.Split(gitOutIn(dir, "rev-list", head+".."+tip), "\n")), files
 }

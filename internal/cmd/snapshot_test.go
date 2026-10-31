@@ -237,28 +237,3 @@ func TestFastForwardCheckoutKeepsLocalWork(t *testing.T) {
 		}
 	})
 }
-
-// Base moving between integrate and land refuses the land before anything
-// moves; nothing is tested yet, so integrating again on the new tip and
-// landing is the whole recovery.
-func TestLandRefusesWhenBaseMovedSinceIntegrate(t *testing.T) {
-	st, _, repo := executionFixture(t)
-	integratePhase(t, st, "p1")
-	other := filepath.Join(t.TempDir(), "other")
-	runGit(t, repo, "worktree", "add", "-q", other, "main")
-	mustWrite(t, filepath.Join(other, "hotfix.txt"), "hotfix\n")
-	runGit(t, other, "add", ".")
-	runGit(t, other, "commit", "-qm", "hotfix")
-	moved := gitOutIn(repo, "rev-parse", "main")
-	err := landPhase(t, st, "p1")
-	if err == nil || !strings.Contains(err.Error(), "integrate again") {
-		t.Fatalf("land over a moved base: %v", err)
-	}
-	if gitOutIn(repo, "rev-parse", "main") != moved {
-		t.Fatal("base moved despite the refusal")
-	}
-	integrateAndLand(t, st, "p1")
-	if gitOutIn(repo, "rev-parse", "main^") != moved {
-		t.Fatal("phase did not land as one commit on the moved base")
-	}
-}

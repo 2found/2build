@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/2found/2build/internal/identity"
 	"github.com/2found/2build/internal/ticket"
@@ -18,7 +19,7 @@ import (
 // Steps come in the order the work flows; `wait` steps say who holds the ball.
 
 type foremanStep struct {
-	Do      string `json:"do"` // design | publish | wait | revise | bind | create | build | refresh | seal | integrate | verify | land | release | repair | complete | done
+	Do      string `json:"do"` // design | publish | wait | revise | bind | create | build | refresh | seal | integrate | verify | land | release | skip | repair | complete | done
 	Phase   string `json:"phase,omitempty"`
 	Target  string `json:"target,omitempty"`
 	Command string `json:"command,omitempty"`
@@ -105,6 +106,9 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 			}
 			return []foremanStep{step("release", "human", "bbs team release "+parent+" --phase "+p.ID+" --request",
 				"phase "+p.ID+" is landed and verified; ask the human for the release go")}
+		}
+		if len(p.Outside) > 0 && !p.ApprovalGo {
+			return releaseConfirmNext(st, s, p)
 		}
 		return []foremanStep{step("release", "", "bbs team release "+parent+" --phase "+p.ID+" --file receipt.json",
 			"phase "+p.ID+" is landed and verified; run release-prd, then record its verdict")}
@@ -262,4 +266,53 @@ func projectNextCommand(st *ticket.Store, kv map[string]string) error {
 		}
 	}
 	return nil
+}
+
+// releaseConfirmNext: an auto phase whose release would also carry work
+// outside the project (other sessions' commits, uncommitted changes on base)
+// releases only on a human go. The human may release or skip; an unanswered
+// confirmation skips at its deadline, so the line never waits on them.
+func releaseConfirmNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []foremanStep {
+	parent := s.Ticket
+	step := func(do, target, command, why string) []foremanStep {
+		return []foremanStep{{Do: do, Phase: p.ID, Target: target, Command: command, Why: why}}
+	}
+	skip := func(reason string) []foremanStep {
+		return step("skip", "", "bbs team release "+parent+" --phase "+p.ID+" --skip --reason "+shellQuote(reason),
+			"phase "+p.ID+": "+reason+"; skip this release and continue — the phase ships with a later release")
+	}
+	ps := storeForTicket(st.Env, p.Ticket)
+	var req projectReleaseRequest
+	if ticket.ReadDoc(ps.IndexPath()).Get("approval.kind") == "release" &&
+		readProjectJSON(projectReleaseRequestPath(ps), &req) == nil && req.Subject == p.Subject && req.FailedBefore == p.Failed {
+		switch state, _, note := approvalRead(ps); state {
+		case "pending":
+			if at, err := time.Parse(time.RFC3339, req.Deadline); err == nil && !time.Now().Before(at) {
+				return skip("no answer to the release confirmation by " + req.Deadline)
+			}
+			return step("wait", "human", "", "the human is asked to confirm the release of phase "+p.ID+" over work outside this project; unanswered by "+orDefault(req.Deadline, "its deadline")+" it is skipped. Everything else continues")
+		case "dropped":
+			if projectPhaseIndex(s, p.ID) == len(s.Phases)-1 {
+				return step("wait", "human", "", "the human declined the release of phase "+p.ID+": "+orDefault(note, "no reason given"))
+			}
+			return skip("the human chose to skip it" + orDefault(prefixed(": ", note), ""))
+		case "redirected":
+			return step("repair", "", "BABYSIT_TICKET="+p.Ticket+" bbs ticket approval comments",
+				"the human answered the release confirmation of phase "+p.ID+" with feedback: "+orDefault(note, "see the comments")+". Act on it, then ask again or skip")
+		}
+	}
+	why := "phase " + p.ID + " is landed and verified, but base carries work outside this project (" + strings.Join(p.Outside, " | ") + "): "
+	if projectPhaseIndex(s, p.ID) == len(s.Phases)-1 {
+		why += "ask the human to confirm the release"
+	} else {
+		why += "ask the human to release or skip (recommended); unanswered by the deadline (default 30m) it is skipped"
+	}
+	return step("release", "human", "bbs team release "+parent+" --phase "+p.ID+" --request", why)
+}
+
+func prefixed(prefix, s string) string {
+	if s == "" {
+		return ""
+	}
+	return prefix + s
 }

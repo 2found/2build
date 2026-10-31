@@ -454,3 +454,119 @@ func TestHumanApprovedDesignCoversTicketFloor(t *testing.T) {
 		t.Fatalf("Foreman-approved design cleared the floor: %d", code)
 	}
 }
+
+func nextFor(t *testing.T, st *ticket.Store, phase string) foremanStep {
+	t.Helper()
+	s, err := projectRead(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, step := range projectNext(st, s) {
+		if step.Phase == phase {
+			return step
+		}
+	}
+	t.Fatalf("no next step for %s", phase)
+	return foremanStep{}
+}
+
+// A mid-run release whose base also carries other work (commits no phase
+// made, uncommitted changes) waits for a human go; the human may skip it, and
+// an unanswered confirmation is skipped at its deadline so the line moves on.
+func TestAutoReleaseOverOutsideWorkNeedsConfirmOrSkips(t *testing.T) {
+	st, _, repo := phasedFixture(t, []projectPhase{
+		{ID: "p1", Title: "Skeleton", Seeds: []string{"core"}, Release: "auto"},
+		{ID: "p2", Title: "Extra", Seeds: []string{"extra"}, Release: "ask"},
+	}, "extra")
+	for _, phase := range []string{"p1", "p2"} {
+		if err := foremanProjectCommand("bind", []string{"parent", "--phase", phase, "--child", "ph-" + phase}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runGit(t, repo, "update-ref", "refs/remotes/origin/main", "main") // what is already pushed
+	integrateAndLand(t, st, "p1")
+	for _, kind := range []string{"integration", "product"} {
+		finishExecutionEvidence(t, st, phaseEvidence(t, st, kind, "p1"), kind, false)
+	}
+	// Only the project's own phase commit is unpushed: release as designed.
+	if r := phaseReadiness(t, st, "release", "p1"); len(r) != 0 {
+		t.Fatalf("clean auto release blocked: %v", r)
+	}
+
+	moveMain(t, repo, "other.txt", "another session\n")
+	if r := phaseReadiness(t, st, "release", "p1"); !hasReason(r, "1 commit(s) not from this project") || !hasReason(r, "base moves") {
+		t.Fatalf("outside work not named: %v", r)
+	}
+	if step := nextFor(t, st, "p1"); step.Do != "release" || step.Target != "human" || !strings.Contains(step.Command, "--request") {
+		t.Fatalf("next = %+v", step)
+	}
+	var err error
+	captureStdout(t, func() {
+		err = projectReleaseCommand(st, map[string]string{"phase": "p1", "request": "1", "wait": "10m"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ph := storeForTicket(st.Env, "ph-p1")
+	var req projectReleaseRequest
+	if err := readProjectJSON(projectReleaseRequestPath(ph), &req); err != nil || req.Deadline == "" || len(req.Outside) != 1 {
+		t.Fatalf("request = %+v %v", req, err)
+	}
+	if note := ticket.ReadDoc(ph.IndexPath()).Get("approval.note"); !strings.Contains(note, "not from this project") || !strings.Contains(note, "skips it") {
+		t.Fatalf("approval note = %q", note)
+	}
+	if step := nextFor(t, st, "p1"); step.Do != "wait" || step.Target != "human" {
+		t.Fatalf("next while asking = %+v", step)
+	}
+
+	request := func(wait string) {
+		t.Helper()
+		captureStdout(t, func() {
+			err = projectReleaseCommand(st, map[string]string{"phase": "p1", "request": "1", "wait": wait})
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The human chooses skip.
+	if _, _, err := approvalResolve(ph, "drop", "not now", "human"); err != nil {
+		t.Fatal(err)
+	}
+	if step := nextFor(t, st, "p1"); step.Do != "skip" || !strings.Contains(step.Why, "chose to skip") {
+		t.Fatalf("next after the human chose skip = %+v", step)
+	}
+	// Nobody answers by the deadline: skip and continue.
+	request("1ns")
+	if step := nextFor(t, st, "p1"); step.Do != "skip" || !strings.Contains(step.Command, "--skip") || !strings.Contains(step.Why, "no answer") {
+		t.Fatalf("next past the deadline = %+v", step)
+	}
+	request("10m")
+	// A go releases over the outside work.
+	if _, _, err := approvalResolve(ph, "approve", "ship it", "human"); err != nil {
+		t.Fatal(err)
+	}
+	if r := phaseReadiness(t, st, "release", "p1"); len(r) != 0 {
+		t.Fatalf("confirmed release blocked: %v", r)
+	}
+
+	// The last phase's release is never skipped.
+	if err := projectReleaseCommand(st, map[string]string{"phase": "p2", "skip": "1"}); err == nil {
+		t.Fatal("skipped an ask phase")
+	}
+	captureStdout(t, func() {
+		err = projectReleaseCommand(st, map[string]string{"phase": "p1", "skip": "1", "reason": "human chose skip"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, _ := projectRead(st)
+	if p := s.Phases[0]; p.State != "skipped" || !projectPhaseResolved(p) || len(p.Outside) != 0 {
+		t.Fatalf("skipped phase = %s outside=%v", p.State, p.Outside)
+	}
+	if r := phaseReadiness(t, st, "integrate", "p2"); hasReason(r, "phase p1") {
+		t.Fatalf("skip did not let the next phase move: %v", r)
+	}
+	if err := projectReleaseCommand(st, map[string]string{"phase": "p1", "skip": "1"}); err == nil {
+		t.Fatal("skipped twice")
+	}
+}

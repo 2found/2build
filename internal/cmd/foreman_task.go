@@ -109,6 +109,11 @@ func foremanTaskCreate(args []string) error {
 	if err != nil {
 		return fmt.Errorf("foreman task create: %w", err)
 	}
+	if home := resolveEnv().ProjectHome; home != "" {
+		if t, err = foreman.UpdateTask(t.ID, func(t *foreman.Task) error { t.ProjectHome = home; return nil }); err != nil {
+			return fmt.Errorf("foreman task create: %w", err)
+		}
+	}
 	fmt.Println("TASK=" + t.ID)
 	fmt.Println("SPEC=" + foreman.SpecPath(t.ID))
 	return nil
@@ -128,6 +133,49 @@ func taskWorkerPrompt(skillRef, task, dispatch string) string {
 		prompt = skillRef + " " + prompt
 	}
 	return prompt
+}
+
+// renderTaskSpec wraps the lead's assignment in the transport every worker
+// needs, so a spec carries only the assignment itself.
+func renderTaskSpec(t foreman.Task, spec string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "SPAWNED=true · AGENT_ROLE=orca · task %s (kind %s) · ticket %s · lead %s\n", t.ID, orDefault(t.Kind, "-"), t.Ticket, t.Foreman)
+	exports := "BABYSIT_TICKET=" + t.Ticket
+	if t.ProjectHome != "" {
+		exports = "BABYSIT_PROJECT_HOME=" + t.ProjectHome + " " + exports
+	}
+	fmt.Fprintf(&b, "Before any bbs command: `export %s`.\n\n", exports)
+	b.WriteString(strings.TrimRight(spec, "\n"))
+	// A relaunched Task (its worker exited, was lost or abandoned) resumes:
+	// the earlier Dispatches are named so the lead never retypes what was done.
+	earlier := t.Dispatches
+	if n := len(earlier); n > 0 && earlier[n-1].Status == foreman.DispatchOpen {
+		earlier = earlier[:n-1]
+	}
+	if len(earlier) > 0 {
+		b.WriteString("\n\n## Resume (added by bbs)\nEarlier Dispatches of this Task ran before you:\n")
+		for _, d := range earlier {
+			line := fmt.Sprintf("- %s %s", d.ID, d.Status)
+			if d.Reason != "" {
+				line += " (" + d.Reason + ")"
+			}
+			if d.Summary != "" {
+				line += ": " + d.Summary
+			}
+			if d.ReportPath != "" {
+				line += " — report " + d.ReportPath
+			}
+			b.WriteString(line + "\n")
+		}
+		b.WriteString("Rebuild where they stopped from durable state (handoffs, verdicts, the release record) and continue from the first unfinished step. " +
+			"Never redo an irreversible step that already happened (push, tag, publish, deploy): verify it instead. A release resumes with `release-prd --resume <tag>`.\n")
+	}
+	fmt.Fprintf(&b, "\n\n## Lifecycle (added by bbs)\n"+
+		"Ask the lead only with `bbs team task ask %s --body \"…\"` (it blocks until answered); never AskUserQuestion. "+
+		"Send no status or heartbeat messages. Report once, after persisting the handoff: "+
+		"`bbs team task done %s --dispatch <Dispatch id from your launch prompt> --outcome succeeded|failed --summary \"<did; found; left>\"`, then end the turn.\n",
+		t.ID, t.ID)
+	return b.String()
 }
 
 func foremanTaskLaunch(args []string) error {
@@ -251,7 +299,7 @@ func foremanTaskShow(args []string) error {
 		if err != nil {
 			return err
 		}
-		_, err = os.Stdout.Write(data)
+		_, err = os.Stdout.WriteString(renderTaskSpec(t, string(data)))
 		return err
 	}
 	if kv["json"] != "" {
@@ -413,18 +461,18 @@ func taskDoneGateFor(id string, kv map[string]string) (string, error) {
 	if why := strings.TrimSpace(kv["no-gate"]); why != "" {
 		return "skipped: " + why, nil
 	}
+	// Advisory only: a conflict with a sibling is resolved where the phase
+	// composes (bbs team integrate lays it out in the phase worktree), so it
+	// never costs this report a round trip.
 	if conflicts, err := taskDoneCompose(t); err == nil && len(conflicts) > 0 {
 		sibs := make([]string, 0, len(conflicts))
 		for sib := range conflicts {
 			sibs = append(sibs, sib)
 		}
 		sort.Strings(sibs)
-		fmt.Println("GATE=not-composing")
 		for _, sib := range sibs {
-			fmt.Println("CONFLICT_WITH=" + sib + ": " + strings.Join(conflicts[sib], ", "))
+			fmt.Println("COMPOSE_WARNING=" + sib + ": " + strings.Join(conflicts[sib], ", "))
 		}
-		fmt.Println("NEXT=a phase sibling already reported work these files conflict with: run bbs ticket adopt " + strings.Join(sibs, " ") + " in this worktree, resolve each CONFLICT file, re-review only the resolution delta, re-run QA the resolution touches, then run done again")
-		return "", fmt.Errorf("foreman task done: ticket %s does not compose with %s", t.Ticket, strings.Join(sibs, ","))
 	}
 	state, reasons, err := taskDoneGate(t.Ticket)
 	switch {

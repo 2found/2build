@@ -65,7 +65,9 @@ Exercise the application like a user and leave reproducible evidence.
    integration worktree, commit or switch revisions while testing. Once the
    attempt is recorded, the session fixes small findings in the owning
    ticket's worktree per the lead's phases reference (`seal --fixup`,
-   integrate again, re-test what changed); report the rest to the lead for
+   integrate again, re-test what changed; a conflict that integrate lays
+   out in the integration worktree is resolved there before its commit
+   exists); report the rest to the lead for
    ticket repairs; persist evidence/verdict on the parent.
    Inside a ticket worktree, install and serve from that worktree with the
    ports, databases and secrets `qa.yaml` names. When the run uses a resource
