@@ -186,4 +186,4 @@ Skill usage is recorded locally as JSONL under `~/.babysit/analytics/`; telemetr
 
 ## License
 
-MIT.
+MIT — see [LICENSE](LICENSE).
