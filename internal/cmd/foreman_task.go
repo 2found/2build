@@ -385,16 +385,9 @@ var taskDoneGate = func(t string) (string, []string, error) {
 		return "", nil, err
 	}
 	state, reasons := ticketReportState(primary, env, t, ready, reasons)
-	if state == "" {
-		if why, ok := ticketAdoptionCarry(primary, env, t, reasons); ok {
-			return "carried: " + why, nil, nil
-		}
-		if dir, _, err := ticketWorktree(primary, env, t); err == nil {
-			st := storeForTicket(env, t)
-			if _, why, ok := deferralCovers(dir, st.Home(), ticket.ReadDoc(st.IndexPath()), reasons); ok {
-				return why, nil, nil
-			}
-		}
+	// A carried or deferred gate is recorded as its reason.
+	if state == "ready" && len(reasons) == 1 {
+		return reasons[0], nil, nil
 	}
 	return state, reasons, nil
 }

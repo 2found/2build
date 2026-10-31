@@ -168,15 +168,15 @@ func TestPhasedProjectReleasesPhaseByPhase(t *testing.T) {
 	if r := phaseReadiness(t, st, "dispatch", "p1"); len(r) != 0 {
 		t.Fatalf("phase 1 dispatch blocked: %v", r)
 	}
-	if r := phaseReadiness(t, st, "dispatch", "p2"); !hasReason(r, "phase p1: integrate and deliver it first") {
-		t.Fatalf("phase 2 dispatched before phase 1 delivered: %v", r)
+	if r := phaseReadiness(t, st, "dispatch", "p2"); !hasReason(r, "phase p1: integrate and land it first") {
+		t.Fatalf("phase 2 dispatched before phase 1 landed: %v", r)
 	}
 	if r := phaseReadiness(t, st, "integrate", "p2"); !hasReason(r, "phase p1: release it first") {
 		t.Fatalf("phase 2 integration ahead of phase 1 release: %v", r)
 	}
 
-	// Phase 1 becomes one commit, verified cumulatively and reviewed as a
-	// product before anything reaches base.
+	// Phase 1 becomes one commit, lands on base at once, then is verified
+	// cumulatively and reviewed as a product there.
 	base := gitOutIn(repo, "rev-parse", "main")
 	cand := integratePhase(t, st, "p1")
 	if r := cand.Repos[0]; r.BaseHead != base || gitOutIn(repo, "rev-parse", r.Commit+"^") != base || gitOutIn(repo, "rev-parse", "main") != base {
@@ -188,39 +188,47 @@ func TestPhasedProjectReleasesPhaseByPhase(t *testing.T) {
 	if again := integratePhase(t, st, "p1"); again.Repos[0].Commit != cand.Repos[0].Commit {
 		t.Fatal("re-integrating an unchanged phase built a different commit")
 	}
-	if err := landPhase(t, st, "p1"); err == nil {
-		t.Fatal("landed before phase QA")
-	}
-	for _, kind := range []string{"integration", "product"} {
-		finishExecutionEvidence(t, st, phaseEvidence(t, st, kind, "p1"), kind, false)
-	}
-	s, _ := projectRead(st)
-	if p := s.Phases[0]; p.State != "integrated" || len(p.Evidence) != 2 {
-		t.Fatalf("phase 1 after QA = %s %v %v", p.State, p.Evidence, p.Problems)
-	}
-	if r := phaseReadiness(t, st, "release", "p1"); !hasReason(r, "not integrated and delivered") {
-		t.Fatalf("released before delivery: %v", r)
+	if r := phaseReadiness(t, st, "verify", "p1"); !hasReason(r, "not landed yet") {
+		t.Fatalf("phase QA before land: %v", r)
 	}
 
-	// Land: base fast-forwards to exactly the tested commit.
+	// Land: base fast-forwards to exactly the phase commit, before any QA.
 	if err := landPhase(t, st, "p1"); err != nil {
 		t.Fatal(err)
 	}
 	if gitOutIn(repo, "rev-parse", "main") != cand.Repos[0].Commit {
-		t.Fatal("base is not the tested phase commit")
+		t.Fatal("base is not the phase commit")
 	}
-	if _, err := os.Stat(cand.Repos[0].Worktree); err == nil {
-		t.Fatal("phase worktree kept after landing")
+	if _, err := os.Stat(cand.Repos[0].Worktree); err != nil {
+		t.Fatal("land removed the phase worktree phase QA runs in")
 	}
-	if !slices.Contains(landClosed, cand.Repos[0].Worktree) {
-		t.Fatalf("land did not close the phase worktree's terminals: %v", landClosed)
-	}
-	s, _ = projectRead(st)
-	if p := s.Phases[0]; p.State != "delivered" {
-		t.Fatalf("phase 1 not delivered after landing: %s %v", p.State, p.Problems)
+	s, _ := projectRead(st)
+	if p := s.Phases[0]; p.State != "landed" {
+		t.Fatalf("phase 1 after land = %s %v", p.State, p.Problems)
 	}
 	if r := phaseReadiness(t, st, "dispatch", "p2"); len(r) != 0 {
-		t.Fatalf("phase 2 must build while phase 1 waits on its release: %v", r)
+		t.Fatalf("phase 2 must build while phase 1 runs its QA: %v", r)
+	}
+	if r := phaseReadiness(t, st, "release", "p1"); !hasReason(r, "not landed and verified") {
+		t.Fatalf("released before phase QA: %v", r)
+	}
+	if r := phaseReadiness(t, st, "integrate", "p1"); !hasReason(r, "already landed") {
+		t.Fatalf("re-integrated a landed phase: %v", r)
+	}
+
+	landClosed = nil
+	for _, kind := range []string{"integration", "product"} {
+		finishExecutionEvidence(t, st, phaseEvidence(t, st, kind, "p1"), kind, false)
+	}
+	s, _ = projectRead(st)
+	if p := s.Phases[0]; p.State != "delivered" || len(p.Evidence) != 2 {
+		t.Fatalf("phase 1 after QA = %s %v %v", p.State, p.Evidence, p.Problems)
+	}
+	if _, err := os.Stat(cand.Repos[0].Worktree); err == nil {
+		t.Fatal("phase worktree kept after phase QA passed")
+	}
+	if !slices.Contains(landClosed, cand.Repos[0].Worktree) {
+		t.Fatalf("cleanup did not close the phase worktree's terminals: %v", landClosed)
 	}
 	if r := phaseReadiness(t, st, "release", "p1"); !hasReason(r, "human release approval required") {
 		t.Fatalf("ask phase released without a human go: %v", r)
@@ -291,7 +299,7 @@ func TestSinglePhaseProjectCompletesAfterItsRelease(t *testing.T) {
 	if err := foremanProjectCommand("bind", []string{"parent", "--phase", "p1", "--child", "ph-p1"}); err != nil {
 		t.Fatal(err)
 	}
-	integratePhase(t, st, "p1")
+	integrateAndLand(t, st, "p1")
 	// Unscoped evidence is not proof for a phased project.
 	spec := filepath.Join(t.TempDir(), "spec.json")
 	if err := writeJSONAtomic(spec, map[string]interface{}{"kind": "integration", "producer": "qa"}); err != nil {
@@ -304,9 +312,6 @@ func TestSinglePhaseProjectCompletesAfterItsRelease(t *testing.T) {
 	}
 	for _, kind := range []string{"integration", "product"} {
 		finishExecutionEvidence(t, st, phaseEvidence(t, st, kind, "p1"), kind, false)
-	}
-	if err := landPhase(t, st, "p1"); err != nil {
-		t.Fatal(err)
 	}
 	s, _ := projectRead(st)
 	if s.Ready || !hasReason(s.Blockers, "phase p1: delivered") {

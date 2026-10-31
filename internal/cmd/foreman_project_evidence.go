@@ -218,8 +218,11 @@ func projectEvidenceCommand(st *ticket.Store, kv map[string]string) error {
 			return err
 		}
 		// Compare inputs before accepting results; late recollection cannot turn
-		// an old test into proof for the current tree.
-		if p := projectEvidenceProblems(st, s, ev, true); len(p) > 0 {
+		// an old test into proof for the current tree. A lost-response retry
+		// of a recorded attempt may find its worktree already cleaned up.
+		path := filepath.Join(st.Home(), "project-evidence", ev.ID+".json")
+		_, statErr := os.Stat(path)
+		if p := projectEvidenceProblems(st, s, ev, statErr != nil); len(p) > 0 {
 			return fmt.Errorf("verification inputs changed: %v", p)
 		}
 		ev.Checks, ev.Findings, ev.Preview, ev.Runtime = results.Checks, results.Findings, results.Preview, results.Runtime
@@ -255,7 +258,6 @@ func projectEvidenceCommand(st *ticket.Store, kv map[string]string) error {
 			}
 			check.Digest, _ = digestFile(check.Log)
 		}
-		path := filepath.Join(st.Home(), "project-evidence", ev.ID+".json")
 		var prior projectEvidence
 		if err := readProjectJSON(path, &prior); err == nil {
 			// A lost response must be retryable without changing the receipt's
@@ -271,13 +273,17 @@ func projectEvidenceCommand(st *ticket.Store, kv map[string]string) error {
 			return err
 		}
 		projectEvent(st, "verification_recorded", ev.ID, ev.Producer, ev.Kind)
-		printV2Envelope(map[string]interface{}{"evidence": ev, "problems": projectEvidenceProblems(st, s, ev, true)})
+		out := map[string]interface{}{"evidence": ev, "problems": projectEvidenceProblems(st, s, ev, statErr != nil)}
+		if cleanup := projectCleanupVerifiedPhase(st, ev.Phase); cleanup != nil {
+			out["cleanup"] = cleanup
+		}
+		printV2Envelope(out)
 		return nil
 	})
 }
 
 // projectEvidenceCarry records current-subject evidence made of checks that
-// already passed in earlier attempts of the same phase, so a small repair
+// already passed in earlier attempts of the same or an earlier phase, so a small repair
 // after phase QA re-tests only what it touched. Failed checks are never
 // carried; one record is written per evidence kind found in the sources.
 func projectEvidenceCarry(st *ticket.Store, s projectSnapshot, kv map[string]string) error {
@@ -306,8 +312,11 @@ func projectEvidenceCarry(st *ticket.Store, s projectSnapshot, kv map[string]str
 		if err := readProjectJSON(filepath.Join(st.Home(), "project-evidence", id+".json"), &src); err != nil {
 			return fmt.Errorf("source attempt %s has no recorded results: %w", id, err)
 		}
-		if src.Phase != phase {
-			return fmt.Errorf("source attempt %s belongs to phase %q, not %q", id, src.Phase, phase)
+		// An earlier phase's passed checks may carry into a later one: its
+		// criteria are re-proven cumulatively, and a phase that touches none
+		// of a criterion's files or flows need not re-run it.
+		if j := projectPhaseIndex(s, src.Phase); j < 0 || j > k {
+			return fmt.Errorf("source attempt %s belongs to phase %q, not %q or an earlier phase", id, src.Phase, phase)
 		}
 		if src.Kind != "integration" && src.Kind != "product" {
 			return fmt.Errorf("source attempt %s is %s evidence; only integration and product checks carry", id, src.Kind)
@@ -334,8 +343,9 @@ func projectEvidenceCarry(st *ticket.Store, s projectSnapshot, kv map[string]str
 			case slices.Contains(except, check.Criterion):
 				skipped = append(skipped, label+" (excepted)")
 			case check.Kind == "review":
-				// The commit changed since that review; review the delta afresh.
-				skipped = append(skipped, label+" (a review is never carried)")
+				// A review covers one phase diff; a rebuild after land is a
+				// fix delta, reviewed afresh.
+				skipped = append(skipped, label+" (a review covers one phase diff; review the fix)")
 			case !projectCheckPassed(src, check.Criterion, check.Kind) || len(check.Command) == 0:
 				skipped = append(skipped, label+" (not passed in "+src.ID+")")
 			case slices.ContainsFunc(ev.Checks, func(c projectCheck) bool { return c.Criterion == check.Criterion && c.Kind == check.Kind }):
@@ -363,8 +373,31 @@ func projectEvidenceCarry(st *ticket.Store, s projectSnapshot, kv map[string]str
 		}
 		projectEvent(st, "verification_carried", ev.ID, ev.Producer, ev.Kind)
 	}
-	printV2Envelope(map[string]interface{}{"carried": out, "not_carried": skipped})
+	env := map[string]interface{}{"carried": out, "not_carried": skipped}
+	if cleanup := projectCleanupVerifiedPhase(st, phase); cleanup != nil {
+		env["cleanup"] = cleanup
+	}
+	printV2Envelope(env)
 	return nil
+}
+
+// projectCleanupVerifiedPhase removes a phase's worktrees once its commit is
+// landed and its phase QA passed; until then they serve QA and fixes.
+func projectCleanupVerifiedPhase(st *ticket.Store, phase string) map[string]interface{} {
+	s, err := projectRead(st)
+	if err != nil {
+		return nil
+	}
+	k := projectPhaseIndex(s, phase)
+	if k < 0 {
+		return nil
+	}
+	p := s.Phases[k]
+	if !p.Delivered || !p.Integrated || p.Candidate == nil {
+		return nil
+	}
+	removed, kept, closed := projectRemovePhaseWorktrees(st, s, p, p.Candidate)
+	return map[string]interface{}{"removed_worktrees": removed, "kept_worktrees": kept, "closed_terminals": closed}
 }
 
 func writeProjectImmutable(path string, body []byte) error {

@@ -13,6 +13,7 @@
 #                                   owner, never a lease dir without an owner file
 
 set -u
+unset ORCA_TERMINAL_HANDLE  # never let a test cut worktrees in the real Orca app
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BBS_TICKET_BIN="$SCRIPT_DIR/bbs"
 

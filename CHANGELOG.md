@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.120.0 — 2026-10-31
+
+### Changed
+
+- **Team phase gates, simplified.** A Foreman ticket of any size now leaves
+  `review-pr` and `qa` to its phase; the phase commit is reviewed once and
+  QA'd cumulatively on the landed base. A change hitting the
+  money/auth/irreversible-data floor keeps its own `review-pr`; only its QA
+  waits. `bbs team await` reads a prerequisite whose gates were deferred the
+  same way `task done` and `seal` do, so dependents no longer stall on a
+  lead-waived check.
+- **Land before phase QA; fixes land as deltas.** `bbs team land` now
+  fast-forwards local base immediately after `integrate`, and cumulative
+  phase QA runs on the landed commit in the phase worktree. A QA failure is
+  fixed forward: the fix builds as one delta commit on top of the landed
+  phase (three-way merged onto `PhaseBase`), never rewrites base history.
+- **Orca worktrees.** `bbs ticket ensure --mode=worktree` and phase worktrees
+  are created through `orca worktree create` when the caller runs in an Orca
+  terminal on a tracked repo — they land under Orca's workspace dir and show
+  as Orca workspaces; otherwise they fall back to `.babysit/worktrees/` as
+  before. Never derive the path; `manifest.yaml` records it.
+- **Phase cleanup closes terminals.** Landing verified phases now closes the
+  workers' Orca terminals for the phase's worktrees.
+- **Autopilot `orchestrate` mode is team-only.** A ticket manifest without a
+  team assignee no longer routes autopilot to `orchestrate`; its manifest rows
+  are milestones of that one ticket and the ticket runs `implement`.
+- **`bbs team integrate` retries reuse the phase worktree** wherever it was
+  created (Orca workspace dir or `.babysit/worktrees/`).
+
 ## 1.119.0 — 2026-10-31
 
 ### Added

@@ -57,12 +57,12 @@ func projectNext(st *ticket.Store, s projectSnapshot) []foremanStep {
 			continue
 		}
 		if p.LastFailed {
-			steps = append(steps, foremanStep{Do: "repair", Phase: p.ID, Why: "stop the line: the last release of phase " + p.ID + " failed; nothing later moves until it ships. Fix forward (a repair to the ticket that broke, then integrate, verify, land) or retry the release"})
+			steps = append(steps, foremanStep{Do: "repair", Phase: p.ID, Why: "stop the line: the last release of phase " + p.ID + " failed; nothing later moves until it ships. Fix forward (a repair to the ticket that broke, then integrate, land, verify) or retry the release"})
 			return append(steps, phaseNext(st, s, p)...)
 		}
 		steps = append(steps, phaseNext(st, s, p)...)
-		// The next phase builds while this one waits on its release; it never
-		// overtakes an undelivered phase.
+		// The next phase builds while this one runs phase QA or waits on its
+		// release; it never overtakes an unlanded phase.
 		if !p.Delivered {
 			return steps
 		}
@@ -87,7 +87,7 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 			"create a phase ticket under "+parent+" and bind it; its tickets go under it")}
 	}
 	switch {
-	case p.Delivered:
+	case p.Delivered && p.Integrated:
 		if p.Release == "ask" && !p.ApprovalGo {
 			ps := storeForTicket(st.Env, p.Ticket)
 			if doc := ticket.ReadDoc(ps.IndexPath()); doc.Get("approval.kind") == "release" {
@@ -98,22 +98,22 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 					return []foremanStep{step("wait", "human", "", "the handover of phase "+p.ID+" is with the human for review and the release go")}
 				case state == "redirected" && current:
 					return []foremanStep{step("repair", "", "BABYSIT_TICKET="+p.Ticket+" bbs ticket approval comments",
-						"the human sent the handover back: "+orDefault(note, "see the comments")+". Fix what the approved scope covers as repairs on the owning tickets (reseal, integrate, phase QA, land), then hand over again; a request beyond the approved scope goes back to basic-design review as a contract change")}
+						"the human sent the handover back: "+orDefault(note, "see the comments")+". Fix what the approved scope covers as repairs on the owning tickets (reseal, integrate, land, phase QA), then hand over again; a request beyond the approved scope goes back to basic-design review as a contract change")}
 				case state == "dropped" && current:
 					return []foremanStep{step("wait", "human", "", "the human declined the release of phase "+p.ID+": "+orDefault(note, "no reason given"))}
 				}
 			}
 			return []foremanStep{step("release", "human", "bbs team release "+parent+" --phase "+p.ID+" --request",
-				"phase "+p.ID+" is landed; ask the human for the release go")}
+				"phase "+p.ID+" is landed and verified; ask the human for the release go")}
 		}
 		return []foremanStep{step("release", "", "bbs team release "+parent+" --phase "+p.ID+" --file receipt.json",
-			"phase "+p.ID+" is landed; run release-prd, then record its verdict")}
-	case p.Integrated:
-		return []foremanStep{step("land", "", "bbs team land "+parent+" --phase "+p.ID, "phase QA passed on the phase commit")}
+			"phase "+p.ID+" is landed and verified; run release-prd, then record its verdict")}
 	case p.Sealed && p.Candidate == nil && !s.Contract.ArtifactsOnly:
 		return []foremanStep{step("integrate", "", "bbs team integrate "+parent+" --phase "+p.ID, "every ticket of phase "+p.ID+" is sealed")}
+	case p.Sealed && !p.Delivered && !s.Contract.ArtifactsOnly:
+		return []foremanStep{step("land", "", "bbs team land "+parent+" --phase "+p.ID, "land the phase commit now; phase QA runs on the landed commit")}
 	case p.Sealed:
-		why := "run phase QA on the phase commit and record it (bbs team evidence --begin, then --attempt)"
+		why := "run phase QA on the landed phase commit and record it (bbs team evidence --begin, then --attempt); a failure is fixed forward (reseal --fixup, integrate, land, re-check what changed)"
 		if checks := phaseContractChecks(p); len(checks) > 0 {
 			why += "; it changes contracts, so include their consumers' checks: " + strings.Join(checks, "; ")
 		}

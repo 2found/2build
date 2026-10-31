@@ -68,11 +68,13 @@ by path, not as `skill://`.
    prescribing every edit. If an unverified assumption could overturn the
    approach, do a bounded check or name it as a blocker before dependent work.
    Pick the visual that makes those decisions reviewable (below).
-5. For L work or an explicit breakdown request, use semantic-decision kind
-   `orchestration` with the proposed dependency boundaries to decide whether
-   to split. If split, produce the ticket DAG and manifest below; splitting
-   proposes work, it does not create tickets/worktrees or dispatch workers.
-   the lead owns orchestration.
+5. Decompose into a ticket DAG and manifest (below) only when a team lead
+   (basic design) or the user explicitly asks for a breakdown; then use
+   semantic-decision kind `orchestration` with the proposed dependency
+   boundaries to decide whether to split. Splitting proposes work, it does
+   not create tickets/worktrees or dispatch workers; the lead owns
+   orchestration. Under autopilot or a direct run, size never triggers a
+   split: plan L work as one ticket with ordered milestones in **Approach**.
 6. Before handoff, check coverage and review cost (below), then re-check size.
    If ≥40% of in-scope items were deferred to follow-up tickets, downgrade one
    tier using the hook in `../references/ticket-size-rubric.md`. Required child
@@ -137,8 +139,7 @@ For decomposition, write `manifest.md` beside `plan.md` (not the identity file
 single worker session plans, builds, reviews and QAs end to end, for hours or
 days if needed. Each phase is one coherent vertical slice that leaves the
 product working, sized `XS`–`L` on the
-[size rubric](../references/ticket-size-rubric.md); the size also picks who
-approves its plan (`L` plans go to the lead). Every phase boundary costs a cold
+[size rubric](../references/ticket-size-rubric.md). Every phase boundary costs a cold
 session and a full review/QA cycle, so prefer fewer, larger phases and split
 by context, not size: work on one module, the same files or an interface still
 being shaped stays in one row; split only where modules are disjoint behind an

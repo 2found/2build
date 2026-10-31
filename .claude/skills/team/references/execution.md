@@ -91,8 +91,9 @@ no phase commit to integrate or land, and delivery reads `ARTIFACTS_READY`.
 
 ## Integrated checks and independent product review
 
-Build the phase commit first (`bbs team integrate`, [phases](phases.md#2-integrate-the-phase)).
-In its integration worktree, before testing, create a verification attempt:
+Build and land the phase commit first (`bbs team integrate`, `land`,
+[phases](phases.md#2-integrate-the-phase)). In its integration worktree,
+before testing, create a verification attempt:
 
 ```sh
 bbs team evidence "$PARENT" --begin --file /absolute/check-spec.json
@@ -119,11 +120,9 @@ bbs team evidence "$PARENT" --attempt <id> --file /absolute/results.json
 }
 ```
 
-Record every required criterion/check pair and real exit code. When a ticket
-of the phase deferred `review-pr` by size or took a `seal --fixup`, also
-record the phase review as `{"criterion":"<phase id>","kind":"review",...}`
-with the review report as its log ([phases](phases.md#3-cumulative-qa-and-product-review));
-it is never carried. The producer
+Record every required criterion/check pair and real exit code. Also record the phase review as `{"criterion":"<phase id>","kind":"review",...}`
+with the review report as its log ([phases](phases.md#4-cumulative-qa-and-product-review));
+it never carries: a rebuild after land is a fix delta, reviewed afresh. The producer
 archives logs and hashes them; changed inputs reject results. Failures remain
 durable; repairs get a fresh attempt. A preview requires `preview` HTTP(S) URL,
 `runtime` full tested SHA, and a passing `runtime` check whose probe log contains
@@ -143,7 +142,7 @@ criterion check use `kind: product`; `kind: journey` is only for an explicitly
 required preliminary check. Material findings require repair and fresh evidence;
 minor findings stay in the handoff.
 
-After the last phase is released (or landed, for `none`), release settled
+After the last phase is released (or landed and verified, for `none`), release settled
 workers and leases, persist the report, then run `bbs team complete "$PARENT" --team "$FOREMAN_ID"`.
 It writes the completion receipt only when all assigned parents are verified. Status edits or a raw done
 heartbeat cannot replace this receipt.

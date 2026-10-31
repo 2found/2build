@@ -1,15 +1,16 @@
 {
   "_template": true,
-  "_about": "Stage 4 strategy. An angle = one segment + one insight + one promise standing on facts, in one format. Test different formats, not different words.",
+  "_about": "Stage 4 strategy. An angle = one segment + one insight + one promise standing on facts, in one format, with one reason to share. Test different formats, not different words.",
   "angles": [
     {
       "id": "G1", "segment": "A1",
       "insight": "the true, specific thing about this segment's life the video starts from",
       "promise": "what the viewer gets by watching (not what the product does)",
       "why_watch": "why someone who has never heard of the product keeps watching after 2 s",
+      "why_share": "who the viewer sends it to and with what words (identity, utility, debate or emotion)",
       "format": "problem-solution",
       "facts": ["F1"], "trends": ["T1"], "platforms": ["tiktok", "x"],
-      "hooks": ["three different openers, each a different mechanism (result first, stake, contradiction, POV)"]
+      "hooks": ["three different openers, each a different mechanism (result first, call-out, contradiction, stake, POV, countdown, curiosity gap)"]
     }
   ],
   "plan": [{"script": "s01-…", "angle": "G1", "why": "what this video tests"}]

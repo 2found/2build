@@ -11,7 +11,7 @@ platform it ships to. Run from anywhere inside a campaign (or pass --campaign).
   material [ls|show ID…] [--kind K] [-q TEXT]   read the pack as short cards, strongest first
   check [stage]                     validate brief|material|product|audience|trends|strategy|pretest|all
   new-script <sid>                  05-scripts/<sid>.json from the template
-  lint <script> [--hook H2]         hook timing, length, claims→facts, ad-feel, on-screen load, platform copy
+  lint <script> [--hook H2]         hook timing, first value, length, claims→facts, brand, on-screen load, platform copy
   trend-video URL… [--frames]       public metadata (+ hook frames) of reference posts into trends.json
   pretest-brief <script>… [--round r1]   pre-test brief with the material verbatim
   voice <script> [--engine E]       a take: every line (+ hook variants) as audio with word timing

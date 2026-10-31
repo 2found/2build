@@ -79,13 +79,14 @@ func TestForemanNextFollowsThePhaseFlow(t *testing.T) {
 	}
 	expect("integrate:p1:")
 	integratePhase(t, st, "p1")
-	expect("verify:p1:")
-	for _, kind := range []string{"integration", "product"} {
-		finishExecutionEvidence(t, st, phaseEvidence(t, st, kind, "p1"), kind, false)
-	}
 	expect("land:p1:")
 	if err := landPhase(t, st, "p1"); err != nil {
 		t.Fatal(err)
+	}
+	// Phase 2 builds while phase 1 runs its QA on base.
+	expect("verify:p1: create:p2:extra")
+	for _, kind := range []string{"integration", "product"} {
+		finishExecutionEvidence(t, st, phaseEvidence(t, st, kind, "p1"), kind, false)
 	}
 	// Phase 2 builds while phase 1 waits on the human's release go.
 	expect("release:p1:human create:p2:extra")
@@ -166,7 +167,9 @@ func TestForemanNextWaitsOnALaunchedWorker(t *testing.T) {
 	if err := foremanProjectCommand("bind", []string{"parent", "--phase", "p1", "--child", "ph-p1"}); err != nil {
 		t.Fatal(err)
 	}
-	mustWrite(t, filepath.Join(repo, "feature.txt"), "changed after the seal\n")
+	// An auth path keeps its own review, so the stale review leaves it unready.
+	mustMkdirAll(t, filepath.Join(repo, "auth"))
+	mustWrite(t, filepath.Join(repo, "auth", "token.go"), "package auth\n")
 	doc := ticket.ReadDoc(child.IndexPath())
 	doc.Set("status", "open")
 	if err := ticket.WriteDoc(child.IndexPath(), doc); err != nil {

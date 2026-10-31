@@ -74,6 +74,8 @@ Viewers scroll a feed and most watch X muted: judge each variant on its on-scree
 ## Report
 - Rank the variants by attention in the first 2 seconds and by watch_through; say whether the gap is clear.
 - For each variant: the second viewers leave and the line that made them leave; the first comment they would write.
+- For each variant: what a viewer who leaves at 3 s and at 6 s got from it; who they would send it to and with
+  what words; whether they can name the product without the CTA.
 - Experts (a TikTok creator, an X growth marketer, someone in the priority-1 segment) score the hook, how much it
   feels like an ad, how clear the value is, and suggest concrete wording fixes.
 - Which lines sound like an ad or are hard to believe.

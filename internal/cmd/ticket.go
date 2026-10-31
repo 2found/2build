@@ -158,8 +158,9 @@ const ticketUsageText = `usage: bbs-ticket <subcommand> [args...]
 Subcommands:
   ensure            idempotent: no-op when a ticket resolves, else create + init
                     mode trunk|worktree (default trunk): trunk = no cut;
-                    worktree = cut .babysit/worktrees/<ticket>_<slug> from
-                    local base (--from-ref REF) and print WORKTREE=<path>
+                    worktree = cut <ticket>_<slug> from local base (--from-ref
+                    REF) via Orca in an Orca terminal, else under
+                    .babysit/worktrees/; print WORKTREE=<path>
   clear --all       move every active ticket record under ~/.babysit/projects
                     to ~/.babysit/trash; leaves config, sessions, analytics,
                     branches, and worktrees untouched

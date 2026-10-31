@@ -134,8 +134,40 @@ class Lint(unittest.TestCase):
         s["beats"][1]["vo"] = "Download now with promo code."
         self.assertIn("C2", codes(lint(s, CAMPAIGN, REFS)))
 
+    def test_late_first_value_fails(self):
+        s = script()
+        setup = "Let me explain how my week went before we get to the inbox part of this story."
+        s["beats"].insert(1, {"id": "B09", "role": "context", "visual": "desk", "vo": setup})
+        self.assertIn("R1", codes(lint(s, CAMPAIGN, REFS), "WARN"))  # value at about 7 s
+        s["beats"][1]["vo"] = setup + " It was a long one, honestly."
+        self.assertIn("R1", codes(lint(s, CAMPAIGN, REFS), "FAIL"))
+
+    def test_script_without_value_beat_fails(self):
+        s = script()
+        s["beats"][1]["role"] = "problem"
+        self.assertIn("R1", codes(lint(s, CAMPAIGN, REFS), "FAIL"))
+
+    def test_brand_in_hook_text_warns(self):
+        s = script()
+        s["beats"][0]["onscreen"] = "Acme sorts your inbox"
+        self.assertIn("H3", codes(lint(s, CAMPAIGN, REFS), "WARN"))
+
+    def test_product_must_be_seen_in_first_half(self):
+        s = script()
+        self.assertIn("B2", codes(lint(s, CAMPAIGN, REFS), "WARN"))
+        s["beats"][1]["visual"] = "the real Acme filter screen"
+        self.assertNotIn("B2", codes(lint(s, CAMPAIGN, REFS)))
+
 
 class Checks(unittest.TestCase):
+    def test_angle_needs_share_reason(self):
+        g = {"id": "G1", "segment": "A1", "insight": "i", "promise": "p", "why_watch": "w", "format": "demo",
+             "facts": ["F1"]}
+        a = {"angles": [g], "plan": [{"script": "s01-x", "angle": "G1", "why": "y"}]}
+        self.assertIn("why_share is empty", str(checks.check_angles(a, {"F1"}, {"A1"}, set(), ["tiktok"]).items))
+        g["why_share"] = "sent to the friend who reads at 3 am"
+        self.assertNotIn("why_share", str(checks.check_angles(a, {"F1"}, {"A1"}, set(), ["tiktok"]).items))
+
     def test_inference_only_priority1_fails(self):
         seg = {"segments": [{"id": "A1", "priority": 1, "name": "n", "who": "w", "pains": ["p"], "jobs": ["j"],
                              "evidence": [{"type": "inference", "ref": "my guess"}]}]}

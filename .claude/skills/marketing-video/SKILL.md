@@ -40,8 +40,8 @@ engines, material kinds and recipes are gitignored extensions in
 | 1 | product -> `01-product/facts.json` | every claim the video may make, quoted from a source with a check date; real screens in `01-product/screens/` | `check product` | [01](references/01-product.md) |
 | 2 | audience -> `02-audience/segments.json` | 1-3 segments from evidence, pains in their words, search terms, anti-segments | `check audience` | [02](references/02-audience.md) |
 | 3 | trends -> `03-trends/trends.json` | formats, hooks, sounds observed this fortnight with URL + metric + decision | `trend-video`, `check trends` | [03](references/03-trends.md) |
-| 4 | strategy -> `04-strategy/angles.json` | 2-3 angles = segment x insight x promise x format, each standing on facts | `check strategy` | [04](references/04-strategy.md) |
-| 5 | script -> `05-scripts/<sid>.json` | beats (one beat = one scene), 2-3 hook variants, platform copy | `new-script`, `lint` | [05](references/05-script.md) |
+| 4 | strategy -> `04-strategy/angles.json` | 2-3 angles = segment x insight x promise x format x share reason, each standing on facts | `check strategy` | [04](references/04-strategy.md) |
+| 5 | script -> `05-scripts/<sid>.json` | beats (one beat = one scene) in the retention shape, 2-3 hook variants, platform copy | `new-script`, `lint` | [05](references/05-script.md) |
 | 6 | pre-test -> `06-pretest/<round>/decision.json` | simulated panel, honest small human panel, or skipped with a reason | `pretest-brief` | [06](references/06-pretest.md) |
 | 7 | video -> `07-video/<sid>/<canvas>-<hook>/` | voice, scenes, captions, sound bed | `voice`, `scaffold`, `score` | [07](references/07-production.md) |
 | 8 | delivery -> `08-delivery/<sid>/<hook>/<canvas>/<platform>/` | render, master, encode per platform, QA, captions, cover, copy | `export`, `qa` | [08](references/08-delivery.md) |
@@ -59,8 +59,16 @@ the user needs (research only, or script only) and say where you stopped.
   drawn mock-up. A missing screen is a labelled placeholder and a report line.
 - **Material before angles.** Choose the angle from what the audience already
   likes or recognises, not from what the product wants to say.
-- **Native, not an ad.** Hook <= 2.5 s on TikTok, <= 2.0 s on X, on screen from
-  frame 0 (X autoplays muted). No selling words before the CTA. One CTA.
+- **Every second pays the viewer.** Most viewers swipe within 3 s and few
+  reach the end, so a video with no early value gets no views and no shares.
+  Frame 0, the on-screen line and the first spoken words each hook on their
+  own (X autoplays muted); the spoken hook ends by 2.5 s on TikTok and 2.0 s
+  on X; the first real value lands by 6 s; the payoff keeps the hook's promise.
+  Every angle names who a viewer would send it to, and why.
+- **Brand in the picture, not in the pitch.** The product is seen where the
+  value happens, from the first value beat, because most viewers never reach
+  the CTA. Its name is never in the hook and is spoken at most once. No selling
+  words before the one soft CTA, and no logo end card.
 - **Measured, not hand-typed.** Scene slots, word times and loudness come from
   the audio and the rendered file, not from estimates. Estimates are labelled.
 - **Rights.** Show only `own`, `licensed`, `public-domain` or `official-promo`

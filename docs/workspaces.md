@@ -44,7 +44,7 @@ QA config remains committed separately in `.babysit/qa.yaml`; secrets remain in 
 | Meaning | What it is | How it is named in output |
 |---|---|---|
 | Orca terminal | one visible worker and agent session | **Orca terminal**, never bare |
-| worktree pool | `<repo>/.babysit/worktrees/<ticket>_<slug>` | **worktree** |
+| worktree pool | `<workspaceDir>/<repo>/<ticket>_<slug>` via Orca, else `<repo>/.babysit/worktrees/<ticket>_<slug>` | **worktree** |
 | registry workspace | a named set of repos in `config.yaml` | **workspace acme** |
 
 `team` gains no extra field for the registry. Its `ProjectDir` is matched to

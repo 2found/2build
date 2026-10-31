@@ -14,7 +14,10 @@ and a `decision.json` stub. Pick one method and record it:
    the tool's run id in `run`. Never ask for or write a model key in chat or files.
 2. **Honest small human panel**: 3-5 people from the target segment (the user
    finds them) read or watch the hooks cold and answer: where would you swipe,
-   what would you comment, does it read like an ad, is anything unbelievable.
+   what did you expect to get after 3 s, would you send it to someone (who,
+   and with what words), which product was it (asked without showing the end
+   again), what would you comment, does it read like an ad, is anything
+   unbelievable.
    Save each answer verbatim to `06-pretest/<round>/panel/<person>.md`. Label
    `"method": "human-panel"` with n.
 3. **Skipped**, with a stated reason (`"skipped_reason"`). Fine for a first

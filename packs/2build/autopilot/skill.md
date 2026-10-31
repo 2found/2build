@@ -13,11 +13,11 @@ description: "Deliver one ticket end-to-end from a requirement or accepted plan 
 A **goal proxy**: the skill owns init — durable ticket state, requirement,
 plan — and the harness's work loop owns execution (`/goal` where supported),
 with persisted `review-pr`/`qa` verdicts as the terminal condition. Gates
-are proportional: under Team an `XS`/`S` ticket leaves `review-pr` and
-`qa` to its phase and an `M` ticket leaves `qa` (step 5 of Team ticket
-assignment); a follow-up already verified on its final tree may be sealed by
-`team` with `bbs team seal --waive` and a reason. Record the gates your
-size owns, but do not invent work to satisfy the ones it defers. Keep
+are proportional: under Team a ticket runs focused checks and leaves
+`review-pr` and `qa` to its phase (step 5 of Team ticket assignment); a
+follow-up already verified on its final tree may be sealed by
+`team` with `bbs team seal --waive` and a reason. Record the gates you
+own, but do not invent work to satisfy the ones it defers. Keep
 state on disk; safe to re-enter until a terminal status prints.
 **Autopilot is an assistant, not an orchestrator.** It works on the checkout
 it was started in and never manages its own git topology: no branch cutting,
@@ -123,14 +123,19 @@ or a Team lead decides whether to open a ticket for it.
    so the ticket's own changes stay distinguishable from what was already
    there.
    Stop here on `--stop-after=requirement`.
-3. A parent carrying `manifest.md` is a multi-ticket project: stop init and
-   hand it to `team`; never dispatch or merge its children here. Otherwise
-   run `builder`, unless the invocation names a project workflow
-   (`.claude/workflows/<name>.md`). Several *independent* requirements in one
-   invocation → don't batch here: autopilot runs one ticket end-to-end;
-   parallel dispatch belongs to the `team` skill (one visible worker per
-   ticket, each running autopilot). `NEEDS_CONTEXT` only when there is no ticket,
-   requirement, plan, manifest, or branch work at all.
+3. A parent a team lead owns (`bbs ticket get assignee` names a team) is
+   the lead's: stop init and hand it back; never dispatch or merge its
+   children here. Everything else stays in autopilot, whatever its size or
+   length: several requirements, or a `manifest.md` nobody's team owns, run
+   as this one ticket, their parts as ordered milestones of one plan in this
+   session. Never stop, block, defer or ask the user to switch to `team`
+   because the work is long or large. When phased releases or parallel work
+   on disjoint parts would genuinely help, add at most one `Alternative:`
+   line to the final handoff naming `team` — information, not a
+   recommendation to stop. Run `builder`, unless the invocation names a
+   project workflow (`.claude/workflows/<name>.md`). `NEEDS_CONTEXT` only
+   when there is no ticket, requirement, plan, manifest, or branch work at
+   all.
 4. Seed the plan when the routed mode needs one (build or child mode, size
    above XS) or `--stop-after=plan` explicitly requests it:
    run `plan-draft` in this session, per the planning policy below — `plan.md` on
@@ -320,14 +325,14 @@ steps and ends when the ticket is ready for its phase's integration:
    the parent id; never a new layout. Changing a brief's decision —
    interface shape, data model, scope or a prototype flow — or needing a
    screen the prototype lacks is a material deviation for the lead (step 2).
-2. **Plan approval, by ticket size** — the larger of the assigned size and
-   the plan's `ticket_size`. Judge the plan with
+2. **Plan approval** — every plan (`M`, `L`, or an `S` planned as `M`) is
+   self-approved; nothing waits on the lead by size. Judge the plan with
    `../semantic-decision/skill.md` kind `human-review` against the accepted
    parent artifacts, write the five-line rubric with named evidence and run
-   `bbs ticket approval publish --kind plan`. `M` (or an `S` planned as `M`): resolve it yourself
+   `bbs ticket approval publish --kind plan`, then resolve it yourself
    with `bbs ticket approval self-resolve --team <assigned id>
    --rubric-file <path>`; exit 4 means repair the plan or rubric here, at most
-   twice. `L`, or exit 3/5, a third refusal, a `needs-human`/`blocked`
+   twice. Exit 3/5 (the money/auth/irreversible-data floor), a third refusal, a `needs-human`/`blocked`
    judgment, or a material deviation from accepted scope or a shared
    contract: `bbs team task ask <task> --body` the lead with the artifact
    paths and wait in this session (exit 4 is a timeout: `ask --resume
@@ -349,25 +354,16 @@ steps and ends when the ticket is ready for its phase's integration:
    the adopted code: fix details in place; a scope, acceptance or
    shared-contract change is a material deviation and goes back through
    step 2.
-5. **Build**, then the gates the ticket's size owns. The phase commit is
-   reviewed once and QA'd cumulatively after integration, so a small ticket
-   does not repeat that work on its own tree:
-
-   | Size | Ticket session | Left to the phase |
-   |---|---|---|
-   | `XS`, `S` | focused checks only: typecheck, lint and the unit tests of the touched code, fixed until green | `review-pr`, `qa` |
-   | `M` | focused checks, then `review-pr low --fix` (one pass, no finder fan-out) | `qa` |
-   | `L` | `review-pr <assigned effort> --fix`, then `qa` | nothing |
-
-   Size work that touches money, auth or irreversible data `L` in the plan.
-   `task done` and `seal` decide the deferral themselves from the larger of
-   the plan's `ticket_size` (`M` when unset) and the rubric applied to this
-   worktree's own changes, and defer nothing when a changed path hits the
-   money/auth/irreversible-data floor; a deferred report reads
-   `GATE="deferred to phase review: size S (…)"`. A failed verdict or open
-   finding of a gate you did run is never deferred. The gates you run follow
-   the Current-session gates and the repair loop below: QA fixes return to
-   review exactly as in a direct run. A check
+5. **Build** with focused checks only — typecheck, lint and the unit tests
+   of the touched code, fixed until green — and report as soon as they pass:
+   the phase commit is reviewed once and QA'd cumulatively right after
+   integration, so a ticket never runs `review-pr` or `qa` on its own tree,
+   whatever its size. The one exception: when a changed path hits the
+   money/auth/irreversible-data floor, run `review-pr <assigned effort>
+   --fix` on this ticket's diff before reporting (its `qa` still waits for
+   the phase). `task done`, `seal` and `await` apply this themselves; a
+   deferred report reads `GATE="deferred to phase review: …"`. A failed
+   verdict or open finding of a gate you did run is never deferred. A check
    the assignment defers to a heavy profile is skipped and recorded as
    `DEFERRED_HEAVY=<profile>: <checks>` in the handoff and with
    `bbs ticket set-pointer deferred_heavy "<profile>: <checks>"`, leaving the

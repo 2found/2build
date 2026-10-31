@@ -49,7 +49,8 @@ on screen; never a logo, a title card or black.
   recording from `assets/media/` (captured from the product), shown at 1.6–2× its
   real size, pushed in on the one control that matters. A missing screen is a
   labelled placeholder and a line in your report, never a drawn dashboard.
-- {{BRAND}} appears on screen as the product itself; the name is spoken at the CTA.
+- {{BRAND}} appears on screen as the product itself, from the first beat that
+  gives value, because most viewers leave before the CTA. Never a logo end card.
 
 ## Motion
 

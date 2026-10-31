@@ -207,7 +207,7 @@ def check_angles(a: dict, fact_ids: set, segment_ids: set, trend_ids: set, platf
         where = f"angles.{x.get('id')}"
         if x.get("segment") not in segment_ids:
             r.fail("STR", where, f"segment {x.get('segment')!r} is not in segments.json")
-        for k in ("insight", "promise", "why_watch", "format"):
+        for k in ("insight", "promise", "why_watch", "why_share", "format"):
             if not str(x.get(k, "")).strip():
                 r.fail("STR", where, f"{k} is empty")
         if not x.get("facts"):

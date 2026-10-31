@@ -33,6 +33,12 @@ Before phase tickets, worktrees, or production dispatch:
      Runtime ids/status belong in relations/report, so progress does not
      rewrite the approved design.
 
+   **Supplied by the human** — a prototype or design given with the request
+   or linked from `AGENTS.md` — is accepted input, not a draft: link and
+   reuse it as-is, and produce only what it leaves missing (screens, states,
+   architecture, briefs, phase plan). Change it only where it contradicts the
+   spec, and list each change for the design review.
+
    The basic design decides once, for every ticket, what tickets would
    otherwise each re-decide. A **ticket brief** is decision-complete for its
    seed: owned files and modules; the exact shape of every interface it
@@ -84,9 +90,8 @@ Before phase tickets, worktrees, or production dispatch:
    the handover into an `auto` release, directly or through a `none` phase
    that now ships with one — goes to human review even under `--auto`.
 5. **Ticket plan checkpoints run inside the ticket session**, so planning flows
-   into implementation without a worker switch. The larger of the ticket's
-   manifest size and its plan's `ticket_size` picks the approver, so a plan
-   that grows to `L` goes to the lead and none shrinks out of its review:
+   into implementation without a worker switch; no plan waits on the lead by
+   size:
    - `XS`/`S`: no plan and no record (an `S` touching money, auth or
      irreversible data plans as `M`).
    - Money, auth or irreversible data in an `M`/`L` plan is the decision
@@ -95,7 +100,7 @@ Before phase tickets, worktrees, or production dispatch:
      human approved, and the plan goes to you (`task ask`), never the human —
      review it at `high` effort against the brief. Under a design you
      approved yourself (`--auto`), the floor still reaches a human.
-   - `M` — **self-approve**: the worker judges its plan against the
+   - `M`/`L` — **self-approve**: the worker judges its plan against the
      accepted parent artifacts with `human-review`, writes the five-line
      rubric with named evidence, runs `approval publish --kind plan`, and
      resolves it with `approval self-resolve --team "$FOREMAN_ID"
@@ -104,8 +109,6 @@ Before phase tickets, worktrees, or production dispatch:
      `needs-human` or `blocked` judgment, a third rubric refusal, or a
      material deviation from accepted scope or a shared contract becomes a
      `bbs team task ask` to the lead, and the session waits.
-   - `L` — **The lead approves**: the worker writes the rubric, publishes the
-     plan record and asks the lead with the artifact paths; the session waits.
 
    the lead answers a plan ask from the ticket's `plan.md`/`design.md`, the
    parent goal, its acceptance IDs and the manifest's shared contracts. Approve
@@ -178,20 +181,22 @@ never unlocks a gate on resume.
 
 ## Phase integration QA
 
-Every code-bearing phase ends in one integration QA on its phase commit
-([phases](phases.md#2-integrate-the-phase)), testing every criterion of that
-phase and all earlier ones; the last phase's run is the project's final QA and
+Every code-bearing phase ends in one integration QA on its landed phase
+commit ([phases](phases.md#2-integrate-the-phase)), proving every criterion of that
+phase and all earlier ones — fresh for this phase's criteria and whatever its
+diff touches, carried for the rest; the last phase's run is the project's final QA and
 passes before the lead's `done` heartbeat. Per-ticket QA never substitutes for
 it. Wholly evidence-only projects may record N/A with acceptance evidence.
 The lead owns the evidence checks; one integration worker session on the normal
 route reviews the phase diff and tests through the `qa` skill, and fixes small
 findings in their owning ticket's worktree
-([phases](phases.md#3-cumulative-qa-and-product-review)). The lead never tests
+([phases](phases.md#4-cumulative-qa-and-product-review)). The lead never tests
 inline.
 
 1. `bbs team integrate "$PARENT" --phase <k>` builds the phase commit and
    prints its detached integration worktree. A conflict names the ticket and
-   files: `repair` that ticket, then integrate again.
+   files: `repair` that ticket, then integrate again. `bbs team land
+   "$PARENT" --phase <k>` puts it on local base right away.
 2. Begin evidence with `"phase"` (execution.md), then run the `qa` skill in
    that worktree with parent identity, the phase commit, the approved artifact
    revision and the ticket list, in its Team integration mode: no commits,
@@ -205,9 +210,9 @@ inline.
    parent `qa` verdict. A worktree that is no longer clean at the commit means
    STALE and a rerun, not PASS.
 4. On FAIL/STALE, the session fixes what it can with `seal --fixup` and
-   re-checks; `repair` the owning tickets for the rest, reseal, integrate
-   again and rerun. On PASS, `bbs team land "$PARENT" --phase <k>` moves base to
-   exactly the tested commit ([delivery](delivery.md)).
+   re-checks; `repair` the owning tickets for the rest, reseal, integrate and
+   land the fix commit, and re-check what changed. PASS unlocks the release
+   and removes the phase's worktrees ([delivery](delivery.md)).
 
 ## Executable completion
 

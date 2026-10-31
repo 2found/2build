@@ -196,6 +196,41 @@ func (c *Client) Create(o CreateOpts) (string, error) {
 	return c.Ref(o.Title)
 }
 
+// Worktree is a linked checkout Orca created and tracks.
+type Worktree struct {
+	Path   string `json:"path"`
+	Branch string `json:"branch"`
+}
+
+// CreateWorktree asks Orca for a linked worktree of the registered repo at
+// repoPath, so it lands where Orca's workspace rule puts it (workspaceDir,
+// nested per repo) and shows as an Orca workspace — a plain `git worktree
+// add` elsewhere is an external worktree, hidden by Orca's default. Orca
+// infers the parent workspace from the caller. Setup hooks are skipped: the
+// worker installs what its ticket needs. The branch is returned without its
+// refs/heads/ prefix; Orca suffixes a taken name, so callers use this value.
+func (c *Client) CreateWorktree(repoPath, name, branch, baseRef string) (Worktree, error) {
+	if resolved, err := filepath.EvalSymlinks(repoPath); err == nil {
+		repoPath = resolved
+	}
+	raw, err := c.run("worktree", "create", "--repo", "path:"+repoPath, "--name", name,
+		"--branch", branch, "--base-branch", baseRef, "--setup", "skip")
+	if err != nil {
+		return Worktree{}, err
+	}
+	var wrap struct {
+		Worktree Worktree `json:"worktree"`
+	}
+	if err := json.Unmarshal(raw, &wrap); err != nil {
+		return Worktree{}, fmt.Errorf("worktree create: %w", err)
+	}
+	if wrap.Worktree.Path == "" {
+		return Worktree{}, errors.New("orca worktree create: no path in reply")
+	}
+	wrap.Worktree.Branch = strings.TrimPrefix(wrap.Worktree.Branch, "refs/heads/")
+	return wrap.Worktree, nil
+}
+
 // Send writes text into a terminal's input without submitting it.
 func (c *Client) Send(title, text string) error {
 	handle, err := c.Ref(title)

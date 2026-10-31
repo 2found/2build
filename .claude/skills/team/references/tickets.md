@@ -18,12 +18,11 @@ ticket worker follows autopilot's **Team ticket assignment** contract:
 | Loop step (one session) | Boundary |
 |---|---|
 | Plan | `XS`/`S` build from the ticket brief and record `ticket_size`; `M`/`L` run `plan-draft` for only what the brief leaves open |
-| Plan approval | By ticket size — see [plan approval](#plan-approval-by-ticket-size) |
+| Plan approval | The worker self-approves; see [plan approval](#plan-approval) |
 | Await prerequisites | `bbs team await` until every prerequisite ticket settles; no-op for a root ticket |
 | Adopt prerequisites | `await` adopts each sealed prerequisite snapshot into the worktree as uncommitted changes; resolve `CONFLICT=` files, then reconcile the plan with the adopted code |
-| Implement | Code and focused checks (typecheck, lint, unit tests of the touched code), left uncommitted |
-| Review | By size: `XS`/`S` none (the phase reviews it), `M` `review-pr low --fix`, `L` `review-pr --fix` at `medium`; a follow-up reviews its delta from `review_tree` at `low` unless it touches money, auth or irreversible-data paths |
-| QA | `L` only: `qa` with the repair loop; `XS`–`M` leave it to phase QA; deferred heavy checks only recorded |
+| Implement | Code and focused checks (typecheck, lint, unit tests of the touched code), left uncommitted; report as soon as they pass |
+| Review, QA | Left to the phase, which reviews its diff once and QAs every criterion on the phase commit. Only a ticket whose paths hit the money/auth/irreversible-data floor runs `review-pr --fix` on its own diff; deferred heavy checks only recorded |
 | Report | Readiness, handoff and exactly one `bbs team task done`, which refuses success until readiness passes; no commit, push or PR |
 
 The route is chosen once per ticket (phase class `critical`, because the session
@@ -45,45 +44,19 @@ executes immediately, and reports exactly one `bbs team task done` per
 Dispatch. Missing inputs come through `bbs team task ask`, answered with
 `task answer` while the same live session waits — not a local human prompt.
 
-### Plan approval by ticket size
+### Plan approval
 
-The plan step flows into implementation inside the same session; `XS` and `S`
-tickets have no plan step, and only an `L` plan waits, and it waits on the lead, not a human. Size is the larger of the
-manifest's and the plan's own `ticket_size`:
-
-| Size | Plan | Approval |
-|---|---|---|
-| `XS`, `S` | none | nothing to approve; an `S` touching money, auth or irreversible data plans as `M` |
-| `M` | ticket `plan.md` | the worker self-approves as the lead's delegate and continues |
-| `L` | ticket `plan.md` | the worker publishes it and asks the lead; **the lead reviews and approves**, and the worker continues in the same session |
-
-The exact commands and refusal handling are in
+The plan step flows into implementation inside the same session; `XS` and
+`S` tickets have no plan step (an `S` touching money, auth or irreversible
+data plans as `M`), and every `M`/`L` plan is self-approved by its worker as
+the lead's delegate. A plan reaches the lead only on the floor (`self-resolve`
+exit 3/5), a third refusal, or a material deviation from the brief or a
+shared contract; the lead then reads `plan.md` against the brief, acceptance
+IDs and contracts — not the code — and answers `approved` or the exact
+change. After two redirects the lead approves with named conditions; a
+disagreement is never a reason to wait on the human. The exact commands and
+refusal handling are in
 [project contract](project-contract.md#project-design-checkpoint).
-To review an `L` plan, the lead reads that ticket's `plan.md` (and `design.md`
-for UI) against its ticket brief, the parent goal, the ticket's acceptance IDs
-and the shared contracts in the manifest — not the code; a plan that redecides
-the brief is redirected, a gap the brief left is the plan's to fill — then either self-resolves the
-approval and answers `approved`, or resolves it `redirect` and answers with
-the exact changes; the worker revises in place and asks again. After two
-redirects the lead approves with named conditions; a disagreement is never a
-reason to wait on the human.
-
-A plan the worker cannot self-approve — the CLI's money/auth/irreversible-data
-floor, a `bbs team hold`, a spent grant bound, or a material deviation from
-accepted scope or a shared contract — also goes to the lead. The lead answers
-whatever its own authority covers: scope and contract choices within the
-approved design, and — when a human approved that design — the floor, which
-it reviews at `high` effort against the brief, because the human approved
-that money, auth or data change when they approved the design that names it.
-A change beyond the approved scope is not made mid-run: the ticket builds
-what the design says, and the change goes into the handover as a proposed
-follow-up. Only a hold, a spent grant or a floor under a design the lead
-approved for itself **parks** that ticket: the
-worker reports `NEEDS_CONTEXT` with the published approval, the ticket parks,
-the lead records the decision under `Remaining` in the parent report and
-relays it through the preamble's channel, and the rest of the DAG continues.
-When the approval resolves, a `redirect` follow-up starts a fresh session in
-the ticket worktree.
 
 ### Ticket session ownership
 
@@ -148,7 +121,7 @@ The bbs watcher waits and supervises:
    each session's owner, advance every phase that is ready (phases.md) and
    hand the next batch — tickets, integration, QA or release workers — over in
    the same wake.
-   Otherwise it names attention — `messages:<n>` (an `L` plan review or a
+   Otherwise it names attention — `messages:<n>` (an escalated plan or a
    worker question), `exited:<task>`, `stalled:<task>` or `lost:<task>` (an
    open Dispatch with no live worker terminal through the stall budget);
    attention arriving within the watcher's `--attention-window` (2 min) is

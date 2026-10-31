@@ -374,7 +374,7 @@ class Voice:
                     kw["voice_clone_prompt"] = self.prompt
                 elif instruct:
                     kw["instruct"] = instruct
-                audio = torch.cat(self.model.generate(**kw), dim=-1)
+                audio = torch.cat([torch.as_tensor(a) for a in self.model.generate(**kw)], dim=-1)  # omnivoice >= 0.2 returns numpy
                 if audio.dim() == 2:
                     audio = audio.squeeze(0)
                 if parts:
@@ -383,8 +383,14 @@ class Voice:
         return torch.cat(parts), SAMPLE_RATE
 
     def save(self, path: Path, audio, sr: int):
-        import torchaudio
-        torchaudio.save(str(path), audio.unsqueeze(0), sr)
+        # 16-bit PCM via stdlib: newer torchaudio writes float WAV, which `wave` cannot read back
+        import wave
+        pcm = (audio.clamp(-1, 1) * 32767).round().to(self.torch.int16).numpy().tobytes()
+        with wave.open(str(path), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(sr)
+            w.writeframes(pcm)
 
 
 def voice_cue(v: Voice, ears: Ears, cue: dict, lang: str, speed: float, say: dict, out: Path, retries: int,

@@ -610,8 +610,12 @@ func deriveMode(idx ticket.Doc, ticketHome, top string) string {
 	if idx.Get("origin.type") == "sub_ticket" {
 		return "child"
 	}
+	// Only a team-owned parent is the lead's to orchestrate; any other
+	// manifest's rows are milestones of this one autopilot ticket.
 	if fi, err := os.Stat(filepath.Join(ticketHome, "manifest.md")); err == nil && !fi.IsDir() {
-		return "orchestrate"
+		if a := idx.Get("assignee"); a != "" && a != "null" {
+			return "orchestrate"
+		}
 	}
 	if fileNonEmpty(filepath.Join(ticketHome, "plan.md")) {
 		return "implement"

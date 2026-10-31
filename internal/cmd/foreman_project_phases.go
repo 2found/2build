@@ -304,9 +304,15 @@ func projectPhaseProgress(st *ticket.Store, s *projectSnapshot) {
 				p.Problems = append(p.Problems, "criterion "+ac.ID+": missing product")
 			}
 		}
-		p.Delivered = p.Integrated && (s.Contract.ArtifactsOnly || projectCandidateLanded(p.Candidate))
-		if p.Integrated && !p.Delivered {
-			p.Problems = append(p.Problems, "delivery: phase commit not landed on base (bbs team land)")
+		// A phase lands as soon as it is sealed and integrated; phase QA runs on
+		// the landed commit. An artifact-only phase delivers on its evidence.
+		if s.Contract.ArtifactsOnly {
+			p.Delivered = p.Integrated
+		} else {
+			p.Delivered = projectCandidateLanded(p.Candidate)
+			if p.Sealed && !p.Delivered {
+				p.Problems = append(p.Problems, "delivery: phase commit not landed on base (bbs team integrate, then land)")
+			}
 		}
 		for _, r := range releases {
 			if r.Phase != p.ID {
@@ -365,8 +371,10 @@ func projectPhaseStateName(p projectPhaseState) string {
 		return "release_failed"
 	case p.Released:
 		return "released"
-	case p.Delivered:
+	case p.Delivered && p.Integrated:
 		return "delivered"
+	case p.Delivered:
+		return "landed"
 	case p.Integrated:
 		return "integrated"
 	case p.Sealed:
@@ -378,12 +386,12 @@ func projectPhaseStateName(p projectPhaseState) string {
 }
 
 // projectPhaseResolved: a release phase is done when released; a phase that
-// ships with a later one is done when delivered.
+// ships with a later one is done when landed and its phase QA passed.
 func projectPhaseResolved(p projectPhaseState) bool {
 	if p.Release == "none" {
-		return p.Delivered
+		return p.Delivered && p.Integrated
 	}
-	return p.Released && p.Delivered
+	return p.Released && p.Delivered && p.Integrated
 }
 
 // projectSameRepo accepts a linked worktree of the canonical checkout, so a
@@ -459,7 +467,7 @@ func projectPhaseReasons(s projectSnapshot, action, phase string) []string {
 		switch {
 		case action == "dispatch" && j == k-1:
 			if !prev.Delivered {
-				reasons = append(reasons, "phase "+prev.ID+": integrate and deliver it first ("+prev.State+")")
+				reasons = append(reasons, "phase "+prev.ID+": integrate and land it first ("+prev.State+")")
 			}
 		case !projectPhaseResolved(prev):
 			reasons = append(reasons, "phase "+prev.ID+": release it first ("+prev.State+")")
@@ -470,7 +478,7 @@ func projectPhaseReasons(s projectSnapshot, action, phase string) []string {
 		if p.Ticket == "" {
 			reasons = append(reasons, "phase "+p.ID+": bind a phase ticket first (bbs team bind --phase)")
 		}
-	case "integrate", "verify":
+	case "integrate", "verify", "land":
 		if !p.Sealed {
 			// Only the seal problems block here; evidence comes after integrate.
 			var unsealed []string
@@ -481,18 +489,15 @@ func projectPhaseReasons(s projectSnapshot, action, phase string) []string {
 			}
 			reasons = append(reasons, "phase "+p.ID+": "+strings.Join(unsealed, "; "))
 		}
-		if action == "verify" && p.Candidate == nil && !s.Contract.ArtifactsOnly {
+		if action != "integrate" && p.Candidate == nil && !s.Contract.ArtifactsOnly {
 			reasons = append(reasons, "phase "+p.ID+": no current phase commit (bbs team integrate)")
 		}
-		if projectCandidateLanded(p.Candidate) {
+		// Land first, verify after: phase QA runs on the landed commit.
+		if action == "verify" && p.Candidate != nil && !p.Delivered {
+			reasons = append(reasons, "phase "+p.ID+": phase commit not landed yet (bbs team land)")
+		}
+		if action == "integrate" && p.Delivered {
 			reasons = append(reasons, "phase "+p.ID+": already landed")
-		}
-	case "land":
-		if !p.Integrated {
-			reasons = append(reasons, "phase "+p.ID+": phase QA has not passed on the current phase commit ("+strings.Join(p.Problems, "; ")+")")
-		}
-		if p.Candidate == nil && !s.Contract.ArtifactsOnly {
-			reasons = append(reasons, "phase "+p.ID+": no current phase commit (bbs team integrate)")
 		}
 	case "release", "request":
 		if p.Release == "none" {
@@ -501,8 +506,8 @@ func projectPhaseReasons(s projectSnapshot, action, phase string) []string {
 		if p.Released {
 			reasons = append(reasons, "phase "+p.ID+": already released")
 		}
-		if !p.Delivered {
-			reasons = append(reasons, "phase "+p.ID+": not integrated and delivered ("+p.State+")")
+		if !p.Delivered || !p.Integrated {
+			reasons = append(reasons, "phase "+p.ID+": not landed and verified by phase QA ("+p.State+")")
 		}
 		if p.Failed >= 2 && action == "release" && !p.ApprovalGo {
 			reasons = append(reasons, "stop the line: phase "+p.ID+" failed to release twice; a human release approval is required")

@@ -8,7 +8,8 @@ pushed or PR'd on its own is unfinished work**, not a shortcut: treat it as a
 
 A ticket is sealable when:
 
-- current `review-pr` + `qa` verdicts are DONE or DONE_WITH_CONCERNS;
+- current `review-pr` + `qa` verdicts are DONE or DONE_WITH_CONCERNS, except
+  the gates its size leaves to phase review (`seal` records that deferral);
 - `bbs ticket readiness --action review --json` reports `data.ready: true`
   (it checks content-bound evidence, an active attempt, and staleness);
 - every prerequisite it adopted is itself sealed at that snapshot.
@@ -37,16 +38,18 @@ A ticket's worker is shut down when it reports done; a phase QA failure or a
 phase that does not compose comes back as a `repair` on a fresh session in the
 ticket worktree, pointed at the ticket's handoffs.
 
-### When the phase lands
+### When the phase is landed and verified
 
-`bbs team land "$PARENT" --phase "$K"` fast-forwards base and removes the
-phase's integration worktree and every ticket worktree whose content still
-equals its sealed snapshot (the snapshot ref keeps that work). It first closes
-every Orca terminal in those worktrees (`closed_terminals`) — the ticket
-sessions and phase QA worker were kept only for repairs — never its caller's:
+`bbs team land "$PARENT" --phase "$K"` only fast-forwards base; the worktrees
+stay for phase QA and its fixes. The evidence record that makes the landed
+phase pass QA removes the phase's integration worktree and every ticket
+worktree whose content still equals its sealed snapshot
+(the snapshot ref keeps that work). It first closes every Orca terminal in those worktrees
+(`closed_terminals`) — the ticket sessions and phase QA worker were kept only
+for repairs — never its caller's:
 
 ```bash
-bbs team land "$PARENT" --phase "$K" --json   # removed_worktrees / kept_worktrees / closed_terminals
+bbs team evidence ... --json   # cleanup: removed_worktrees / kept_worktrees / closed_terminals
 BABYSIT_TICKET="$CHILD" bbs ticket set-status done   # each ticket of the phase
 ```
 
@@ -87,9 +90,9 @@ Failure routing — never blind-retry an unchanged state or schedule retry ticks
 | Surface lease held | Queue until release/resource notification or bounded recovery |
 | Stale evidence / `ready:false` | Re-run affected gates, then reseal |
 | `integrate`: phase does not compose | `repair` on the later ticket named: `bbs ticket adopt <earlier>`, resolve, re-run its gates, reseal; then integrate again |
-| `land`: base moved since the build | `bbs team integrate` again, re-run phase QA on the new commit, land |
+| `land`: base moved since `integrate` | `bbs team integrate` again, then land (nothing was tested yet) |
 | `land`: local changes in a checkout of base overlap the phase | Report the files and the checkout; its owner commits or moves them. Never stash, reset or overwrite them |
-| `land`: worktree kept | Report it; keep the work |
+| cleanup: worktree kept | Report it; keep the work |
 
 On resume, read `bbs team snapshot` first: a phase whose commit is on base
 is landed whatever the worktrees look like; a sealed ticket's work lives on
@@ -144,8 +147,8 @@ The human answers on the release approval:
   - **in scope** — a defect, a criterion that does not hold, a flow that
     differs from the prototype, a decision taken for them that they reverse:
     the team owes the fix. Run one fix round alone: one `repair` per owning
-    ticket carrying all its items, reseal, integrate, phase review + QA
-    (carry what the fixes cannot touch), land, update the handover with what
+    ticket carrying all its items, reseal, integrate, land, phase review +
+    QA (carry what the fixes cannot touch), update the handover with what
     changed, re-render the recap and request the go again. No questions in
     between — an ambiguous item is fixed the way the spec reads, and the
     handover says how.
@@ -158,7 +161,7 @@ The human answers on the release approval:
   where it is, and leave base as it is.
 
 A handover with no release profile ends at the recap: the project completes
-when the last phase lands, and feedback opens a new project or a contract
+when the last phase is landed and verified, and feedback opens a new project or a contract
 change.
 
 ## Finish the project

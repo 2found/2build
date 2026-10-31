@@ -16,6 +16,8 @@ ROLES = {"hook", "context", "problem", "tension", "turn", "demo", "proof", "payo
 FORMATS = {"problem-solution", "demo", "pov", "before-after", "story", "listicle", "myth-buster", "reaction",
            "tutorial", "testimonial", "challenge", "behind-the-scenes", "comparison", "launch", "meme", "skit"}
 VOICE_MODES = {"recorded", "clone", "design", "preset", "none"}
+# Roles that give the viewer something (a step, a result, a punchline); setup roles do not.
+VALUE_ROLES = {"turn", "demo", "proof", "payoff", "reaction", "beat"}
 
 # A claim a viewer could hold us to: quantities, prices, superlatives, guarantees, "free".
 # A bare ordinal ("Chapter 1", "Part 2") is not a claim; a number with a unit, a
@@ -104,6 +106,7 @@ def lint(script: dict, campaign: dict, refs: dict, manifest: dict | None = None,
         tl = timing.build(s, manifest)
         tag = f"{sid}[{s['beats'][0]['variant']}]"
         _hook(s, tl, tag, platforms, brand, r)
+        _first_value(s, tl, tag, platforms, r)
         _length(tl, tag, platforms, r)
     tl = timing.build(timing.variant(script, None), manifest)
     _body(script, tl, sid, brand, refs, campaign, r)
@@ -128,8 +131,9 @@ def _hook(s, tl, tag, platforms, brand, r: Report):
             r.warn("H1", tag, f"hook line ends at {end:.1f}s ({t0['timing']}); aim for ≤ {limit}s")
         if WEAK_OPENER.search(vo):
             r.warn("H2", tag, f"weak opener {WEAK_OPENER.search(vo).group(0)!r}: start on the picture, the stake or the result")
-        if brand and brand.search(vo):
-            r.warn("H3", tag, "the brand is in the hook: viewers swipe ads; open on the viewer's problem or the result")
+    if brand and brand.search(f"{vo} {on}"):
+        r.warn("H3", tag, "the brand is in the hook: viewers swipe ads; open on the viewer's problem or the result "
+               "(showing the product in the picture is fine)")
     if not on and "x" in platforms:
         r.fail("H4", tag, "X autoplays muted: the hook needs on-screen text")
     elif not on:
@@ -140,6 +144,21 @@ def _hook(s, tl, tag, platforms, brand, r: Report):
         r.fail("H5", tag, "frame 0 needs a visual: the thumbnail is the first frame (a face, the result, motion)")
     elif re.search(r"\blogo\b|title card|black|màn\s*đen", b0["visual"], re.I):
         r.warn("H5", tag, "frame 0 shows a logo/title/black: open on the subject in motion")
+
+
+def _first_value(s, tl, tag, platforms, r: Report):
+    limit = min(PLATFORMS[p]["recommend"]["first_value_s"] for p in platforms) if platforms else 6.0
+    first = next(((b, t) for b, t in zip(s["beats"][1:], tl["beats"][1:]) if b.get("role") in VALUE_ROLES), None)
+    if not first:
+        r.fail("R1", tag, f"no beat gives value (roles {sorted(VALUE_ROLES)}): the viewer leaves with nothing")
+        return
+    b, t = first
+    if t["start"] > limit + 2.0:
+        r.fail("R1", tag, f"first value ({b['id']} {b.get('role')}) starts at {t['start']:.1f}s ({t['timing']}): "
+               f"most viewers are gone; cut setup so it lands by {limit}s")
+    elif t["start"] > limit:
+        r.warn("R1", tag, f"first value ({b['id']} {b.get('role')}) starts at {t['start']:.1f}s ({t['timing']}); "
+               f"aim for ≤ {limit}s")
 
 
 def _length(tl, tag, platforms, r: Report):
@@ -193,7 +212,12 @@ def _body(script, tl, sid, brand, refs, campaign, r: Report):
             _trend_ref(tid, trends, where, r)
     if len(brand_beats) > 1:
         r.warn("B1", sid, f"brand spoken in {len(brand_beats)} body beats ({', '.join(brand_beats)}): ad-feel; "
-               "let the product appear on screen, name it at the CTA")
+               "let the product appear on screen, say its name once")
+    half = tl["duration"] / 2
+    if brand and not any(brand.search(f"{b.get('visual') or ''} {b.get('onscreen') or ''}")
+                         for b, t in zip(beats, tl["beats"]) if t["start"] < half):
+        r.warn("B2", sid, "the product is not seen in the first half: most viewers leave before the CTA; show it "
+               "where the value happens and name it in that beat's visual")
 
 
 def _trend_ref(tid, trends, where, r: Report):

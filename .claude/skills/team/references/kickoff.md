@@ -69,7 +69,8 @@ Read [project contract](project-contract.md),
 (`design.md`), one prototype of the whole product (`prototype.html`, N/A with
 interfaces and examples for non-UI work), `plan.md`, `manifest.md` and
 `project.json` with its `phases`, with one decision-complete ticket brief
-per seed ([project contract](project-contract.md#project-design-checkpoint))
+per seed ([project contract](project-contract.md#project-design-checkpoint);
+a prototype or design the human supplied is reused, only its gaps are made)
 — sized, ordered and release-safe per
 [the phase plan rules](phases.md#the-phase-plan), and tickets per
 [topology](topology.md#decompose-and-prepare-topology).

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -16,9 +17,9 @@ import (
 
 // One phase, one commit. Tickets never commit; their sealed snapshots are
 // composed into a single phase commit on top of local base (`bbs team
-// integrate`), QA runs on exactly that commit in a dedicated worktree, and
-// `bbs team land` fast-forwards base to it. What was tested is what lands,
-// and base history gains one commit per phase — never a ticket's.
+// integrate`), `bbs team land` fast-forwards base to it at once, and phase QA
+// runs on exactly that landed commit in a dedicated worktree. A QA fix lands
+// as one fix commit; base history never gains a ticket's commit.
 
 type projectCandidate struct {
 	Version  int                    `json:"version"`
@@ -39,6 +40,11 @@ type projectCandidateRepo struct {
 	Tickets   []string `json:"tickets"`
 	// Contracts the phase changes; their checks belong in phase QA.
 	Contracts map[string][]string `json:"contracts_changed,omitempty"`
+	// A fix after land: the phase is composed again on PhaseBase (the base
+	// it was first built on) as Whole, and Commit carries only what changed
+	// against the landed Whole. Empty on a first build (BaseHead, Commit).
+	PhaseBase string `json:"phase_base,omitempty"`
+	Whole     string `json:"whole,omitempty"`
 }
 
 func projectCandidatePath(st *ticket.Store, phase string) string {
@@ -158,6 +164,12 @@ func projectIntegrateCommand(st *ticket.Store, kv map[string]string) error {
 			}
 		}
 		prior := projectReadCandidate(st, p)
+		// The last candidate under any subject: its worktree is reused, and
+		// when it landed, this build is a fix on top of it.
+		var last projectCandidate
+		if readProjectJSON(projectCandidatePath(st, p.ID), &last) != nil || last.Version != 1 {
+			last = projectCandidate{}
+		}
 		c := projectCandidate{Version: 1, Phase: p.ID, Subject: p.Subject, Message: message, BuiltAt: isoNow(), Repos: []projectCandidateRepo{}}
 		for _, canonical := range repos {
 			base := baseBranchIn(canonical)
@@ -166,7 +178,20 @@ func projectIntegrateCommand(st *ticket.Store, kv map[string]string) error {
 				return fmt.Errorf("%s: local base branch %s not found", canonical, base)
 			}
 			r := projectCandidateRepo{Canonical: canonical, Base: base, BaseHead: baseHead, Tickets: []string{}}
-			r.Worktree = filepath.Join(canonical, ".babysit", "worktrees", st.Env.Ticket+"_phase-"+p.ID)
+			// A retry reuses the phase's worktree wherever it was created
+			// (Orca's workspace dir or .babysit/worktrees/).
+			var landed *projectCandidateRepo
+			for i, pr := range last.Repos {
+				if pr.Canonical != canonical {
+					continue
+				}
+				if fi, err := os.Stat(pr.Worktree); pr.Worktree != "" && err == nil && fi.IsDir() {
+					r.Worktree = pr.Worktree
+				}
+				if last.LandedAt != "" && gitOKIn(canonical, "merge-base", "--is-ancestor", pr.Commit, baseHead) {
+					landed = &last.Repos[i]
+				}
+			}
 			snapshots, owner := []string{}, map[string]string{}
 			for _, child := range byRepo[canonical] {
 				for _, cr := range child.Repos {
@@ -182,12 +207,16 @@ func projectIntegrateCommand(st *ticket.Store, kv map[string]string) error {
 			if prior != nil && prior.Message == message {
 				for _, pr := range prior.Repos {
 					if pr.Canonical == canonical && pr.BaseHead == baseHead {
-						r.Commit = pr.Commit
+						r.Commit, r.PhaseBase, r.Whole = pr.Commit, pr.PhaseBase, pr.Whole
 					}
 				}
 			}
+			composeOn := baseHead
+			if r.Commit == "" && landed != nil {
+				composeOn = orDefault(landed.PhaseBase, landed.BaseHead)
+			}
 			if r.Commit == "" {
-				tree, _, conflicts, err := mergeCommits(canonical, baseHead, snapshots)
+				tree, _, conflicts, err := mergeCommits(canonical, composeOn, snapshots)
 				if err != nil {
 					return err
 				}
@@ -201,6 +230,17 @@ func projectIntegrateCommand(st *ticket.Store, kv map[string]string) error {
 					return fmt.Errorf("phase %s does not compose; repair the later ticket (bbs ticket adopt the earlier one, resolve, reseal): %s", p.ID, strings.Join(parts, "; "))
 				}
 				body := message + "\n\nPhase " + p.ID + " of " + st.Env.Ticket + ": " + strings.Join(r.Tickets, ", ")
+				if landed != nil {
+					// Base already holds the landed phase: land only the fix.
+					whole, err := commitTree(canonical, commitIdentityEnv(canonical), tree, body, composeOn)
+					if err != nil {
+						return err
+					}
+					if tree, err = mergeTreeOnBase(canonical, orDefault(landed.Whole, landed.Commit), baseHead, whole); err != nil {
+						return fmt.Errorf("phase %s fix does not apply on base: %v", p.ID, err)
+					}
+					r.PhaseBase, r.Whole, body = composeOn, whole, "Fix: "+body
+				}
 				if r.Commit, err = commitTree(canonical, commitIdentityEnv(canonical), tree, body, baseHead); err != nil {
 					return err
 				}
@@ -222,7 +262,7 @@ func projectIntegrateCommand(st *ticket.Store, kv map[string]string) error {
 			if _, err := gitPlumb(canonical, nil, "update-ref", phaseCandidateRef(st.Env.Ticket, p.ID), r.Commit); err != nil {
 				return err
 			}
-			if err := checkoutDetached(canonical, r.Worktree, r.Commit); err != nil {
+			if r.Worktree, err = checkoutDetached(canonical, r.Worktree, st.Env.Ticket+"_phase-"+p.ID, r.Commit); err != nil {
 				return err
 			}
 			c.Repos = append(c.Repos, r)
@@ -236,23 +276,60 @@ func projectIntegrateCommand(st *ticket.Store, kv map[string]string) error {
 	})
 }
 
-// checkoutDetached puts a dedicated worktree at commit, creating it when
-// absent. It belongs to the phase, so anything left in it is discarded.
-func checkoutDetached(canonical, path, commit string) error {
-	if fi, err := os.Stat(path); err == nil && fi.IsDir() {
-		if _, err := gitPlumb(path, nil, "checkout", "--detach", "--force", commit); err != nil {
-			return err
+// mergeTreeOnBase three-way merges theirs into ours over an explicit merge
+// base and returns the tree; a conflict is an error naming the files.
+func mergeTreeOnBase(dir, base, ours, theirs string) (string, error) {
+	c := exec.Command("git", "merge-tree", "--write-tree", "--name-only", "--no-messages", "--merge-base="+base, ours, theirs)
+	c.Dir = dir
+	out, err := c.Output()
+	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+	if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() == 1 && len(lines) > 1 {
+		return "", fmt.Errorf("conflicts in %s", strings.Join(lines[1:], ", "))
+	}
+	if err != nil || lines[0] == "" {
+		return "", fmt.Errorf("git merge-tree failed: %v", err)
+	}
+	return lines[0], nil
+}
+
+// checkoutDetached puts the phase's dedicated worktree at commit and returns
+// its path. An existing path is reset — it belongs to the phase, so anything
+// left in it is discarded. Otherwise it is created through Orca when the lead
+// runs in an Orca terminal (Orca's location rule; the scratch branch Orca
+// requires is dropped once detached), else with git under .babysit/worktrees/.
+func checkoutDetached(canonical, path, name, commit string) (string, error) {
+	legacy := filepath.Join(canonical, ".babysit", "worktrees", name)
+	if path == "" {
+		if fi, err := os.Stat(legacy); err == nil && fi.IsDir() {
+			path = legacy
 		}
-		_, err := gitPlumb(path, nil, "clean", "-fdq")
-		return err
+	}
+	if path != "" {
+		if fi, err := os.Stat(path); err == nil && fi.IsDir() {
+			if _, err := gitPlumb(path, nil, "checkout", "--detach", "--force", commit); err != nil {
+				return "", err
+			}
+			_, err := gitPlumb(path, nil, "clean", "-fdq")
+			return path, err
+		}
+	}
+	_, _ = gitPlumb(canonical, nil, "worktree", "prune")
+	if wt, ok := orcaWorktreeAdd(canonical, name, "bbs-phase/"+name, commit); ok {
+		if _, err := gitPlumb(wt.Path, nil, "checkout", "--detach", "--force", commit); err != nil {
+			return "", err
+		}
+		_, _ = gitPlumb(canonical, nil, "branch", "-D", wt.Branch)
+		return wt.Path, nil
+	}
+	if path == "" {
+		path = legacy
 	}
 	excludeWorktreesIn(canonical)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
+		return "", err
 	}
-	_, _ = gitPlumb(canonical, nil, "worktree", "prune")
 	_, err := gitPlumb(canonical, nil, "worktree", "add", "--detach", path, commit)
-	return err
+	return path, err
 }
 
 // branchCheckout returns the worktree that has branch checked out, if any.
@@ -276,7 +353,8 @@ func branchCheckout(canonical, branch string) string {
 }
 
 // projectLandCommand fast-forwards each repo's local base to the phase
-// commit QA passed on, then removes the phase's worktrees.
+// commit as soon as the phase is sealed and integrated; phase QA runs on the
+// landed commit, and its worktrees stay for QA and fixes until it passes.
 func projectLandCommand(st *ticket.Store, kv map[string]string) error {
 	return withLock(st, func() error {
 		s, err := projectRead(st)
@@ -295,14 +373,19 @@ func projectLandCommand(st *ticket.Store, kv map[string]string) error {
 		if c == nil {
 			return fmt.Errorf("phase %s has no phase commit to land (artifact-only phases are delivered by their evidence)", p.ID)
 		}
+		// Base moved since integrate: nothing is tested yet, so rebuilding the
+		// phase commit on the new tip is cheap. Refuse before anything moves.
 		for _, r := range c.Repos {
 			ref := "refs/heads/" + r.Base
 			tip := gitOutIn(r.Canonical, "rev-parse", "--verify", "-q", ref+"^{commit}")
+			if tip != r.BaseHead && !gitOKIn(r.Canonical, "merge-base", "--is-ancestor", r.Commit, ref) {
+				return fmt.Errorf("%s moved since phase %s was integrated (%s → %s); run bbs team integrate again, then land", r.Base, p.ID, short(r.BaseHead), short(tip))
+			}
+		}
+		for _, r := range c.Repos {
+			ref := "refs/heads/" + r.Base
 			if gitOKIn(r.Canonical, "merge-base", "--is-ancestor", r.Commit, ref) {
 				continue
-			}
-			if tip != r.BaseHead {
-				return fmt.Errorf("%s moved since phase %s was built (%s → %s); run bbs team integrate again and re-run phase QA", r.Base, p.ID, short(r.BaseHead), short(tip))
 			}
 			if dir := branchCheckout(r.Canonical, r.Base); dir != "" {
 				if err := fastForwardCheckout(dir, ref, r.BaseHead, r.Commit); err != nil {
@@ -317,8 +400,7 @@ func projectLandCommand(st *ticket.Store, kv map[string]string) error {
 			return err
 		}
 		projectEvent(st, "phase_landed", p.ID, "", p.Subject)
-		removed, kept, closed := projectRemovePhaseWorktrees(st, s, p, c)
-		printV2Envelope(map[string]interface{}{"phase": p.ID, "landed": c.Repos, "removed_worktrees": removed, "kept_worktrees": kept, "closed_terminals": closed})
+		printV2Envelope(map[string]interface{}{"phase": p.ID, "landed": c.Repos, "next": "phase QA on the landed commit: bbs team evidence " + st.Env.Ticket + " --phase " + p.ID + " --begin --file spec.json"})
 		return nil
 	})
 }
@@ -417,7 +499,7 @@ func projectRemovePhaseWorktrees(st *ticket.Store, s projectSnapshot, p projectP
 		}
 	}
 	// The phase's ticket sessions and its QA worker were kept only for
-	// repairs; once it lands nothing reuses them, so their agents go with
+	// repairs; once it is landed and verified nothing reuses them, so their agents go with
 	// their worktrees instead of holding memory until someone closes them.
 	paths := make([]string, 0, len(targets))
 	for _, t := range targets {

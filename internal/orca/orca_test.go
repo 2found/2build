@@ -410,3 +410,40 @@ esac`)
 		t.Fatalf("hung command held the caller %s", d)
 	}
 }
+
+func TestCreateWorktreeReturnsOrcaPlacement(t *testing.T) {
+	log := fakeOrca(t, `case "$1" in
+  status) echo '{"ok":true,"result":{"runtime":{"reachable":true}}}' ;;
+  worktree) echo '{"ok":true,"result":{"worktree":{"path":"/ws/repo/bs-1_x","branch":"refs/heads/feat/bs-1_x-2"}}}' ;;
+esac`)
+	c, err := Preflight()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wt, err := c.CreateWorktree("/no/such/repo", "bs-1_x", "feat/bs-1_x", "refs/heads/main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wt.Path != "/ws/repo/bs-1_x" || wt.Branch != "feat/bs-1_x-2" {
+		t.Fatalf("got %+v", wt)
+	}
+	calls, _ := os.ReadFile(log)
+	want := "worktree create --repo path:/no/such/repo --name bs-1_x --branch feat/bs-1_x --base-branch refs/heads/main --setup skip --json"
+	if !strings.Contains(string(calls), want) {
+		t.Fatalf("call log %q lacks %q", calls, want)
+	}
+}
+
+func TestCreateWorktreeRejectsReplyWithoutPath(t *testing.T) {
+	fakeOrca(t, `case "$1" in
+  status) echo '{"ok":true,"result":{"runtime":{"reachable":true}}}' ;;
+  worktree) echo '{"ok":false,"error":{"code":"repo_not_found","message":"repo not found"}}'; exit 1 ;;
+esac`)
+	c, err := Preflight()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.CreateWorktree("/r", "n", "b", "main"); err == nil || !strings.Contains(err.Error(), "repo not found") {
+		t.Fatalf("want repo-not-found error, got %v", err)
+	}
+}

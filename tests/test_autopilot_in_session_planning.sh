@@ -53,7 +53,7 @@ require 'The lead owns ticket decomposition, task classification and model selec
 require '### Team ticket assignment' "$SKILL"
 require 'only integration' "$SKILL"
 require 'Never implement on an unapproved plan record' "$SKILL"
-require 'Plan approval, by ticket size' "$SKILL"
+require '**Plan approval** — every plan' "$SKILL"
 require 'bbs team await --prereqs' "$SKILL"
 require 'AWAIT=not-ready' "$SKILL"
 require 'set-pointer deferred_heavy' "$SKILL"

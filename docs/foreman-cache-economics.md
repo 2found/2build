@@ -194,9 +194,11 @@ Changes (v1.113.0):
 
 | # | Change | Where |
 |---|---|---|
-| 12 | **Size defers gates to the phase.** `XS`/`S` tickets leave `review-pr` and `qa` to their phase, `M` leaves `qa`. `task done` (`GATE="deferred to phase review: …"`) and `seal` decide it from the larger of the plan's `ticket_size` (`M` when unset) and the rubric on the worktree's own changes, and never for paths that hit the money/auth/irreversible-data floor. | `internal/cmd/foreman_defer_gate.go`, `autopilot/SKILL.md`, `tickets.md` |
-| 13 | **One review of the phase diff.** When any ticket deferred review or took a fixup, phase readiness needs a passing `<phase>/review` check in the integration evidence; a review is never carried. | `foreman_project_phases.go`, `foreman_project_evidence.go`, `phases.md` |
+| 12 | **Tickets defer gates to the phase.** Every ticket leaves `review-pr` and `qa` to its phase; a change whose paths hit the money/auth/irreversible-data floor keeps its own `review-pr`. `task done`, `await` (`GATE="deferred to phase review: …"`) and `seal` apply it. | `internal/cmd/foreman_defer_gate.go`, `autopilot/SKILL.md`, `tickets.md` |
+| 13 | **One review of the phase diff.** When any ticket deferred review or took a fixup, phase readiness needs a passing `<phase>/review` check in the integration evidence; it never carries — a rebuild after land is a fix delta, reviewed at `low`. | `foreman_project_phases.go`, `foreman_project_evidence.go`, `phases.md` |
 | 14 | **Integration session fixes small findings** in the owning ticket's worktree and reseals it with `bbs foreman seal <ticket> --fixup "<finding>"` (refused while a Dispatch owns the ticket), then integrates again and re-checks only what changed. Only findings it cannot fix locally become `repair` Dispatches. | `foreman_project.go`, `phases.md`, `qa/SKILL.md` |
+
+| 15 | **Land first, verify after.** A sealed phase is integrated and landed at once; phase QA runs on the landed commit and a failure lands as one fix commit (composed against the landed phase). Base never moves under a tested commit, so there is no re-integration or re-QA for drift; release still waits on phase QA. | `foreman_project_phases.go`, `foreman_project_integrate.go`, `phases.md` |
 
 Re-check: per-ticket sessions without review/QA for `XS`–`S`, at most one
 `repair` Dispatch per phase, and phase wall time from first dispatch to land.

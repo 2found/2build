@@ -85,9 +85,9 @@ as default. This coverage audit separates judgments from enforced policy:
 | Recoverable blocker or missing human input | Triage / `recovery` | Retry budget, ownership and dispatch authority |
 
 Team's parent plan requires human review unless explicit, persisted `--auto`
-delegates it. Ticket plans are approved by size within the accepted parent plan
-and current bounds: `XS`/`S` have none, `M` by the ticket worker as Team's delegate, `L` by
-Team itself; one that neither may approve parks that ticket only. A phase's
+delegates it. Ticket plans are approved within the accepted parent plan
+and current bounds: `XS`/`S` have none, `M`/`L` by the ticket worker as Team's delegate,
+escalating to Team only on the floor or a material deviation; one that neither may approve parks that ticket only. A phase's
 production release go is never delegated: `approval self-resolve` refuses kind
 `release` under every posture and grant. Semantic judgment evaluates the rubric; `approval
 self-resolve` still enforces floor → rubric → authority → approval. A model's
@@ -174,7 +174,7 @@ Team clarifies the requirement, then has one worker prepare the basic
 design — architecture, whole-product prototype, plan, ticket manifest and the
 release-phase plan in `project.json` — before creating any phase ticket or
 dispatching production work. Review that project checkpoint once; ticket plans
-are approved against it — `M` by its own worker, `L` by Team, `XS`/`S` have none — without
+are approved against it — `M`/`L` by their own worker, `XS`/`S` have none — without
 stopping the ticket session. Product scope/design changes return to the parent
 checkpoint. Approval is bound to the artifact revision, so changed documents
 require a new review.
@@ -230,11 +230,12 @@ mean pushed or released. Missing evidence stays UNKNOWN.
 
 Workers never commit. Each phase becomes **one commit** on local base
 (`bbs team integrate`), built from the tickets' sealed snapshots in a
-detached integration worktree, and one integration QA runs on exactly that
-commit. It tests every criterion of that phase and all earlier ones, so the
-last phase's run is the project's final QA. `bbs team land` then
-fast-forwards local base to the tested commit; nothing is ever stashed or
-reset. Failures return to ticket repair, reseal and a fresh phase commit. The full protocol is in
+detached integration worktree, and `bbs team land` fast-forwards local base
+to it at once; nothing is ever stashed or reset. One integration QA then runs
+on exactly that landed commit. It proves every criterion of that phase and
+all earlier ones (fresh where the phase's diff reaches, carried elsewhere), so
+the last phase's run is the project's final QA. Failures are fixed forward:
+ticket repair, reseal and one fix commit on base. Release waits on phase QA. The full protocol is in
 [the Team project contract](../.claude/skills/team/references/project-contract.md)
 and [phases](../.claude/skills/team/references/phases.md).
 
@@ -517,7 +518,7 @@ Windows has no supervisor; the hook restart above still applies.
 
 A batch normally holds every ticket of the open phases: a dependent ticket's worker waits for
 its prerequisites inside its own session with `bbs team await --prereqs
-<ticket>:<task>,...`, and an `L` ticket waits for Team's plan approval through
+<ticket>:<task>,...`, and a worker that escalates its plan waits for Team through
 `bbs team task ask`. Both run as foreground commands bounded below the
 default 10-minute `--worker-idle` (540 s per call, then repeated), so a waiting
 worker is neither nudged nor reported stalled. `await` exits 0 with the verified

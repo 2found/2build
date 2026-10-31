@@ -22,7 +22,7 @@ join, and no heartbeat.
   resumes warm).
   Exit 4 with `QUESTION_PENDING=<id>` leaves the question pending: keep
   waiting with `--resume <id>`, never a new ask. Ask only for a decision
-  outside the accepted plan or assignment (an `L` plan review, an out-of-plan
+  outside the accepted plan or assignment (an escalated plan, an out-of-plan
   finding, a scope or contract change, a blocker it cannot resolve); anything
   the plan already decides, the worker decides and records in its handoff.
 - **Send no status messages.** The bbs watcher owns liveness (pane plus

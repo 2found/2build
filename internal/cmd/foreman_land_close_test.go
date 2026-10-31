@@ -37,7 +37,7 @@ esac
 	t.Setenv("ORCA_CLI_COMMAND", bin)
 	t.Setenv("ORCA_TERMINAL_HANDLE", "t_self")
 
-	closed := closeLandedWorkerTerminals([]string{link})
+	closed := realCloseLandedWorkerTerminals([]string{link})
 	if !slices.Equal(closed, []string{"t_worker"}) {
 		t.Fatalf("closed %v, want only the landed worker", closed)
 	}
@@ -52,7 +52,7 @@ esac
 
 func TestLandCloseWithoutOrcaIsANoOp(t *testing.T) {
 	t.Setenv("ORCA_CLI_COMMAND", filepath.Join(t.TempDir(), "missing-orca"))
-	if closed := closeLandedWorkerTerminals([]string{t.TempDir()}); len(closed) != 0 {
+	if closed := realCloseLandedWorkerTerminals([]string{t.TempDir()}); len(closed) != 0 {
 		t.Fatalf("closed %v without Orca", closed)
 	}
 }

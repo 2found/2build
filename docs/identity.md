@@ -93,7 +93,7 @@ repos:
     worktree: .           # "." = the shared checkout (trunk tickets) — the
                           # resolver skips it by design, since several trunk
                           # tickets can share one cwd; an absolute
-                          # .babysit/worktrees/ path for a worktree ticket —
+                          # worktree path for a worktree ticket —
                           # that path participates in the manifest cwd-match
                           # rung
     base: main

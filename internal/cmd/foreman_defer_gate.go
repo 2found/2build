@@ -11,29 +11,14 @@ import (
 
 // Measured runs (2026-10) spent half of a phase's tokens on per-ticket
 // review-pr and QA that phase QA then repeated on the merged commit, and the
-// phase still needed repairs. A small Foreman ticket therefore defers its own
-// gates to the phase: XS/S defer review-pr and qa, M defers qa. The phase
+// phase still needed repairs. A Foreman ticket therefore runs focused checks
+// only and leaves review-pr and qa to its phase, whatever its size: the phase
 // commit is reviewed once (a `review` check in its integration evidence) and
-// QA'd cumulatively, as before.
+// QA'd cumulatively. A change that hits the money/auth/irreversible-data
+// floor still reviews its own diff; only its qa waits for the phase.
 
-var sizeRank = map[string]int{"XS": 0, "S": 1, "M": 2, "L": 3}
-
-// deferredGates are the gates a ticket of this size leaves to its phase.
-func deferredGates(size string) []string {
-	switch size {
-	case "XS", "S":
-		return []string{"review-pr", "qa"}
-	case "M":
-		return []string{"qa"}
-	}
-	return nil
-}
-
-// ticketGateDeferral returns the gates a Foreman child may leave to phase
-// review and why. Size is the larger of the plan's ticket_size (M when unset)
-// and the rubric applied to the worktree's own changes, so a plan cannot size
-// itself out of review. A change whose paths hit the money/auth/
-// irreversible-data floor defers nothing.
+// ticketGateDeferral returns the gates a Foreman child leaves to phase review
+// and why. A change whose paths hit the floor keeps its own review-pr.
 func ticketGateDeferral(dir, home string, doc ticket.Doc) ([]string, string) {
 	if doc.Get("parent") == "" {
 		return nil, ""
@@ -52,23 +37,10 @@ func ticketGateDeferral(dir, home string, doc ticket.Doc) ([]string, string) {
 	if len(own) == 0 {
 		return nil, ""
 	}
-	loc := parseShortstat(gitOutIn(dir, append([]string{"diff", "--shortstat", "HEAD", tree, "--"}, own...)...))
-	measured, _, _, _, _ := classifySize(own, loc)
-	size := strings.ToUpper(strings.TrimSpace(doc.Get("pointers.ticket_size")))
-	if _, ok := sizeRank[size]; !ok {
-		size = "M"
-	}
-	if sizeRank[measured] > sizeRank[size] {
-		size = measured
-	}
 	if hits := floorHits(strings.Join(own, "\n")); len(hits) > 0 {
-		return nil, ""
+		return []string{"qa"}, fmt.Sprintf("deferred to phase review: qa (%d files; %s keeps its own review)", len(own), strings.Join(hits, ", "))
 	}
-	gates := deferredGates(size)
-	if len(gates) == 0 {
-		return nil, ""
-	}
-	return gates, fmt.Sprintf("deferred to phase review: size %s (%d files, %d lines)", size, len(own), loc)
+	return []string{"review-pr", "qa"}, fmt.Sprintf("deferred to phase review: review-pr, qa (%d files)", len(own))
 }
 
 // adoptedVerbatim: path's content in tree came unchanged from an adopted

@@ -1,6 +1,6 @@
 ---
 name: team
-description: An autonomous product team on Orca. The human touches a project twice — gives the requirement, confirms the spec and approves the basic design; later receives the handover, reviews the product and gives the release go — and the team does everything between, with no mid-run waits on a human. It clarifies the requirement, designs the whole product once (architecture, prototype, a decision-complete brief per ticket, release phases), builds each phase as one autopilot ticket by default (parallel tickets only for disjoint parts), reviews and QAs every phase cumulatively, lands one commit per phase, fixes handover feedback itself and releases. Requires Orca (worktrees and terminals only). Use it to hand over a whole project and get back a released product, with phased releases, independent verification or parallel disjoint parts; for one change, even a day-long one, use autopilot.
+description: An autonomous product team on Orca. The human touches a project twice — gives the requirement, confirms the spec and approves the basic design; later receives the handover, reviews the product and gives the release go — and the team does everything between, with no mid-run waits on a human. It clarifies the requirement, designs the whole product once (architecture, prototype, a decision-complete brief per ticket, release phases), builds each phase as one autopilot ticket by default (parallel tickets only for disjoint parts), lands one commit per phase as soon as it is built, reviews and QAs it cumulatively on base, fixes handover feedback itself and releases. Requires Orca (worktrees and terminals only). Use it to hand over a whole project and get back a released product, with phased releases, independent verification or parallel disjoint parts; for one change, even a day-long one, use autopilot.
 ---
 # team
 
@@ -31,8 +31,8 @@ to end by one worker session:
 
 ```text
 human: requirement      ⇒ spec ✓ ⇒ design ✓                               handover ⇒ go │ feedback
-team:  clarify → spec ─────────→ basic design → phase 1 → … → phase n (QA, land) ───────┘    └→ fix → handover
-       phase k: tickets ∥ → integrate → cumulative review + QA → land → (auto: release)
+team:  clarify → spec ─────────→ basic design → phase 1 → … → phase n (land, QA) ───────┘    └→ fix → handover
+       phase k: tickets ∥ → integrate → land → cumulative review + QA (fix forward) → (auto: release)
 ```
 
 ## Two hard rules: they are what makes this cheap
@@ -47,8 +47,8 @@ keep work on warm context.
 1. **Wake rarely, and warm.** Every wake re-reads your whole context, so wakes
    — not worker count — dominate cost. Launch a phase's tickets as one batch,
    hand it to `bbs team batch` and **end the turn**. The watcher wakes you
-   once when the whole batch has settled; early only for what cannot wait (an
-   `L` plan review, a worker question, a worker that exited, stalled or was
+   once when the whole batch has settled; early only for what cannot wait (a
+   plan a worker escalated, a worker question, a worker that exited, stalled or was
    lost), and attention arriving close together shares one wake. Never poll,
    wait in a loop or check on workers in between. Workers report to bbs, not
    to you (`bbs team task done` / `task ask`), and send no status messages
@@ -90,13 +90,17 @@ keep work on warm context.
      verdicts staled only by adopting work outside the reviewed diff
      (`GATE="carried: …"`; `seal` carries them the same way), so neither
      costs a follow-up.
-   - **Small tickets merge first and are reviewed together.** An `XS`/`S`
-     ticket leaves `review-pr` and `qa` to its phase, an `M` ticket leaves
-     `qa` (`GATE="deferred to phase review: …"`; `seal` defers the same way
-     and records it). The integration session reviews the phase diff once,
+   - **Build fast, merge early, verify once.** A ticket runs focused
+     checks only and reports; `review-pr` and `qa` are left to its phase at
+     every size (`GATE="deferred to phase review: …"`; `seal` and `await`
+     judge it the same way) — only a money/auth/irreversible-data path
+     reviews its own diff. A short-lived worktree goes stale less and
+     conflicts less with parallel work on base. A sealed phase is
+     integrated and **landed at once**, then QA'd on base; a failure is a
+     fix commit, and the release waits on that QA. The integration session reviews the phase diff once,
      QAs every criterion, and fixes small findings itself in the owning
      ticket's worktree (`seal --fixup`) instead of a cold `repair` session
-     per ticket ([phases](references/phases.md#3-cumulative-qa-and-product-review)).
+     per ticket ([phases](references/phases.md#4-cumulative-qa-and-product-review)).
 
 **Stay light.** Your context holds the goal, the accepted design, the
 phase plan, the DAG and durable ids — never worker transcripts, diffs or test
@@ -104,8 +108,9 @@ logs. Judge work from readiness JSON, verdicts and handoff paths.
 
 ## Invariants the CLI keeps (you do not need to re-check them)
 
-- Workers never commit; you land **one commit per phase** on local base,
-  and only a release pushes ([git flow](../references/git-flow.md)).
+- Workers never commit; you land **one commit per phase** (plus a fix
+  commit per QA fix round) on local base, and only a release of a phase
+  whose QA passed pushes ([git flow](../references/git-flow.md)).
   Committing a single ticket is an unfinished job, never a delivery.
 - Nothing dispatches before the basic design is approved — by the human, or
   by you only under an explicit `--auto`, which never covers a design that
@@ -208,8 +213,8 @@ On a settled batch wake:
 3. **Advance every phase that is ready** — `bbs team next` lists them:
    open the next phase while the previous one waits on its release
    (**pipeline one phase deep**; a phase cannot integrate until the earlier
-   one is released), integrate, hand phase review + QA to one integration
-   worker (it fixes small findings itself), land, release.
+   one is verified and released), integrate and land, hand phase review + QA
+   to one integration worker (it fixes small findings itself), release.
 4. Launch everything runnable as **one batch** — follow-ups, new tickets,
    integration QA, release workers — then `bbs team batch` and end the turn.
 
@@ -217,8 +222,9 @@ On an early wake, handle only the attention named — answer the question or
 plan review with `bbs team task answer` (the asking worker is blocked on
 it), or recover that one worker (`task abandon`, then relaunch) — re-run
 `bbs team batch` with the same Tasks plus any new ones, and end the turn.
-Plan reviews: `XS`/`S` none (no plan), `M` the worker self-approves, `L` you review the
-plan (not the code) against the goal, acceptance IDs and contracts, then
+Plans are self-approved by their workers; one reaches you only when the
+worker escalates it (floor, repeated refusal, material deviation) — review
+the plan (not the code) against the goal, acceptance IDs and contracts, then
 approve or redirect with the exact change.
 
 Details for each step: [tickets](references/tickets.md) (plan approval,
@@ -229,7 +235,7 @@ session ownership, batch dispatch, heavy checks, verification),
 
 ## Handover
 
-When the last phase has landed, the product is done but not released: hand
+When the last phase has landed and passed QA, the product is done but not released: hand
 it over ([delivery](references/delivery.md#hand-over)). Write the parent
 `report.md` for a client who did not watch the run — what they can now do,
 how to see it running, evidence per criterion, decisions taken for them,
@@ -242,14 +248,14 @@ human reviews the product, not the code.
 - **Feedback** (`bbs team next` names a `repair` step) — read the comments.
   Everything within the approved spec and design (a defect, a missed
   criterion, a flow that does not match the prototype) is a fix round the
-  team runs alone: repair the owning tickets, reseal, integrate, phase QA,
-  land, re-render the recap and request again. Anything beyond it is a
+  team runs alone: repair the owning tickets, reseal, integrate, land,
+  phase QA, re-render the recap and request again. Anything beyond it is a
   change request: revise the contract and publish it for basic-design review
   — the brief touchpoint again — then build it as a new phase.
 - **Declined** — stop and report; nothing ships.
 
 A repository with no release profile has no release go: the handover is the
-recap and `complete` follows the last landing.
+recap and `complete` follows the last phase's QA.
 
 Your terminal is **not** closed after `complete`: stay idle in it so the human
 can ask follow-ups. Report per phase — commit, release tag and verdict, QA

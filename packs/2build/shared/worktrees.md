@@ -5,11 +5,16 @@ creates it, then starts autopilot there) or a human who ran
 `bbs ticket ensure --mode=worktree` to isolate one ticket. The flow itself is
 [git-flow.md](git-flow.md).
 
-`bbs ticket ensure --mode=worktree` cuts
-`<repo>/.babysit/worktrees/<ticket>_<slug>/` from local base, prints
-`WORKTREE=<path>`, and `manifest.yaml` records it — cd there, and every later
-step runs there. `.babysit/worktrees/` is excluded locally, so worktrees never
-show up as untracked work in the primary checkout.
+`bbs ticket ensure --mode=worktree` cuts `<ticket>_<slug>` from local base,
+prints `WORKTREE=<path>`, and `manifest.yaml` records it — cd there, and every
+later step runs there; never derive the path yourself. Run from an Orca
+terminal on a repo Orca tracks, it is created through `orca worktree create`,
+so it follows Orca's workspace rule (`<workspaceDir>/<repo>/<name>`) and shows
+as an Orca workspace under the caller's; a plain git worktree elsewhere is an
+external worktree Orca hides by default. Otherwise (no Orca, or Orca refuses)
+it is `<repo>/.babysit/worktrees/<ticket>_<slug>/`, excluded locally so it
+never shows up as untracked work. Phase worktrees (`bbs team integrate`)
+follow the same rule.
 
 ## Rules inside a ticket worktree
 

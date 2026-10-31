@@ -14,12 +14,14 @@ Re-read ticket state, checkpoint, and git status; choose the **first** match:
 | Mode | Condition | What it does |
 |------|-----------|--------------|
 | **child** | `origin_type = sub_ticket` | One Team ticket: plan, implement, review and QA only this child's scope; hand off to the parent. |
-| **implement** | `plan.md` exists, no manifest | Implement the accepted plan. |
+| **implement** | `plan.md` exists | Implement the accepted plan (a manifest's rows are its ordered milestones). |
 | **build** | `requirement.md` exists, `plan.md` absent | Plan first, then implement. |
 | **verify** | none of the above, but the checkout holds existing changes (uncommitted, or commits off base) | QA-only pass on existing work. |
-A ticket with `manifest.md` is a multi-ticket project, not a builder mode:
-stop with `BLOCKED` and hand it to `team`. If no mode matches and there is
-no ticket/requirement, stop with `NEEDS_CONTEXT`.
+A parent a team lead owns (its `assignee` names a team) is not a builder
+mode: stop with `BLOCKED` and hand it back to that lead. Any other
+`manifest.md` is build/implement mode — its rows are ordered milestones of
+this one ticket (SKILL.md init step 3). If no mode matches and there is no
+ticket/requirement, stop with `NEEDS_CONTEXT`.
 ## run
 > produces: verdict:builder + qa:checked
 1. Ensure ticket and checkpoint exist; record the mode in the checkpoint.

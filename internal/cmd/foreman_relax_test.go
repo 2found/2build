@@ -40,7 +40,9 @@ func TestSealWaiverSealsStaleGatesAndIsVisible(t *testing.T) {
 	// The repair changed code after the gates were recorded.
 	mustWrite(t, filepath.Join(child.Home(), "..", "..", "..", "..", "feature.txt"), "x")
 	m, _ := ticket.ReadManifest(child.ManifestPath())
-	mustWrite(t, filepath.Join(m.Repos[0].Worktree, "feature.txt"), "repaired journey\n")
+	// An auth path keeps its own review, so the stale review is not deferred.
+	mustMkdirAll(t, filepath.Join(m.Repos[0].Worktree, "auth"))
+	mustWrite(t, filepath.Join(m.Repos[0].Worktree, "auth", "token.go"), "package auth\n")
 
 	err := projectSealChild(child, nil, "", false)
 	if err == nil || !strings.Contains(err.Error(), "stale_tree_digest") || !strings.Contains(err.Error(), "--waive") {
@@ -122,7 +124,7 @@ func repairAndReintegrate(t *testing.T, st, child *ticket.Store) {
 	if err := projectSealChild(child, []string{"review-pr", "qa"}, "small repair", false); err != nil {
 		t.Fatal(err)
 	}
-	integratePhase(t, st, "p1")
+	integrateAndLand(t, st, "p1")
 }
 
 func carry(t *testing.T, st *ticket.Store, kv map[string]string) (string, error) {
@@ -135,8 +137,9 @@ func carry(t *testing.T, st *ticket.Store, kv map[string]string) (string, error)
 
 func TestEvidenceCarryForwardSatisfiesReadiness(t *testing.T) {
 	st, child, _ := executionFixture(t)
-	integratePhase(t, st, "p1")
-	oldInt := recordChecks(t, st, "integration", carryCheck{"AC1", "behavior", 0}, carryCheck{"AC1", "failure", 0})
+	integrateAndLand(t, st, "p1")
+	// Phase QA found one issue (a failed runtime probe); the rest passed.
+	oldInt := recordChecks(t, st, "integration", carryCheck{"AC1", "behavior", 0}, carryCheck{"AC1", "failure", 0}, carryCheck{"AC1", "runtime", 1})
 	oldProd := recordChecks(t, st, "product", carryCheck{"AC1", "product", 0})
 	repairAndReintegrate(t, st, child)
 
@@ -158,7 +161,7 @@ func TestEvidenceCarryForwardSatisfiesReadiness(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := s.Phases[0]
-	if !p.Integrated || p.State != "integrated" {
+	if !p.Integrated || p.State != "delivered" {
 		t.Fatalf("carried evidence did not satisfy readiness: %s %v", p.State, p.Problems)
 	}
 	noted := false
@@ -168,14 +171,14 @@ func TestEvidenceCarryForwardSatisfiesReadiness(t *testing.T) {
 	if !noted {
 		t.Fatalf("carried evidence not shown as carried: %v", p.Notes)
 	}
-	if r := phaseReadiness(t, st, "land", "p1"); len(r) != 0 {
-		t.Fatalf("land blocked after carry: %v", r)
+	if r := phaseQAProblems(t, st, "p1"); len(r) != 0 {
+		t.Fatalf("phase QA unmet after carry: %v", r)
 	}
 }
 
 func TestEvidenceCarryNeverCarriesFailedChecks(t *testing.T) {
 	st, child, _ := executionFixture(t)
-	integratePhase(t, st, "p1")
+	integrateAndLand(t, st, "p1")
 	old := recordChecks(t, st, "integration", carryCheck{"AC1", "behavior", 0}, carryCheck{"AC1", "failure", 1})
 	oldProd := recordChecks(t, st, "product", carryCheck{"AC1", "product", 0})
 	repairAndReintegrate(t, st, child)
@@ -187,7 +190,7 @@ func TestEvidenceCarryNeverCarriesFailedChecks(t *testing.T) {
 	if !strings.Contains(out, "AC1/failure (not passed") {
 		t.Fatalf("failed check not reported as not carried: %s", out)
 	}
-	if r := phaseReadiness(t, st, "land", "p1"); !hasReason(r, "criterion AC1: missing failure") {
+	if r := phaseQAProblems(t, st, "p1"); !hasReason(r, "criterion AC1: missing failure") {
 		t.Fatalf("failed check satisfied readiness: %v", r)
 	}
 	if _, err := carry(t, st, map[string]string{"from": old, "except": "AC1", "reason": "x"}); err == nil {
@@ -197,26 +200,26 @@ func TestEvidenceCarryNeverCarriesFailedChecks(t *testing.T) {
 
 func TestEvidenceCarryPlusFreshPartialAttempt(t *testing.T) {
 	st, child, _ := executionFixture(t)
-	integratePhase(t, st, "p1")
+	integrateAndLand(t, st, "p1")
 	old := recordChecks(t, st, "integration", carryCheck{"AC1", "failure", 0})
 	oldProd := recordChecks(t, st, "product", carryCheck{"AC1", "product", 0})
 	repairAndReintegrate(t, st, child)
 
 	recordChecks(t, st, "integration", carryCheck{"AC1", "behavior", 0})
-	if r := phaseReadiness(t, st, "land", "p1"); !hasReason(r, "criterion AC1: missing failure") {
+	if r := phaseQAProblems(t, st, "p1"); !hasReason(r, "criterion AC1: missing failure") {
 		t.Fatalf("fresh partial attempt alone satisfied the cumulative check: %v", r)
 	}
 	if _, err := carry(t, st, map[string]string{"from": old + "," + oldProd, "reason": "failure path untouched"}); err != nil {
 		t.Fatal(err)
 	}
-	if r := phaseReadiness(t, st, "land", "p1"); len(r) != 0 {
+	if r := phaseQAProblems(t, st, "p1"); len(r) != 0 {
 		t.Fatalf("fresh partial + carried did not satisfy readiness: %v", r)
 	}
 }
 
 func TestEvidenceCarryRefusesOtherPhaseSource(t *testing.T) {
 	st, child, _ := executionFixture(t)
-	integratePhase(t, st, "p1")
+	integrateAndLand(t, st, "p1")
 	old := recordChecks(t, st, "integration", carryCheck{"AC1", "behavior", 0})
 	var ev projectEvidence
 	dir := filepath.Join(st.Home(), "project-evidence")
@@ -233,5 +236,82 @@ func TestEvidenceCarryRefusesOtherPhaseSource(t *testing.T) {
 	}
 	if _, err := carry(t, st, map[string]string{"from": "nosuch", "reason": "x"}); err == nil {
 		t.Fatal("unknown source accepted")
+	}
+}
+
+// Phase QA is cumulative, but an earlier phase's passed checks carry into a
+// later phase: phase 2 re-tests only its own criterion and what it touched.
+func TestEvidenceCarryFromAnEarlierPhase(t *testing.T) {
+	st, child, repo := phasedFixture(t, []projectPhase{
+		{ID: "p1", Title: "Skeleton", Seeds: []string{"core"}, Release: "none"},
+		{ID: "p2", Title: "Extra", Seeds: []string{"extra"}, Release: "none"},
+	}, "extra")
+	for _, phase := range []string{"p1", "p2"} {
+		if err := foremanProjectCommand("bind", []string{"parent", "--phase", phase, "--child", "ph-" + phase}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	integrateAndLand(t, st, "p1")
+	p1Int := phaseEvidence(t, st, "integration", "p1")
+	finishExecutionEvidence(t, st, p1Int, "integration", false)
+	p1Prod := phaseEvidence(t, st, "product", "p1")
+	finishExecutionEvidence(t, st, p1Prod, "product", false)
+
+	// Phase 2's one ticket, cut from the base phase 1 landed on.
+	wt := filepath.Join(t.TempDir(), "extra")
+	runGit(t, repo, "worktree", "add", "-q", "-b", "feat/extra_x", wt, "main")
+	mustWrite(t, filepath.Join(wt, "extra.txt"), "extra journey\n")
+	env := child.Env
+	env.Ticket, env.Branch = "extra", "feat/extra_x"
+	ex := storeForTicket(env, "extra")
+	mustMkdirAll(t, ex.Home())
+	mustWrite(t, filepath.Join(ex.Home(), "checkpoint.json"), `{"schema_version":2,"ticket":"extra","run_id":"run-1","revision":1,"workflow":"builder"}`)
+	if err := ticket.WriteManifest(ex.ManifestPath(), "extra", "App", []ticket.Repo{{Name: "app", Canonical: repo, Worktree: wt, Branch: env.Branch, Base: "main"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ticket.WriteDoc(ex.IndexPath(), ticket.Doc{"id": "extra", "parent": "ph-p2", "status": "in_review", "origin": map[string]interface{}{"project_seed": "extra"}}); err != nil {
+		t.Fatal(err)
+	}
+	ph2 := storeForTicket(env, "ph-p2")
+	doc := ticket.ReadDoc(ph2.IndexPath())
+	doc["children"] = []interface{}{"extra"}
+	if err := ticket.WriteDoc(ph2.IndexPath(), doc); err != nil {
+		t.Fatal(err)
+	}
+	if err := projectSealChild(ex, []string{"review-pr", "qa"}, "fixture", false); err != nil {
+		t.Fatal(err)
+	}
+	integrateAndLand(t, st, "p2")
+	if r := phaseQAProblems(t, st, "p2"); !hasReason(r, "criterion AC1: missing behavior") {
+		t.Fatalf("phase 2 verified without phase 1's criteria: %v", r)
+	}
+
+	var err error
+	captureStdout(t, func() {
+		err = projectEvidenceCommand(st, map[string]string{"carry": "1", "phase": "p2", "from": p1Int + "," + p1Prod, "reason": "phase 2 touches only extra.txt"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	log := filepath.Join(t.TempDir(), "check.log")
+	mustWrite(t, log, "Executed real fixture assertion\n")
+	code := 0
+	for _, kind := range []string{"integration", "product"} {
+		id := phaseEvidence(t, st, kind, "p2")
+		check := projectCheck{Criterion: "AC-extra", Kind: "behavior", Command: []string{"fixture", "extra"}, ExitCode: &code, Log: log}
+		if kind == "product" {
+			check.Kind = "product"
+		}
+		result := filepath.Join(t.TempDir(), "results.json")
+		if err := writeJSONAtomic(result, map[string]interface{}{"checks": []projectCheck{check}, "findings": []projectFinding{}}); err != nil {
+			t.Fatal(err)
+		}
+		captureStdout(t, func() { err = projectEvidenceCommand(st, map[string]string{"attempt": id, "file": result}) })
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if r := phaseQAProblems(t, st, "p2"); len(r) != 0 {
+		t.Fatalf("carried phase 1 checks + fresh phase 2 checks did not satisfy readiness: %v", r)
 	}
 }

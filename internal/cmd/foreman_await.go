@@ -283,15 +283,28 @@ func liveProbe(primary string, env identity.Env) prereqProbe {
 }
 
 // ticketReportState is the gate a finished ticket session passes: review
-// readiness ("ready"), or light readiness when its heavy checks are deferred
-// to a consolidated run ("light-ready"). "" means not ready, with reasons.
+// readiness ("ready"), light readiness when its heavy checks are deferred to a
+// consolidated run ("light-ready"), or review readiness whose only gaps are
+// gates staled by adoption or left to phase review by size ("ready", with the
+// why as its reason) — the same judgment task done and seal make, so a
+// dependent never stops on a prerequisite its lead would seal. "" means not
+// ready, with reasons.
 func ticketReportState(primary string, env identity.Env, t string, reviewReady bool, reasons []string) (string, []string) {
 	if reviewReady {
 		return "ready", nil
 	}
-	if deferred := ticket.ReadDoc(storeForTicket(env, t).IndexPath()).Get("pointers.deferred_heavy"); deferred != "" {
+	st := storeForTicket(env, t)
+	if deferred := ticket.ReadDoc(st.IndexPath()).Get("pointers.deferred_heavy"); deferred != "" {
 		if ok, _, _, err := ticketV2Readiness(primary, env, t, "light"); err == nil && ok {
 			return "light-ready", []string{"deferred heavy: " + deferred}
+		}
+	}
+	if why, ok := ticketAdoptionCarry(primary, env, t, reasons); ok {
+		return "ready", []string{"carried: " + why}
+	}
+	if dir, _, err := ticketWorktree(primary, env, t); err == nil {
+		if _, why, ok := deferralCovers(dir, st.Home(), ticket.ReadDoc(st.IndexPath()), reasons); ok {
+			return "ready", []string{why}
 		}
 	}
 	return "", reasons

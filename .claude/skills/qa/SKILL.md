@@ -57,8 +57,8 @@ Exercise the application like a user and leave reproducible evidence.
    stop.
    **Team integration mode:** a Task explicitly assigned a phase's
    integration worktree (detached at the phase commit `bbs team integrate`
-   built) plus the cumulative acceptance (every criterion of this phase and
-   earlier ones) tests that exact commit read-only, and runs
+   built) plus the cumulative acceptance (every criterion of this phase, and
+   the earlier ones its diff touches; the lead carries the rest) tests that exact commit read-only, and runs
    `bbs contract check <id>` there for each contract the phase changed
    (`contracts_changed` in the integrate output). Verify the worktree is
    clean at that commit before and after testing. Do not edit the

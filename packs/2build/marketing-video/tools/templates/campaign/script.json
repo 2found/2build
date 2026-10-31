@@ -1,9 +1,9 @@
 {
   "_template": true,
-  "_about": "Stage 5 script. One beat = one scene. vo is spoken (display spelling; brand pronunciations live in campaign.brand.say). voice.mode: recorded (you read the lines; the built-in files engine), clone (ref = a voice in voices/), design (pick a ref first), preset (name = an engine's stock voice) or none; voice.engine overrides campaign.voice_engine. Variants replace beat B01 only, so hooks can be A/B tested on one body. recipe (mvflib/recipes.json) names what the script is built from; beats[].material cites the 00-material item ids each beat stands on (mvf material ls), the way facts cites F ids. Delete this _about when done.",
+  "_about": "Stage 5 script. One beat = one scene. vo is spoken (display spelling; brand pronunciations live in campaign.brand.say). voice.mode: recorded (you read the lines; the built-in files engine), clone (ref = a voice in voices/), design (pick a ref first), preset (name = an engine's stock voice) or none; voice.engine overrides campaign.voice_engine. Shape: hook by 2.5 s, first value by 6 s, re-hook half-way, payoff keeps the hook's promise (references/05-script.md). Variants replace beat B01 only, so hooks can be A/B tested on one body. recipe (mvflib/recipes.json) names what the script is built from; beats[].material cites the 00-material item ids each beat stands on (mvf material ls), the way facts cites F ids. Delete this _about when done.",
   "id": "{{SID}}",
   "angle": "G1",
-  "format": "problem-solution",
+  "format": "demo",
   "recipe": "product-demo",
   "language": "en",
   "value": "what the viewer walks away with",
@@ -17,34 +17,34 @@
       "role": "hook",
       "vo": "",
       "onscreen": "",
-      "visual": "frame 0: the subject in motion, never a logo",
+      "visual": "frame 0: the most interesting picture of the video, already moving (the result, the surprise); never a logo",
       "facts": [],
       "keys": [],
       "material": []
     },
     {
       "id": "B02",
-      "role": "problem",
-      "vo": "",
-      "onscreen": "",
-      "visual": ""
-    },
-    {
-      "id": "B03",
       "role": "demo",
       "vo": "",
       "onscreen": "",
-      "visual": "the real screen, pushed in on the control that matters",
+      "visual": "first value by 6 s: the real product screen, its name in frame, pushed in on the control that matters",
       "facts": [
         "F1"
       ]
+    },
+    {
+      "id": "B03",
+      "role": "beat",
+      "vo": "",
+      "onscreen": "",
+      "visual": "re-hook about half-way: the next, bigger thing"
     },
     {
       "id": "B04",
       "role": "payoff",
       "vo": "",
       "onscreen": "",
-      "visual": "",
+      "visual": "answers the hook's question exactly",
       "material": []
     },
     {
@@ -52,7 +52,7 @@
       "role": "cta",
       "vo": "",
       "onscreen": "",
-      "visual": "product on screen + handle"
+      "visual": "one soft line over the payoff picture: product name + handle, no logo card"
     }
   ],
   "variants": [

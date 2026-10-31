@@ -238,40 +238,27 @@ func TestFastForwardCheckoutKeepsLocalWork(t *testing.T) {
 	})
 }
 
+// Base moving between integrate and land refuses the land before anything
+// moves; nothing is tested yet, so integrating again on the new tip and
+// landing is the whole recovery.
 func TestLandRefusesWhenBaseMovedSinceIntegrate(t *testing.T) {
 	st, _, repo := executionFixture(t)
 	integratePhase(t, st, "p1")
-	for _, kind := range []string{"integration", "product"} {
-		finishExecutionEvidence(t, st, executionEvidence(t, st, kind), kind, false)
-	}
-	// Someone else lands on base after the phase was built and tested.
 	other := filepath.Join(t.TempDir(), "other")
 	runGit(t, repo, "worktree", "add", "-q", other, "main")
 	mustWrite(t, filepath.Join(other, "hotfix.txt"), "hotfix\n")
 	runGit(t, other, "add", ".")
 	runGit(t, other, "commit", "-qm", "hotfix")
+	moved := gitOutIn(repo, "rev-parse", "main")
 	err := landPhase(t, st, "p1")
 	if err == nil || !strings.Contains(err.Error(), "integrate again") {
 		t.Fatalf("land over a moved base: %v", err)
 	}
-	// Rebuilding gives a new commit; the old QA no longer covers it.
-	cand := integratePhase(t, st, "p1")
-	if gitOutIn(repo, "rev-parse", cand.Repos[0].Commit+"^") != gitOutIn(repo, "rev-parse", "main") {
-		t.Fatal("rebuilt phase commit is not on the moved base")
+	if gitOutIn(repo, "rev-parse", "main") != moved {
+		t.Fatal("base moved despite the refusal")
 	}
-	if err := landPhase(t, st, "p1"); err == nil {
-		t.Fatal("landed a rebuilt phase commit on the old QA")
-	}
-	for _, kind := range []string{"integration", "product"} {
-		finishExecutionEvidence(t, st, executionEvidence(t, st, kind), kind, false)
-	}
-	if err := landPhase(t, st, "p1"); err != nil {
-		t.Fatal(err)
-	}
-	if b, _ := os.ReadFile(filepath.Join(other, "hotfix.txt")); string(b) != "hotfix\n" {
-		t.Fatal("land lost the hotfix")
-	}
-	if gitOutIn(repo, "rev-list", "--count", "main~1..main") != "1" || gitOutIn(repo, "rev-parse", "main") != cand.Repos[0].Commit {
-		t.Fatal("phase did not land as exactly one commit")
+	integrateAndLand(t, st, "p1")
+	if gitOutIn(repo, "rev-parse", "main^") != moved {
+		t.Fatal("phase did not land as one commit on the moved base")
 	}
 }

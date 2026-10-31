@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/2found/2build/internal/git"
+	"github.com/2found/2build/internal/orca"
 	"github.com/2found/2build/internal/ticket"
 )
 
@@ -184,14 +185,7 @@ func runEnsure(args []string) {
 		if ensTop == "" {
 			ensTop, _ = os.Getwd()
 		}
-		ensureWorktree = filepath.Join(ensTop, ".babysit", "worktrees", newTicket+"_"+newSlug)
 		ensureCanonical = ensTop
-		if _, err := os.Lstat(ensureWorktree); err == nil {
-			fmt.Fprintf(os.Stderr, "ensure: worktree path %s already exists — remove it or resume the ticket there.\n", ensureWorktree)
-			os.Exit(2)
-		}
-		excludeWorktreesIn(ensTop)
-		_ = os.MkdirAll(filepath.Dir(ensureWorktree), 0o755)
 		// `git worktree add` is not safe to run concurrently in one repo:
 		// two of them race on .git/worktrees/<name>/commondir and one dies
 		// reading the other's half-built directory. A foreman dispatching a
@@ -200,7 +194,22 @@ func runEnsure(args []string) {
 		// new ticket in the repo for good.
 		wtLock := filepath.Join(gitCommonDir(), "bbs-worktree-add.lock")
 		locked := lockAcquire(wtLock, 300)
-		addOK := gitOK("worktree", "add", "--no-track", "-b", newBranch, "--", ensureWorktree, srcRef)
+		addOK := false
+		if wt, ok := orcaWorktreeAdd(ensTop, newTicket+"_"+newSlug, newBranch, srcRef); ok {
+			ensureWorktree, newBranch, addOK = wt.Path, wt.Branch, true
+		} else {
+			ensureWorktree = filepath.Join(ensTop, ".babysit", "worktrees", newTicket+"_"+newSlug)
+			if _, err := os.Lstat(ensureWorktree); err == nil {
+				if locked {
+					lockRelease(wtLock)
+				}
+				fmt.Fprintf(os.Stderr, "ensure: worktree path %s already exists — remove it or resume the ticket there.\n", ensureWorktree)
+				os.Exit(2)
+			}
+			excludeWorktreesIn(ensTop)
+			_ = os.MkdirAll(filepath.Dir(ensureWorktree), 0o755)
+			addOK = gitOK("worktree", "add", "--no-track", "-b", newBranch, "--", ensureWorktree, srcRef)
+		}
 		if locked {
 			lockRelease(wtLock) // os.Exit skips defers — release by hand
 		}
@@ -286,6 +295,27 @@ func runEnsure(args []string) {
 		fmt.Printf("export BABYSIT_TICKET=%s\n", ticketID)
 	}
 	os.Exit(0)
+}
+
+// orcaWorktreeAdd creates a ticket or phase worktree through Orca when the
+// caller runs in an Orca terminal and Orca tracks the repo, so the checkout
+// follows Orca's workspace location rule and shows in its sidebar. ok=false
+// (no Orca terminal, repo not registered, any CLI failure) means the caller
+// cuts it with git under .babysit/worktrees/ as before.
+func orcaWorktreeAdd(canonical, name, branch, baseRef string) (orca.Worktree, bool) {
+	if os.Getenv("ORCA_TERMINAL_HANDLE") == "" {
+		return orca.Worktree{}, false
+	}
+	c, err := orca.Preflight()
+	if err != nil {
+		return orca.Worktree{}, false
+	}
+	wt, err := c.WithCallTimeout(10*time.Minute).CreateWorktree(canonical, name, branch, baseRef)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "bbs: orca worktree create failed (%v) — using git worktree add\n", err)
+		return orca.Worktree{}, false
+	}
+	return wt, true
 }
 
 // gitCommonDir returns the repository's shared git dir — the one holding

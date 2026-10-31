@@ -96,22 +96,36 @@ func integratePhase(t *testing.T, st *ticket.Store, phase string) projectCandida
 	return envelope.Data
 }
 
-// landClosed is the worktree list the last landPhase asked Orca to close
-// terminals in; tests never reach the developer's real Orca.
-var landClosed []string
-
 func landPhase(t *testing.T, st *ticket.Store, phase string) error {
 	t.Helper()
-	original := closeLandedWorkerTerminals
-	t.Cleanup(func() { closeLandedWorkerTerminals = original })
-	landClosed = nil
-	closeLandedWorkerTerminals = func(paths []string) []string {
-		landClosed = paths
-		return []string{}
-	}
 	var err error
 	captureStdout(t, func() { err = projectLandCommand(st, map[string]string{"phase": phase}) })
 	return err
+}
+
+// integrateAndLand builds the phase commit and lands it: phase QA runs on
+// the landed commit.
+func integrateAndLand(t *testing.T, st *ticket.Store, phase string) projectCandidate {
+	t.Helper()
+	c := integratePhase(t, st, phase)
+	if err := landPhase(t, st, phase); err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+// phaseQAProblems is nil once phase QA passed, else the phase's problems.
+func phaseQAProblems(t *testing.T, st *ticket.Store, phase string) []string {
+	t.Helper()
+	s, err := projectRead(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := s.Phases[projectPhaseIndex(s, phase)]
+	if p.Integrated {
+		return nil
+	}
+	return p.Problems
 }
 
 func executionEvidence(t *testing.T, st *ticket.Store, kind string) string {
@@ -146,16 +160,13 @@ func finishExecutionEvidence(t *testing.T, st *ticket.Store, id, kind string, fa
 	}
 }
 
-// verifiedExecution integrates, verifies and lands the one phase.
+// verifiedExecution integrates, lands and verifies the one phase.
 func verifiedExecution(t *testing.T) (*ticket.Store, *ticket.Store, string) {
 	t.Helper()
 	parent, child, repo := executionFixture(t)
-	integratePhase(t, parent, "p1")
+	integrateAndLand(t, parent, "p1")
 	for _, kind := range []string{"integration", "product"} {
 		finishExecutionEvidence(t, parent, executionEvidence(t, parent, kind), kind, false)
-	}
-	if err := landPhase(t, parent, "p1"); err != nil {
-		t.Fatal(err)
 	}
 	s, err := projectRead(parent)
 	if err != nil || !s.Ready {
@@ -247,12 +258,9 @@ func TestProjectCompleteSettledWorkerTerminals(t *testing.T) {
 			mustMkdirAll(t, filepath.Join(foreman.TasksDir(), task.ID))
 			data, _ := json.Marshal(task)
 			mustWrite(t, filepath.Join(foreman.TasksDir(), task.ID, "task.json"), string(data))
-			integratePhase(t, p, "p1")
+			integrateAndLand(t, p, "p1")
 			for _, kind := range []string{"integration", "product"} {
 				finishExecutionEvidence(t, p, executionEvidence(t, p, kind), kind, false)
-			}
-			if err := landPhase(t, p, "p1"); err != nil {
-				t.Fatal(err)
 			}
 			var err error
 			captureStdout(t, func() { err = projectComplete(p, "fm-test") })
@@ -403,7 +411,7 @@ func TestProjectRejectsFalseCompletion(t *testing.T) {
 
 func TestProjectEvidenceCapturesInputsBeforeCheck(t *testing.T) {
 	p, _, _ := executionFixture(t)
-	cand := integratePhase(t, p, "p1")
+	cand := integrateAndLand(t, p, "p1")
 	id := executionEvidence(t, p, "integration")
 	mustWrite(t, filepath.Join(cand.Repos[0].Worktree, "feature.txt"), "changed after begin")
 	result := filepath.Join(t.TempDir(), "results.json")
@@ -415,11 +423,14 @@ func TestProjectEvidenceCapturesInputsBeforeCheck(t *testing.T) {
 
 func TestProjectFailedCheckAndProductFindings(t *testing.T) {
 	p, _, _ := executionFixture(t)
-	integratePhase(t, p, "p1")
+	cand := integrateAndLand(t, p, "p1")
 	finishExecutionEvidence(t, p, executionEvidence(t, p, "integration"), "integration", true)
 	finishExecutionEvidence(t, p, executionEvidence(t, p, "product"), "product", false)
-	if err := landPhase(t, p, "p1"); err == nil {
-		t.Fatal("landed a phase whose QA failed")
+	if phaseQAProblems(t, p, "p1") == nil {
+		t.Fatal("phase QA passed with a failed check")
+	}
+	if _, err := os.Stat(cand.Repos[0].Worktree); err != nil {
+		t.Fatal("failed phase QA removed the phase worktree its fixes need")
 	}
 	s, err := projectRead(p)
 	if err != nil || s.Ready || s.Coverage[0].State == "proven" {

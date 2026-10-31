@@ -32,12 +32,12 @@ else
   fail "team-owns-worktree-lifecycle"
 fi
 
-if grep -q 'parent carrying `manifest.md`' "$AUTOPILOT" \
-   && grep -q 'hand it to `team`' "$AUTOPILOT" \
-   && grep -q 'never dispatch or merge its children here' "$AUTOPILOT"; then
-  ok "decomposed-parent-routes-to-team"
+if grep -q 'A parent a team lead owns' "$AUTOPILOT" \
+   && grep -q 'never dispatch or merge its' "$AUTOPILOT" \
+   && grep -q 'Never stop, block, defer or ask the user to switch to `team`' "$AUTOPILOT"; then
+  ok "team-parent-returns-to-lead-else-autopilot-runs-it"
 else
-  fail "decomposed-parent-routes-to-team"
+  fail "team-parent-returns-to-lead-else-autopilot-runs-it"
 fi
 
 echo

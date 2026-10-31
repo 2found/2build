@@ -126,13 +126,13 @@ func TestIntegrateRefusesAnotherForemansContract(t *testing.T) {
 func TestIntegrateRecordsOwnContractChecksForPhaseQA(t *testing.T) {
 	st, _, repo := executionFixture(t)
 	commitOnMain(t, repo, map[string]string{".babysit/contracts.yaml": "feature:\n  owner: fm-test\n  files: [feature.txt]\n  checks: [\"test -s feature.txt\"]\n"})
-	cand := integratePhase(t, st, "p1")
+	cand := integrateAndLand(t, st, "p1")
 	if got := cand.Repos[0].Contracts["feature"]; len(got) != 1 || got[0] != "test -s feature.txt" {
 		t.Fatalf("contracts_changed = %v", cand.Repos[0].Contracts)
 	}
 	s, _ := projectRead(st)
 	steps := projectNext(st, s)
 	if len(steps) != 1 || steps[0].Do != "verify" || !strings.Contains(steps[0].Why, "feature: test -s feature.txt") {
-		t.Fatalf("next after integrate = %+v", steps)
+		t.Fatalf("next after land = %+v", steps)
 	}
 }

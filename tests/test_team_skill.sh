@@ -91,9 +91,9 @@ has_all "ticket-session-ownership" \
   '### Reuse a ticket session' '--terminal "$TICKET_TERMINAL"' '`transport-matched`' \
   'Never reuse one ticket' 'holds no lease'
 
-has_all "plan-approval-by-ticket-size" \
-  '### Plan approval by ticket size' 'Ticket plan checkpoints run inside the ticket session' \
-  'the worker self-approves as' 'the lead reviews and approves' 'the lead approves' \
+has_all "plan-approval-self-by-worker" \
+  '### Plan approval' 'Ticket plan checkpoints run inside the ticket session' \
+  'self-approved by its worker as' 'no plan waits on the lead by' \
   'Exit 4 (rubric)' 'Exit 3 (floor) or 5 (hold/grant)' 'parks the' \
   'Never implement on an unapproved plan record' 'after two redirects'
 
@@ -105,7 +105,7 @@ has_all "ticket-session-cache-economics" \
 has_all "whole-phase-one-wake" \
   'one wake per phase' 'Dependent tickets therefore launch' \
   'bbs team await --prereqs' 'AWAIT=not-ready' 'Stay light' \
-  'dependent never displaces runnable work' '`messages:<n>` (an `L` plan review'
+  'dependent never displaces runnable work' '`messages:<n>` (an escalated plan'
 
 has_all "watcher-self-heals-lost-workers" \
   '`lost:<task>`' '`bbs team task abandon` it and close its terminal' \
@@ -138,7 +138,7 @@ has_all "ensure-before-init-ordering" \
   'from inside' 'landed on' 'env -u BABYSIT_TICKET bbs ticket ensure --no-branch'
 
 has_all "land-never-stashes" \
-  'Never stash, reset or overwrite them' 'integrate` again' 'base moved since the build'
+  'Never stash, reset or overwrite them' 'integrate` again' 'base moved since `integrate`'
 
 has_all "native-task-list-init" \
   'native task list from parent, children' \
@@ -201,7 +201,7 @@ has_all "phase-release-control" \
   'release "$PARENT" --phase "$K" --request' \
   'bbs team release "$PARENT" --phase "$K" --file receipt.json' \
   'refuses kind `release`' '\*\*stops the line\*\*' 'Pipeline one phase deep' \
-  'cannot integrate until `k` is released' '`--auto` never grants a release' \
+  'cannot integrate until `k` is verified' '`--auto` never grants a release' \
   "lowers a seed's release gate" 'bbs team readiness "$PARENT" --action release --phase "$K" --json'
 
 has_all "two-human-touchpoints" \

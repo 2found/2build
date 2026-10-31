@@ -15,6 +15,7 @@
       "max_s": 60,
       "hook_s": 2.5,
       "proposition_s": 3.0,
+      "first_value_s": 6.0,
       "hashtags": [3, 5]
     },
     "encode": {"width": 1080, "height": 1920, "fps": 30, "vcodec": "libx264", "profile": "high", "pix_fmt": "yuv420p", "crf": 18, "maxrate": "12M", "acodec": "aac", "abitrate": "192k", "ar": 48000, "lufs": -14},
@@ -23,7 +24,8 @@
       {"what": "proposition in 3 s, hook in 6 s, 9:16, >=720p, 3-5 creatives per ad group", "url": "https://ads.tiktok.com/help/article/creative-best-practices?lang=en", "read": "2026-10-27"},
       {"what": "safe band 168-1330 px on 1080x1920, right rail", "url": "hyperframes skill references/types/vertical.md", "read": "2026-10-27"},
       {"what": "287 MB is the iPhone upload ceiling; desktop allows more. Max 10 min is the reliable ceiling for every account", "url": "https://www.hopperhq.com/blog/tiktok-dimensions/", "read": "2026-10-27", "note": "third-party; TikTok's own help page was not reachable"},
-      {"what": "hook <= 2.5 s, measured on native shorts", "url": "", "read": "2026-10-27"}
+      {"what": "hook <= 2.5 s, measured on native shorts", "url": "", "read": "2026-10-27"},
+      {"what": "first value <= 6 s: TikTok's 'hook in 6 s'; house rule for X", "url": "https://ads.tiktok.com/help/article/creative-best-practices?lang=en", "read": "2026-10-27"}
     ]
   },
   "x": {
@@ -40,6 +42,7 @@
       "min_s": 10,
       "max_s": 45,
       "hook_s": 2.0,
+      "first_value_s": 6.0,
       "hashtags": [0, 2]
     },
     "encode": {"width": 1080, "height": 1920, "fps": 30, "vcodec": "libx264", "profile": "high", "pix_fmt": "yuv420p", "crf": 18, "maxrate": "10M", "acodec": "aac", "abitrate": "192k", "ar": 48000, "lufs": -14},
@@ -55,7 +58,7 @@
     "canvas": "9x16",
     "sound_default": "off",
     "hard": {"min_s": 0.5, "max_s": 140, "max_mb": 512, "post_weight": 280, "max_long_side": 1280, "max_short_side": 1024},
-    "recommend": {"min_s": 10, "max_s": 45, "hook_s": 2.0, "hashtags": [0, 2]},
+    "recommend": {"min_s": 10, "max_s": 45, "hook_s": 2.0, "first_value_s": 6.0, "hashtags": [0, 2]},
     "encode": {"width": 720, "height": 1280, "fps": 30, "vcodec": "libx264", "profile": "high", "pix_fmt": "yuv420p", "bitrate": "6M", "acodec": "aac", "abitrate": "160k", "ar": 48000, "lufs": -14},
     "safe": {"top": 120, "bottom_text": 1500, "right_rail": 0, "left": 60},
     "sources": [

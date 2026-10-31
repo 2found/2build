@@ -190,11 +190,15 @@ route_mode_test() {
 }
 seed_sub_ticket()  { bbs ticket init --origin-type sub_ticket >/dev/null 2>&1; }
 seed_manifest()    { bbs ticket init >/dev/null 2>&1; local m; m="$(bbs ticket path manifest --write 2>/dev/null)"; [ -n "$m" ] && echo "# manifest" > "$m"; }
+seed_team_manifest() { seed_manifest; bbs ticket assign fm-lead >/dev/null 2>&1; }
+seed_own_manifest() { seed_manifest; local p; p="$(bbs ticket path plan --write 2>/dev/null)"; [ -n "$p" ] && echo "# plan" > "$p"; }
 seed_plan()        { bbs ticket init >/dev/null 2>&1; local p; p="$(bbs ticket path plan --write 2>/dev/null)"; [ -n "$p" ] && echo "# plan" > "$p"; }
 seed_requirement() { bbs ticket init >/dev/null 2>&1; local r; r="$(bbs ticket path requirement --write 2>/dev/null)"; [ -n "$r" ] && echo "# req" > "$r"; }
 
 route_mode_test child       bs-child-1  'child'       seed_sub_ticket
-route_mode_test project     bs-orch-1   'orchestrate' seed_manifest
+route_mode_test project     bs-orch-1   'orchestrate' seed_team_manifest
+# A manifest no team owns stays autopilot's: its rows are milestones.
+route_mode_test own-manifest bs-own-1   'implement'   seed_own_manifest
 route_mode_test implement   bs-impl-1   'implement'   seed_plan
 route_mode_test build       bs-build-1  'build'       seed_requirement
 
