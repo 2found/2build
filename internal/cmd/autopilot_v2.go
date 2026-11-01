@@ -219,7 +219,7 @@ func collectAutopilotSnapshotOnceIn(a *apState, ticketID, ticketHome, dir string
 		return nil, &snapshotError{Code: "NOT_A_REPOSITORY", Message: "snapshot requires a git repository", Exit: 3}
 	}
 	policy := snapshotBasePolicy(top)
-	gitState, err := snapshotGitState(top, policy.Effective["base_branch"], ticketTreeDigestFunc(ticketHome))
+	gitState, err := snapshotGitState(top, policy.Effective["base_branch"], workingTreeDigest)
 	if err != nil {
 		var se *snapshotError
 		if errors.As(err, &se) {

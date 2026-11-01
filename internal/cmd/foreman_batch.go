@@ -662,8 +662,8 @@ func batchAgent(r foreman.Record) string {
 // printBaseDrift warns when local base, since a batch ticket's worktree was
 // cut, changed files that ticket is changing — the early sign that base
 // replaced a layer the ticket builds on (measured: a store swap found only at
-// integrate cost three chained repairs). A refresh while the ticket is fresh
-// is cheaper; integrate still resolves whatever remains. Advisory only.
+// integrate cost three chained repairs). Advisory only: the lead resolves it
+// when integrate composes the phase on the current base.
 func printBaseDrift(b foremanBatch) {
 	env := identity.Resolve()
 	if env.ProjectHome == "" {

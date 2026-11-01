@@ -56,8 +56,7 @@ Paths below are relative to the ticket directory. Mutate metadata through `bbs t
 `bbs ticket set-evidence` validates structure. Exit 2 → retry once, then escalate.
 Check presence/structure, never a self-assigned score. Release gates read only
 the `verification` evidence that
-[the producer](../autopilot/references/verification.md) accepted for the
-current tree, never `verdicts/`
+[the producer](../autopilot/references/verification.md) accepted, never `verdicts/`
 ([approval contract](../../../docs/artifact-gated-approval.md)).
 
 `verification` is written only by `bbs autopilot verification record`;

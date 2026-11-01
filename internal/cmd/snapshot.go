@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -18,7 +17,6 @@ import (
 // no snapshot ever reaches a branch.
 //
 // A re-snapshot of the same ticket takes the previous snapshot as its parent,
-// and snapshots a ticket adopted from its prerequisites become extra parents,
 // so git's merge base sees exactly what each side already shares when a phase
 // is composed.
 
@@ -101,7 +99,7 @@ func treeOf(dir, rev string) string {
 // sealTicketSnapshot captures dir's working tree on the ticket's hidden ref and
 // returns the snapshot commit. An unchanged tree reuses the current snapshot,
 // so repeated calls are idempotent.
-func sealTicketSnapshot(dir, ticketID string, adopted []string) (string, error) {
+func sealTicketSnapshot(dir, ticketID string) (string, error) {
 	tree, err := worktreeTree(dir)
 	if err != nil {
 		return "", err
@@ -112,19 +110,16 @@ func sealTicketSnapshot(dir, ticketID string, adopted []string) (string, error) 
 	if prev != "" {
 		parents = append(parents, prev)
 	}
-	// HEAD joins like an adopted commit: a worktree moved onto a newer base
-	// since its last seal must carry that base, or composition merges against
-	// the old cut point and conflicts with the base's own changes.
+	// HEAD joins as a parent: a worktree moved onto a newer base since its
+	// last snapshot must carry that base, or composition merges against the
+	// old cut point and conflicts with the base's own changes.
 	if head := gitOutIn(dir, "rev-parse", "--verify", "-q", "HEAD^{commit}"); head != "" {
-		adopted = append([]string{head}, adopted...)
-	}
-	for _, a := range adopted {
 		covered := false
 		for _, p := range parents {
-			covered = covered || gitOKIn(dir, "merge-base", "--is-ancestor", a, p)
+			covered = covered || gitOKIn(dir, "merge-base", "--is-ancestor", head, p)
 		}
 		if !covered {
-			parents = append(parents, a)
+			parents = append(parents, head)
 		}
 	}
 	if prev != "" && treeOf(dir, prev) == tree && len(parents) == 1 {
@@ -182,69 +177,4 @@ func mergeCommits(dir, first string, others []string) (tree, tip string, conflic
 		}
 	}
 	return tree, tip, conflicts, nil
-}
-
-// adoptSnapshots brings other tickets' snapshots into dir's working tree as
-// uncommitted changes, three-way merged with whatever the worktree already
-// holds. HEAD and the branch never move. Conflicted paths are left with
-// markers for the worker to resolve and are returned.
-func adoptSnapshots(dir string, commits []string) ([]string, error) {
-	own, err := worktreeTree(dir)
-	if err != nil {
-		return nil, err
-	}
-	head := gitOutIn(dir, "rev-parse", "--verify", "-q", "HEAD^{commit}")
-	if head == "" {
-		return nil, fmt.Errorf("adopt needs a checkout with a commit")
-	}
-	start := head
-	if treeOf(dir, head) != own {
-		if start, err = commitTree(dir, snapshotIdentity, own, "bbs worktree (plumbing)", head); err != nil {
-			return nil, err
-		}
-	}
-	tree, _, conflicts, err := mergeCommits(dir, start, commits)
-	if err != nil {
-		return nil, err
-	}
-	if tree != own {
-		if _, err := gitPlumb(dir, nil, "read-tree", "--reset", "-u", tree); err != nil {
-			return nil, err
-		}
-		// Back to an index that matches HEAD: the adopted work is the
-		// worker's uncommitted change set, exactly like its own edits.
-		if _, err := gitPlumb(dir, nil, "reset", "-q"); err != nil {
-			return nil, err
-		}
-	}
-	var files []string
-	for _, fs := range conflicts {
-		for _, f := range fs {
-			if !slices.Contains(files, f) {
-				files = append(files, f)
-			}
-		}
-	}
-	slices.Sort(files)
-	return files, nil
-}
-
-// adoptedPath records the snapshots a ticket adopted, so its own snapshot
-// names them as parents.
-func adoptedPath(home string) string { return filepath.Join(home, "adopted.json") }
-
-func readAdopted(home string) []string {
-	var out []string
-	_ = readProjectJSON(adoptedPath(home), &out)
-	return out
-}
-
-func recordAdopted(home string, commits []string) error {
-	out := readAdopted(home)
-	for _, c := range commits {
-		if !slices.Contains(out, c) {
-			out = append(out, c)
-		}
-	}
-	return writeJSONAtomic(adoptedPath(home), out)
 }

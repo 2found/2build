@@ -24,8 +24,8 @@ import (
 // files IS publishing a new version, and the history is git's.
 //
 // A ticket pins the versions it builds against. When a pinned contract changes
-// under it, its gates go stale until it re-reads the contract, re-verifies and
-// pins again. A contract with an owner may only be changed by a phase of that
+// under it, `team next` suggests a refresh (re-read, adapt, re-pin); its
+// gates stand. A contract with an owner may only be changed by a phase of that
 // Foreman; its checks are the consumers' tests, run before the provider lands.
 
 const contractIndexPath = ".babysit/contracts.yaml"
@@ -226,18 +226,6 @@ func contractStatuses(st *ticket.Store, dir string) []contractStatus {
 			row.Next = "base has a newer version; read it there — your phase integrates on it"
 		}
 		out = append(out, row)
-	}
-	return out
-}
-
-// contractReadinessReasons: building against a version that is no longer the
-// one in the checkout makes the ticket's gates stale.
-func contractReadinessReasons(st *ticket.Store, dir string) []string {
-	var out []string
-	for _, s := range contractStatuses(st, dir) {
-		if s.State == "changed" || s.State == "gone" {
-			out = append(out, "contract:"+s.ID+":"+s.State)
-		}
 	}
 	return out
 }

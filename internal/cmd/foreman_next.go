@@ -19,7 +19,7 @@ import (
 // Steps come in the order the work flows; `wait` steps say who holds the ball.
 
 type foremanStep struct {
-	Do      string `json:"do"` // design | publish | wait | revise | bind | create | build | refresh | seal | integrate | verify | land | release | skip | repair | complete | done
+	Do      string `json:"do"` // design | publish | wait | revise | bind | create | build | integrate | verify | land | release | skip | repair | blocked | complete | done
 	Phase   string `json:"phase,omitempty"`
 	Target  string `json:"target,omitempty"`
 	Command string `json:"command,omitempty"`
@@ -58,7 +58,7 @@ func projectNext(st *ticket.Store, s projectSnapshot) []foremanStep {
 			continue
 		}
 		if p.LastFailed {
-			steps = append(steps, foremanStep{Do: "repair", Phase: p.ID, Why: "stop the line: the last release of phase " + p.ID + " failed; nothing later moves until it ships. Fix forward (a repair to the ticket that broke, then integrate, land, verify) or retry the release"})
+			steps = append(steps, foremanStep{Do: "repair", Phase: p.ID, Why: "stop the line: the last release of phase " + p.ID + " failed; nothing later moves until it ships. The release session fixes forward itself (edit the owning ticket's worktree, integrate, land, re-test) and releases again"})
 			return append(steps, phaseNext(st, s, p)...)
 		}
 		steps = append(steps, phaseNext(st, s, p)...)
@@ -99,7 +99,7 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 					return []foremanStep{step("wait", "human", "", "the handover of phase "+p.ID+" is with the human for review and the release go")}
 				case state == "redirected" && current:
 					return []foremanStep{step("repair", "", "BABYSIT_TICKET="+p.Ticket+" bbs ticket approval comments",
-						"the human sent the handover back: "+orDefault(note, "see the comments")+". Fix what the approved scope covers as repairs on the owning tickets (reseal, integrate, land, phase QA), then hand over again; a request beyond the approved scope goes back to basic-design review as a contract change")}
+						"the human sent the handover back: "+orDefault(note, "see the comments")+". Dispatch one handover-fix session for everything the approved scope covers (it fixes the owning tickets' worktrees, integrates, lands and re-tests), then hand over again; a request beyond the approved scope goes back to basic-design review as a contract change")}
 				case state == "dropped" && current:
 					return []foremanStep{step("wait", "human", "", "the human declined the release of phase "+p.ID+": "+orDefault(note, "no reason given"))}
 				}
@@ -113,11 +113,24 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 		return []foremanStep{step("release", "", "bbs team release "+parent+" --phase "+p.ID+" --file receipt.json",
 			"phase "+p.ID+" is landed and verified; run release-prd, then record its verdict")}
 	case p.Sealed && p.Candidate == nil && !s.Contract.ArtifactsOnly:
-		return []foremanStep{step("integrate", "", "bbs team integrate "+parent+" --phase "+p.ID, "every ticket of phase "+p.ID+" is sealed")}
+		return []foremanStep{step("integrate", "", "bbs team integrate "+parent+" --phase "+p.ID, "every ticket of phase "+p.ID+" is built")}
 	case p.Sealed && !p.Delivered && !s.Contract.ArtifactsOnly:
 		return []foremanStep{step("land", "", "bbs team land "+parent+" --phase "+p.ID, "land the phase commit now; phase QA runs on the landed commit")}
 	case p.Sealed:
-		why := "run phase QA on the landed phase commit and record it (bbs team evidence --begin, then --attempt); a failure is fixed forward (reseal --fixup, integrate, land, re-check what changed)"
+		if ids := projectUnsealedEdits(st, s, p); len(ids) > 0 {
+			return []foremanStep{step("integrate", strings.Join(ids, " "), "bbs team integrate "+parent+" --phase "+p.ID,
+				"QA fixes in "+strings.Join(ids, ", ")+" are not merged yet: integrate takes them into a fix commit; then land it and re-test what they fixed")}
+		}
+		failed := 0
+		for _, ev := range s.Evidence {
+			if ev.Phase == p.ID && ev.Kind == "integration" && ev.State == "failed" {
+				failed++
+			}
+		}
+		if failed >= 3 {
+			return []foremanStep{step("blocked", "human", "", fmt.Sprintf("phase %s QA failed %d times: park it and escalate the failure evidence; independent work continues", p.ID, failed))}
+		}
+		why := "run phase QA on the landed phase commit and record it (bbs team evidence --begin, then --attempt); the QA session fixes every failure itself in the owning ticket's worktree, integrates and lands the fix, and re-tests what it fixed"
 		if checks := phaseContractChecks(p); len(checks) > 0 {
 			why += "; it changes contracts, so include their consumers' checks: " + strings.Join(checks, "; ")
 		}
@@ -128,7 +141,6 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 	if reasons := projectPhaseReasons(s, "dispatch", p.ID); len(reasons) > 0 {
 		return []foremanStep{step("wait", "", "", strings.Join(reasons, "; "))}
 	}
-	var sealable []string
 	bound := map[string]bool{}
 	for _, child := range s.Children {
 		bound[child.Seed] = true
@@ -144,50 +156,20 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 			continue
 		}
 		cs := storeForTicket(st.Env, child.ID)
-		if stale := contractReadinessReasons(cs, ""); len(stale) > 0 {
-			steps = append(steps, step("refresh", child.ID, "BABYSIT_TICKET="+child.ID+" bbs contract status",
-				"a contract it builds against changed ("+strings.Join(stale, ", ")+"): send a refresh to its worker session"))
-			continue
-		}
 		if len(child.Problems) == 0 {
 			continue
 		}
 		switch {
-		case childSealable(cs):
-			sealable = append(sealable, child.ID)
 		case ticket.ReadDoc(cs.IndexPath()).Get("pointers.resource_lease") != "":
 			// A held lease is a launched worker: dispatching again would duplicate it.
 			steps = append(steps, step("wait", child.ID, "", "its worker holds a lease; the batch wake reports it"))
 		case child.State == ticket.StateReady:
 			steps = append(steps, step("build", child.ID, "", "ready: dispatch it to a worker session"))
 		default:
-			steps = append(steps, step("wait", child.ID, "", "worker "+child.State+"; seal it once its gates pass"))
+			steps = append(steps, step("wait", child.ID, "", "worker "+child.State+"; its task done records its work"))
 		}
 	}
-	if len(sealable) > 0 {
-		ids := strings.Join(sealable, " ")
-		steps = append([]foremanStep{step("seal", ids, "bbs team seal "+ids, "review-pr and qa pass on their current trees, or the ticket's size defers them to phase review")}, steps...)
-	}
 	return steps
-}
-
-// childSealable: the check `bbs team seal` makes, read-only.
-func childSealable(cs *ticket.Store) bool {
-	m, err := ticket.ReadManifest(cs.ManifestPath())
-	if err != nil || len(m.Repos) != 1 {
-		return false
-	}
-	env := cs.Env
-	env.Branch = m.Repos[0].Branch
-	r, err := evaluateReadinessIn(env, "review", m.Repos[0].Worktree)
-	if err != nil {
-		return false
-	}
-	if r.Ready {
-		return true
-	}
-	_, _, ok := deferralCovers(m.Repos[0].Worktree, cs.Home(), ticket.ReadDoc(cs.IndexPath()), r.ReasonCodes)
-	return ok
 }
 
 // phaseContractChecks lists the checks of the contracts a phase commit changes.

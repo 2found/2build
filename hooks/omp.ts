@@ -52,21 +52,20 @@ export default function babysit(pi: ExtensionAPI) {
     if (event.toolName === "bash") await heartbeat(event, ctx);
   });
 
+  // One reminder per stop: the stop after a block ends freely, and a failing
+  // check never blocks, so a worker that cannot report never loops.
+  let reminded = false;
   pi.on("session_stop", async (_event, ctx) => {
     if (!process.env.ORCA_TERMINAL_HANDLE) return;
+    if (reminded) { reminded = false; return; }
     try {
       const result = await run("worker-report-gate", ctx);
-      if (result.killed || result.code !== 0) {
-        return { decision: "block", reason: `Babysit worker report check failed: ${result.stderr || "timeout or process failure"}` };
-      }
-      if (!result.stdout.trim()) return;
+      if (result.killed || result.code !== 0 || !result.stdout.trim()) return;
       const decision = JSON.parse(result.stdout);
       if (decision.decision === "block" && typeof decision.reason === "string" && decision.reason.trim()) {
+        reminded = true;
         return { decision: "block", reason: decision.reason };
       }
-      return { decision: "block", reason: "Babysit worker report check returned an unexpected response." };
-    } catch (error) {
-      return { decision: "block", reason: `Babysit worker report check failed: ${error}` };
-    }
+    } catch { /* never block on a failed check */ }
   });
 }

@@ -82,42 +82,12 @@ func projectCandidateLanded(c *projectCandidate) bool {
 	return true
 }
 
-// projectPhaseOrder sorts a phase's tickets so prerequisites compose first.
+// projectPhaseOrder composes a phase's tickets in id order: they are
+// independent, so the order only has to be stable.
 func projectPhaseOrder(children []projectChild) []projectChild {
-	in := map[string]bool{}
-	for _, c := range children {
-		in[c.ID] = true
-	}
 	sorted := slices.Clone(children)
 	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].ID < sorted[j].ID })
-	var out []projectChild
-	done := map[string]bool{}
-	for len(out) < len(sorted) {
-		progressed := false
-		for _, c := range sorted {
-			if done[c.ID] {
-				continue
-			}
-			ready := true
-			for _, dep := range c.BlockedBy {
-				ready = ready && (!in[dep] || done[dep])
-			}
-			if ready {
-				out = append(out, c)
-				done[c.ID] = true
-				progressed = true
-			}
-		}
-		if !progressed { // a cycle is reported by the graph; keep going
-			for _, c := range sorted {
-				if !done[c.ID] {
-					out = append(out, c)
-					done[c.ID] = true
-				}
-			}
-		}
-	}
-	return out
+	return sorted
 }
 
 func commitIdentityEnv(dir string) []string {
@@ -213,11 +183,24 @@ func projectIntegrateCommand(st *ticket.Store, kv map[string]string) error {
 		if k < 0 {
 			return fmt.Errorf("integrate needs --phase <id> from the contract")
 		}
-		if reasons := projectPhaseReasons(s, "integrate", kv["phase"]); len(reasons) > 0 {
-			return fmt.Errorf("phase not ready to integrate: %v", reasons)
-		}
 		if s.Contract.ArtifactsOnly {
 			return fmt.Errorf("artifact-only projects have no code to integrate")
+		}
+		// A QA fix made in its owning ticket's worktree is merged here: the
+		// ticket's work is recorded again, so no fix is left out of the commit.
+		if ids := projectUnsealedEdits(st, s, s.Phases[k]); len(ids) > 0 {
+			for _, id := range ids {
+				if err := projectRecordChild(storeForTicket(st.Env, id)); err != nil {
+					return fmt.Errorf("%s: %v", id, err)
+				}
+				fmt.Fprintln(os.Stderr, "FIXUP="+id)
+			}
+			if s, err = projectRead(st); err != nil {
+				return err
+			}
+		}
+		if reasons := projectPhaseReasons(s, "integrate", kv["phase"]); len(reasons) > 0 {
+			return fmt.Errorf("phase not ready to integrate: %v", reasons)
 		}
 		c, err := projectComposePhase(st, s, s.Phases[k], kv["message"])
 		if err != nil {
@@ -376,7 +359,10 @@ func projectComposePhase(st *ticket.Store, s projectSnapshot, p projectPhaseStat
 					continue
 				}
 				tree = fixTree
-				r.PhaseBase, r.Whole, body = composeOn, whole, "Fix: "+body
+				r.PhaseBase, r.Whole = composeOn, whole
+				if !strings.HasPrefix(body, "Fix: ") {
+					body = "Fix: " + body
+				}
 			}
 			if len(r.Resolved) > 0 {
 				body += "\n\nConflicts resolved on integrate: " + strings.Join(r.Resolved, ", ")
@@ -590,6 +576,9 @@ func projectLandCommand(st *ticket.Store, kv map[string]string) error {
 		if err := writeJSONAtomic(projectCandidatePath(st, p.ID), *c); err != nil {
 			return err
 		}
+		for _, r := range c.Repos {
+			recordLandedPhase(r.Canonical, r.Commit, st.Env.Ticket, p.ID)
+		}
 		projectEvent(st, "phase_landed", p.ID, "", p.Subject)
 		printV2Envelope(map[string]interface{}{"phase": p.ID, "landed": c.Repos, "next": "phase QA on the landed commit: bbs team evidence " + st.Env.Ticket + " --phase " + p.ID + " --begin --file spec.json"})
 		return nil
@@ -689,6 +678,35 @@ func fastForwardCheckout(dir, ref, old, new string) error {
 // projectRemovePhaseWorktrees drops the integration worktree and every
 // ticket worktree whose content still equals its sealed snapshot — the
 // snapshot ref keeps that work. Anything else is kept and reported.
+// projectUnsealedEdits lists the phase's settled tickets whose worktree holds
+// edits their recorded work does not: a fix waiting to be merged.
+func projectUnsealedEdits(st *ticket.Store, s projectSnapshot, p projectPhaseState) []string {
+	var ids []string
+	for _, child := range s.Children {
+		if !slices.Contains(p.Children, child.ID) || len(child.Repos) == 0 || openTicketDispatch(child.ID) != "" {
+			continue
+		}
+		m, err := ticket.ReadManifest(storeForTicket(st.Env, child.ID).ManifestPath())
+		if err != nil {
+			continue
+		}
+		for _, sealed := range child.Repos {
+			mr := m.FindRepo(func(x ticket.Repo) bool { return x.Canonical == sealed.Canonical && x.Branch == sealed.Branch })
+			if mr == nil || mr.Worktree == "" {
+				continue
+			}
+			if _, err := os.Stat(mr.Worktree); err != nil || gitOutIn(mr.Worktree, "branch", "--show-current") != sealed.Branch {
+				continue
+			}
+			if tree, err := worktreeTree(mr.Worktree); err == nil && tree != treeOf(sealed.Canonical, sealed.Head) {
+				ids = append(ids, child.ID)
+				break
+			}
+		}
+	}
+	return ids
+}
+
 func projectRemovePhaseWorktrees(st *ticket.Store, s projectSnapshot, p projectPhaseState, c *projectCandidate) (removed, kept, closed []string) {
 	removed, kept = []string{}, []string{}
 	type target struct{ canonical, path, branch string }

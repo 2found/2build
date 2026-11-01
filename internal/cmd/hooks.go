@@ -43,6 +43,9 @@ func newHooksCmd() *cobra.Command {
 				runPreCommitHook()
 				return nil
 			}
+			if args[0] == "pre-push" {
+				os.Exit(runPrePushHook(".", os.Stdin, os.Stderr))
+			}
 			payload := hookPayload(args[1:])
 			switch args[0] {
 			case "-h", "--help", "help":
@@ -53,7 +56,7 @@ func newHooksCmd() *cobra.Command {
 			case "session-writer":
 				runSessionWriter(payload)
 			case "worker-report-gate":
-				runWorkerReportGate(os.Stdout)
+				runWorkerReportGate(payload, os.Stdout)
 			default:
 				fmt.Fprintf(os.Stderr, "unknown hook: %s\n", args[0])
 				os.Exit(2)
@@ -70,10 +73,12 @@ func hooksUsage() {
                   native deny decision, or nothing when it has no objection
   session-writer  SessionStart + PostToolUse session tracker — refreshes
                   ~/.babysit/sessions/<agent>-<id>.yaml, always exits 0
-  worker-report-gate  Stop check — keeps an Orca worker running until its
-                  current Dispatch has settled; never sends a report itself
+  worker-report-gate  Stop check — reminds an Orca worker once per stop to
+                  report its open Dispatch; never sends a report itself
   pre-commit      git pre-commit check — lints staged workflow files and
                   qa.yaml credential literals; installed by bbs setup
+  pre-push        git pre-push check — refuses pushing a landed Team phase
+                  before its QA passed; installed by bbs team land
 
 Payload comes from stdin, or --payload when the caller cannot pipe stdin.
 `)
@@ -233,7 +238,7 @@ func evaluateGate(payload []byte) gateDecision {
 		return gateDecision{"deny", fmt.Sprintf("Readiness failed on %s (%s: %v); blocking %s.", ticketID, code, err, stage)}
 	}
 	if !res.Ready {
-		return gateDecision{"deny", fmt.Sprintf("%s is not ready for %s (%s). Run the missing or stale gate on the current tree with bbs autopilot verification.", ticketID, stage, strings.Join(res.ReasonCodes, ","))}
+		return gateDecision{"deny", fmt.Sprintf("%s is not ready for %s (%s). Run the missing gate with bbs autopilot verification.", ticketID, stage, strings.Join(res.ReasonCodes, ","))}
 	}
 	return gateDecision{"pass", fmt.Sprintf("readiness=ready — ok for %s", stage)}
 }

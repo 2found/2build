@@ -35,7 +35,8 @@ const foremanUsage = `Usage:
   bbs team readiness <parent> --action dispatch|finish --json
   bbs team readiness <parent> --action dispatch|integrate|land|release --phase <id> --json
   bbs team integrate <parent> --phase <id> [--message <text>]
-                                         (compose the phase's sealed tickets into one commit on base;
+                                         (compose the phase's finished tickets into one commit on base,
+                                          taking edits made since their task done;
                                           conflicts are laid out in the phase worktree — resolve, run again)
   bbs team land <parent> --phase <id> [--commit-local <message>]
                                          (fast-forward base to the phase commit, composing again if base
@@ -47,13 +48,6 @@ const foremanUsage = `Usage:
                                          (skip an auto phase's release; it ships with a later one)
   bbs team release <parent> --phase <id> --file receipt.json
                                          (record a release-prd verdict for the phase)
-  bbs team seal <child>... [--waive <review-pr|qa>[,<gate>] --reason <text>]
-                                         preserve verified tickets' work before their phase integrates
-                                         (--waive seals despite a missing or stale gate; recorded as a note;
-                                         an XS/S ticket defers review-pr+qa and an M ticket qa to phase review)
-  bbs team seal <child> --fixup <finding>
-                                         reseal a settled ticket after the integration session fixed a phase
-                                         finding in its worktree; the next phase commit needs a fresh review
   bbs team evidence <parent> --phase <id> --begin --file spec.json
   bbs team evidence <parent> --phase <id> --carry --from <attempt-id>[,<attempt-id>] --reason <text> [--except <AC-id,...>]
                                          (carry earlier passed checks of this phase onto the current subject;
@@ -97,8 +91,6 @@ const foremanUsage = `Usage:
   bbs team resource <status|reserve|release> ...
   bbs team batch <id> --tasks <task,task,...>
   bbs team batch show <id>
-  bbs team await --prereqs <ticket>:<task>[,...] [--timeout <sec>] [--interval <sec>]
-                    (phase worker: wait in-session for prerequisite phases to settle)
   bbs team watch [<id>] [--interval <sec>] [--idle <sec>] [--lines <n>]
                     [--status-interval <sec>] [--nudge <text>] [--max-nudges <n>] [--once]
                     [--worker-idle <sec>] [--worker-nudges <n>] [--attention-window <sec>]
@@ -191,8 +183,6 @@ func dispatchForeman(args []string) error {
 		return foremanInbox(rest)
 	case "report":
 		return foremanReport(rest)
-	case "seal":
-		return foremanSealMany(rest)
 	case "contract", "bind", "snapshot", "readiness", "next", "evidence", "progress", "complete", "recap", "log", "release", "integrate", "land":
 		return foremanProjectCommand(sub, rest)
 	case "register":
@@ -212,8 +202,6 @@ func dispatchForeman(args []string) error {
 		return foremanResource(rest)
 	case "batch":
 		return foremanBatchCommand(rest)
-	case "await":
-		return foremanAwait(rest)
 	case "route":
 		return foremanRoute(rest)
 	case "task":

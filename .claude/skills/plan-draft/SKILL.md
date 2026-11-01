@@ -146,7 +146,8 @@ being shaped stays in one row; split only where modules are disjoint behind an
 interface frozen in this plan, or for scope one coherent plan cannot hold. Order phases so the
 first usable journey lands first. Use one row per proposed phase:
 `Seed key | Outcome/scope | Size | Depends on | Owned contract/boundary | Acceptance check`.
-Dependencies reference seed keys, not fabricated runtime ticket ids. Add shared
+Dependencies reference seed keys, not fabricated runtime ticket ids, and
+only point at an earlier phase: seeds of one phase are independent. Add shared
 contracts, acceptance ownership and integration checks; keep the plan's DAG
 consistent with these rows. Prefer children delivering bounded, independently
 verifiable behavior; split by technical layer only when dependency/ownership

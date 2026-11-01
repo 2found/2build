@@ -142,12 +142,12 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 		}
 		var seal projectSeal
 		if err := readProjectJSON(filepath.Join(cs.Home(), "project-seal.json"), &seal); err != nil {
-			child.Problems = append(child.Problems, "verification: seal required before delivery or cleanup")
+			child.Problems = append(child.Problems, "build: not done yet (its worker's bbs team task done records its work)")
 		} else {
 			child.Repos = seal.Repos
-			child.Waiver = seal.Waiver
+			child.PhaseReview = seal.PhaseReview || (seal.Waiver != nil && seal.Waiver.PhaseReview)
 			if c.ArtifactsOnly != (len(seal.Artifacts) > 0) {
-				child.Problems = append(child.Problems, "seal does not match approved delivery type")
+				child.Problems = append(child.Problems, "recorded work does not match approved delivery type")
 			}
 			problems, landed := validateProjectSeal(cs, seal)
 			child.Problems = append(child.Problems, problems...)
@@ -167,26 +167,6 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 	for _, seed := range c.Seeds {
 		if bindings[seed] == "" {
 			s.Blockers = append(s.Blockers, "scope: no child bound to "+seed)
-		}
-	}
-	for _, child := range s.Children {
-		if child.landed {
-			// Its phase commit composed and verified both sides.
-			continue
-		}
-		for _, dependency := range child.BlockedBy {
-			for _, upstream := range s.Children {
-				if upstream.ID != dependency {
-					continue
-				}
-				for _, depRepo := range upstream.Repos {
-					for _, repo := range child.Repos {
-						if repo.Canonical == depRepo.Canonical && !gitOKIn(repo.Canonical, "merge-base", "--is-ancestor", depRepo.Head, repo.Head) {
-							s.Blockers = append(s.Blockers, "dependency "+dependency+": current revision not verified in "+child.ID)
-						}
-					}
-				}
-			}
 		}
 	}
 	s.Subject = digestJSON(inputs)
@@ -209,9 +189,6 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 		ev.State = "passed"
 		if len(ev.Problems) > 0 {
 			ev.State = "failed"
-		}
-		if ev.Subject != projectEvidenceSubject(s, ev) {
-			ev.State = "stale"
 		}
 		s.Evidence = append(s.Evidence, ev)
 	}
@@ -242,18 +219,17 @@ func projectRead(st *ticket.Store) (projectSnapshot, error) {
 	return s, nil
 }
 
-// validateProjectSeal reports what invalidates a child's seal, and whether the
-// child has landed: every checkout it was cut in moved off its base (its phase
-// landed into it) or was removed. A landed child's snapshot is the record, so
-// later edits to shared inputs (a workflow its own phase rewrote) and repairs
-// to its dependencies no longer reopen it.
+// validateProjectSeal reports what makes a child's recorded work unusable,
+// and whether the child has landed: every checkout it was cut in moved off
+// its base (its phase landed into it) or was removed. Nothing recorded goes
+// stale: later edits are taken by the next integrate.
 func validateProjectSeal(st *ticket.Store, seal projectSeal) ([]string, bool) {
 	problems := []string{}
 	if len(seal.Artifacts) > 0 {
-		return validateArtifactSeal(st, seal), false
+		return nil, false
 	}
 	if seal.Version != 1 || seal.Ticket != st.Env.Ticket || len(seal.Repos) == 0 {
-		return []string{"invalid seal"}, false
+		return []string{"invalid recorded work"}, false
 	}
 	m, err := ticket.ReadManifest(st.ManifestPath())
 	if err != nil || len(m.Repos) != len(seal.Repos) {
@@ -267,25 +243,13 @@ func validateProjectSeal(st *ticket.Store, seal projectSeal) ([]string, bool) {
 			landed = false
 			continue
 		}
-		if gitOutIn(r.Canonical, "rev-parse", "--verify", "-q", ticketSnapshotRef(st.Env.Ticket)+"^{commit}") != r.Head {
-			problems = append(problems, "snapshot changed or unavailable: "+ticketSnapshotRef(st.Env.Ticket))
+		if !gitOKIn(r.Canonical, "cat-file", "-e", r.Head+"^{commit}") {
+			problems = append(problems, "snapshot unavailable: "+r.Head)
 		}
-		// Work edited after the seal is unverified.
 		if mr.Worktree != "" {
 			if fi, err := os.Stat(mr.Worktree); err == nil && fi.IsDir() && gitOutIn(mr.Worktree, "rev-parse", "--verify", "-q", "HEAD^{commit}") == r.BaseHead {
 				landed = false
-				if tree, err := worktreeTree(mr.Worktree); err != nil || tree != treeOf(r.Canonical, r.Head) {
-					problems = append(problems, "worktree changed since seal: "+mr.Worktree)
-				}
 			}
-		}
-	}
-	if !landed {
-		inputs, _, err := projectChildInputs(st)
-		if err != nil {
-			problems = append(problems, "evidence: "+err.Error())
-		} else if inputs != seal.Inputs {
-			problems = append(problems, "evidence: changed since seal")
 		}
 	}
 	return problems, landed && len(problems) == 0
@@ -302,103 +266,32 @@ func projectCheckPassed(ev projectEvidence, criterion, kind string) bool {
 	return false
 }
 
-// sealWaivable splits readiness reason codes into what a waiver cannot cover
-// and the state of each waived gate. Only a gate that is missing or stale can
-// be waived: a BLOCKED/failed verdict, a limited result or unresolved material
-// findings recorded by review-pr still stop the seal.
-func sealWaivable(codes, waive []string) (rest []string, states map[string]string) {
-	states = map[string]string{}
-	for _, code := range codes {
-		gate, why, _ := strings.Cut(code, ":")
-		if slices.Contains(waive, gate) && (why == "missing" || strings.HasPrefix(why, "stale_")) {
-			if why == "missing" || states[gate] == "" {
-				states[gate] = strings.SplitN(why, "_", 2)[0]
-			}
-			continue
-		}
-		rest = append(rest, code)
-	}
-	return rest, states
-}
-
-func parseSealWaiver(kv map[string]string) ([]string, error) {
-	if kv["waive"] == "" {
-		if kv["reason"] != "" {
-			return nil, fmt.Errorf("--reason belongs to --waive")
-		}
-		return nil, nil
-	}
-	if strings.TrimSpace(kv["reason"]) == "" {
-		return nil, fmt.Errorf("--waive needs --reason \"<why the gate is not needed>\"")
-	}
-	var gates []string
-	for _, g := range strings.Split(kv["waive"], ",") {
-		g = strings.TrimSpace(g)
-		if g != "review-pr" && g != "qa" {
-			return nil, fmt.Errorf("--waive takes review-pr and/or qa, not %q", g)
-		}
-		if !slices.Contains(gates, g) {
-			gates = append(gates, g)
-		}
-	}
-	return gates, nil
-}
-
-func projectSealChild(st *ticket.Store, waive []string, reason string, fixup bool) error {
+// projectRecordChild records a finished ticket's work for its phase: its
+// uncommitted tree as a snapshot commit the phase composes from. A
+// succeeded task done records it; integrate records edits made after that.
+func projectRecordChild(st *ticket.Store) error {
 	return withLock(st, func() error {
-		inputs, owners, err := projectChildInputs(st)
-		if err != nil {
-			return err
-		}
 		m, err := ticket.ReadManifest(st.ManifestPath())
 		if err != nil {
 			return err
 		}
 		if len(m.Repos) != 1 {
-			return fmt.Errorf("one verified repository per child is required; split cross-repo work into dependent children")
+			return fmt.Errorf("one repository per ticket is required; split cross-repo work into dependent tickets")
 		}
-		seal := projectSeal{Version: 1, Ticket: st.Env.Ticket, At: isoNow(), Inputs: inputs, Owners: owners, Repos: []projectRepo{}}
-		// A phase fixup is reviewed and re-tested on the phase commit.
-		phaseReview := fixup
+		seal := projectSeal{Version: 1, Ticket: st.Env.Ticket, At: isoNow(), Owners: projectChildOwners(st), Repos: []projectRepo{}}
 		for _, r := range m.Repos {
 			if !filepath.IsAbs(r.Canonical) || !filepath.IsAbs(r.Worktree) {
 				return fmt.Errorf("manifest needs absolute canonical and worktree paths")
-			}
-			env := st.Env
-			env.Branch = r.Branch
-			ready, err := evaluateReadinessIn(env, "review", r.Worktree)
-			if err != nil {
-				return err
-			}
-			if !ready.Ready {
-				if len(waive) == 0 {
-					// Gates staled only by adopting work outside the reviewed
-					// diff stand; no worker is launched to re-stamp them.
-					doc := ticket.ReadDoc(st.IndexPath())
-					if why, ok := adoptionCarry(r.Worktree, st.Home(), doc.Get("pointers.review_tree"), ready.ReasonCodes); ok {
-						waive, reason = []string{"review-pr", "qa"}, "carried: "+why
-					} else if gates, why, ok := deferralCovers(r.Worktree, st.Home(), doc, ready.ReasonCodes); ok {
-						waive, reason, phaseReview = gates, why, slices.Contains(gates, "review-pr")
-					}
-				}
-				rest, states := sealWaivable(ready.ReasonCodes, waive)
-				if len(rest) > 0 {
-					return fmt.Errorf("child not verified: %v; if the gates are not needed or the work was verified in its handoff, seal with --waive <review-pr|qa>[,<gate>] --reason \"<text>\" (only missing or stale gates can be waived)", rest)
-				}
-				w := &projectWaiver{Gates: []string{}, Reason: strings.TrimSpace(reason), At: isoNow(), States: states, PhaseReview: phaseReview}
-				for gate := range states {
-					w.Gates = append(w.Gates, gate)
-				}
-				slices.Sort(w.Gates)
-				seal.Waiver = w
 			}
 			cut := gitOutIn(r.Worktree, "rev-parse", "--verify", "-q", "HEAD^{commit}")
 			if cut == "" || gitOutIn(r.Worktree, "branch", "--show-current") != r.Branch {
 				return fmt.Errorf("worktree is not on the declared ticket branch")
 			}
-			// The worker's uncommitted tree is the verified work; the seal
-			// pins it as a snapshot the phase composes from.
-			head, err := sealTicketSnapshot(r.Worktree, st.Env.Ticket, readAdopted(st.Home()))
+			env := st.Env
+			env.Branch = r.Branch
+			ready, err := evaluateReadinessIn(env, "review", r.Worktree)
+			seal.PhaseReview = err != nil || slices.ContainsFunc(ready.ReasonCodes, func(c string) bool { return strings.HasPrefix(c, "review-pr:") })
+			head, err := sealTicketSnapshot(r.Worktree, st.Env.Ticket)
 			if err != nil {
 				return err
 			}
@@ -407,7 +300,7 @@ func projectSealChild(st *ticket.Store, waive []string, reason string, fixup boo
 		if err := writeJSONAtomic(filepath.Join(st.Home(), "project-seal.json"), seal); err != nil {
 			return err
 		}
-		projectEvent(st, "child_sealed", "", "", "")
+		projectEvent(st, "child_recorded", "", "", "")
 		return nil
 	})
 }
@@ -489,24 +382,6 @@ func foremanProjectCommand(verb string, args []string) error {
 			doc.Set("origin.project_seed", kv["seed"])
 			return ticket.WriteDoc(cs.IndexPath(), doc)
 		})
-	case "seal":
-		if kv["file"] != "" {
-			return projectSealArtifacts(st, kv["file"])
-		}
-		if fix := strings.TrimSpace(kv["fixup"]); fix != "" {
-			if kv["waive"] != "" || kv["reason"] != "" {
-				return fmt.Errorf("--fixup takes no --waive/--reason; it waives the stale gates itself")
-			}
-			if d := openTicketDispatch(st.Env.Ticket); d != "" {
-				return fmt.Errorf("--fixup: dispatch %s still owns this ticket's worktree; only a settled ticket takes a phase fixup", d)
-			}
-			return projectSealChild(st, []string{"review-pr", "qa"}, "phase fixup: "+fix, true)
-		}
-		waive, err := parseSealWaiver(kv)
-		if err != nil {
-			return err
-		}
-		return projectSealChild(st, waive, kv["reason"], false)
 	case "evidence":
 		return projectEvidenceCommand(st, kv)
 	case "progress":
@@ -566,34 +441,6 @@ func foremanProjectCommand(verb string, args []string) error {
 
 // foremanSealMany seals each named ticket independently: one ticket that is
 // not ready does not hold back the rest of a settled batch.
-func foremanSealMany(args []string) error {
-	var ids []string
-	for len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		ids, args = append(ids, args[0]), args[1:]
-	}
-	if len(ids) <= 1 {
-		return foremanProjectCommand("seal", append(ids, args...))
-	}
-	for _, a := range args {
-		if a == "--file" {
-			return fmt.Errorf("seal: --file seals one evidence-only ticket at a time")
-		}
-	}
-	failed := 0
-	for _, id := range ids {
-		if err := foremanProjectCommand("seal", append([]string{id}, args...)); err != nil {
-			failed++
-			fmt.Printf("NOT_SEALED=%s %v\n", id, err)
-			continue
-		}
-		fmt.Println("SEALED=" + id)
-	}
-	if failed > 0 {
-		return fmt.Errorf("seal: %d of %d tickets not sealed", failed, len(ids))
-	}
-	return nil
-}
-
 // projectBindPhase marks a direct child of the parent as one phase's ticket:
 // the parent of that phase's tickets and the holder of its release approval.
 func projectBindPhase(st *ticket.Store, s projectSnapshot, phase, child string) error {

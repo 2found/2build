@@ -465,7 +465,7 @@ func TestBatchDryRunWakesOnlyForQuestionsAndTheSettledBatch(t *testing.T) {
 		f.world.Panes["term_w_"+task] = fmt.Sprintf("%s: working (%dm)", task, min)
 	}
 
-	// Two hours of work. B sits in `bbs team await` (its spinner moves);
+	// Two hours of work. B sits in a long foreground check (its spinner moves);
 	// C asks for its L plan review, is answered, then asks again.
 	for min := 0; min <= 120; min += 5 {
 		busy("phase-a", min)

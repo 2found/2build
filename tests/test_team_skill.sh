@@ -40,7 +40,7 @@ has_all "bbs-owned-worker-lifecycle" \
   'agent-launch' 'task abandon' 'durable bbs records'
 
 has_all "foreman-owns-topology" \
-  'bbs ticket ensure --mode=worktree' 'bbs team seal' 'bbs team integrate' \
+  'bbs ticket ensure --mode=worktree' 'bbs team task done' 'bbs team integrate' \
   'bbs team land' 'apply' 'in dependency order'
 
 has_all "finish-cleans-worker-workspace" \
@@ -81,13 +81,13 @@ fi
 
 has_all "ticket-runs-whole-loop-in-one-session" \
   'One context, one session' 'select its route once' \
-  'every follow-up' 'without stopping between steps' 'Adopt prerequisites' \
-  'CONFLICT=' 'no separate' 'approval self-resolve'
+  'every follow-up' 'without stopping between steps' 'never depend on each other' \
+  'you resolve every conflict there yourself' 'never a ticket follow-up' 'approval self-resolve'
 
 has_all "ticket-session-ownership" \
   '### Ticket session ownership' 'fresh' 'session' \
   'foreman_keep_settled_workers' 'shut' \
-  '`repair`' '`refresh`' '`redirect`' '`deliver`' \
+  '`repair`' '`redirect`' '`deliver`' \
   '### Reuse a ticket session' '--terminal "$TICKET_TERMINAL"' '`transport-matched`' \
   'Never reuse one ticket' 'holds no lease'
 
@@ -99,13 +99,12 @@ has_all "plan-approval-self-by-worker" \
 
 has_all "ticket-session-cache-economics" \
   'Wake rarely, and warm' 'keep-warm' 'reply `ok`' 'chain commands' \
-  'ticket|repair|refresh|redirect`' 'GATE=not-ready' 'carrying every gap' \
-  'merge its repair and refresh triggers into one spec' 'manifest rows it owns, by path and heading'
+  'ticket|repair|redirect`' 'GATE=not-ready' 'none of them costs a follow-up' \
+  'A follow-up exists for only two cases' 'manifest rows it owns, by path and heading'
 
 has_all "whole-phase-one-wake" \
-  'one wake per phase' 'Dependent tickets therefore launch' \
-  'bbs team await --prereqs' 'AWAIT=not-ready' 'Stay light' \
-  'dependent never displaces runnable work' '`messages:<n>` (an escalated plan'
+  'one wake per phase' 'are independent, so they all launch' \
+  'Stay light' 'light profiles take the slots first' '`messages:<n>` (an escalated plan'
 
 has_all "watcher-self-heals-lost-workers" \
   '`lost:<task>`' '`bbs team task abandon` it and close its terminal' \
@@ -117,9 +116,9 @@ else
   ok "no-per-wave-wake"
 fi
 
-has_all "fresh-eyes-only-after-retry-budget" \
-  'after its retry budget' 'Fresh read-only' 'diagnosis worker' \
-  'a context' 'that has not already failed three times'
+has_all "one-repair-then-park" \
+  'still `BLOCKED` after its one repair is parked' 'no diagnosis worker' \
+  'fix session — the same shape as phase QA' 'no `repair` through the lead'
 
 has_all "workflow-aware-dispatch" \
   'pointers.workflow' '`builder` unless the project defines its own' 'evidence-only'
@@ -130,7 +129,7 @@ has_all "phase-qa-gate" \
 
 has_all "durable-resume-and-finish" \
   'bbs team task list "$FOREMAN_ID"' 'Terminal handles are routing metadata' \
-  'bbs ticket readiness --action review --json' 'bbs team snapshot'
+  'recorded the deferral to the phase' 'bbs team snapshot'
 
 has_all "ensure-before-init-ordering" \
   'ensure --mode=worktree' '--from-input-file "$SEED_PATH"' \
@@ -184,7 +183,7 @@ has_all "heavy-checks-deferred-and-merged" \
   'never displaces light work' 'one simulator boot' 'BABYSIT_TICKET=<ticket>'
 has_all "ticket-closeout-inside-phase" \
   '## Ticket close-out and phase landing' 'unfinished work' \
-  'bbs team land "$PARENT" --phase "$K"' 'every prerequisite it adopted' \
+  'bbs team land "$PARENT" --phase "$K"' 'nobody seals' \
   'never blind-retry' 'phase that does not compose'
 
 has_all "basic-design-gates-phase-topology" \
@@ -228,13 +227,13 @@ for required in (
     'bbs team report <parent>', 'atomically\nreplace parent `report.md`',
     '`LANDED`', '`RELEASED`', 'UNKNOWN',
     'bbs team integrate', 'bbs team land',
-    'STALE and a rerun',
+    'fixes every failure itself',
 ):
     assert required in contract, required
 assert 'Team integration mode' in qa
 assert 'tests that exact commit read-only' in qa
 assert 'integration worktree, commit or switch revisions' in qa
-assert 'seal --fixup' in qa
+assert '`integrate` takes the' in qa
 PY
 then
   ok "project-approval-report-and-final-surface-contract"

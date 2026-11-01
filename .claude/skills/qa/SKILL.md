@@ -63,12 +63,12 @@ Exercise the application like a user and leave reproducible evidence.
    (`contracts_changed` in the integrate output). Verify the worktree is
    clean at that commit before and after testing. Do not edit the
    integration worktree, commit or switch revisions while testing. Once the
-   attempt is recorded, the session fixes small findings in the owning
-   ticket's worktree per the lead's phases reference (`seal --fixup`,
-   integrate again, re-test what changed; a conflict that integrate lays
-   out in the integration worktree is resolved there before its commit
-   exists); report the rest to the lead for
-   ticket repairs; persist evidence/verdict on the parent.
+   attempt is recorded, the session fixes every finding itself in the owning
+   ticket's worktree per the lead's phases reference (`integrate` takes the
+   fix, `land`, re-test what changed; a conflict that integrate lays out in
+   the integration worktree is resolved there before its commit exists);
+   nothing goes back to the lead as a repair, and only a fix beyond the
+   approved scope ends `BLOCKED`. Persist evidence/verdict on the parent.
    Inside a ticket worktree, install and serve from that worktree with the
    ports, databases and secrets `qa.yaml` names. When the run uses a resource
    only one ticket can hold at a time, take `bbs ticket surface acquire`

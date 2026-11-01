@@ -1,43 +1,28 @@
 ## Ticket close-out and phase landing
 
 A ticket is never delivered alone. Its worker leaves the work uncommitted;
-the lead seals it (`bbs team seal`), and it reaches base only inside its
+its succeeded `bbs team task done` records that tree on the hidden ref
+`refs/bbs/tickets/<id>` — nobody seals — and it reaches base only inside its
 phase's single commit ([phases](phases.md)). **A ticket that was committed,
 pushed or PR'd on its own is unfinished work**, not a shortcut: treat it as a
-`repair` (the session discards nothing; the next seal snapshots the tree).
+`repair` (the session discards nothing; its `task done` records the tree).
 
-A ticket is sealable when:
+`task done` accepts success only when `bbs ticket readiness --action review`
+passes, counting the gates the ticket leaves to its phase (every gate off the
+money/auth/irreversible-data floor); nothing recorded goes stale. A worker
+whose gates are not needed reports with `--no-gate "<why>"`; a failed verdict
+or open material finding is fixed in that session, not waived. Edits after
+`task done` are taken by the next `integrate`. A repair or QA fix is never
+re-reviewed ([review effort](phases.md#review-effort)).
 
-- current `review-pr` + `qa` verdicts are DONE or DONE_WITH_CONCERNS, except
-  the gates its size leaves to phase review (`seal` records that deferral);
-- `bbs ticket readiness --action review --json` reports `data.ready: true`
-  (it checks content-bound evidence, an active attempt, and staleness);
-- every prerequisite it adopted is itself sealed at that snapshot.
+An evidence-only ticket (project `artifacts_only: true`) reports with
+`bbs team task done … --artifacts <paths.json>` instead; its worktree holds no
+code change.
 
-Gates are proportional, not a ritual: the lead judges. A simple or docs-only
-ticket, or a `repair` whose handoff already shows the tests, build and review
-done on the final tree, may be sealed without re-stamping the gates:
-
-```bash
-bbs team seal "$CHILD" --waive review-pr,qa --reason "docs only; checked in handoff"
-```
-
-`--waive` accepts `review-pr`, `qa` or both and covers only a gate that is
-**missing or stale**. It never overrides a BLOCKED/failed verdict, a limited
-result, unresolved material findings, a manifest or snapshot change. The
-waiver (gates, state, reason, time) is stored in the seal and shown as a note
-in `bbs team snapshot` and `readiness`: a concern to report, never a
-blocker. An `XS`/`S` repair or fixup waives `review-pr` by default; the
-phase's delta review covers it ([review effort](phases.md#review-effort)).
-
-An evidence-only child is sealable when its workflow verdict, acceptance
-evidence are current and its worktree holds no code
-change; seal its artifacts (`bbs team seal "$CHILD" --file`). If any code
-changed, use the code-bearing path instead.
-
-A ticket's worker is shut down when it reports done; a phase QA failure comes
-back as a `repair` on a fresh session in the ticket worktree, pointed at the
-ticket's handoffs. A phase that does not compose does not: its conflicts are
+A ticket's worker is shut down when it reports done; a phase QA failure is
+fixed by the phase QA session itself
+([phases](phases.md#4-cumulative-qa-and-product-review)), never sent back as
+a `repair`. A phase that does not compose does not either: its conflicts are
 resolved in the phase worktree ([git flow](../references/git-flow.md) step 6).
 
 ### When the phase is landed and verified
@@ -45,7 +30,7 @@ resolved in the phase worktree ([git flow](../references/git-flow.md) step 6).
 `bbs team land "$PARENT" --phase "$K"` only fast-forwards base; the worktrees
 stay for phase QA and its fixes. The evidence record that makes the landed
 phase pass QA removes the phase's integration worktree and every ticket
-worktree whose content still equals its sealed snapshot
+worktree whose content still equals its recorded snapshot
 (the snapshot ref keeps that work). It first closes every Orca terminal in those worktrees
 (`closed_terminals`) — the ticket sessions and phase QA worker were kept only
 for repairs — never its caller's:
@@ -55,7 +40,7 @@ bbs team evidence ... --json   # cleanup: removed_worktrees / kept_worktrees / c
 BABYSIT_TICKET="$CHILD" bbs ticket set-status done   # each ticket of the phase
 ```
 
-A `kept_worktrees` entry holds edits made after its seal: report it; never
+A `kept_worktrees` entry holds edits its phase commit lacks: report it; never
 delete it. Remove one that is only held open by a stale handle with
 `bbs ticket worktree-remove <path>` (bounded NTFS open-handle retries).
 
@@ -75,15 +60,15 @@ Failure routing — never blind-retry an unchanged state or schedule retry ticks
 | Reported condition | Next action |
 |---|---|
 | Surface lease held | Queue until release/resource notification or bounded recovery |
-| Stale evidence / `ready:false` | Re-run affected gates, then reseal |
-| `integrate` / `land`: `CONFLICT=` laid out in `RESOLVE_IN=` | Resolve in place, focused checks, `integrate` again ([git flow](../references/git-flow.md) step 6) |
+| Missing gate / `ready:false` | The ticket's session runs the missing gate before its `task done` |
+| `integrate` / `land`: `CONFLICT=` laid out in `RESOLVE_IN=` | You resolve it in place, focused checks, `integrate` again ([git flow](../references/git-flow.md) step 6); never a ticket follow-up |
 | `land`: `LOCAL_CHANGES=` in a checkout of base | Ask the human to allow committing them; with the go, `land --commit-local "<message>"` (git flow step 7). Never stash, reset or overwrite them |
 | release readiness: base carries work outside the project | Confirmation with a deadline, then release or `--skip` ([phases §5](phases.md#5-release)) |
 | a worker exited, was lost or abandoned mid-task (a release included) | `task launch` the same Task: its spec gains a Resume section from the earlier Dispatches; a release resumes with `release-prd --resume <tag>` |
 | cleanup: worktree kept | Report it; keep the work |
 
 On resume, read `bbs team snapshot` first: a phase whose commit is on base
-is landed whatever the worktrees look like; a sealed ticket's work lives on
+is landed whatever the worktrees look like; a finished ticket's work lives on
 `refs/bbs/tickets/<id>` even after its worktree is gone. Never assume success
 from a log line — the snapshot is the record.
 
@@ -107,7 +92,7 @@ run, in one place.
    **See it** — preview URL or start command; where test accounts live.
    **Evidence** — per acceptance criterion: PASS and its evidence link.
    **Decisions taken for you** — each with the reason and how to reverse it.
-   **Limits and follow-ups** — known gaps, waived gates, carried evidence,
+   **Limits and follow-ups** — known gaps, skipped gates, carried evidence,
      anything parked; what is out of scope by the spec. Every open finding
      of MEDIUM or above is a backlog ticket, listed by id; owner steps
      (credentials, live accounts, store review) are listed as such.
@@ -142,10 +127,12 @@ The human answers on the release approval:
   design:
   - **in scope** — a defect, a criterion that does not hold, a flow that
     differs from the prototype, a decision taken for them that they reverse:
-    the team owes the fix. Run one fix round alone: one `repair` per owning
-    ticket carrying all its items, reseal, integrate, land, phase review +
-    QA (carry what the fixes cannot touch), update the handover with what
-    changed, re-render the recap and request the go again. No questions in
+    the team owes the fix. Run one fix round alone in **one** session, the
+    same shape as phase QA ([phases](phases.md#4-cumulative-qa-and-product-review)):
+    dispatch one fix worker on `--qa-worker` with every item; it edits the
+    owning tickets' worktrees, runs `integrate` + `land` and re-tests what
+    the fixes touched. Then update the handover with what changed,
+    re-render the recap and request the go again. No questions in
     between — an ambiguous item is fixed the way the spec reads, and the
     handover says how.
   - **beyond scope** — a new journey, a changed criterion, a different
@@ -191,8 +178,8 @@ terminal evidence.
 ## Decision trail
 
 `<parent>/decisions.jsonl` is the project's append-only record of the
-judgments the team took for the human. Project state already records seals,
-waivers, integrations, landings and releases; log what it cannot reconstruct:
+judgments the team took for the human. Project state already records
+finished tickets, integrations, landings and releases; log what it cannot reconstruct:
 
 ```bash
 bbs team log "$PARENT" --phase <id|design|handover|start> [--ticket <id>] \
@@ -203,8 +190,8 @@ bbs team log "$PARENT" --phase <id|design|handover|start> [--ticket <id>] \
 
 - **Log**: an assumption or Taste choice the spec left open; a project-plan
   approval you resolved under `--auto` and each `L` or money/auth/
-  irreversible-data plan you approved; a resize; the reason behind a waiver,
-  a carry or a fixup; a worker replaced, a pivot or revert and its trigger; a
+  irreversible-data plan you approved; a resize; the reason behind a skipped gate
+  or a carry; a worker replaced, a pivot or revert and its trigger; a
   blocker that survived its attempts and what was done instead; the human's
   handover answer. A worker's `M` self-approval reaches you in its handoff —
   log it if it decided something the brief left open.

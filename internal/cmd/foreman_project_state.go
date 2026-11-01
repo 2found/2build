@@ -52,18 +52,18 @@ type projectSeal struct {
 	Repos     []projectRepo     `json:"repos"`
 	Owners    []string          `json:"owners"`
 	Artifacts map[string]string `json:"artifacts,omitempty"`
-	// Waiver records review-pr/qa gates Foreman sealed without; a note, never a blocker.
-	Waiver *projectWaiver `json:"waiver,omitempty"`
-}
-
-type projectWaiver struct {
-	Gates  []string          `json:"gates"`
-	Reason string            `json:"reason"`
-	At     string            `json:"at"`
-	States map[string]string `json:"states"` // gate -> missing | stale
-	// PhaseReview: the gate was deferred (ticket size) or the work changed in a
-	// phase fixup, so the phase commit carries a review check instead.
+	// PhaseReview: the ticket's own review-pr did not pass (it was left to
+	// the phase), so the phase commit carries a review check.
 	PhaseReview bool `json:"phase_review,omitempty"`
+	// Waiver is how a record written before seal was removed named its
+	// deferred gates; read only, so a project in flight keeps its built tickets.
+	Waiver *struct {
+		Gates       []string          `json:"gates"`
+		Reason      string            `json:"reason"`
+		At          string            `json:"at"`
+		States      map[string]string `json:"states"`
+		PhaseReview bool              `json:"phase_review,omitempty"`
+	} `json:"waiver,omitempty"`
 }
 
 type projectChild struct {
@@ -75,8 +75,9 @@ type projectChild struct {
 	Repos     []projectRepo    `json:"repos"`
 	Problems  []string         `json:"problems"`
 	Progress  *projectProgress `json:"progress,omitempty"`
-	Waiver    *projectWaiver   `json:"waiver,omitempty"`
-	landed    bool
+	// PhaseReview: its work is reviewed on the phase commit.
+	PhaseReview bool `json:"phase_review,omitempty"`
+	landed      bool
 }
 
 // A surface is the phase commit as checked out in its integration worktree
@@ -216,65 +217,28 @@ func validateProjectContract(c projectContract) error {
 	return validateProjectPhases(c)
 }
 
-func projectChildInputs(st *ticket.Store) (string, []string, error) {
+// projectChildOwners names the workers whose recorded gates built the
+// ticket, so phase evidence is never produced by one of them.
+func projectChildOwners(st *ticket.Store) []string {
+	owners := []string{}
 	cp, err := readCheckpointV2(st.Home(), st.Env.Ticket)
 	if err != nil {
-		return "", nil, err
+		return owners
 	}
-	if stringValue(cp["active_attempt_id"]) != "" {
-		return "", nil, fmt.Errorf("active attempt still owns ticket")
-	}
-	rows := map[string]string{}
-	for _, artifact := range collectSnapshotArtifacts(st.Home(), stringValue(cp["workflow"])) {
-		if artifact.Role != "checkpoint" && artifact.Role != "manifest" {
-			rows[artifact.Role] = artifact.Digest
-		}
-	}
-	owners := []string{}
 	accepted, _ := cp["accepted_evidence"].(map[string]interface{})
 	for _, gate := range []string{"review-pr", "qa"} {
 		id := stringValue(accepted[gate])
-		if id == "" {
-			// Never run: only a seal waiver (deferral, fixup, --waive) admits it.
-			rows[gate] = "missing"
+		if !idRe.MatchString(id) {
 			continue
 		}
-		if !idRe.MatchString(id) {
-			return "", nil, fmt.Errorf("%s: invalid accepted evidence id", gate)
-		}
-		path := filepath.Join(st.Home(), "evidence", "verification", "attempts", id+".json")
-		ev, err := readStrictObject(path, true)
+		ev, err := readStrictObject(filepath.Join(st.Home(), "evidence", "verification", "attempts", id+".json"), true)
 		if err != nil {
-			return "", nil, err
+			continue
 		}
-		attempt, err := readAttemptRecordStrict(filepath.Join(st.Home(), "attempts", id+".json"))
-		if err != nil {
-			return "", nil, err
-		}
-		if attempt.State != "completed" || attempt.RunID != stringValue(cp["run_id"]) || attempt.Gate != gate || attempt.Ticket != st.Env.Ticket {
-			return "", nil, fmt.Errorf("%s: accepted attempt no longer completed/current", gate)
-		}
-		// Sealing runs the full current-tree validator. Subsequent reads bind
-		// its accepted bytes and durable logs without needing the old checkout.
-		for _, raw := range interfaceSlice(ev["checks"]) {
-			check, ok := raw.(map[string]interface{})
-			if !ok {
-				return "", nil, fmt.Errorf("malformed check")
-			}
-			log := stringValue(check["log_path"])
-			if !filepath.IsAbs(log) {
-				log = filepath.Join(st.Home(), log)
-			}
-			if digest, ok := digestFile(log); !ok || digest != stringValue(check["log_digest"]) {
-				return "", nil, fmt.Errorf("%s: check log missing or changed", gate)
-			}
-		}
-		rows[gate] = digestJSON(map[string]interface{}{"evidence": ev, "attempt": attempt})
 		producer, _ := ev["producer"].(map[string]interface{})
-		owner := stringValue(producer["owner"])
-		if !slices.Contains(owners, owner) {
+		if owner := stringValue(producer["owner"]); owner != "" && !slices.Contains(owners, owner) {
 			owners = append(owners, owner)
 		}
 	}
-	return digestJSON(rows), owners, nil
+	return owners
 }

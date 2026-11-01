@@ -33,11 +33,10 @@ before `schema_version: 2` is refused until
 
 ## Delivery and recovery
 
-- Seal each code child while its verified checkout still exists
-  (`bbs team seal <ticket>...` takes several at once). The seal snapshots the
-  uncommitted tree on a hidden ref and binds policy, accepted review/QA attempts
-  and archived logs. Removed worktrees do not erase that proof. A later edit to
-  the tree or changed logs invalidate it.
+- A code child's succeeded `bbs team task done` snapshots its uncommitted
+  tree on a hidden ref; there is no seal step. `bbs team integrate` snapshots
+  any edit made after it (a QA fix), and removed worktrees do not erase the
+  snapshot. Nothing recorded goes stale.
 - One code child owns one repository. Split cross-repository work into dependent
   children; final verification names every affected repository surface.
 - Each phase is composed into one commit (`bbs team integrate`) and QA'd on
@@ -50,8 +49,8 @@ before `schema_version: 2` is refused until
   and changed files, releases, acceptance coverage and tickets. The team lead's
   terminal stays open afterwards; `bbs team recap PARENT` re-renders the
   page. Landing on local base, push and release are reported separately.
-- For documentation/research projects, explicitly approve `artifacts_only` and
-  seal the child workflow's durable outputs. Production commits cannot use this
+- For documentation/research projects, explicitly approve `artifacts_only`; the
+  child reports its workflow's durable outputs with `task done --artifacts`. Production commits cannot use this
   shortcut.
 
 Structured progress advances when recorded evidence changes. Wait reports need a

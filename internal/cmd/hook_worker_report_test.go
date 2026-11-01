@@ -31,11 +31,16 @@ func TestWorkerReportGate(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			// Repeated Stop invocations must still block while the same
-			// Dispatch is open; a continuation is not a report.
+			// The continuation a block started stops freely: one reminder
+			// per stop, never a loop.
+			var again bytes.Buffer
+			runWorkerReportGate([]byte(`{"stop_hook_active":true}`), &again)
+			if again.Len() != 0 {
+				t.Fatalf("continuation blocked again: %s", again.String())
+			}
 			for range 2 {
 				var out bytes.Buffer
-				runWorkerReportGate(&out)
+				runWorkerReportGate([]byte(`{}`), &out)
 				if tc.block == "" {
 					if out.Len() != 0 {
 						t.Fatalf("unexpected objection: %s", out.String())

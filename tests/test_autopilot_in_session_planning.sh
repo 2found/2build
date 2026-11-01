@@ -51,11 +51,10 @@ forbid '../references/model-routing.md' "$SKILL"
 require 'Autopilot does not select a model tier or reroute the session' "$SKILL"
 require 'The lead owns ticket decomposition, task classification and model selection before' "$SKILL"
 require '### Team ticket assignment' "$SKILL"
-require 'only integration' "$SKILL"
+require 'independent: build against the accepted contracts' "$SKILL"
 require 'Never implement on an unapproved plan record' "$SKILL"
 require '**Plan approval** — every plan' "$SKILL"
-require 'bbs team await --prereqs' "$SKILL"
-require 'AWAIT=not-ready' "$SKILL"
+forbid 'bbs team await' "$SKILL"
 require 'set-pointer deferred_heavy' "$SKILL"
 require 'Never commit, push or open a PR' "$SKILL"
 forbid 'may explicitly assign only' "$SKILL"
@@ -146,11 +145,11 @@ phases = {r[0]: r[1] for r in rows if len(r) == 2 and r[1] in ('critical', 'norm
 assert phases == {
     'Basic design: architecture, prototype, release-phase plan, design review': 'design',
     "Ticket worker: one session for the ticket's whole loop and every follow-up on it": 'critical',
-    "Diagnosis of a ticket's repeated failure": 'critical',
     'Mechanical re-verification of recorded checks on unchanged code': 'normal',
     'Phase integration: QA of the phase commit, cumulative criteria, then land': 'normal',
     'Consolidated heavy QA and product acceptance checks': 'normal',
     'Phase release: `release-prd` and its hypercare': 'normal',
+    'Handover fix: every in-scope feedback item, integrate, land, re-test': 'normal',
     'Finish audits, restoration and cleanup in a fresh session': 'normal',
 }, phases
 PY
@@ -158,14 +157,13 @@ PY
 # --- gate cost contracts: delta re-review and tiered review subagents --------
 VERIFY="$ROOT/.claude/skills/autopilot/references/verification.md"
 REVIEW="$ROOT/.claude/skills/review-pr/SKILL.md"
-require 'Re-review the fix delta, not the whole ticket.' "$SKILL"
-require 'bbs ticket set-pointer review_tree <tree>' "$SKILL"
-require 'GIT_INDEX_FILE=$i git write-tree' "$SKILL"
-require 'answers `verification subject changed` and fails the attempt' "$VERIFY"
+require '**Review once.** One `review-pr --fix` pass is the review gate.' "$SKILL"
+require 'One `review-pr --fix` pass is the review gate.' "$VERIFY"
 require 'The file takes exactly these three keys' "$VERIFY"
 require 'returns its ID as `data.id`' "$VERIFY"
 require '## 5. Subagent model routing (medium and above)' "$REVIEW"
-require 'light — Reuse, Simplification, Efficiency and Conventions finders.' "$REVIEW"
+require 'Phase 2 verifier and the sweep finder — on the mid tier.' "$REVIEW"
+require '**Effort is capped at `medium`** unless the human' "$REVIEW"
 require 'route above this session'"'"'s model' "$REVIEW"
 require 'When the subagent tool has no model selector' "$REVIEW"
 

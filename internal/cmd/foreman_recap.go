@@ -108,9 +108,6 @@ func renderProjectRecap(st *ticket.Store, s projectSnapshot) string {
 		b.WriteString(`<section class=card><h2>Tickets</h2><div class=scroll><table><tr><th>Ticket</th><th>Title</th><th>Seed</th><th>State</th><th>Notes</th></tr>`)
 		for _, c := range s.Children {
 			notes := append([]string{}, c.Problems...)
-			if c.Waiver != nil {
-				notes = append(notes, "waived "+strings.Join(c.Waiver.Gates, "+")+": "+c.Waiver.Reason)
-			}
 			fmt.Fprintf(&b, "<tr><td><code>%s</code></td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>", esc(c.ID), esc(c.Title), esc(c.Seed), recapBadge(c.State), esc(strings.Join(notes, "; ")))
 		}
 		b.WriteString("</table></div></section>")

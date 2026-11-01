@@ -8,8 +8,8 @@ The CLI owns defaults and settings merging; never copy model tables into skills.
 The lead splits each release phase into tickets and selects one route per ticket from
 its task complexity plus the assignment class; that one supervised session runs
 the ticket's whole loop (plan, build, review, QA) and every follow-up on it.
-Single-purpose assignments (basic design, diagnosis, phase integration,
-heavy QA, release, delivery in a fresh session) get their own routes.
+Single-purpose assignments (basic design, phase integration, heavy QA,
+release, handover fix, delivery in a fresh session) get their own routes.
 `autopilot` does not select models: every step in one invocation runs in the
 session opened by the human or the lead. Neither skill switches a running worker's model.
 
@@ -92,11 +92,11 @@ importance signal, the built-in policy falls back to `pro`.
 | ---------------------------------------------------------------------------------- | ----------- |
 | Basic design: architecture, prototype, release-phase plan, design review           | `design`    |
 | Ticket worker: one session for the ticket's whole loop and every follow-up on it   | `critical`  |
-| Diagnosis of a ticket's repeated failure                                           | `critical`  |
 | Mechanical re-verification of recorded checks on unchanged code                    | `normal`    |
 | Phase integration: QA of the phase commit, cumulative criteria, then land         | `normal`    |
 | Consolidated heavy QA and product acceptance checks                                | `normal`    |
 | Phase release: `release-prd` and its hypercare                                     | `normal`    |
+| Handover fix: every in-scope feedback item, integrate, land, re-test               | `normal`    |
 | Finish audits, restoration and cleanup in a fresh session                          | `normal`    |
 
 A ticket worker is `critical` because it owns its ticket plan and landing review;

@@ -10,7 +10,7 @@ import (
 	"github.com/2found/2build/internal/identity"
 )
 
-func TestV2EvidenceAndReadinessAreBoundToCurrentSubject(t *testing.T) {
+func TestV2EvidenceMakesTicketReadyAndNeverGoesStale(t *testing.T) {
 	repo, env := initReadinessFixture(t)
 	t.Chdir(repo)
 
@@ -50,8 +50,8 @@ func TestV2EvidenceAndReadinessAreBoundToCurrentSubject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stale.Ready || !containsString(stale.ReasonCodes, "qa:stale_requirement_digest") || !containsString(stale.ReasonCodes, "review-pr:stale_requirement_digest") {
-		t.Fatalf("changed requirement reused stale evidence: %+v", stale)
+	if !stale.Ready {
+		t.Fatalf("a requirement edit staled recorded evidence: %+v", stale)
 	}
 }
 
@@ -143,18 +143,19 @@ func TestV2EvidenceRejectsIncompleteChecksAndEscapingCWD(t *testing.T) {
 	}
 }
 
-func TestV2ReadinessRejectsCodeBaseAndPolicyChanges(t *testing.T) {
+// Nothing stales a recorded gate: not code, base, requirement or policy.
+func TestV2ReadinessNeverStalesRecordedGates(t *testing.T) {
 	for _, tc := range []struct {
-		name, reason string
-		mutate       func(*testing.T, string)
+		name   string
+		mutate func(*testing.T, string)
 	}{
-		{"code tree", "qa:stale_tree_digest", func(t *testing.T, repo string) {
+		{"code tree", func(t *testing.T, repo string) {
 			mustWrite(t, filepath.Join(repo, "tracked.txt"), "changed\n")
 		}},
-		{"same-tree base", "qa:stale_base_sha", func(t *testing.T, repo string) {
+		{"same-tree base", func(t *testing.T, repo string) {
 			runGit(t, repo, "commit", "--allow-empty", "-m", "new base")
 		}},
-		{"policy", "qa:stale_policy_digest", func(t *testing.T, repo string) {
+		{"policy", func(t *testing.T, repo string) {
 			runGit(t, repo, "branch", "develop")
 			t.Setenv("BBS_BASE_BRANCH", "develop")
 		}},
@@ -172,8 +173,8 @@ func TestV2ReadinessRejectsCodeBaseAndPolicyChanges(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if result.Ready || !containsString(result.ReasonCodes, tc.reason) {
-				t.Fatalf("mutation did not invalidate evidence with %s: %+v", tc.reason, result)
+			if !result.Ready {
+				t.Fatalf("%s staled a gate: %+v", tc.name, result)
 			}
 		})
 	}

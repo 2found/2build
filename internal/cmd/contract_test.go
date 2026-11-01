@@ -34,7 +34,7 @@ func commitOnMain(t *testing.T, repo string, files map[string]string) {
 	runGit(t, repo, "worktree", "remove", "--force", wt)
 }
 
-func TestContractPinTracksVersionAndGatesTheTicket(t *testing.T) {
+func TestContractPinTracksVersionWithoutGatingTheTicket(t *testing.T) {
 	_, child, repo := projectFixture(t)
 	mustMkdirAll(t, filepath.Join(repo, ".babysit"))
 	mustWrite(t, filepath.Join(repo, ".babysit", "contracts.yaml"), "api:\n  files: [api.yaml, schema/]\n  checks: [\"true\"]\n")
@@ -53,7 +53,7 @@ func TestContractPinTracksVersionAndGatesTheTicket(t *testing.T) {
 	if s := contractState(t, child, "api"); s.State != "current" || s.Pinned == "" || s.Pinned != s.Here {
 		t.Fatalf("fresh pin = %+v", s)
 	}
-	if r := contractReadinessReasons(child, "."); len(r) != 0 {
+	if r := contractChangedReasons(child); len(r) != 0 {
 		t.Fatalf("a current pin gated the ticket: %v", r)
 	}
 
@@ -66,8 +66,8 @@ func TestContractPinTracksVersionAndGatesTheTicket(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !hasReason(r.ReasonCodes, "contract:api:changed") || r.Ready {
-		t.Fatalf("readiness ignored a changed contract: %v", r.ReasonCodes)
+	if hasReason(r.ReasonCodes, "contract:api:changed") {
+		t.Fatalf("a changed contract gated readiness: %v", r.ReasonCodes)
 	}
 	captureStdout(t, func() { _ = runContract([]string{"pin", "api"}) })
 	if s := contractState(t, child, "api"); s.State != "current" {
@@ -79,14 +79,14 @@ func TestContractPinTracksVersionAndGatesTheTicket(t *testing.T) {
 	if s := contractState(t, child, "api"); s.State != "behind" || s.Base == "" {
 		t.Fatalf("newer base version = %+v", s)
 	}
-	if r := contractReadinessReasons(child, "."); len(r) != 0 {
+	if r := contractChangedReasons(child); len(r) != 0 {
 		t.Fatalf("a newer base version gated the ticket: %v", r)
 	}
 
 	if err := os.Remove(filepath.Join(repo, ".babysit", "contracts.yaml")); err != nil {
 		t.Fatal(err)
 	}
-	if r := contractReadinessReasons(child, "."); !hasReason(r, "contract:api:gone") {
+	if r := contractChangedReasons(child); !hasReason(r, "contract:api:gone") {
 		t.Fatalf("a removed contract did not gate: %v", r)
 	}
 }
@@ -135,4 +135,15 @@ func TestIntegrateRecordsOwnContractChecksForPhaseQA(t *testing.T) {
 	if len(steps) != 1 || steps[0].Do != "verify" || !strings.Contains(steps[0].Why, "feature: test -s feature.txt") {
 		t.Fatalf("next after land = %+v", steps)
 	}
+}
+
+// contractChangedReasons lists the pinned contracts that changed or vanished.
+func contractChangedReasons(st *ticket.Store) []string {
+	var out []string
+	for _, s := range contractStatuses(st, ".") {
+		if s.State == "changed" || s.State == "gone" {
+			out = append(out, "contract:"+s.ID+":"+s.State)
+		}
+	}
+	return out
 }

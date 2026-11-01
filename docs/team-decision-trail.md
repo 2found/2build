@@ -5,7 +5,7 @@ Status: partly implemented in 1.115.0. Owner: `team` (lead + `bbs team`).
 **What shipped, and what changed from this proposal:**
 
 - Part 1 ships as `bbs team log` → `<parent>/decisions.jsonl`, with the row
-  schema below. Rows hold judgments only: seals, waivers, integrations,
+  schema below. Rows hold judgments only: finished tickets, integrations,
   landings and releases are already in project state, so integrate/land rows
   are not logged and the "landed phase has an integrate row" check is
   dropped. `--supersedes` must name an existing row at write time. The lead
@@ -117,13 +117,13 @@ Write a row where the team takes a decision for the human or reverses one:
   telemetry line is still emitted).
 - Plan size and approval for a ticket, and any resize.
 - Phase integrate and land, with the commit SHA as evidence.
-- A seal waiver, a fixup, or a gate `--waive`, with the reason.
+- A gate skipped with `task done --no-gate`, with the reason.
 - A hold, grant or revoke seen by the lead.
 - A worker replaced, or a pivot or revert, with its trigger.
 - A blocker that survived its attempts, and what was done instead.
 - The release verdict the human gives, copied from the release request.
 
-Do not log: routine commands, passing checks that are part of a sealed
+Do not log: routine commands, passing checks that are part of a finished
 ticket, or the reasoning inside a worker that never changed the plan.
 
 ### Where it is shown

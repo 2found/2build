@@ -1,5 +1,63 @@
 # Changelog
 
+## 1.122.0 — 2026-11-01
+
+### Changed
+
+- `bbs team land` installs a `pre-push` hook: pushing base before the landed phase passes QA is refused (`--no-verify` overrides). Ticket review floor also covers privacy, tenant, erasure and retention paths. A fix commit is prefixed `Fix:` once. Old `project-seal.json` records with `waiver` stay readable.
+- **Team only coordinates, merges and resolves conflicts; every other session
+  fixes what it finds.** Tickets of one phase are independent: dispatch
+  refuses a `blocked_by` edge between two of them, and work that needs
+  another ticket's code is the same ticket or a later phase. `bbs team
+  await` and `bbs ticket adopt` are gone, and with them the `refresh`
+  follow-up — `team next` no longer suggests one for a changed contract, and
+  `BASE_DRIFT=` is a note, since `integrate` composes on the current base. The
+  lead resolves every conflict in the phase worktree itself. A handover sent
+  back with feedback is fixed by one session (integrate, land, re-test), and
+  a failed release by its release session, the way phase QA fixes its own;
+  a consolidated heavy QA fixes its failures too. A ticket follow-up is only
+  a `repair` for a session that ended without success (no diagnosis worker;
+  still `BLOCKED` after it, the ticket parks) or a `redirect` after a parked
+  plan answer.
+- **No seal step.** A ticket's succeeded `bbs team task done` records its
+  uncommitted tree as the snapshot its phase composes (`--artifacts
+  <paths.json>` for an artifact-only ticket), and `bbs team integrate`
+  records any edit made after it. `bbs team seal` — with `--waive`, `--fixup`
+  and its waiver notes — is gone: `task done` already holds a ticket to its
+  gates, and `--no-gate "<why>"` names one that does not apply. A phase
+  reviews its diff once whenever a ticket left its own review to it. The phase
+  state `sealed` reads `built`; a resnapshotted prerequisite no longer blocks
+  its dependents, and an edited artifact no longer stales its delivery.
+- **Phase QA fixes what it finds; its pass is the phase done.** The phase QA
+  session fixes every failure in the owning ticket's worktree, runs
+  `bbs team integrate` — which now reseals any settled ticket whose worktree
+  holds edits its seal lacks (`FIXUP=<ticket>`) — lands it and re-tests what
+  it fixed; nothing goes back to the lead as a `repair`. `bbs team next`
+  names `integrate` while such a fix is unmerged (instead of re-running QA on
+  the commit that lacks it) and `blocked` after three failed phase QA attempts.
+- **Review runs once; nothing stales a recorded gate.** Subjects (tree,
+  head, base, requirement, plan, policy, dependency surface) are recorded for
+  audit only and never compared: editing while a gate runs, or after, is
+  normal work. `review-pr --fix` records on its own post-fix tree; QA fixes,
+  repairs and phase fixups are proven by their checks, never re-reviewed.
+  Seals are not reopened by later worktree or evidence edits, a changed
+  pinned contract is never a readiness blocker, and phase evidence stands on every later commit — a fix-forward
+  commit or a later phase never re-runs what passed, and cumulative QA
+  counts earlier phases' passing checks (no `--carry` needed). Phase
+  evidence records even if a commit lands while its check runs. This ends the
+  review → fix → review loop (one ticket ran 13 high-effort rounds, ~35% of a
+  project's tokens).
+- **Review effort is capped at `medium`** unless the human types the level;
+  workflows and team specs never pass `high`/`xhigh`/`max`. Every review
+  subagent runs on the mid tier (Sonnet); no finder routes to Haiku.
+
+### Removed
+
+- `bbs autopilot verification claim`, the checkpoint `baseline` scope,
+  `review_tree` delta re-review, `GATE="carried: …"` adoption carry and
+  seal waivers of stale gates (only a missing gate is waivable now) — all
+  existed only to decide when a change staled a gate.
+
 ## 1.121.0 — 2026-11-01
 
 ### Changed

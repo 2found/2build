@@ -12,6 +12,7 @@ import (
 
 	"github.com/2found/2build/internal/agent"
 	"github.com/2found/2build/internal/foreman"
+	"github.com/2found/2build/internal/identity"
 	"github.com/2found/2build/internal/orca"
 	"github.com/2found/2build/internal/ticket"
 )
@@ -24,7 +25,7 @@ const foremanTaskUsage = `Usage:
   bbs team task list [<foreman-id>] [--open]
   bbs team task done <task> --outcome succeeded|failed --summary <text>
                         [--dispatch <id>] [--report-path <path>] [--files-modified <a,b>]
-                        [--no-gate <why>]
+                        [--no-gate <why>] [--artifacts <paths.json>]
   bbs team task ask <task> (--body <question> | --resume <question-id>) [--timeout <sec>]
   bbs team task answer <task> --id <question-id> (--body <text> | --body-file <path>)
   bbs team task abandon <task> --reason <text>
@@ -41,6 +42,10 @@ the prompt-cache TTL), and sends nothing else.
 done for a ticket-session kind (ticket, repair, refresh, redirect) is refused until the ticket passes readiness (review, or light when
 heavy checks are deferred), so a missing gate is fixed by the warm session
 that owns it, not by a cold follow-up. --no-gate <why> reports anyway.
+A succeeded done for a ticket of a team project records its work for the
+phase: the worktree's uncommitted tree as the snapshot the phase composes
+(integrate takes later edits), or --artifacts {"paths":[...]} for an
+artifact-only ticket.
 `
 
 // taskWorkerExitGrace keeps a just-launched worker whose agent Orca has not
@@ -377,6 +382,9 @@ func foremanTaskDone(args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := taskDoneRecordWork(id, kv); err != nil {
+		return fmt.Errorf("foreman task done: %w", err)
+	}
 	t, err := foreman.UpdateTask(id, func(t *foreman.Task) error {
 		d := t.Current()
 		if kv["dispatch"] != "" {
@@ -411,6 +419,34 @@ func foremanTaskDone(args []string) error {
 	printTask(t)
 	fmt.Println("NEXT=end this turn and stay idle; bbs team watch reports this to the lead")
 	return nil
+}
+
+// taskDoneRecordWork records a succeeded ticket session's work for its
+// phase: the worktree's uncommitted tree as the snapshot the phase composes,
+// or with --artifacts the evidence files an artifact-only ticket delivers.
+func taskDoneRecordWork(id string, kv map[string]string) error {
+	if kv["outcome"] != "succeeded" {
+		return nil
+	}
+	t, err := foreman.LoadTask(id)
+	if err != nil || !gatedTaskKinds[t.Kind] || t.Ticket == "" {
+		return err
+	}
+	if d := t.Current(); d != nil && foreman.DispatchSettled(d.Status) {
+		return nil
+	}
+	env, err := ticket.ResolveProject()
+	if err != nil {
+		return err
+	}
+	st := storeForTicket(env, t.Ticket)
+	if ticket.ReadDoc(st.IndexPath()).Get("origin.project_seed") == "" {
+		return nil
+	}
+	if file := kv["artifacts"]; file != "" {
+		return projectSealArtifacts(st, file)
+	}
+	return projectRecordChild(st)
 }
 
 // gatedTaskKinds are the Task kinds that end a ticket session: their worker
@@ -617,4 +653,40 @@ func taskWorkerFor(d *foreman.Dispatch, terms []orca.Terminal, now time.Time) (t
 		return taskWorker{Handle: term.Handle, Live: true}, true
 	}
 	return taskWorker{}, false
+}
+
+// awaitSeconds reads a positive --<key> seconds flag, defaulting to def.
+func awaitSeconds(kv map[string]string, key string, def int) (time.Duration, error) {
+	v, ok := kv[key]
+	if !ok {
+		return time.Duration(def) * time.Second, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 1 {
+		return 0, fmt.Errorf("--%s must be a positive number of seconds", key)
+	}
+	return time.Duration(n) * time.Second, nil
+}
+
+// ticketReportState judges a ticket session's report: full review readiness
+// ("ready"), light readiness when its heavy checks are deferred to a
+// consolidated run ("light-ready"), or review readiness whose only gaps are
+// gates left to phase review ("ready", with the why as its reason). "" means
+// not ready, with reasons.
+func ticketReportState(primary string, env identity.Env, t string, reviewReady bool, reasons []string) (string, []string) {
+	if reviewReady {
+		return "ready", nil
+	}
+	st := storeForTicket(env, t)
+	if deferred := ticket.ReadDoc(st.IndexPath()).Get("pointers.deferred_heavy"); deferred != "" {
+		if ok, _, _, err := ticketV2Readiness(primary, env, t, "light"); err == nil && ok {
+			return "light-ready", []string{"deferred heavy: " + deferred}
+		}
+	}
+	if dir, _, err := ticketWorktree(primary, env, t); err == nil {
+		if _, why, ok := deferralCovers(dir, ticket.ReadDoc(st.IndexPath()), reasons); ok {
+			return "ready", []string{why}
+		}
+	}
+	return "", reasons
 }

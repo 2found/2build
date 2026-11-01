@@ -13,7 +13,7 @@ Re-read ticket state, checkpoint, and git status; choose the **first** match:
 
 | Mode | Condition | What it does |
 |------|-----------|--------------|
-| **child** | `origin_type = sub_ticket` | One Team ticket: plan, implement, review and QA only this child's scope; hand off to the parent. |
+| **child** | `origin_type = sub_ticket` | One Team ticket: plan and implement only this child's scope with focused checks; its phase reviews and QAs it (SKILL.md § Team ticket assignment). |
 | **implement** | `plan.md` exists | Implement the accepted plan (a manifest's rows are its ordered milestones). |
 | **build** | `requirement.md` exists, `plan.md` absent | Plan first, then implement. |
 | **verify** | none of the above, but the checkout holds existing changes (uncommitted, or commits off base) | QA-only pass on existing work. |
@@ -41,15 +41,17 @@ ticket/requirement, stop with `NEEDS_CONTEXT`.
    requirement, plan, and (child mode) only the child scope. `implement`
    leaves its output uncommitted, and so does this workflow: gates bind the
    tree's content, and committing belongs to the human or the lead.
-4. Record each gate around its actual execution with autopilot
+4. **Not child mode** — a Team ticket leaves steps 4–5 to its phase and
+   reports after its focused checks (SKILL.md § Team ticket assignment).
+   Record each gate around its actual execution with autopilot
    references/verification.md; markdown verdicts never satisfy readiness.
    Run `review-pr --fix` in the current autopilot session via SKILL.md's
    **Current-session gates (`review-pr`, `qa`)** policy (applies fixes to
    the working tree), bracketed by
    `bbs autopilot verification begin --gate review-pr` and `record` — the
    push/PR hook reads that evidence when a human pushes or opens a PR.
-   Verify mode may reuse review only if its accepted evidence covers the
-   current tree; otherwise run it too.
+   Verify mode reuses accepted review evidence; it runs review only when
+   none was recorded.
 5. Run `qa` under the same policy (judged in this session, its execution in
    the QA executor subagent), after review fixes are integrated, against
    the requirement's acceptance criteria, the
@@ -65,8 +67,8 @@ ticket/requirement, stop with `NEEDS_CONTEXT`.
    Reconcile every acceptance criterion with executed evidence and require
    `bbs ticket readiness --action review --json` to report ready. Autopilot
    stops here, work uncommitted: never commit, push, or open a PR — the human
-   commits (or runs `create-pr`); under Team, the lead seals the ticket
-   and lands it with its phase.
+   commits (or runs `create-pr`); under Team, the ticket's `task done`
+   records the work and the lead lands it with its phase.
 7. Write a handoff: mode, checkout, changed files, deviations from the plan
    (the implement handoff's `## Deviations`), prototype path when `design-ui`
    produced one, QA evidence, concerns, next action, and any follow-up worth
@@ -79,7 +81,7 @@ ticket/requirement, stop with `NEEDS_CONTEXT`.
 ### Team-dispatched children
 `origin.type=sub_ticket` scopes child mode; the current checkout is already the
 worktree Team prepared. Never derive or check out a branch in this
-workflow. The child handoff targets its parent and leaves sealing, phase
+workflow. The child handoff targets its parent and leaves phase
 integration, phase QA and landing to Team.
 ### Cross-repo tasks (related repos)
 `setup-project` records siblings: meaning in `AGENTS.md` § Related Repos,

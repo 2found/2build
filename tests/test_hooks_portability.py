@@ -216,12 +216,13 @@ class Hooks(unittest.TestCase):
             for continued in (False, True):
                 result = self.run_hook("Stop", payload={"stop_hook_active": continued}, env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                if active:
+                if active and not continued:
                     decision = json.loads(result.stdout)
                     self.assertEqual(decision["decision"], "block")
                     self.assertIn("task-w.d1", decision["reason"])
-                    self.assertIn("bbs foreman task done", decision["reason"])
+                    self.assertIn("bbs team task done", decision["reason"])
                 else:
+                    # One reminder per stop: the continuation stops freely.
                     self.assertEqual(result.stdout, "")
 
     def test_stop_gate_skips_sessions_outside_orca(self):

@@ -223,20 +223,21 @@ QA, and release modes remain in force. Existing records without
 `tickets/<parent>/recap.html` (also written by `complete`).
 `bbs team report <parent-ticket>` reads the last durable `report.md`, even
 after Orca closes. Each reconciliation writes the observation time, meaningful
-ticket titles, each phase's state and release, worker/loop step, sealed
+ticket titles, each phase's state and release, worker/loop step, recorded
 snapshot, gate evidence, phase commit and cleanup/blockers. It is explicitly a
 saved snapshot; ask the running Team to check status for a fresh
 reconciliation. Execution, delivery and cleanup are separate: LANDED does not
 mean pushed or released. Missing evidence stays UNKNOWN.
 
 Workers never commit. Each phase becomes **one commit** on local base
-(`bbs team integrate`), built from the tickets' sealed snapshots in a
+(`bbs team integrate`), built from the tickets' recorded snapshots in a
 detached integration worktree, and `bbs team land` fast-forwards local base
 to it at once; nothing is ever stashed or reset. One integration QA then runs
 on exactly that landed commit. It proves every criterion of that phase and
 all earlier ones (fresh where the phase's diff reaches, carried elsewhere), so
-the last phase's run is the project's final QA. Failures are fixed forward:
-ticket repair, reseal and one fix commit on base. Release waits on phase QA. The full protocol is in
+the last phase's run is the project's final QA. Failures are fixed forward
+by the phase QA session itself: it edits the owning ticket's worktree, and
+`integrate` + `land` turn that into one fix commit on base. Release waits on phase QA. The full protocol is in
 [the Team project contract](../.claude/skills/team/references/project-contract.md)
 and [phases](../.claude/skills/team/references/phases.md).
 
@@ -482,7 +483,8 @@ batch does not settle under a running retry. Workers report into the bbs task
 store, never into the lead's terminal, so nothing else types into it while
 a batch runs. `bbs team batch show <id>` prints the batch state the wake refers to — each
 settled member with its ticket, kind, gate verdict, summary and report, a
-`BASE_DRIFT=` line for a ticket whose files base has changed since it started — and
+`BASE_DRIFT=` note for a ticket whose files base has changed since it started
+(informational: `integrate` composes on the current base) — and
 then the `NEXT=` steps of every project the team lead owns, so one read covers a
 wake. A question counts as delivered only once `batch show` printed it: a wake
 typed while the team lead is busy (an open dialog) can be swallowed, so
@@ -496,8 +498,7 @@ types one plain keep-warm line (not a skill prompt) asking for one `bbs team
 batch show` — answer any pending question, handle any stalled, exited or lost
 worker, else reply ok and end the turn — once the batch has gone that lifetime minus ten minutes without
 prompting the team lead, at most 8 per batch. Shorter caches get none. The same
-lifetime caps the default block of `bbs team await` and `bbs team task
-ask` (540 s, or a minute inside the lifetime) so a worker's re-run after a
+lifetime caps the default block of `bbs team task ask` (540 s, or a minute inside the lifetime) so a worker's re-run after a
 timeout reads its cache.
 
 The watcher is built to outlive what goes wrong around it: every Orca call is
@@ -505,7 +506,7 @@ bounded (60 s), a failing tick is logged as `TICK-FAILED` rather than ending
 the process, and while any batch is open an unreachable Orca is retried
 (`ORCA-DOWN`) instead of exiting. If the process dies anyway, the next `bbs`
 session-writer hook (at most once a minute per working agent) or `bbs team
-await` call restarts it; the watch lock keeps that to one watcher.
+task ask` call restarts it; the watch lock keeps that to one watcher.
 
 While a batch is open, `bbs team batch` also installs an OS supervisor for
 the watcher — a launchd agent on macOS
@@ -519,16 +520,11 @@ the Orca CLI variables it was installed with. Inspect or manage it with `bbs tea
 status|install|uninstall`; set `BBS_WATCH_SUPERVISOR=off` to never install one.
 Windows has no supervisor; the hook restart above still applies.
 
-A batch normally holds every ticket of the open phases: a dependent ticket's worker waits for
-its prerequisites inside its own session with `bbs team await --prereqs
-<ticket>:<task>,...`, and a worker that escalates its plan waits for Team through
-`bbs team task ask`. Both run as foreground commands bounded below the
-default 10-minute `--worker-idle` (540 s per call, then repeated), so a waiting
-worker is neither nudged nor reported stalled. `await` exits 0 with the verified
-heads to merge, 3 when a prerequisite settled without passing readiness (the
-dependent reports `BLOCKED` and Team later sends it a `refresh`), and 4 on
-timeout. A prerequisite Task not launched yet is still waiting, and a readiness read that fails
-is retried twice before it counts as not-ready.
+A batch holds every ticket of the open phases; they are independent, so none
+waits on another. A worker that escalates its plan waits for Team through
+`bbs team task ask`, a foreground command bounded below the default 10-minute
+`--worker-idle` (540 s per call, then repeated), so a waiting worker is neither
+nudged nor reported stalled.
 
 ```bash
 bbs team watch                       # every team lead with an open workspace

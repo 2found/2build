@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -44,92 +43,17 @@ func TestForemanTaskDoneWarnsOnWorkThatDoesNotCompose(t *testing.T) {
 	}
 }
 
-// Stale verdicts stand only when every path changed since the reviewed tree
-// came verbatim from an adopted snapshot and lies outside the ticket's own diff.
-func TestAdoptionCarry(t *testing.T) {
-	stale := []string{"review-pr:stale_tree_digest", "qa:stale_tree_digest", "qa:stale_surface"}
-	setup := func(t *testing.T) (wt, home, reviewTree string) {
-		_, wts := snapshotRepo(t, "a", "b")
-		mustWrite(t, filepath.Join(wts["b"], "ui.txt"), "screen\n")
-		reviewTree, err := worktreeTree(wts["b"])
-		if err != nil {
-			t.Fatal(err)
-		}
-		mustWrite(t, filepath.Join(wts["a"], "api.txt"), "contract\n")
-		snap, err := sealTicketSnapshot(wts["a"], "a", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if files, err := adoptSnapshots(wts["b"], []string{snap}); err != nil || len(files) != 0 {
-			t.Fatalf("adopt = %v %v", files, err)
-		}
-		home = t.TempDir()
-		if err := recordAdopted(home, []string{snap}); err != nil {
-			t.Fatal(err)
-		}
-		return wts["b"], home, reviewTree
-	}
-
-	t.Run("disjoint adoption carries", func(t *testing.T) {
-		wt, home, rt := setup(t)
-		why, ok := adoptionCarry(wt, home, rt, stale)
-		if !ok || !strings.Contains(why, "api.txt") {
-			t.Fatalf("carry = %q %v", why, ok)
-		}
-	})
-	t.Run("an own edit after review does not", func(t *testing.T) {
-		wt, home, rt := setup(t)
-		mustWrite(t, filepath.Join(wt, "ui.txt"), "screen v2\n")
-		if _, ok := adoptionCarry(wt, home, rt, stale); ok {
-			t.Fatal("carried a change to the reviewed diff")
-		}
-	})
-	t.Run("a new unreviewed file does not", func(t *testing.T) {
-		wt, home, rt := setup(t)
-		mustWrite(t, filepath.Join(wt, "extra.txt"), "x\n")
-		if _, ok := adoptionCarry(wt, home, rt, stale); ok {
-			t.Fatal("carried a file no snapshot brought")
-		}
-	})
-	t.Run("a deletion does not", func(t *testing.T) {
-		wt, home, rt := setup(t)
-		if err := os.Remove(filepath.Join(wt, "shared.txt")); err != nil {
-			t.Fatal(err)
-		}
-		if _, ok := adoptionCarry(wt, home, rt, stale); ok {
-			t.Fatal("carried a deletion")
-		}
-	})
-	t.Run("other reasons and a moved base do not", func(t *testing.T) {
-		wt, home, rt := setup(t)
-		for _, codes := range [][]string{
-			{"review-pr:stale_tree_digest", "review-pr:material_findings"},
-			{"review-pr:stale_base_sha"},
-			{"qa:missing"},
-			nil,
-		} {
-			if _, ok := adoptionCarry(wt, home, rt, codes); ok {
-				t.Fatalf("carried %v", codes)
-			}
-		}
-		if _, ok := adoptionCarry(wt, home, "", stale); ok {
-			t.Fatal("carried without a review_tree")
-		}
-	})
-}
-
 // The compose check merges the reporting worktree, uncommitted, against a
-// sibling's snapshot; work the worktree already adopted is shared, not a
-// conflict.
+// sibling's snapshot without touching the worktree.
 func TestWorktreeCommitComposesAgainstASibling(t *testing.T) {
 	_, wts := snapshotRepo(t, "a", "b")
 	mustWrite(t, filepath.Join(wts["a"], "shared.txt"), "A\ntwo\nthree\n")
-	snap, err := sealTicketSnapshot(wts["a"], "a", nil)
+	snap, err := sealTicketSnapshot(wts["a"], "a")
 	if err != nil {
 		t.Fatal(err)
 	}
 	mustWrite(t, filepath.Join(wts["b"], "shared.txt"), "B\ntwo\nthree\n")
-	mine, err := worktreeCommit(wts["b"], nil)
+	mine, err := worktreeCommit(wts["b"])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,16 +62,5 @@ func TestWorktreeCommitComposesAgainstASibling(t *testing.T) {
 	}
 	if gitOutIn(wts["b"], "status", "--porcelain") != "M shared.txt" && gitOutIn(wts["b"], "status", "--porcelain") != " M shared.txt" {
 		t.Fatalf("check touched the worktree: %q", gitOutIn(wts["b"], "status", "--porcelain"))
-	}
-	if _, err := adoptSnapshots(wts["b"], []string{snap}); err != nil {
-		t.Fatal(err)
-	}
-	mustWrite(t, filepath.Join(wts["b"], "shared.txt"), "AB\ntwo\nthree\n")
-	mine, err = worktreeCommit(wts["b"], []string{snap})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, _, c, err := mergeCommits(wts["b"], mine, []string{snap}); err != nil || len(c) != 0 {
-		t.Fatalf("resolved adoption still conflicts: %v %v", c, err)
 	}
 }

@@ -26,7 +26,7 @@ func projectArtifactInputs(st *ticket.Store, artifacts map[string]string) (strin
 	}
 	var c projectContract
 	if err := readProjectJSON(projectContractPath(parent), &c); err != nil || !c.ArtifactsOnly {
-		return "", fmt.Errorf("artifact seal requires an approved artifacts_only project")
+		return "", fmt.Errorf("artifact delivery requires an approved artifacts_only project")
 	}
 	if state, _, _ := approvalRead(parent); state != "approved" {
 		return "", fmt.Errorf("artifact project approval is not current")
@@ -73,17 +73,6 @@ func projectArtifactInputs(st *ticket.Store, artifacts map[string]string) (strin
 	return digestJSON(rows), nil
 }
 
-func validateArtifactSeal(st *ticket.Store, seal projectSeal) []string {
-	inputs, err := projectArtifactInputs(st, seal.Artifacts)
-	if err != nil {
-		return []string{err.Error()}
-	}
-	if seal.Version != 1 || seal.Ticket != st.Env.Ticket || inputs != seal.Inputs {
-		return []string{"artifact seal no longer matches inputs"}
-	}
-	return nil
-}
-
 func projectSealArtifacts(st *ticket.Store, file string) error {
 	var input struct {
 		Paths []string `json:"paths"`
@@ -92,7 +81,7 @@ func projectSealArtifacts(st *ticket.Store, file string) error {
 		return err
 	}
 	if len(input.Paths) == 0 {
-		return fmt.Errorf("artifact seal needs paths inside the child ticket")
+		return fmt.Errorf("--artifacts needs paths inside the child ticket")
 	}
 	return withLock(st, func() error {
 		seal := projectSeal{Version: 1, Ticket: st.Env.Ticket, At: isoNow(), Artifacts: map[string]string{}, Owners: []string{}}

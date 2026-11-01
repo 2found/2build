@@ -37,10 +37,10 @@ bbs team route --ticket "$TICKET" --task "$TASK" \
 `bbs team task create "$FOREMAN_ID" --ticket "$TICKET" --kind <kind> --spec-file <spec>`
 (the spec carries only the assignment; bbs adds the transport and lifecycle of
 [worker-lifecycle.md](worker-lifecycle.md) when the worker reads it).
-`--kind` is required: `ticket` for a ticket session and `repair|refresh|redirect`
+`--kind` is required: `ticket` for a ticket session and `repair|redirect`
 for its follow-ups (their `task done` is refused until the ticket's readiness
-passes); any other name — `phase-qa`, `diagnosis`, `product-review`, `release`
-— is ungated.
+passes); any other name — `phase-qa`, `handover-fix`, `product-review`,
+`release` — is ungated.
 
 The route order is explicit intent, compatible ticket pin, then the
 destination-host `agentDiscovery.effectiveDefaultAgent`. The command validates
@@ -123,14 +123,14 @@ A settled worker's terminal is closed by the watcher, so this applies only to a
 session that is still live (watcher opted out with `foreman_keep_settled_workers`
 for debugging). Otherwise start a fresh worker in
 the ticket worktree and point its spec at the ticket's handoffs. A follow-up on
-a ticket (`repair`, `refresh`, `redirect`, `deliver`) goes to that ticket's
+a ticket (`repair`, `redirect`, `deliver`) goes to that ticket's
 existing session only when its previous Dispatch settled with an accepted
 report, the handle is the exact one recorded for this ticket (`bbs team task
 show`), and `orca terminal show` still names its agent. It inherits the ticket
 route, so skip model lookup and route resolution:
 
 ```bash
-bbs team task create "$FOREMAN_ID" --ticket "$TICKET" --kind <repair|refresh|redirect> --spec-file <follow-up spec>
+bbs team task create "$FOREMAN_ID" --ticket "$TICKET" --kind <repair|redirect> --spec-file <follow-up spec>
 # reserve the ticket's resource profile for the new Task first (topology.md)
 TICKET_WORKTREE=$(BABYSIT_TICKET="$TICKET" bbs ticket path worktree --read)
 bbs team task launch "$FOLLOWUP_TASK" --agent <ticket-agent> \
@@ -165,7 +165,7 @@ Pass these pins to `bbs team route` for a fresh ticket worker; provider is not
 a launch selector unless Orca explicitly advertises support. Legacy
 `planner_`, `reviewer_` and `qa_` pointers from split-step tickets are read only
 to resume their exact recorded sessions. Persist other assignments (basic
-design, phase integration, heavy QA, release, diagnosis, fresh delivery) in their Task
+design, phase integration, heavy QA, release, handover fix, fresh delivery) in their Task
 handoffs rather than overwriting a ticket route.
 
 Apply the canonical resume policy before the next launch: exact native-session

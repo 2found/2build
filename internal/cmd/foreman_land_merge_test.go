@@ -144,9 +144,6 @@ func TestPhaseFixConflictingWithBaseIsResolvedInPlace(t *testing.T) {
 	st, child, repo := executionFixture(t)
 	integrateAndLand(t, st, "p1")
 	mustWrite(t, filepath.Join(childWorktree(t, child), "feature.txt"), "fixed copy\n")
-	if err := foremanProjectCommand("seal", []string{"ready", "--fixup", "AC1 copy"}); err != nil {
-		t.Fatal(err)
-	}
 	moveMain(t, repo, "feature.txt", "base edit\n")
 	var err error
 	out := captureStdout(t, func() { err = projectIntegrateCommand(st, map[string]string{"phase": "p1"}) })
@@ -191,5 +188,70 @@ func TestBaseDriftNamesOverlappingFiles(t *testing.T) {
 	n, files := baseDrift(wt, "main")
 	if n != 2 || strings.Join(files, ",") != "a.txt" {
 		t.Fatalf("drift = %d %v", n, files)
+	}
+}
+
+// A QA fix made in the owning ticket's worktree is merged by the next
+// integrate even when nobody resealed it: next names integrate, not another
+// QA run on the commit that lacks the fix.
+func TestIntegrateTakesUnsealedQAFix(t *testing.T) {
+	st, child, repo := executionFixture(t)
+	integrateAndLand(t, st, "p1")
+	mustWrite(t, filepath.Join(childWorktree(t, child), "feature.txt"), "fixed by qa\n")
+	s, err := projectRead(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if steps := phaseNext(st, s, s.Phases[0]); len(steps) != 1 || steps[0].Do != "integrate" {
+		t.Fatalf("next with an unmerged QA fix = %+v, want integrate", steps)
+	}
+	captureStdout(t, func() { err = projectIntegrateCommand(st, map[string]string{"phase": "p1"}) })
+	if err != nil {
+		t.Fatalf("integrate did not take the fix: %v", err)
+	}
+	if err := landPhase(t, st, "p1"); err != nil {
+		t.Fatal(err)
+	}
+	if got := gitOutIn(repo, "show", "main:feature.txt"); got != "fixed by qa" {
+		t.Fatalf("landed content = %q", got)
+	}
+}
+
+// Phase QA that keeps failing stops at three attempts instead of looping.
+func TestNextBlocksAfterThreeFailedPhaseQA(t *testing.T) {
+	st, _, _ := executionFixture(t)
+	integrateAndLand(t, st, "p1")
+	s, err := projectRead(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		if steps := phaseNext(st, s, s.Phases[0]); steps[0].Do != "verify" {
+			t.Fatalf("after %d failures next = %+v, want verify", i, steps)
+		}
+		s.Evidence = append(s.Evidence, projectEvidence{Phase: "p1", Kind: "integration", State: "failed"})
+	}
+	if steps := phaseNext(st, s, s.Phases[0]); steps[0].Do != "blocked" {
+		t.Fatalf("after three failures next = %+v, want blocked", steps)
+	}
+}
+
+// A fix message that already says "Fix:" is not prefixed twice.
+func TestPhaseFixSubjectIsPrefixedOnce(t *testing.T) {
+	st, child, repo := executionFixture(t)
+	integrateAndLand(t, st, "p1")
+	mustWrite(t, filepath.Join(childWorktree(t, child), "feature.txt"), "fixed copy\n")
+	var err error
+	captureStdout(t, func() {
+		err = projectIntegrateCommand(st, map[string]string{"phase": "p1", "message": "Fix: review fixups"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := landPhase(t, st, "p1"); err != nil {
+		t.Fatal(err)
+	}
+	if got := gitOutIn(repo, "log", "-1", "--format=%s", "main"); got != "Fix: review fixups" {
+		t.Fatalf("fix subject = %q", got)
 	}
 }

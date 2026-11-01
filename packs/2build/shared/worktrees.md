@@ -18,12 +18,11 @@ follow the same rule.
 
 ## Rules inside a ticket worktree
 
-- Work stays **uncommitted**. Gates bind the tree's content; the lead seals it.
+- Work stays **uncommitted**. Gates record what they checked; the worker's `task done` snapshots the tree.
 - Install and run what the ticket needs in its own worktree. Use the ports,
   databases and secrets `qa.yaml` names; never edit the primary checkout.
-- Need another ticket's work? `bbs team await` adopts sealed prerequisites;
-  `bbs ticket adopt <ticket>` adopts on demand. Resolve every `CONFLICT=`
-  file, then rerun the affected checks.
+- Never take another ticket's work: tickets of one phase are independent, and
+  the lead composes them at `integrate`.
 
 ## Surface lease — one QA session on a shared resource
 

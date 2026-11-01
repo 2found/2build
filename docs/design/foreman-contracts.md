@@ -14,7 +14,7 @@ other — without making the model carry more rules.
 1. **The CLI suggests; the model judges.** `bbs foreman next <parent>` turns
    the project snapshot into suggested steps with commands. It adds no rule:
    every suggestion comes from the state and gates the verbs already enforce
-   (`projectPhaseReasons`, seal readiness), so the skill can say "ask `next`"
+   (`projectPhaseReasons`, task-done readiness), so the skill can say "ask `next`"
    instead of spelling out the order, and a Foreman that sees a better path
    takes it — the verbs still refuse anything unsafe.
 2. **A contract is files the repo already has.** `.babysit/contracts.yaml`

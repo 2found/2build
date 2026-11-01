@@ -35,16 +35,20 @@ join, and no heartbeat.
   for DONE/DONE_WITH_CONCERNS, `failed` when ending as BLOCKED/NEEDS_CONTEXT.
   A pending ask is not a report. `--report-path` / `--files-modified` name
   real artifacts. A retried identical report is harmless; a contradicting one
-  is refused. For a ticket session (Task kind `ticket`, `repair`, `refresh`,
+  is refused. For a ticket session (Task kind `ticket`, `repair`,
   `redirect`) a `succeeded` report is refused with `GATE=not-ready` and the
   missing readiness reasons until the ticket passes readiness: you still hold
   the context, so record the missing gates (`review-pr`, `qa`) on the final
   tree and report again. `--no-gate "<why>"` only for a gate that cannot
-  apply; `--outcome failed` when the work did not land.
+  apply; `--outcome failed` when the work did not land. A succeeded report of
+  a project ticket snapshots its uncommitted tree for the phase (an
+  artifact-only ticket adds `--artifacts <paths.json>`); a snapshot error
+  refuses the report — fix the worktree (on its ticket branch, one repo) and
+  report again.
 - A `Continue Task <id>` prompt is the watcher's idle nudge: resume the
   assignment, or run its pending `task done` if it is already complete.
 - A worker is shut down when it reports (the watcher closes its terminal at
-  settle), so a follow-up Dispatch (`repair`, `refresh`, `redirect`,
+  settle), so a follow-up Dispatch (`repair`, `redirect`,
   `deliver`) normally starts a fresh session in the ticket worktree and reads
   the ticket's handoffs. Should a session survive (the
   `foreman_keep_settled_workers` debugging opt-out) and receive a new launch prompt, it carries a new Dispatch
@@ -56,6 +60,8 @@ join, and no heartbeat.
   return the shared preamble's structured NEEDS_CONTEXT, never invent a
   Dispatch.
 
-The `worker-report-gate` Stop hook blocks a Stop while a Dispatch launched
-into this terminal is still open (or its question is unanswered) and names
-the command to run; it neither reports for the worker nor waits for the lead.
+The `worker-report-gate` Stop hook reminds once per stop while a Dispatch
+launched into this terminal is still open (or its question is unanswered)
+and names the command to run; the stop after it ends freely, and the watcher
+settles a worker that never reports. It neither reports for the worker nor
+waits for the lead.

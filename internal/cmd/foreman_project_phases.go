@@ -228,7 +228,8 @@ func projectPhaseProgress(st *ticket.Store, s *projectSnapshot) {
 	for k := range s.Phases {
 		p := &s.Phases[k]
 		children := projectPhaseChildren(*s, p.ID)
-		// Sealed: every seed of this phase is bound to a child with no problems.
+		// Sealed (built): every seed of this phase is bound to a child whose
+		// worker finished and recorded its work.
 		p.Sealed = true
 		for _, seed := range p.Seeds {
 			bound := false
@@ -237,7 +238,7 @@ func projectPhaseProgress(st *ticket.Store, s *projectSnapshot) {
 					bound = true
 					if len(child.Problems) > 0 {
 						p.Sealed = false
-						p.Problems = append(p.Problems, "child "+child.ID+" not sealed")
+						p.Problems = append(p.Problems, "child "+child.ID+" not built")
 					}
 				}
 			}
@@ -248,17 +249,20 @@ func projectPhaseProgress(st *ticket.Store, s *projectSnapshot) {
 		}
 		var unreviewed []string
 		for _, child := range children {
-			if w := child.Waiver; w != nil {
-				p.Notes = append(p.Notes, fmt.Sprintf("child %s sealed without %s (%s) on %s: %s", child.ID, strings.Join(w.Gates, ", "), projectWaiverStates(w), w.At, w.Reason))
-				if w.PhaseReview {
-					unreviewed = append(unreviewed, child.ID)
-				}
+			if child.PhaseReview && slices.Contains(p.Seeds, child.Seed) {
+				unreviewed = append(unreviewed, child.ID)
 			}
 		}
 		latest := map[string]projectEvidence{}
 		current := map[string][]projectEvidence{}
+		standing := map[string][]projectEvidence{}
+		// Recorded evidence stands on every later commit: a fix-forward commit
+		// or a later phase never re-runs review or QA of what already passed.
 		for _, ev := range s.Evidence {
-			if ev.Phase == p.ID && ev.Subject == p.Subject {
+			if i := projectPhaseIndex(*s, ev.Phase); i >= 0 && i <= k && ev.State == "passed" {
+				standing[ev.Kind] = append(standing[ev.Kind], ev)
+			}
+			if ev.Phase == p.ID {
 				if ev.State == "passed" {
 					current[ev.Kind] = append(current[ev.Kind], ev)
 				}
@@ -310,12 +314,12 @@ func projectPhaseProgress(st *ticket.Store, s *projectSnapshot) {
 				continue
 			}
 			for _, kind := range ac.Checks {
-				if !projectCheckPassedAny(current["integration"], ac.ID, kind) {
+				if !projectCheckPassedAny(standing["integration"], ac.ID, kind) {
 					p.Integrated = false
 					p.Problems = append(p.Problems, "criterion "+ac.ID+": missing "+kind)
 				}
 			}
-			if s.Contract.ProductReview && !projectCheckPassedAny(current["product"], ac.ID, "product") {
+			if s.Contract.ProductReview && !projectCheckPassedAny(standing["product"], ac.ID, "product") {
 				p.Integrated = false
 				p.Problems = append(p.Problems, "criterion "+ac.ID+": missing product")
 			}
@@ -400,7 +404,7 @@ func projectPhaseStateName(p projectPhaseState) string {
 	case p.Integrated:
 		return "integrated"
 	case p.Sealed:
-		return "sealed"
+		return "built"
 	case len(p.Children) > 0:
 		return "building"
 	}
@@ -500,6 +504,7 @@ func projectPhaseReasons(s projectSnapshot, action, phase string) []string {
 		if p.Ticket == "" {
 			reasons = append(reasons, "phase "+p.ID+": bind a phase ticket first (bbs team bind --phase)")
 		}
+		reasons = append(reasons, projectInPhaseDependencies(s, p)...)
 	case "integrate", "verify", "land":
 		if !p.Sealed {
 			// Only the seal problems block here; evidence comes after integrate.
@@ -830,10 +835,20 @@ func projectCheckPassedAny(evs []projectEvidence, criterion, kind string) bool {
 	return false
 }
 
-func projectWaiverStates(w *projectWaiver) string {
-	var parts []string
-	for _, g := range w.Gates {
-		parts = append(parts, g+" "+w.States[g])
+// projectInPhaseDependencies refuses a phase whose tickets depend on each
+// other: tickets of one phase run in parallel on disjoint parts, and work that
+// needs another ticket's code is the same ticket or a later phase.
+func projectInPhaseDependencies(s projectSnapshot, p projectPhaseState) []string {
+	var out []string
+	for _, c := range s.Children {
+		if !slices.Contains(p.Children, c.ID) {
+			continue
+		}
+		for _, dep := range c.BlockedBy {
+			if slices.Contains(p.Children, dep) {
+				out = append(out, "phase "+p.ID+": ticket "+c.ID+" depends on "+dep+" in the same phase; merge them into one ticket or move "+c.ID+" to a later phase")
+			}
+		}
 	}
-	return strings.Join(parts, ", ")
+	return out
 }

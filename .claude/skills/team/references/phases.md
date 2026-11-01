@@ -11,7 +11,7 @@ this prose or the lead's memory.
 | Project | the parent ticket, its accepted contract and basic design | The lead |
 | Phase | a release increment: a phase ticket (direct child of the parent) whose children are that phase's tickets | The lead |
 | Ticket | one worktree, one worker session, plan → build → review → QA; work left uncommitted | its ticket worker |
-| Phase commit | the phase's sealed tickets composed into **one commit** on local base (plus a fix commit per QA fix round) | The lead (`bbs team integrate` / `land`) |
+| Phase commit | the phase's finished tickets composed into **one commit** on local base (plus a fix commit per QA fix round) | The lead (`bbs team integrate` / `land`) |
 
 ## The phase plan
 
@@ -39,11 +39,10 @@ reviewer checks:
   session is cheaper and holds its context better than several cold ones. A
   phase splits only where [split by context](topology.md#split-by-context)
   allows it, and the plan names each split's reason. Tickets in one phase have disjoint file
-  ownership and interface-first contracts named in the manifest; a dependency
-  inside a phase is an explicit `blocked_by` edge the dependent awaits in
-  session, which adopts the prerequisite's sealed work. A dependency on an
-  earlier phase needs no edge: the ticket is cut from a base that already
-  contains it.
+  ownership and interface-first contracts named in the manifest, and never
+  depend on each other: dispatch refuses a `blocked_by` edge between two
+  tickets of one phase. Work that needs another ticket's code is the same
+  ticket, or a later phase — cut from a base that already contains it.
 - **`release`** per phase follows the human's two touchpoints. The **last
   phase is `ask`**: its release go is the handover, the human's review of the
   whole product. Every earlier phase is `none` — landed, QA'd cumulatively and
@@ -70,7 +69,7 @@ released, unless `none`).
 A wake handles every phase that is ready — open, integrate, land, release —
 before handing over the next batch.
 
-**Land first, verify after.** A sealed phase is integrated and landed on
+**Land first, verify after.** A built phase is integrated and landed on
 local base in the same wake, then QA'd on that landed commit. Parallel work
 sees it at once instead of drifting from it, and a phase never waits on QA to
 land, so base cannot move under a tested commit. Local base is not
@@ -108,7 +107,7 @@ before its release pushes it. Bind each seed on the project: `bbs team bind "$PA
 
 ### 2. Integrate the phase
 
-When every ticket of the phase is sealed:
+When every ticket of the phase is built (its succeeded `task done` recorded its work):
 
 ```bash
 bbs team readiness "$PARENT" --action integrate --phase "$K" --json
@@ -116,7 +115,7 @@ bbs team integrate "$PARENT" --phase "$K" [--message "<subject>"]
 ```
 
 Readiness requires every earlier phase resolved (landed, verified and, unless
-`none`, released), so a release never ships another phase's unverified code. `integrate` composes the tickets' sealed snapshots,
+`none`, released), so a release never ships another phase's unverified code. `integrate` composes the tickets' recorded snapshots,
 in dependency order, into **one commit** whose parent is local base (default
 message `<phase title> (phase <id>)`, body listing its tickets), and checks it
 out detached in the phase worktree `<parent>_phase-<k>`
@@ -137,7 +136,7 @@ reviews.
 bbs team land "$PARENT" --phase "$K"
 ```
 
-Requires the phase sealed and integrated — no evidence yet. It fast-forwards
+Requires the phase built and integrated — no evidence yet. It fast-forwards
 local base to exactly the phase commit; the phase and ticket worktrees stay
 for QA and fixes. A base that moved since `integrate` is composed again by
 land itself; a dirty base checkout that overlaps the phase needs the human's
@@ -162,72 +161,44 @@ run `review-pr` on `git diff <base_head> <phase commit>` at the effort in
 [review effort](#review-effort) and record it as
 the check `{"criterion":"<phase id>","kind":"review"}` whose log is the
 review report. Readiness requires a passing one whenever a ticket of the phase
-deferred `review-pr` (every ticket off the floor) or took a fixup. It then runs the `qa` skill's
+deferred `review-pr` (every ticket off the floor). It then runs the `qa` skill's
 Team integration mode against **every criterion of this phase**, the
 cross-ticket journeys, adjacent regressions and each earlier phase's
 criterion whose files or flows this phase's diff touches — not a union of
-ticket PASS counts — then submits the evidence. The rest of phases 1..k is
-carried from the previous phase's passing attempts (`--carry`, below):
+ticket PASS counts — then submits the evidence. The rest of phases 1..k
+stands on the earlier phases' passing evidence, with no carry step:
 re-running an untouched earlier journey every phase grows QA with the
 project and proves nothing new. When the contract
 requires product review, the **same session** then begins a `kind: product`
 attempt on the same running phase commit and judges it as the product
 evaluator (product-review.md): it built no ticket, so it is independent of the
 work, and one session pays one cold start and one runtime setup instead of
-two. The CLI rejects evidence for a phase that is not landed, a worktree that
-is not clean at the phase commit, or a stale subject. Passing evidence
-removes the phase's worktrees (delivery.md).
+two. `--begin` rejects a phase that is not landed or a worktree that is not
+at the phase commit; once begun, a commit landed or an edit made while the
+check runs never rejects its results, and recorded evidence stands on every
+later commit of the phase. Passing evidence removes the phase's worktrees
+(delivery.md).
 
-**Fix small findings in the same session.** The integration session holds
-the whole phase in context; a cold `repair` session per ticket measured 66–93
-minutes and 2–7M tokens each, mostly re-reviewing what was already reviewed.
-For each failing criterion or material finding — from review, QA or product
-review — whose fix is local (one ticket's files, no change to scope, a shared
-contract, or a money/auth/irreversible-data path):
+**QA fixes what it finds; QA done is the phase done.** The integration
+session holds the whole phase in context, and a cold `repair` session per
+ticket measured 66–93 minutes and 2–7M tokens each, so a failure never goes
+back through the lead. For every failing criterion or material finding, from
+review, QA or product review, the session itself:
 
-1. edit the **owning ticket's worktree** (`bbs team snapshot` lists it; its
-   Dispatch must be settled), never the integration worktree, and run the
+1. edits the **owning ticket's worktree** (`bbs team snapshot` lists it; its
+   Dispatch must be settled), never the integration worktree, and runs the
    focused checks of what changed;
-2. `bbs team seal <ticket> --fixup "<finding, evidence id>"` — it waives
-   the ticket's now-stale gates and marks the next phase commit as needing a
-   fresh review;
-3. `bbs team integrate "$PARENT" --phase "$K"` again — it composes onto
-   base, which already holds the landed phase, so the new commit is the fix
-   delta — and `land` it; then the re-check below: review only that delta
-   ([review effort](#review-effort)) and record a fresh `<phase>/review` check, and re-test the criteria
-   the fixes touched.
+2. merges: `bbs team integrate "$PARENT" --phase "$K"` snapshots each ticket
+   whose worktree holds such a fix (`FIXUP=<ticket>`) and composes it as the
+   fix delta on the landed phase; then `bbs team land` it;
+3. re-tests the criteria it fixed with a normal `--begin` attempt on the fix
+   commit. The fix delta is never reviewed ([review effort](#review-effort)),
+   and everything that already passed stands.
 
-Its report lists every finding it could not fix that way, by owning ticket.
-The lead sends each such ticket **one** `repair` carrying all of its items,
-launched as one batch: fixing findings one at a time costs a repair session,
-a reseal and a phase re-check per finding.
-
-A small repair after phase QA does not restart the phase's QA. After the
-repairs' tickets are resealed and the fix is integrated and landed, one
-integration session re-checks it: carry the checks that already passed — from
-both the integration and the product attempt — on the earlier phase commit,
-and re-test only the criteria the repairs touched:
-
-```bash
-bbs team evidence "$PARENT" --phase "$K" --carry --from "$INT_ATTEMPT,$PRODUCT_ATTEMPT" \
-  --reason "repair touched only X" [--except AC-2.1,AC-2.2]
-```
-
-`--carry` writes current-subject evidence from the passed checks of the named
-attempts of this phase or an earlier one (never failed ones, never a later
-phase's), minus `--except`, with provenance, and readiness shows it as
-carried. A `<phase>/review` check never carries: the rebuilt commit is a fix
-delta, reviewed afresh. Run a normal
-`--begin` attempt for the excepted criteria; fresh and carried checks together
-satisfy the cumulative check. Carrying is the lead's judgment: if the change
-could affect a criterion, except it; a change to shared code excepts every
-criterion that code serves.
-
-QA failure the integration session cannot fix → `repair` follow-ups on the
-owning ticket sessions, then reseal, integrate and land the fix commit and
-re-check it the same way: carry what passed, re-test what the repairs
-touched. After three failed
-attempts on the same blocker, park the phase and escalate; independent work
+That passing record is the phase done; nothing goes back to the lead for a
+`repair`. Only a fix outside the approved scope or design ends the session
+`BLOCKED` with the evidence. After three failed phase QA attempts `bbs team
+next` answers `blocked`: park the phase and escalate; independent work
 continues.
 
 ### Review effort
@@ -236,12 +207,13 @@ Review spends effort on logic, not on merge mechanics:
 
 | Change | Review |
 |---|---|
-| A whole phase diff | `medium`; `high` when any changed path touches money, auth or irreversible data |
-| A fix delta, an `XS`/`S` repair, or a conflict resolution that changed logic | `low`, on that delta only |
+| A whole phase diff, once | `medium` (the cap — never `high`) |
+| A fix delta or a repair | none — re-run the focused checks and re-test the criteria it touches |
+| A conflict resolution that changed logic | `low`, on that resolution only |
 | A mechanical resolution (regenerated files, lockfiles, imports, both-sides list entries) with build and focused tests passing | none — the resolved files are named in the commit; log it |
 
-A `repair` or fixup of size `XS`/`S` seals with `--waive review-pr` and the
-focused checks in its handoff; the phase's `low` delta review covers it.
+The phase is reviewed once: a passing `<phase>/review` on any commit of the
+phase stands after a fix-forward commit.
 
 ### 5. Release
 
@@ -300,9 +272,10 @@ bbs team release "$PARENT" --phase "$K" --file receipt.json
 
 The CLI checks the record exists and that each released SHA contains every
 phase commit of phases 1..k. `ROLLED_BACK` or `PARTIAL` **stops the line**: no
-later phase opens, integrates or releases until this phase releases. Fix
-forward: `repair` on the owning ticket, reseal, then a fix commit:
-integrate, land, QA, release again. An `auto` phase retries once under the design's go; an `ask` phase needs
+later phase opens, integrates or releases until this phase releases. The
+release session fixes forward itself, the way phase QA does: it edits the
+owning ticket's worktree, runs `integrate` + `land`, re-tests what it fixed
+and releases again — no `repair` through the lead. An `auto` phase retries once under the design's go; an `ask` phase needs
 a fresh `--request` go for every attempt, and from the second failure every
 phase does, so a human sees a repeatedly failing release.
 
@@ -314,6 +287,6 @@ next release, whose QA already covers it cumulatively.
 The last phase's integration QA is the project's final QA: it covers every
 criterion, and the verified, landed base is what the team hands over
 ([delivery](delivery.md#hand-over)). `readiness --action finish` reports each unresolved phase with its
-state (`pending`, `building`, `sealed`, `landed` (QA pending), `delivered`
+state (`pending`, `building`, `built`, `landed` (QA pending), `delivered`
 (landed and verified), `released`, `release_failed`); only when all are resolved does `bbs team complete`
 write the receipt.

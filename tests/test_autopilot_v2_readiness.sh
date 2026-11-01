@@ -86,10 +86,10 @@ printf 'STATUS: BLOCKED\n' > "$TICKET_HOME/verdicts/review-pr.md"
 out="$(cd "$REPO" && "$BBS" hooks pre-tool-gate <<<"$(input 'gh pr create --fill')")"
 check v2-ready-passes pass "$out"
 
-# A commit after acceptance stales the evidence → deny.
+# A recorded gate never goes stale: a later commit still passes.
 git -C "$REPO" commit -qm 'new revision' --allow-empty
 out="$(cd "$REPO" && "$BBS" hooks pre-tool-gate <<<"$(input 'gh pr create --fill')")"
-check v2-stale-denies deny "$out"
+check v2-later-commit-passes pass "$out"
 
 # `ticket ensure` is the other creator: a fresh ticket is v2 without a flag.
 ENSURE_REPO="$TMP/ensure-repo"; mkdir -p "$ENSURE_REPO"

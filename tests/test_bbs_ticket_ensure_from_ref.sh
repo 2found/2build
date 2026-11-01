@@ -9,7 +9,7 @@
 #   from-ref-cuts-named-commit --from-ref main~1 leaves it out
 #   bad-ref-refused            a ref that is not a commit exits 2, cuts nothing
 #   manifest-canonical-absolute the manifest names the checkout it was cut from,
-#                              absolutely, so `bbs foreman seal` can resolve it
+#                              absolutely, so `bbs team task done` and `integrate` can resolve it
 #   orca-places-worktree       inside an Orca terminal, Orca creates the worktree
 #                              (its workspace dir) and the manifest records it
 #   orca-failure-falls-back    an Orca that cannot create it → .babysit/worktrees/

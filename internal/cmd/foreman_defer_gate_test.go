@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -28,6 +29,21 @@ func childWorktree(t *testing.T, st *ticket.Store) string {
 	return m.Repos[0].Worktree
 }
 
+// dropGates leaves a ticket that never ran review-pr or qa, as a ticket off
+// the floor does.
+func dropGates(t *testing.T, st *ticket.Store) {
+	t.Helper()
+	path := filepath.Join(st.Home(), "checkpoint.json")
+	var cp map[string]interface{}
+	if err := readProjectJSON(path, &cp); err != nil {
+		t.Fatal(err)
+	}
+	delete(cp, "accepted_evidence")
+	if err := writeJSONAtomic(path, cp); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func readSeal(t *testing.T, st *ticket.Store) projectSeal {
 	t.Helper()
 	var seal projectSeal
@@ -39,17 +55,17 @@ func readSeal(t *testing.T, st *ticket.Store) projectSeal {
 
 // A ticket of any size seals without its own review and QA; the phase then
 // needs a review check on its commit before it counts as integrated.
-func TestSealDefersTicketGatesToPhaseReview(t *testing.T) {
+func TestPhaseReviewsItsDiffOnce(t *testing.T) {
 	st, child, _ := executionFixture(t)
 	setTicketSize(t, child, "L")
+	dropGates(t, child)
 	mustWrite(t, filepath.Join(childWorktree(t, child), "feature.txt"), strings.Repeat("line\n", 400))
 
-	if err := projectSealChild(child, nil, "", false); err != nil {
+	if err := projectRecordChild(child); err != nil {
 		t.Fatal(err)
 	}
-	w := readSeal(t, child).Waiver
-	if w == nil || !w.PhaseReview || !slices.Equal(w.Gates, []string{"qa", "review-pr"}) || !strings.Contains(w.Reason, "deferred to phase review") {
-		t.Fatalf("waiver = %+v", w)
+	if s, err := projectRead(st); err != nil || len(s.Children[0].Problems) != 0 {
+		t.Fatalf("recorded work without gates has problems: %+v %v", s.Children, err)
 	}
 	integrateAndLand(t, st, "p1")
 	recordChecks(t, st, "integration", carryCheck{"AC1", "behavior", 0}, carryCheck{"AC1", "failure", 0})
@@ -64,16 +80,28 @@ func TestSealDefersTicketGatesToPhaseReview(t *testing.T) {
 }
 
 // A money/auth/irreversible-data change keeps its own review.
-func TestSealKeepsReviewOfAFloorPath(t *testing.T) {
+func TestFloorPathKeepsItsReview(t *testing.T) {
 	_, child, _ := executionFixture(t)
 	mustMkdirAll(t, filepath.Join(childWorktree(t, child), "auth"))
 	mustWrite(t, filepath.Join(childWorktree(t, child), "auth", "token.go"), "package auth\n")
-	if err := projectSealChild(child, nil, "", false); err == nil || !strings.Contains(err.Error(), "review-pr:stale") {
-		t.Fatalf("seal = %v, want stale review-pr refusal", err)
+	dropGates(t, child)
+	if _, _, ok := deferralCovers(childWorktree(t, child), ticket.ReadDoc(child.IndexPath()), []string{"review-pr:missing", "qa:missing"}); ok {
+		t.Fatal("a floor path deferred its own review")
 	}
-	gates, _, ok := deferralCovers(childWorktree(t, child), child.Home(), ticket.ReadDoc(child.IndexPath()), []string{"qa:stale_tree_digest"})
+	gates, _, ok := deferralCovers(childWorktree(t, child), ticket.ReadDoc(child.IndexPath()), []string{"qa:missing"})
 	if !ok || !slices.Equal(gates, []string{"qa"}) {
 		t.Fatalf("floor deferral = %v %v", gates, ok)
+	}
+}
+
+// A privacy or tenant path keeps its own review too.
+func TestPrivacyPathKeepsItsReview(t *testing.T) {
+	_, child, _ := executionFixture(t)
+	mustMkdirAll(t, filepath.Join(childWorktree(t, child), "memory"))
+	mustWrite(t, filepath.Join(childWorktree(t, child), "memory", "eraser.go"), "package memory\n")
+	dropGates(t, child)
+	if _, _, ok := deferralCovers(childWorktree(t, child), ticket.ReadDoc(child.IndexPath()), []string{"review-pr:missing", "qa:missing"}); ok {
+		t.Fatal("a privacy path deferred its own review")
 	}
 }
 
@@ -85,20 +113,20 @@ func TestTaskDoneGateDefersBothGatesAtEverySize(t *testing.T) {
 			setTicketSize(t, child, size)
 		}
 		mustWrite(t, filepath.Join(childWorktree(t, child), "feature.txt"), "change\n")
-		gates, _, ok := deferralCovers(childWorktree(t, child), child.Home(), ticket.ReadDoc(child.IndexPath()), []string{"review-pr:stale_tree_digest", "qa:stale_tree_digest"})
+		gates, _, ok := deferralCovers(childWorktree(t, child), ticket.ReadDoc(child.IndexPath()), []string{"review-pr:missing", "qa:missing"})
 		if !ok || !slices.Equal(gates, []string{"review-pr", "qa"}) {
 			t.Fatalf("size %q deferral = %v %v", size, gates, ok)
 		}
-		if _, _, ok := deferralCovers(childWorktree(t, child), child.Home(), ticket.ReadDoc(child.IndexPath()), []string{"qa:result_not_pass"}); ok {
+		if _, _, ok := deferralCovers(childWorktree(t, child), ticket.ReadDoc(child.IndexPath()), []string{"qa:result_not_pass"}); ok {
 			t.Fatal("a failed QA verdict was deferred")
 		}
 	}
 }
 
-// A phase fixup after land is made in the owning ticket's worktree and
-// resealed; the next build is one fix commit on the landed phase, and needs a
-// fresh review of that delta — the old review is not carried.
-func TestSealPhaseFixup(t *testing.T) {
+// A phase QA fix after land is made in the owning ticket's worktree; the
+// next integrate takes it and the next build is one fix commit on the landed phase, and the
+// phase review already recorded stands — the fix is never re-reviewed.
+func TestPhaseQAFixLandsAsOneFixCommit(t *testing.T) {
 	st, child, repo := executionFixture(t)
 	first := integrateAndLand(t, st, "p1")
 	oldInt := recordChecks(t, st, "integration", carryCheck{"AC1", "behavior", 0}, carryCheck{"AC1", "failure", 0}, carryCheck{"p1", "review", 0})
@@ -115,20 +143,15 @@ func TestSealPhaseFixup(t *testing.T) {
 		t.Fatal(err)
 	}
 	mustWrite(t, filepath.Join(childWorktree(t, child), "feature.txt"), "fixed copy\n")
-	if err := foremanProjectCommand("seal", []string{"ready", "--fixup", "AC1 copy"}); err == nil || !strings.Contains(err.Error(), "still owns") {
-		t.Fatalf("fixup under a live dispatch = %v", err)
+	s, err := projectRead(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ids := projectUnsealedEdits(st, s, s.Phases[0]); len(ids) != 0 {
+		t.Fatalf("edits under a live dispatch taken: %v", ids)
 	}
 	if _, err := foreman.UpdateTask(task.ID, func(tk *foreman.Task) error { return tk.Current().Settle(foreman.DispatchCompleted, "") }); err != nil {
 		t.Fatal(err)
-	}
-	if err := foremanProjectCommand("seal", []string{"ready", "--fixup", "AC1 copy", "--waive", "qa"}); err == nil {
-		t.Fatal("--fixup with --waive accepted")
-	}
-	if err := foremanProjectCommand("seal", []string{"ready", "--fixup", "AC1 copy"}); err != nil {
-		t.Fatal(err)
-	}
-	if w := readSeal(t, child).Waiver; w == nil || !w.PhaseReview || w.Reason != "phase fixup: AC1 copy" {
-		t.Fatalf("fixup waiver = %+v", w)
 	}
 	// Other work lands on base meanwhile; the fix still applies as a delta.
 	other := filepath.Join(t.TempDir(), "other")
@@ -149,53 +172,57 @@ func TestSealPhaseFixup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "p1/review (a review covers one phase diff; review the fix)") {
+	if !strings.Contains(out, "p1/review (the phase review already stands)") {
 		t.Fatalf("review carried: %s", out)
 	}
-	if r := phaseQAProblems(t, st, "p1"); !hasReason(r, "phase review") {
-		t.Fatalf("fixup passed QA without reviewing its delta: %v", r)
+	if r := phaseQAProblems(t, st, "p1"); hasReason(r, "phase review") {
+		t.Fatalf("fixup demanded a fresh phase review: %v", r)
 	}
 }
 
-// A small ticket that never ran review-pr or qa seals, and stays sealed.
-func TestSealDefersGatesThatNeverRan(t *testing.T) {
-	st, child, _ := executionFixture(t)
-	setTicketSize(t, child, "XS")
-	path := filepath.Join(child.Home(), "checkpoint.json")
-	var cp map[string]interface{}
-	if err := readProjectJSON(path, &cp); err != nil {
-		t.Fatal(err)
-	}
-	delete(cp, "accepted_evidence")
-	if err := writeJSONAtomic(path, cp); err != nil {
-		t.Fatal(err)
-	}
-	if err := projectSealChild(child, nil, "", false); err != nil {
-		t.Fatal(err)
-	}
-	if w := readSeal(t, child).Waiver; w == nil || w.States["review-pr"] != "missing" || w.States["qa"] != "missing" {
-		t.Fatalf("waiver = %+v", w)
-	}
-	s, err := projectRead(st)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if p := s.Children[0].Problems; len(p) != 0 {
-		t.Fatalf("deferred child has problems: %v", p)
-	}
-}
-
-// await judges a prerequisite the way task done and seal do: gates a ticket
-// leaves to its phase do not stop its dependents.
-func TestAwaitReadsASizeDeferralAsReady(t *testing.T) {
+// task done reads gates a ticket leaves to its phase as ready; a failed
+// verdict still stops it.
+func TestReportStateReadsASizeDeferralAsReady(t *testing.T) {
 	_, child, repo := executionFixture(t)
 	setTicketSize(t, child, "S")
 	mustWrite(t, filepath.Join(childWorktree(t, child), "feature.txt"), "small change\n")
-	state, reasons := ticketReportState(repo, child.Env, child.Env.Ticket, false, []string{"review-pr:stale_tree_digest", "qa:stale_tree_digest"})
+	state, reasons := ticketReportState(repo, child.Env, child.Env.Ticket, false, []string{"review-pr:missing", "qa:missing"})
 	if state != "ready" || len(reasons) != 1 || !strings.Contains(reasons[0], "deferred to phase review") {
 		t.Fatalf("state = %q %v", state, reasons)
 	}
 	if state, _ := ticketReportState(repo, child.Env, child.Env.Ticket, false, []string{"qa:result_not_pass"}); state != "" {
 		t.Fatalf("a failed QA verdict was read as ready: %q", state)
+	}
+}
+
+// A succeeded task done records the ticket's work for its phase; nobody seals.
+func TestTaskDoneRecordsTicketWork(t *testing.T) {
+	st, child, _ := executionFixture(t)
+	if err := os.Remove(filepath.Join(child.Home(), "project-seal.json")); err != nil {
+		t.Fatal(err)
+	}
+	if s, _ := projectRead(st); len(s.Children[0].Problems) == 0 {
+		t.Fatal("a ticket with no recorded work counted as built")
+	}
+	task, err := foreman.CreateTask("fm-test", "ready", "ticket", []byte("{}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := foreman.UpdateTask(task.ID, func(tk *foreman.Task) error {
+		tk.Dispatches = append(tk.Dispatches, foreman.Dispatch{ID: task.ID + ".d1", Status: foreman.DispatchOpen})
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(childWorktree(t, child), "feature.txt"), "final work\n")
+	if err := taskDoneRecordWork(task.ID, map[string]string{"outcome": "succeeded"}); err != nil {
+		t.Fatal(err)
+	}
+	seal := readSeal(t, child)
+	if got := gitOutIn(seal.Repos[0].Canonical, "show", seal.Repos[0].Head+":feature.txt"); got != "final work" {
+		t.Fatalf("recorded work = %q", got)
+	}
+	if s, _ := projectRead(st); len(s.Children[0].Problems) != 0 {
+		t.Fatalf("recorded ticket still has problems: %v", s.Children[0].Problems)
 	}
 }

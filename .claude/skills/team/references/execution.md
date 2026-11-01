@@ -43,19 +43,18 @@ observations; do not invent cost or token totals.
 
 Allocate each phase's ticket and children when the phase opens (phases.md,
 topology.md), then bind each accepted seed with `bbs team bind "$PARENT" --seed <key> --child <ticket>`. One code
-repository per child keeps each evidence subject unambiguous; use dependent
-children across repos. Every required leaf must have one accepted seed. A
+repository per child keeps each evidence subject unambiguous; work across
+repos is one child per repo against a frozen interface, or a later phase. Every required leaf must have one accepted seed. A
 cancelled child leaves unmet scope until an explicit contract revision removes
 or replaces it.
 
 After parent approval, open phases as readiness allows and admit each open
-phase's tickets as SKILL.md's batch rule orders them — ready tickets first,
-then dependents that wait in session with `bbs team await` — within
-resource bounds. Shared interfaces and edit ownership are
-fixed in the accepted plan; dependency edges enforce necessary ordering.
+phase's tickets in one batch within resource bounds. Shared interfaces and
+edit ownership are fixed in the accepted plan; ordering between parts is the
+order of phases, never an edge inside one.
 
 At each full reconciliation use `bbs team snapshot "$PARENT" --json`. It returns
-scope coverage, child seals, current evidence, blockers, delivery, each
+scope coverage, finished tickets, current evidence, blockers, delivery, each
 phase's state, releases and problems, and observed time. Gate each phase step
 with `bbs team readiness "$PARENT" --action dispatch|integrate|land|release
 --phase <id> --json`; inspect each child's dependencies through the existing
@@ -69,22 +68,19 @@ Use the worker packet in SKILL.md and the Orca envelope in topology.md.
 Autopilot honors its **Team ticket assignment** contract on the assigned checkout.
 
 Every ticket is created with a `schema_version: 2` checkpoint; an older one is
-refused by readiness, gates and seal until migrated as the producer reference
+refused by readiness and gates until migrated as the producer reference
 says, and its gates then run again. Autopilot's
-[verification producer](../autopilot/references/verification.md) captures
-before/after subjects and archives logs. Seal each passing child as soon as it
-passes: `bbs team seal "$TICKET"`.
+[verification producer](../autopilot/references/verification.md) records
+subjects for audit and archives logs.
 
-A seal snapshots the worker's uncommitted tree on `refs/bbs/tickets/<id>` and
-preserves gate attempts and log digests. An edit in the worktree after the
-seal invalidates it until the ticket is re-verified and resealed; once its
-phase landed and the worktree is gone, the snapshot is the record.
-Repairing a sealed child needs fresh gates and a new seal, then a fresh phase
-commit.
+A ticket's succeeded `task done` records its uncommitted tree on
+`refs/bbs/tickets/<id>`; `integrate` records any edit made after it, so a
+repair or QA fix needs no step of its own. Once its phase landed and the
+worktree is gone, the snapshot is the record.
 
 Evidence-only projects explicitly approve `artifacts_only: true`. Their children
-keep the workflow verdict and durable outputs under the ticket directory. Seal
-with `bbs team seal "$TICKET" --file <artifacts.json>`, containing
+keep the workflow verdict and durable outputs under the ticket directory and
+report with `bbs team task done … --artifacts <artifacts.json>`, containing
 `{"paths":["<absolute ticket output>"]}`. Code changes cannot be delivered
 through this path. Final acceptance checks still cover each criterion; there is
 no phase commit to integrate or land, and delivery reads `ARTIFACTS_READY`.
@@ -159,22 +155,19 @@ milestone or wait transition. Use the actual Task/Dispatch/attempt IDs
  "evidence":"/absolute/durable/check.log"}
 ```
 
-`phase` names the ticket's loop step (`plan`, `approve`, `await`, `adopt`,
-`build`, `review`, `qa`, `repair`), not a release phase. An `approve` wait on the lead is `wait_kind: approval`; an
-`await` on prerequisites is `wait_kind: dependency`.
+`phase` names the ticket's loop step (`plan`, `approve`, `build`, `review`,
+`qa`, `repair`), not a release phase. An `approve` wait on the lead is
+`wait_kind: approval`.
 Only changed evidence advances `progress_at`; summary rewrites and extra edits
-do not. Waits add `wait_kind` (`test`, `dependency`, `approval`, `resource`),
+do not. Waits add `wait_kind` (`test`, `approval`, `resource`),
 `wait_reason` and `wait_until` at most 15 minutes ahead. Refresh from actual
 ongoing waits, never a timer. Expiry is not failure or a reason to inspect a
 worker; Orca owns runtime state and runtime.md defines reconciliation triggers.
 
-A ticket session repairs its own failures first: autopilot's repair loop, then
-the lead's `repair` follow-ups into a fresh session in the same worktree. When the ticket reports the
-same blocker `BLOCKED` after its retry budget, dispatch a fresh read-only
-diagnosis worker on the critical route with the failure evidence — a context
-that has not already failed three times is the point — then send its findings
-to the ticket session as a `repair` (a fresh worker on the ticket route if the
-session is gone). Preserve failure counts and work; never restart a live
+A ticket session repairs its own failures: autopilot's repair loop inside
+the session. One that ends without success gets one `repair` on a fresh
+worker in the same worktree, carrying the failure evidence; still `BLOCKED`
+after it, the ticket is parked and escalated — no diagnosis worker. Preserve failure counts and work; never restart a live
 writer, expire its lease, blindly resend assignments or silently upgrade its
 model. Missing intent/authority
 escalates one User Challenge; unaffected work continues. Record telemetry and

@@ -2,8 +2,8 @@
 # tests/test_autopilot_review_delta.sh — the review-gate protocol documented in
 # autopilot/references/verification.md and SKILL.md § Current-session gates
 # works against the real producer: `data.id`, the "already owns" recovery,
-# strict results keys, `--fix` failing the attempt, and a delta re-review
-# (tree snapshot + review_tree pointer) recording a passing gate.
+# strict results keys, one `--fix` pass recording on its post-fix tree, and a
+# later code change never staling the gate.
 set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -34,16 +34,12 @@ fail=0
 expect() { # $1=name $2=want $3=got
   if [ "$2" = "$3" ]; then echo "ok $1"; else echo "FAIL $1: want '$2', got '$3'"; fail=1; fi
 }
-# The snapshot recipe from SKILL.md, verbatim.
-snap() { i=$(mktemp -u); GIT_INDEX_FILE=$i git read-tree HEAD && GIT_INDEX_FILE=$i git add -A && GIT_INDEX_FILE=$i git write-tree; rm -f "$i"; }
 begin() {
   "$BBS" autopilot verification begin --gate review-pr --owner w1 --handle s1 \
     --transport claude-code --harness claude-code
 }
 
 echo change >> f; echo new > untracked.txt
-T1=$(snap)
-expect "snapshot leaves the index alone" "" "$(git diff --cached --name-only)"
 
 A1=$(begin | jq -r .data.id)
 case "$A1" in review-pr-*) echo "ok begin returns data.id" ;; *) echo "FAIL begin: $A1"; fail=1 ;; esac
@@ -65,17 +61,13 @@ case "$("$BBS" autopilot verification record --attempt "$A2" --file "$TMP/extra.
 esac
 
 echo fix >> f # what review-pr --fix does to the tree
-expect "--fix fails the attempt" "verification subject changed; begin a new gate on the repaired tree" \
-  "$("$BBS" autopilot verification record --attempt "$A2" --file "$TMP/results.json" | jq -r .error.message)"
+expect "--fix records on the post-fix tree" true \
+  "$("$BBS" autopilot verification record --attempt "$A2" --file "$TMP/results.json" | jq -r .ok)"
+expect "one review pass passes review readiness" pass \
+  "$("$BBS" ticket readiness --action review --json | jq -r '.data.gates[] | select(.name=="review-pr") | .state')"
 
-"$BBS" ticket set-pointer review_tree "$T1"
-expect "review_tree pointer persists" "$T1" "$("$BBS" ticket get pointers.review_tree)"
-T2=$(snap)
-expect "delta holds only the fix" "f" "$(git diff --name-only "$T1" "$T2")"
-
-A3=$(begin | jq -r .data.id)
-expect "delta gate records" true "$("$BBS" autopilot verification record --attempt "$A3" --file "$TMP/results.json" | jq -r .ok)"
-expect "delta gate passes review readiness" pass \
+echo qa-fix >> f # a later code change never stales the gate
+expect "code change keeps the review gate" pass \
   "$("$BBS" ticket readiness --action review --json | jq -r '.data.gates[] | select(.name=="review-pr") | .state')"
 
 exit "$fail"

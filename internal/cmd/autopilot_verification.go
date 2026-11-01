@@ -21,13 +21,10 @@ func (a *apState) verification(args []string) {
 
 func (a *apState) verificationCommand(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("verification needs begin|record|claim")
+		return fmt.Errorf("verification needs begin|record")
 	}
 	env := identity.Env{Slug: a.slug, Branch: a.branch, Ticket: a.ticket, ProjectHome: a.stateRoot}
 	st := ticket.New(env)
-	if args[0] == "claim" {
-		return a.claimPaths(env, args[1:])
-	}
 	if args[0] == "begin" {
 		gate, owner := argValue(args, "--gate"), argValue(args, "--owner")
 		if gate != "review-pr" && gate != "qa" {
@@ -62,7 +59,7 @@ func (a *apState) verificationCommand(args []string) error {
 		return nil
 	}
 	if args[0] != "record" {
-		return fmt.Errorf("verification needs begin|record|claim")
+		return fmt.Errorf("verification needs begin|record")
 	}
 	id := argValue(args, "--attempt")
 	if !idRe.MatchString(id) {
@@ -91,13 +88,6 @@ func (a *apState) verificationCommand(args []string) error {
 			if err := validateV2VerificationEvidence(ev, env); err != nil {
 				return err
 			}
-			s, err := collectAutopilotSnapshot(a, a.ticket)
-			if err != nil {
-				return err
-			}
-			if containsStaleReason(evidenceReadinessReasons(ev, rec.Gate, currentEvidenceSubject(s))) {
-				return fmt.Errorf("pending verification is stale; recover the failed attempt before retry")
-			}
 			_, err = mutateAttempt(a, a.ticket, id, rec.Revision, map[string]interface{}{"state": "completed", "result": map[string]interface{}{"evidence": pendingPath}})
 			if err != nil {
 				return err
@@ -122,14 +112,7 @@ func (a *apState) verificationCommand(args []string) error {
 		if len(result.Checks) == 0 {
 			return fmt.Errorf("record needs executed checks with logs")
 		}
-		s, err := collectAutopilotSnapshot(a, a.ticket)
-		if err != nil {
-			return err
-		}
-		if digestJSON(rec.Assignment["subject"]) != digestJSON(currentEvidenceSubject(s)) {
-			_, _ = mutateAttempt(a, a.ticket, id, rec.Revision, map[string]interface{}{"state": "failed", "failure": map[string]interface{}{"reason": "verification subject changed"}})
-			return fmt.Errorf("verification subject changed; begin a new gate on the repaired tree")
-		}
+		subject, _ := rec.Assignment["subject"].(map[string]interface{})
 		checks := []interface{}{}
 		passed := len(result.Limitations) == 0 && !hasMaterialFindings(result.Findings)
 		for i, check := range result.Checks {
@@ -168,7 +151,6 @@ func (a *apState) verificationCommand(args []string) error {
 		if limitations == nil {
 			limitations = []interface{}{}
 		}
-		subject, _ := rec.Assignment["subject"].(map[string]interface{})
 		ev := map[string]interface{}{"schema_version": 2, "ticket": a.ticket, "run_id": rec.RunID, "attempt_id": rec.ID, "gate": rec.Gate, "status": status, "result": verdict, "subject": subject,
 			"producer": map[string]interface{}{"owner": rec.Owner, "harness": orDefault(stringValue(rec.Assignment["harness"]), "unknown"), "isolation": "current-session"},
 			"checks":   checks, "unresolved_findings": findings, "limitations": limitations, "started_at": rec.Assignment["started_at"], "completed_at": isoNow(),

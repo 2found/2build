@@ -17,8 +17,7 @@ under that phase's ticket.
    sub-ticket needing its own worktree, returns the proposed split to the lead
    for approval against accepted scope, bidirectional linkage and DAG
    admission; workers never own topology.
-   Preserve real `blocked_by`/`blocks` dependencies, shared interfaces, edit
-   ownership, and acceptance-to-seed/evidence mapping. Missing accepted coverage
+   Preserve shared interfaces, edit ownership, and acceptance-to-seed/evidence mapping. Missing accepted coverage
    needs a child or repair; changed scope or non-delegable decisions escalate.
    Persist the ticket's workflow with
    `BABYSIT_TICKET="$TICKET" bbs ticket set-pointer workflow <workflow>`:
@@ -43,44 +42,22 @@ under that phase's ticket.
    from the worktree records the ticket branch in `pointers.branch`; from
    the primary it would record `main`. `init --parent` sets only the child's
    parent field, so add the parent-side membership after initialization:
-   `BABYSIT_TICKET="$PHASE_TICKET" bbs ticket add-child "$CHILD"`. Dependency
-   edges stay inside one phase; a later phase already starts from an earlier
-   one's code.
-   For each dependency, add `blocked_by` on the dependent and `blocks` on the
-   prerequisite with `BABYSIT_TICKET="$DEPENDENT" bbs ticket add-relation
-   blocked_by "$PREREQUISITE"` and
-   `BABYSIT_TICKET="$PREREQUISITE" bbs ticket add-relation blocks "$DEPENDENT"`.
-   When moving a dependency, remove both old sides with
-   `BABYSIT_TICKET="$DEPENDENT" bbs ticket remove-relation blocked_by "$OLD_PREREQUISITE"` and
-   `BABYSIT_TICKET="$OLD_PREREQUISITE" bbs ticket remove-relation blocks "$DEPENDENT"`.
-   Relationship commands lock one ticket index and append history; never edit
-   `index.json` directly. Write `requirement.md` and assign parent and
+   `BABYSIT_TICKET="$PHASE_TICKET" bbs ticket add-child "$CHILD"`. Tickets
+   of one phase have no dependency edges — dispatch refuses a `blocked_by`
+   between two of them; a later phase already starts from an earlier one's
+   code, so it needs none either.
+   Never edit `index.json` directly. Write `requirement.md` and assign parent and
    children to this team.
    Bind the accepted seed with `bbs team bind "$PARENT" --seed <key>
    --child "$TICKET"` and include their parent acceptance IDs in the Task.
-   The moment both sides of every relation are linked, emit the DAG with the
-   dispatch plan — see [runtime](references/runtime.md), **Intake and DAG**.
+   Once every ticket is linked, emit the DAG with the dispatch plan — see [runtime](references/runtime.md), **Intake and DAG**.
 4. Validate every recorded worktree path and the base before dispatch. A
-   missing worktree of a sealed ticket is recreated by `bbs ticket ensure` and
-   `bbs ticket adopt` of its own snapshot; one that was never sealed is
-   re-dispatched. A worktree with unexpected changes is a recovery case, not
-   permission to replace it.
-5. Dependents launch with their prerequisites. The dependent's assignment
-   names each prerequisite as `<ticket>:<orca-task>`; after its plan is
-   approved, its ticket worker runs `bbs team await --prereqs
-   <ticket>:<task>,...`, which blocks until each prerequisite's Dispatch has
-   completed and its ticket passes readiness (review, or push when
-   `pointers.deferred_heavy` defers its QA) and is sealed, then **adopts** each
-   sealed snapshot into the worktree as uncommitted changes (`SNAPSHOT=` per
-   prerequisite). `CONFLICT=` files (`AWAIT=conflict`, exit 5) are resolved in
-   the same session against the accepted shared interfaces — no separate
-   integration worker. `AWAIT=not-ready` (a prerequisite settled without
-   passing) ends that Dispatch without adopting; once the prerequisite passes,
-   send the dependent a `refresh`. A later prerequisite repair invalidates
-   affected dependent gates and phase evidence: send each affected dependent a
-   `refresh` (it runs `bbs ticket adopt <prerequisite>` and re-verifies) in
-   dependency order, only at settled boundaries. Never adopt into a live
-   writer's tree or accept gates for untested content.
+   missing worktree of a finished ticket (its `task done` recorded a
+   snapshot) needs nothing: `integrate` builds from the snapshot ref, and
+   `bbs ticket ensure` recreates the worktree only when a fix needs it. One
+   that never finished is re-dispatched. A worktree with unexpected changes
+   is a recovery case, not permission to replace it.
+5. Launch every ticket of the phase in one batch: they are independent.
 
 ## Split by context
 
@@ -106,10 +83,9 @@ where contexts separate:
   running them in parallel saves wall time the plan names. Each is separately
   testable and revertible and never reads the other's code. An `XS`/`S` side
   joins its neighbour's ticket: a cold start costs more than it saves.
-- **Order alone is not a seam.** A `blocked_by` pair in the same module is one
-  ticket working in order, not a dependent that waits, adopts and re-verifies.
-  Split a dependency only when the dependent works in another module against
-  the prerequisite's frozen interface.
+- **Order alone is not a seam.** Work that needs another part's code is one
+  ticket working in order, or the next phase built on the landed base —
+  never two tickets of one phase.
 - **Parallelism buys a cold start only on disjoint code.** Two workers in one
   module conflict, refresh and repeat each other's exploration; that costs
   more than the wall time saved.
@@ -164,9 +140,7 @@ the heavy profile. Simulator profiles reserve the shared mobile stack and GPU;
 `local-ml` reserves the GPU. `plan` and `standard` cost one unit, heavy
 profiles four; a ticket worker is `standard` (`plan` for an evidence-only
 ticket), and a heavy Task is normally the consolidated heavy QA from SKILL.md.
-Admit runnable tickets before dependents that would only wait: a waiting
-dependent holds its slot and lease, so it gets one only after every ready
-ticket has its own. Before each new or reused Dispatch:
+Before each new or reused Dispatch:
 
 Resolve the agent route first with [worker routing](worker-routing.md), then
 pass its selected agent and destination host into quota admission:
@@ -224,7 +198,7 @@ ticket work: this is a lead Dispatch (Task id named), its effective
 works the loop directly; the lead never types `/goal` or any prompt into a
 worker pane. It also names the resource
 profile the lead reserved for this Task, and whether it is a ticket assignment
-or a follow-up (`repair`, `refresh`, `redirect`, `deliver`) on an existing
+or a follow-up (`repair`, `redirect`, `deliver`) on an existing
 ticket session, with the trigger evidence and the gates it invalidates. The worker invokes the installed skill
 directly in that turn, skips any developer `/goal` copy/paste handoff, uses
 `bbs team task ask` for a genuine User Challenge, and follows the

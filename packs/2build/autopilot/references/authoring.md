@@ -40,8 +40,8 @@ or exact string values.
 - Every `##` step needs a `> produces:` directive.
 - End with `STATUS`, `VERDICT`, `SUMMARY`, and `NEXT`.
 - A workflow that may change production code uses autopilot's current-session
-  `review-pr` then `qa` gates, persists both verdicts, repairs until they cover
-  the same final tree, and requires readiness. Evidence-only outcomes do not
+  `review-pr` then `qa` gates, persists both verdicts, runs each once, and
+  requires readiness. Evidence-only outcomes do not
   fabricate code gates; any code delta takes the production path.
 - Emit `NEEDS_CONTEXT` only for genuinely missing human input.
 - Never force-push, destroy data, or send external messages.

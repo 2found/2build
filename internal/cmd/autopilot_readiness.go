@@ -92,8 +92,8 @@ func evaluateReadinessIn(env identity.Env, action, dir string) (readinessResult,
 			result.ReasonCodes = append(result.ReasonCodes, "control:"+stringValue(control["state"]))
 		}
 	}
-	// Workers never commit: gates verify the working tree by content
-	// (tree_digest), so uncommitted work is the normal verified state. Only a
+	// Workers never commit, so uncommitted work is the normal verified
+	// state, and nothing stales a gate. Only a
 	// push sends commits, and uncommitted changes would not be in them.
 	if s.Git.Dirty && (action == "push" || action == "pr") {
 		result.ReasonCodes = append(result.ReasonCodes, "git:dirty")
@@ -101,7 +101,6 @@ func evaluateReadinessIn(env identity.Env, action, dir string) (readinessResult,
 	if s.ActiveAttempt != nil {
 		result.ReasonCodes = append(result.ReasonCodes, "attempt:active")
 	}
-	result.ReasonCodes = append(result.ReasonCodes, contractReadinessReasons(ticket.New(env), orDefault(dir, "."))...)
 	accepted, _ := cp["accepted_evidence"].(map[string]interface{})
 	for _, gate := range needed {
 		attemptID := stringValue(accepted[gate])
@@ -120,7 +119,7 @@ func evaluateReadinessIn(env identity.Env, action, dir string) (readinessResult,
 		if err := validateAcceptedV2EvidenceIn(ev, env, cp, gate, attemptID, gitOutIn(dir, "rev-parse", "--show-toplevel")); err != nil {
 			return readinessResult{}, fmt.Errorf("accepted %s evidence is invalid: %w", gate, err)
 		}
-		for _, reason := range evidenceReadinessReasons(ev, gate, result.CurrentSubject) {
+		for _, reason := range evidenceReadinessReasons(ev, gate) {
 			result.ReasonCodes = append(result.ReasonCodes, gate+":"+reason)
 		}
 	}
@@ -190,7 +189,7 @@ func surfaceFingerprintIn(dir string) string {
 	return digestJSON(rows)
 }
 
-func evidenceReadinessReasons(ev map[string]interface{}, gate string, current map[string]interface{}) []string {
+func evidenceReadinessReasons(ev map[string]interface{}, gate string) []string {
 	var reasons []string
 	if stringValue(ev["gate"]) != gate {
 		reasons = append(reasons, "gate_mismatch")
@@ -208,20 +207,9 @@ func evidenceReadinessReasons(ev map[string]interface{}, gate string, current ma
 	if hasMaterialFindings(interfaceSlice(ev["unresolved_findings"])) {
 		reasons = append(reasons, "material_findings")
 	}
-	subject, _ := ev["subject"].(map[string]interface{})
-	// head_sha is recorded but not compared: tree_digest is the work itself,
-	// whichever commit (if any) it sits on.
-	for _, key := range []string{"repo_id", "base_sha", "tree_digest", "requirement_digest", "plan_digest", "policy_digest"} {
-		if stringValue(subject[key]) != stringValue(current[key]) {
-			reasons = append(reasons, "stale_"+key)
-		}
-	}
-	if gate == "qa" {
-		surface, _ := ev["surface"].(map[string]interface{})
-		if stringValue(surface["fingerprint"]) != stringValue(current["surface_fingerprint"]) {
-			reasons = append(reasons, "stale_surface")
-		}
-	}
+	// Nothing stales a gate: the subject (head, base, tree, requirement,
+	// plan, policy) is recorded for the audit trail only. Editing while a
+	// gate runs, or after, is normal work.
 	return reasons
 }
 
@@ -266,15 +254,11 @@ func setV2VerificationEvidence(env identity.Env, body []byte) (string, error) {
 	ticketHome := st.Home()
 	var resultPath string
 	err := withLock(st, func() error {
-		s, snapshotErr := collectAutopilotSnapshot(a, env.Ticket)
-		if snapshotErr != nil {
-			return snapshotErr
+		if _, err := collectAutopilotSnapshot(a, env.Ticket); err != nil {
+			return err
 		}
 		if _, err := readCheckpointV2(ticketHome, env.Ticket); err != nil {
 			return err
-		}
-		if reasons := evidenceReadinessReasons(ev, gate, currentEvidenceSubject(s)); containsStaleReason(reasons) {
-			return fmt.Errorf("evidence is stale for current state: %s", strings.Join(reasons, ","))
 		}
 		attempt, readErr := readAttemptRecordStrict(filepath.Join(ticketHome, "attempts", attemptID+".json"))
 		if readErr != nil {
@@ -494,15 +478,6 @@ func resolveEvidencePath(path string, roots ...string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("must resolve inside ticket or check cwd and exist")
-}
-
-func containsStaleReason(reasons []string) bool {
-	for _, reason := range reasons {
-		if strings.HasPrefix(reason, "stale_") || reason == "gate_mismatch" {
-			return true
-		}
-	}
-	return false
 }
 
 // ticketV2Readiness evaluates a ticket against the worktree recorded in its

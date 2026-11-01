@@ -33,7 +33,7 @@ func TestSealSnapshotsUncommittedWorkWithoutTouchingTheCheckout(t *testing.T) {
 	runGit(t, wt, "add", "shared.txt") // a staged change survives untouched
 	status := gitOutIn(wt, "status", "--porcelain")
 
-	snap, err := sealTicketSnapshot(wt, "a", nil)
+	snap, err := sealTicketSnapshot(wt, "a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,11 +46,11 @@ func TestSealSnapshotsUncommittedWorkWithoutTouchingTheCheckout(t *testing.T) {
 	if gitOutIn(repo, "rev-parse", snap+"^") != head {
 		t.Fatal("first snapshot is not parented on the cut commit")
 	}
-	if again, _ := sealTicketSnapshot(wt, "a", nil); again != snap {
+	if again, _ := sealTicketSnapshot(wt, "a"); again != snap {
 		t.Fatal("re-sealing an unchanged tree made a new snapshot")
 	}
 	mustWrite(t, filepath.Join(wt, "new.txt"), "newer\n")
-	next, err := sealTicketSnapshot(wt, "a", nil)
+	next, err := sealTicketSnapshot(wt, "a")
 	if err != nil || next == snap || gitOutIn(repo, "rev-parse", next+"^") != snap {
 		t.Fatalf("re-seal is not a child of the previous snapshot: %s %v", next, err)
 	}
@@ -66,7 +66,7 @@ func TestMergeCommitsReportsConflictsPerSnapshot(t *testing.T) {
 	mustWrite(t, filepath.Join(wts["c"], "other.txt"), "c\n")
 	snaps := map[string]string{}
 	for n, wt := range wts {
-		s, err := sealTicketSnapshot(wt, n, nil)
+		s, err := sealTicketSnapshot(wt, n)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -84,28 +84,6 @@ func TestMergeCommitsReportsConflictsPerSnapshot(t *testing.T) {
 	if len(conflicts) != 1 || strings.Join(conflicts[snaps["b"]], ",") != "shared.txt" {
 		t.Fatalf("conflict not attributed to the later snapshot: %v", conflicts)
 	}
-
-	// Repair: b adopts a, resolves, reseals with a as a parent; the phase
-	// then composes.
-	files, err := adoptSnapshots(wts["b"], []string{snaps["a"]})
-	if err != nil || strings.Join(files, ",") != "shared.txt" {
-		t.Fatalf("adopt conflict = %v %v", files, err)
-	}
-	if gitOutIn(wts["b"], "rev-parse", "HEAD") != base {
-		t.Fatal("adopt moved HEAD")
-	}
-	mustWrite(t, filepath.Join(wts["b"], "shared.txt"), "AB\ntwo\nthree\n")
-	resealed, err := sealTicketSnapshot(wts["b"], "b", []string{snaps["a"]})
-	if err != nil {
-		t.Fatal(err)
-	}
-	tree, _, conflicts, err := mergeCommits(repo, base, []string{snaps["a"], resealed, snaps["c"]})
-	if err != nil || len(conflicts) != 0 {
-		t.Fatalf("repaired phase still conflicts: %v %v", conflicts, err)
-	}
-	if got := gitOutIn(repo, "cat-file", "-p", tree+":shared.txt"); !strings.HasPrefix(got, "AB") {
-		t.Fatalf("composed tree lost the resolution: %q", got)
-	}
 }
 
 // A ticket whose worktree moved onto a newer base after its first seal must
@@ -114,7 +92,7 @@ func TestResealAfterBaseMovedComposesWithTheNewBase(t *testing.T) {
 	repo, wts := snapshotRepo(t, "a")
 	wt := wts["a"]
 	mustWrite(t, filepath.Join(wt, "new.txt"), "new\n")
-	first, err := sealTicketSnapshot(wt, "a", nil)
+	first, err := sealTicketSnapshot(wt, "a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +100,7 @@ func TestResealAfterBaseMovedComposesWithTheNewBase(t *testing.T) {
 	runGit(t, repo, "commit", "-qam", "base moves")
 	runGit(t, wt, "merge", "-q", "--ff-only", "main")
 	mustWrite(t, filepath.Join(wt, "shared.txt"), "one\ntwo\nthree\nbase\nticket\n")
-	resealed, err := sealTicketSnapshot(wt, "a", nil)
+	resealed, err := sealTicketSnapshot(wt, "a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,28 +110,6 @@ func TestResealAfterBaseMovedComposesWithTheNewBase(t *testing.T) {
 	}
 	if _, _, conflicts, err := mergeCommits(repo, base, []string{resealed}); err != nil || len(conflicts) != 0 {
 		t.Fatalf("reseal on a moved base does not compose: %v %v", conflicts, err)
-	}
-}
-
-func TestAdoptCarriesPrerequisiteWorkAsUncommittedChanges(t *testing.T) {
-	_, wts := snapshotRepo(t, "a", "b")
-	mustWrite(t, filepath.Join(wts["a"], "api.txt"), "contract\n")
-	snap, err := sealTicketSnapshot(wts["a"], "a", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mustWrite(t, filepath.Join(wts["b"], "ui.txt"), "screen\n")
-	files, err := adoptSnapshots(wts["b"], []string{snap})
-	if err != nil || len(files) != 0 {
-		t.Fatalf("clean adopt = %v %v", files, err)
-	}
-	for name, want := range map[string]string{"api.txt": "contract\n", "ui.txt": "screen\n"} {
-		if b, _ := os.ReadFile(filepath.Join(wts["b"], name)); string(b) != want {
-			t.Fatalf("%s = %q", name, b)
-		}
-	}
-	if gitOutIn(wts["b"], "diff", "--cached", "--name-only") != "" {
-		t.Fatal("adopt staged changes; adopted work must stay uncommitted")
 	}
 }
 

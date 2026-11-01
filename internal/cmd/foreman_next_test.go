@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -149,17 +150,6 @@ func TestBatchShowCarriesNextSteps(t *testing.T) {
 	}
 }
 
-// Sealing a settled batch is one call; a ticket that is not ready does not
-// hold back the others.
-func TestSealManyReportsEachTicket(t *testing.T) {
-	executionFixture(t)
-	var err error
-	out := captureStdout(t, func() { err = foremanSealMany([]string{"ready", "missing-ticket"}) })
-	if err == nil || !strings.Contains(out, "SEALED=ready") || !strings.Contains(out, "NOT_SEALED=missing-ticket") {
-		t.Fatalf("seal many = %v %q", err, out)
-	}
-}
-
 // A launched worker holds a lease until it settles; next must not suggest
 // dispatching its ticket a second time.
 func TestForemanNextWaitsOnALaunchedWorker(t *testing.T) {
@@ -167,9 +157,12 @@ func TestForemanNextWaitsOnALaunchedWorker(t *testing.T) {
 	if err := foremanProjectCommand("bind", []string{"parent", "--phase", "p1", "--child", "ph-p1"}); err != nil {
 		t.Fatal(err)
 	}
-	// An auth path keeps its own review, so the stale review leaves it unready.
+	// Unsealed, and an auth path keeps its own review, so the missing review
+	// leaves it unready.
 	mustMkdirAll(t, filepath.Join(repo, "auth"))
 	mustWrite(t, filepath.Join(repo, "auth", "token.go"), "package auth\n")
+	dropGates(t, child)
+	_ = os.Remove(filepath.Join(child.Home(), "project-seal.json"))
 	doc := ticket.ReadDoc(child.IndexPath())
 	doc.Set("status", "open")
 	if err := ticket.WriteDoc(child.IndexPath(), doc); err != nil {

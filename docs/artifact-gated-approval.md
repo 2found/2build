@@ -8,7 +8,7 @@ The repository's Git pre-commit hook remains separate.
 | --- | --- | --- |
 | `pre-tool-gate` | Before shell tools | Check ticket review/QA artifacts before push, PR creation, or PR merge |
 | `session-writer` | Session start and after shell tools | Refresh dashboard session identity, throttled to once per minute |
-| `worker-report-gate` | `Stop` / OMP `session_stop` | Keep a worker running while its current Orca Dispatch is still active |
+| `worker-report-gate` | `Stop` / OMP `session_stop` | Remind a worker once per stop to report its open Orca Dispatch |
 
 ## Installation and agent contracts
 
@@ -53,8 +53,8 @@ checks phase QA evidence.
   reason.
 - Push needs current `review-pr` evidence; PR creation and merge need
   `review-pr` and `qa`. The gate is `bbs ticket readiness`, which reads only
-  evidence `bbs autopilot verification record` accepted for the current tree;
-  a missing, failed or stale gate denies naming it. Verdict files are never
+  evidence `bbs autopilot verification record` accepted;
+  a missing or failed gate denies naming it. Verdict files are never
   read.
 - No objection means **exit 0 with no output**. Never emit `allow` (which
   could override the host's own permission checks) or `defer` (which can

@@ -28,7 +28,7 @@ Before phase tickets, worktrees, or production dispatch:
    - `plan.md`: the phase plan — what each phase ships and why it is safe to
      release alone — and acceptance criteria.
    - `manifest.md`: one row per ticket — phase, stable seed key, scope, size,
-     in-phase dependencies, owned files, shared contracts, acceptance
+     owned files, shared contracts, acceptance
      ownership — per topology.md and [phases](phases.md#the-phase-plan).
      Runtime ids/status belong in relations/report, so progress does not
      rewrite the approved design.
@@ -46,12 +46,15 @@ Before phase tickets, worktrees, or production dispatch:
    changes; the prototype ids of the screens and states it owns; its
    acceptance IDs; and the few choices it may make locally. The bar: an
    `XS`/`S` ticket builds from its brief alone, and an `M`/`L` ticket plans
-   only what its brief leaves open. Before publishing, the lead checks the
-   bar and returns gaps to the design worker's session: a seed without a
-   brief, an interface without one owner and an exact shape, a user-facing
-   seed without prototype ids, an architecture, data-model or contract
-   choice left to a ticket, a one-way decision with no alternative weighed, or a phase split into several tickets without a
-   reason [split by context](topology.md#split-by-context) accepts.
+   only what its brief leaves open. The design worker checks its draft
+   against this bar before it reports: a seed without a brief, an interface
+   without one owner and an exact shape, a user-facing seed without
+   prototype ids, an architecture, data-model or contract choice left to a
+   ticket, a one-way decision with no alternative weighed, a seed that needs
+   another seed's code in the same phase, or a phase split into several
+   tickets without a reason [split by context](topology.md#split-by-context)
+   accepts. The lead reads the report against the same bar and starts a new
+   design session only for a gap that changes a decision.
 
    Planning/review may precede approval; phase tickets and production edits
    may not. Write `project.json`, with its `phases`, through `bbs team
@@ -157,7 +160,7 @@ Delivery: <PENDING / LANDED / RELEASED / UNKNOWN>
 |---|---|---|---|---|
 | <id + title, phase ticket> | <ask/auto/none> | <pending…released / release_failed> | <PASS/FAIL/STALE> — phase commit <SHA>, <evidence> | <tag + verdict + record, or pending go> |
 
-| Ticket / work | Phase / worker step | Sealed snapshot | Review / QA | Landed in | Cleanup / blocker |
+| Ticket / work | Phase / worker step | Recorded snapshot | Review / QA | Landed in | Cleanup / blocker |
 |---|---|---|---|---|---|
 | <id + meaningful title> | <phase; Dispatch + current loop step> | <refs/bbs/tickets/id @ SHA> | <evidence links> | <phase commit SHA or pending> | <worktree/terminal state; blocker> |
 
@@ -184,7 +187,7 @@ never unlocks a gate on resume.
 Every code-bearing phase ends in one integration QA on its landed phase
 commit ([phases](phases.md#2-integrate-the-phase)), proving every criterion of that
 phase and all earlier ones — fresh for this phase's criteria and whatever its
-diff touches, carried for the rest; the last phase's run is the project's final QA and
+diff touches, earlier phases' passing evidence for the rest; the last phase's run is the project's final QA and
 passes before the lead's `done` heartbeat. Per-ticket QA never substitutes for
 it. Wholly evidence-only projects may record N/A with acceptance evidence.
 The lead owns the evidence checks; one integration worker session on the normal
@@ -207,11 +210,10 @@ inline.
    outcome.
 3. Persist `integration-qa.md` with commands, results, runtime identity,
    evidence links and the tested commit; set `pointers.integration_qa` and the
-   parent `qa` verdict. A worktree that is no longer clean at the commit means
-   STALE and a rerun, not PASS.
-4. On FAIL/STALE, the session fixes what it can with `seal --fixup` and
-   re-checks; `repair` the owning tickets for the rest, reseal, integrate and
-   land the fix commit, and re-check what changed. PASS unlocks the release
+   parent `qa` verdict.
+4. On FAIL, the session fixes every failure itself in the owning ticket's
+   worktree, runs `integrate` (it takes the fixes) and `land`, and re-checks
+   what it fixed; no `repair` goes through the lead. PASS unlocks the release
    and removes the phase's worktrees ([delivery](delivery.md)).
 
 ## Executable completion

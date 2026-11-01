@@ -198,12 +198,13 @@ func TestGateReadiness(t *testing.T) {
 		t.Fatalf("ready = %v, want pass", d)
 	}
 
-	// An edit after the evidence was accepted makes it stale → deny.
-	if err := os.WriteFile(filepath.Join(repo, "edited.txt"), []byte("after the gate\n"), 0o644); err != nil {
+	// Edits after the evidence was accepted never stale it; only an
+	// uncommitted tree blocks a PR (nothing to push yet).
+	if err := os.WriteFile(filepath.Join(env.ProjectHome, "tickets", env.Ticket, "requirement.md"), []byte("changed\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if d := evaluateGate(gatePayload("gh pr create --fill", repo)); d.action != "deny" || !strings.Contains(d.reason, "tree_digest") {
-		t.Fatalf("stale = %v, want deny/tree_digest", d)
+	if d := evaluateGate(gatePayload("gh pr create --fill", repo)); d.action != "pass" {
+		t.Fatalf("requirement edit = %v, want pass", d)
 	}
 }
 

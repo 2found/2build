@@ -13,7 +13,16 @@ import (
 // Stop while a Foreman Dispatch launched into this exact terminal is still
 // open. The hook never guesses a Dispatch from cwd, a ticket, or a sibling
 // terminal, and needs no Orca call: bbs owns the Dispatch record.
-func runWorkerReportGate(stdout io.Writer) {
+func runWorkerReportGate(payload []byte, stdout io.Writer) {
+	// Block once per stop: a continuation the block itself started
+	// (stop_hook_active) stops freely, so a worker that cannot report never
+	// loops at a full context read per turn; the watcher settles it instead.
+	var body struct {
+		Active bool `json:"stop_hook_active"`
+	}
+	if json.Unmarshal(payload, &body) == nil && body.Active {
+		return
+	}
 	t, d := foreman.DispatchForTerminal(os.Getenv("ORCA_TERMINAL_HANDLE"))
 	if d == nil {
 		return
@@ -23,7 +32,5 @@ func runWorkerReportGate(stdout io.Writer) {
 		q := pending[0]
 		reason = fmt.Sprintf("Team Task %s has your unanswered question %s. Keep waiting with `bbs team task ask %s --resume %s`; never ask it again.", t.ID, q.ID, t.ID, q.ID)
 	}
-	// Recheck on every Stop, including stop_hook_active continuations: that
-	// flag is not evidence of a report. Interrupt/cancellation remains native.
 	_ = json.NewEncoder(stdout).Encode(map[string]string{"decision": "block", "reason": reason})
 }

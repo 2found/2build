@@ -7,19 +7,18 @@ A **goal proxy**: the skill owns init — durable ticket state, requirement,
 plan — and the harness's work loop owns execution (`/goal` where supported),
 with persisted `review-pr`/`qa` verdicts as the terminal condition. Gates
 are proportional: under Team a ticket runs focused checks and leaves
-`review-pr` and `qa` to its phase (step 5 of Team ticket assignment); a
-follow-up already verified on its final tree may be sealed by
-`team` with `bbs team seal --waive` and a reason. Record the gates you
-own, but do not invent work to satisfy the ones it defers. Keep
+`review-pr` and `qa` to its phase (step 3 of Team ticket assignment); a
+gate that is not needed is named with `bbs team task done --no-gate
+"<why>"`. Record the gates you own, but do not invent work to satisfy the ones it defers. Keep
 state on disk; safe to re-enter until a terminal status prints.
 **Autopilot is an assistant, not an orchestrator.** It works on the checkout
 it was started in and never manages its own git topology: no branch cutting,
 no worktrees, no commit, no push, no PR. Its work stays **uncommitted** in the
-checkout: gates bind the content of the ticket's own change (`tree_digest`,
-[verification.md](references/verification.md)), so nothing needs a
+checkout: a gate records what it checked and never goes stale because code
+changed ([verification.md](references/verification.md)), so nothing needs a
 commit to be proven, and the checkpoint carries crash-resume. Who commits is
-decided above it — the human after a direct run, or `team`, which seals each
-ticket and lands **one commit per phase**
+decided above it — the human after a direct run, or `team`, which takes
+each ticket's tree at its `task done` and lands **one commit per phase**
 ([git flow](../references/git-flow.md)). The lead decomposes the project,
 creates the worktrees, starts one autopilot assistant per ticket, and
 integrates, verifies and lands each phase. There is no parent/orchestrate exception inside
@@ -304,9 +303,8 @@ steps and ends when the ticket is ready for its phase's integration:
    deferral reads it, and an unset size counts as `M`), pin its contracts as
    below, and build straight from the ticket brief. An `S` seed that
    touches money, auth or irreversible data, or that its brief leaves
-   undecided, plans and approves as `M`. Plan against the
-   prerequisites' accepted contracts and their `plan.md`; their code may not
-   exist yet. For each interface contract the ticket builds against
+   undecided, plans and approves as `M`. Other tickets of the phase are
+   independent: build against the accepted contracts, never their code. For each interface contract the ticket builds against
    (`.babysit/contracts.yaml`), `bbs contract pin <id>`; a ticket that
    provides one changes its files first and runs `bbs contract check <id>`
    before reporting ([contracts](../references/contracts.md)).
@@ -333,35 +331,22 @@ steps and ends when the ticket is ready for its phase's integration:
    `approved` continues; a redirect is revised here and asked again; a park
    answer ends the Dispatch with `NEEDS_CONTEXT`.
    Never implement on an unapproved plan record.
-3. **Await prerequisites.** With prerequisites assigned, run
-   `bbs team await --prereqs <ticket>:<task>,...` in the foreground and
-   repeat it on `AWAIT=timeout`. `AWAIT=not-ready` ends the Dispatch: report
-   `BLOCKED` naming the prerequisite.
-4. **Adopt prerequisites.** On `AWAIT=ready`, `await` has already adopted
-   each prerequisite's sealed snapshot into this worktree as uncommitted
-   changes (`SNAPSHOT=` lines). `AWAIT=conflict` lists `CONFLICT=` files:
-   resolve their markers against the accepted shared interfaces. Record the
-   adopted snapshots in the handoff; review this ticket's own changes, not the
-   adopted ones. This is the only integration a ticket session performs —
-   never fetch, merge, rebase, stash or reset. Then reconcile the plan with
-   the adopted code: fix details in place; a scope, acceptance or
-   shared-contract change is a material deviation and goes back through
-   step 2.
-5. **Build** with focused checks only — typecheck, lint and the unit tests
+3. **Build** with focused checks only — typecheck, lint and the unit tests
    of the touched code, fixed until green — and report as soon as they pass:
    the phase commit is reviewed once and QA'd cumulatively right after
    integration, so a ticket never runs `review-pr` or `qa` on its own tree,
    whatever its size. The one exception: when a changed path hits the
-   money/auth/irreversible-data floor, run `review-pr <assigned effort>
+   money/auth/irreversible-data floor or names privacy, tenant, erasure or
+   retention, run `review-pr <assigned effort>
    --fix` on this ticket's diff before reporting (its `qa` still waits for
-   the phase). `task done`, `seal` and `await` apply this themselves; a
+   the phase). `task done` applies this itself; a
    deferred report reads `GATE="deferred to phase review: …"`. A failed
    verdict or open finding of a gate you did run is never deferred. A check
    the assignment defers to a heavy profile is skipped and recorded as
    `DEFERRED_HEAVY=<profile>: <checks>` in the handoff and with
    `bbs ticket set-pointer deferred_heavy "<profile>: <checks>"`, leaving the
    `qa` verdict open.
-6. **Report.** Require `bbs ticket readiness --action review --json` (`push`
+4. **Report.** Require `bbs ticket readiness --action review --json` (`push`
    when heavy checks are deferred) for the gates your size owns, persist the checkpoint, handoff and gate
    evidence per `references/verification.md`, and report exactly once with
    `bbs team task done`; it re-checks readiness and refuses success with
@@ -373,18 +358,12 @@ steps and ends when the ticket is ready for its phase's integration:
    readiness are current. Never commit, push or open a PR.
 
 A follow-up carries a new Dispatch and names its kind and trigger evidence:
-`repair` fixes the named findings or failures, `refresh` re-runs steps 3–4
-for the named prerequisites (adopting them — never a rebase, which moves the
-base and reopens the whole review) (or re-reads a changed contract, adapts and
-re-pins it), `redirect` resumes from step 2 with the lead's
-answer — each then re-runs every gate the change invalidates. A `repair`
-from phase integration QA names the failing criterion and the tested phase
-commit; reproduce it in this ticket's worktree. A `repair` for a conflict
-that needs real rework names the colliding ticket or base change: `bbs
-ticket adopt <ticket>` (or work against the new base), resolve every
-`CONFLICT=` file, rerun the affected gates. A consolidated heavy-QA assignment lists
-several tickets and writes each one's `qa` verdict with
-`BABYSIT_TICKET=<ticket>` on that ticket's assigned head, without code fixes.
+`repair` picks up a session that ended without success and fixes the named
+failure, `redirect` resumes from step 2 with the lead's answer — each then
+re-runs the focused checks the change touches. A consolidated heavy-QA
+assignment lists several tickets and writes each one's `qa` verdict with
+`BABYSIT_TICKET=<ticket>` on that ticket's assigned head; a failure it fixes
+itself in that ticket's worktree and re-checks.
 
 The lead owns ticket decomposition, task classification and model selection before
 launch. Honor its assigned model; record the supplied routing metadata and
@@ -460,28 +439,11 @@ back evidence, never a verdict.
    fabricated PASS.
    Record the ticket's starting revision before implementation and pass the
    complete ticket diff as the first review's target: the working tree against
-   that revision, untracked files included. Adopted prerequisite work is
-   context, not this ticket's diff.
-   **Re-review the fix delta, not the whole ticket.** When each review gate
-   begins, snapshot its tree without touching the index:
-   `i=$(mktemp -u); GIT_INDEX_FILE=$i git read-tree HEAD && GIT_INDEX_FILE=$i git add -A && GIT_INDEX_FILE=$i git write-tree; rm -f "$i"`.
-   Once that review's report is persisted, store the printed tree with
-   `bbs ticket set-pointer review_tree <tree>`. A later review on the same
-   base, requirement and plan — after `--fix`, QA fixes, or a repair Dispatch —
-   targets `git diff <review_tree> <current snapshot>` (written to a patch file
-   passed as the review target), at the resolved effort,
-   with the previous report as context: finders read callers and enclosing
-   code beyond the hunk, and every earlier finding the fixes claim to resolve
-   is checked. Its report names the `review_tree` it builds on. A
-   follow-up Dispatch reviews its delta at `low` effort, raised to the
-   assignment's effort only when the delta touches money, auth or
-   irreversible-data paths. Adopted work that touches no path in the
-   reviewed diff needs no review and no QA re-run: run the focused checks it
-   affects, and `task done` / `seal` keep the verdicts (`GATE="carried: …"`).
-   Adopted work that does touch the reviewed diff is reviewed as a delta.
-   Review the complete ticket diff again only when there is no
-   `review_tree`, when the base moved, the requirement or plan changed, or
-   when the delta is most of the ticket diff.
+   that revision, untracked files included.
+   **Review once.** One `review-pr --fix` pass is the review gate. Its fixes,
+   later QA fixes and repairs are verified by the checks they record, never
+   by another review round; a code change never reopens a gate
+   ([verification.md](references/verification.md)).
 5. **Accept evidence, not completion text.** Record the session model,
    reviewed revision, report, fixes, and evidence paths in the
    checkpoint/handoff. A gate owns the checkout while it runs — no editing the
@@ -494,7 +456,6 @@ back evidence, never a verdict.
    `DONE` left on disk. A crash, missing report, or inadequate check is not a
    pass: fix and re-run the gate, or record `BLOCKED`. Never overwrite a failed
    gate with a parent-authored success without fixing and re-verifying.
-   Subsequent edits invalidate affected gates; run them again before finish.
    On cold resume recover any recorded gate attempt and artifacts; do not
    start a duplicate run while one is still in flight.
 6. **Require cleanup evidence from QA.** Its verdict is incomplete without a
@@ -509,15 +470,15 @@ Apply this loop to every production workflow before its final handoff:
    with a reproduction you ran (a test, script or CLI call against the real
    code; name it when it cannot run), cited guards/callers and the review
    verdict ladder;
-   reuse a recorded decision only while its evidence is current. Fix in-scope
+   reuse a recorded decision. Fix in-scope
    defects autonomously; use
    `investigate` when the cause is unclear. Record evidence for refuted or
    nonblocking findings. Required behavior is never deferred just to get a
    green verdict; unrelated improvements stay outside the ticket.
-2. After fixes, rerun affected checks. Any code change invalidates both
-   gates: QA fixes return to review, and review fixes return to QA. Finish
-   with review and QA covering the same final tree, base, requirement, and
-   plan.
+2. After fixes, rerun affected checks. A fix never re-runs review: the
+   review's own `--fix` edits complete it, and QA fixes are proven by QA's
+   checks. A later edit never sends either gate back: nothing stales a
+   recorded gate.
 3. Persist failures, attempted fixes, and their results in the checkpoint or
    handoff. Retry with a changed hypothesis. Before the second attempt at a
    blocker, record in the checkpoint `premise: the fix assumes <X>` — the
@@ -533,8 +494,7 @@ Apply this loop to every production workflow before its final handoff:
    `BABYSIT_TICKET="$TICKET" bbs ticket readiness --action review --json`.
    Inspect `ok` and `data.ready`, not just exit 0; any false/error result is
    unfinished. Markdown verdicts never satisfy readiness: it reads only the
-   gate evidence `bbs autopilot verification record` accepted for the current
-   tree. Readiness does not grade a report, so also verify coverage and
+   gate evidence `bbs autopilot verification record` accepted. Readiness does not grade a report, so also verify coverage and
    unresolved findings from the actual reports.
    If a sub-skill reports `DONE_WITH_CONCERNS` for blocked required coverage,
    retain its report and record the gate with the unmet check under
@@ -577,10 +537,9 @@ does not replace normal cleanup.
 - Full reasoning depth at every step; requirement and plan are single-pass on
   wording, not on thinking. `review-pr` and `qa` are the gates — the
   evidence `bbs autopilot verification record` accepts for them is what the
-  push/PR hook and `bbs team seal` check. They are proportional: the lead may
-  seal a simple or already-verified ticket with `--waive` and a reason, so
-  re-record them after any change when you can, but a missing gate is a
-  concern to report, not a reason to stall. `review-pr` only reports findings,
+  push/PR hook and `bbs team task done` check. They are proportional: a
+  gate that is not needed is named with `task done --no-gate "<why>"`, and a
+  missing gate is a concern to report, not a reason to stall. `review-pr` only reports findings,
   so recording its gate is yours: unresolved material findings go in
   `unresolved_findings`, and `set-verdict` refuses both gate names.
 - Git scope is exactly: `git init` plus its empty initial commit on an
@@ -612,5 +571,5 @@ VERDICT: PLANNED | BUILT | FIXED | HANDOFF
 SUMMARY: <acceptance results, final revision, review/QA evidence, release readiness>
 CLEANUP: <owned processes stopped and verified; pre-existing/shared resources retained>
 NEXT: commit it, or /bbs:create-pr for the verified change — under a team lead,
-nothing: the lead seals the ticket and lands its phase
+nothing: your task done records the work and the lead lands its phase
 ```

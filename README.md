@@ -128,7 +128,7 @@ Without one of these, a single Autopilot run, even a day-long one, is faster and
 
 ## Skills and CLI
 
-Skills are the agent-facing workflows; `bbs` is the companion CLI they use. `/bbs:team` runs the product team; `bbs team` (alias `bbs foreman`) manages model policy lookups, durable lead records, phases (`seal`, `integrate`, `land`, `release`), suggested next steps, and reports; `bbs contract` manages the interface contracts parallel tickets build against. `/bbs:autopilot` runs the one-ticket workflow; `bbs autopilot` exposes its checkpoint and state helpers. `bbs ticket` owns ticket identity, DAG relations, evidence, test-surface leases, and adopting sealed work.
+Skills are the agent-facing workflows; `bbs` is the companion CLI they use. `/bbs:team` runs the product team; `bbs team` (alias `bbs foreman`) manages model policy lookups, durable lead records, phases (`integrate`, `land`, `release`), suggested next steps, and reports; `bbs contract` manages the interface contracts parallel tickets build against. `/bbs:autopilot` runs the one-ticket workflow; `bbs autopilot` exposes its checkpoint and state helpers. `bbs ticket` owns ticket identity, DAG relations, evidence, test-surface leases, and adopting finished tickets' work.
 
 Useful CLI entry points:
 

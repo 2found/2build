@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Review code before it lands — the current branch, working diff, or a GitHub pull request. Use when asked to review a PR/diff/change, run a code review, do a pre-merge or pre-commit check, hunt for bugs, or gate a change before landing. Surfaces correctness bugs, removed behavior, cross-file breakage, security, performance, and cleanup, then verifies each candidate before reporting. Effort levels low|medium|high|xhigh|max (default medium); --fix applies findings to the working tree, --comment posts inline PR comments. Claude Code /code-review pipeline with babysit semantic-decision integration.
+description: Review code before it lands — the current branch, working diff, or a GitHub pull request. Use when asked to review a PR/diff/change, run a code review, do a pre-merge or pre-commit check, hunt for bugs, or gate a change before landing. Surfaces correctness bugs, removed behavior, cross-file breakage, security, performance, and cleanup, then verifies each candidate before reporting. Effort levels low|medium|high|xhigh|max (default medium; only an explicit human request runs above medium); --fix applies findings to the working tree, --comment posts inline PR comments. Claude Code /code-review pipeline with babysit semantic-decision integration.
 ---
 # review-pr
 
@@ -25,7 +25,10 @@ Argument grammar: `[low|medium|high|xhigh|max] [--fix] [--comment] [<target>]`
 1. Parse `--comment` / `--fix`. The first token is the level if it matches a
    known level name; everything after the level is the free-form `target`
    (a PR number, branch name, or file path to review instead of the diff).
-2. No level given → use the session effort level; if undefined → `medium`.
+2. No level given → use the session effort level, capped at `medium`; if
+   undefined → `medium`. **Effort is capped at `medium`** unless the human
+   typed the level themselves (`/bbs:review-pr high`): workflows, team specs
+   and skills never pass `high`, `xhigh` or `max`.
 3. Emit the level's inline template (§2), assembled from the shared fragments
    (§1), plus the `--comment` / `--fix` appendices (§3) when those flags are set.
 
@@ -377,14 +380,12 @@ each subagent on; the angle prompts stay word for word. Tiers are relative to
 the models the harness advertises, so the policy is harness-neutral.
 
 ```text
-Subagent model routing. When you launch a subagent, pick its model tier by
-role:
-- light — Reuse, Simplification, Efficiency and Conventions finders.
-- mid — correctness angles (A–E), the Altitude finder, every Phase 2 verifier
-  and the sweep finder.
+Subagent model routing. Launch every subagent — every finder (correctness
+angles A–E, Altitude, Reuse, Simplification, Efficiency, Conventions), every
+Phase 2 verifier and the sweep finder — on the mid tier.
 The final synthesis and any --fix edits stay in this session.
-light is the smallest model the subagent tool advertises; mid is the tier
-between it and the top tier (Claude Code: model "haiku" / "sonnet"). Never
+mid is the tier between the smallest model the subagent tool advertises and
+the top tier (Claude Code: model "sonnet"). Never
 route above this session's model: if the session already runs at or below a
 tier, inherit. When the subagent tool has no model selector, or advertises a
 single model, inherit for every role. Never let routing drop a finder or a

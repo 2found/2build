@@ -116,8 +116,6 @@ func newTicketCmd() *cobra.Command {
 				runClear(args[1:])
 			case "surface":
 				runSurface(args[1:])
-			case "adopt":
-				runAdopt(args[1:])
 			case "add-handoff":
 				runAddHandoff(args[1:])
 			case "set-review":
@@ -204,11 +202,8 @@ Subcommands:
   append-history --event E [--actor A] [--extra-json JSON]
 
 Only for runs inside a ticket worktree (a foreman batch). Workers never
-commit; Foreman seals, integrates and lands one commit per phase:
+commit; Foreman integrates and lands one commit per phase:
 
-  adopt <ticket>...              merge sealed tickets' snapshots into this
-                                 worktree as uncommitted changes; exit 5 and
-                                 CONFLICT=<file> lines on conflicts
   surface <verb>                 lease on a shared test resource:
       acquire [--ticket ID] [--ttl-min N]
                                  exclusive QA-session lease; stale (> ttl) is stolen

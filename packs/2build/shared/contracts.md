@@ -42,10 +42,10 @@ new one, git is the history, and there is nothing else to keep in sync.
   their own small ticket or the provider ticket's first step. Consumers build
   against the file — mocks and fixtures from it — not against the provider's
   code, so both sides run in parallel.
-- **Ticket (consumer)**: `bbs contract pin <id>` while planning. If the
-  contract later changes in the worktree, the ticket's readiness reports
-  `contract:<id>:changed` and its gates are stale until it adapts and re-pins;
-  the lead sends it a `refresh`.
+- **Ticket (consumer)**: `bbs contract pin <id>` while planning. A later
+  change to the contract never gates the ticket and sends nothing back to
+  it: the phase composes on the current version and phase QA catches what
+  breaks.
 - **Ticket (provider)**: change the contract files first, then the code;
   run `bbs contract check <id>` before reporting.
 - **Phase**: `bbs team integrate` records the contracts the phase commit

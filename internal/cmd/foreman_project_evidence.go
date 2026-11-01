@@ -41,8 +41,11 @@ type projectCompletion struct {
 
 func projectEvidenceProblems(st *ticket.Store, s projectSnapshot, ev projectEvidence, checkedOut bool) []string {
 	problems := []string{}
-	if ev.Version != 1 || ev.Subject != projectEvidenceSubject(s, ev) || ev.Producer == "" || (ev.Kind != "integration" && ev.Kind != "product" && ev.Kind != "journey") {
-		return []string{"invalid or stale subject"}
+	// Evidence is judged against the phase commit only while it is being
+	// produced (checkedOut). Once recorded it stands: a later phase commit, a
+	// fixup or an edit never sends a phase back to QA or review.
+	if ev.Version != 1 || (checkedOut && ev.Subject != projectEvidenceSubject(s, ev)) || ev.Producer == "" || (ev.Kind != "integration" && ev.Kind != "product" && ev.Kind != "journey") {
+		return []string{"invalid subject"}
 	}
 	children := projectPhaseChildren(s, ev.Phase)
 	if _, err := parseProjectTime(ev.Started); err != nil {
@@ -68,10 +71,10 @@ func projectEvidenceProblems(st *ticket.Store, s projectSnapshot, ev projectEvid
 		return append(problems, "unknown phase")
 	}
 	cand := s.Phases[k].Candidate
-	if cand == nil && (s.Contract == nil || !s.Contract.ArtifactsOnly) {
-		return append(problems, "phase commit missing or stale: run bbs team integrate")
+	if checkedOut && cand == nil && (s.Contract == nil || !s.Contract.ArtifactsOnly) {
+		return append(problems, "phase commit missing: run bbs team integrate")
 	}
-	if cand != nil {
+	if checkedOut && cand != nil {
 		// The tested surface is the phase commit itself, in the phase's own
 		// worktree; nothing else counts as phase QA.
 		if len(ev.Surfaces) != len(cand.Repos) {
@@ -89,10 +92,8 @@ func projectEvidenceProblems(st *ticket.Store, s projectSnapshot, ev projectEvid
 				continue
 			}
 			if checkedOut {
-				head, err := gitOutputStrict(r.Worktree, "rev-parse", "HEAD")
-				status, statusErr := gitOutputStrict(r.Worktree, "status", "--porcelain", "--untracked-files=all")
-				if err != nil || statusErr != nil || head != r.Commit || status != "" {
-					problems = append(problems, "tested worktree not clean at the phase commit: "+r.Worktree)
+				if head, err := gitOutputStrict(r.Worktree, "rev-parse", "HEAD"); err != nil || head != r.Commit {
+					problems = append(problems, "tested worktree is not at the phase commit: "+r.Worktree)
 				}
 			}
 			// Phase QA is cumulative: the commit must sit on every earlier
@@ -217,13 +218,11 @@ func projectEvidenceCommand(st *ticket.Store, kv map[string]string) error {
 		if err := readProjectJSON(kv["file"], &results); err != nil {
 			return err
 		}
-		// Compare inputs before accepting results; late recollection cannot turn
-		// an old test into proof for the current tree. A lost-response retry
-		// of a recorded attempt may find its worktree already cleaned up.
+		// The tested surface was validated at --begin; a commit landed or an
+		// edit made while the check ran never rejects its results.
 		path := filepath.Join(st.Home(), "project-evidence", ev.ID+".json")
-		_, statErr := os.Stat(path)
-		if p := projectEvidenceProblems(st, s, ev, statErr != nil); len(p) > 0 {
-			return fmt.Errorf("verification inputs changed: %v", p)
+		if p := projectEvidenceProblems(st, s, ev, false); len(p) > 0 {
+			return fmt.Errorf("invalid verification attempt: %v", p)
 		}
 		ev.Checks, ev.Findings, ev.Preview, ev.Runtime = results.Checks, results.Findings, results.Preview, results.Runtime
 		if len(ev.Checks) == 0 {
@@ -273,7 +272,7 @@ func projectEvidenceCommand(st *ticket.Store, kv map[string]string) error {
 			return err
 		}
 		projectEvent(st, "verification_recorded", ev.ID, ev.Producer, ev.Kind)
-		out := map[string]interface{}{"evidence": ev, "problems": projectEvidenceProblems(st, s, ev, statErr != nil)}
+		out := map[string]interface{}{"evidence": ev, "problems": projectEvidenceProblems(st, s, ev, false)}
 		if cleanup := projectCleanupVerifiedPhase(st, ev.Phase); cleanup != nil {
 			out["cleanup"] = cleanup
 		}
@@ -343,9 +342,9 @@ func projectEvidenceCarry(st *ticket.Store, s projectSnapshot, kv map[string]str
 			case slices.Contains(except, check.Criterion):
 				skipped = append(skipped, label+" (excepted)")
 			case check.Kind == "review":
-				// A review covers one phase diff; a rebuild after land is a
-				// fix delta, reviewed afresh.
-				skipped = append(skipped, label+" (a review covers one phase diff; review the fix)")
+				// The phase is reviewed once: its passing review stands on
+				// every later commit of the phase, so it is never copied.
+				skipped = append(skipped, label+" (the phase review already stands)")
 			case !projectCheckPassed(src, check.Criterion, check.Kind) || len(check.Command) == 0:
 				skipped = append(skipped, label+" (not passed in "+src.ID+")")
 			case slices.ContainsFunc(ev.Checks, func(c projectCheck) bool { return c.Criterion == check.Criterion && c.Kind == check.Kind }):
@@ -439,7 +438,7 @@ func writeProjectImmutable(path string, body []byte) error {
 func projectCompletionSubject(s projectSnapshot) string {
 	var receipts []projectEvidence
 	for _, ev := range s.Evidence {
-		if ev.Subject == projectEvidenceSubject(s, ev) && (ev.Kind == "integration" || ev.Kind == "product") {
+		if ev.Kind == "integration" || ev.Kind == "product" {
 			ev.State = ""
 			ev.Problems = nil
 			receipts = append(receipts, ev)

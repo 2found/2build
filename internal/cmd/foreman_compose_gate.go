@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/2found/2build/internal/foreman"
@@ -12,16 +11,13 @@ import (
 )
 
 // Measured runs (2026-10) spent most of a phase's wall time and tokens on
-// cold follow-up sessions: siblings that edited the same seam files and only
-// learned so when integrate refused the phase, and refreshes that re-ran a
-// full review after adopting work that touched none of the ticket's own files.
-// Both are decided mechanically here, while the reporting worker is still warm.
+// cold follow-up sessions for siblings that edited the same seam files. The
+// overlap is reported here, while the reporting worker is still warm; the lead
+// resolves it where the phase composes.
 
 // taskDoneCompose returns the phase siblings this ticket's worktree does not
 // merge with, as sibling ticket -> conflicted paths. A sibling counts once its
-// own ticket session reported success: the earlier finisher keeps its tree and
-// the later one adopts it now, instead of in a cold repair after integrate.
-// Tests replace it.
+// own ticket session reported success. Tests replace it.
 var taskDoneCompose = func(t foreman.Task) (map[string][]string, error) {
 	primary := baseOpsPrimary("foreman task done")
 	if primary == "" {
@@ -31,8 +27,7 @@ var taskDoneCompose = func(t foreman.Task) (map[string][]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	me := storeForTicket(env, t.Ticket)
-	parent := ticket.ReadDoc(me.IndexPath()).Get("parent")
+	parent := ticket.ReadDoc(storeForTicket(env, t.Ticket).IndexPath()).Get("parent")
 	if parent == "" {
 		return nil, nil
 	}
@@ -56,12 +51,12 @@ var taskDoneCompose = func(t foreman.Task) (map[string][]string, error) {
 		if _, c, err := ticketWorktree(primary, env, sib); err != nil || c != canonical {
 			continue
 		}
-		snap, err := prereqSnapshot(primary, env, sib)
+		snap, err := ticketSnapshot(primary, env, sib)
 		if err != nil {
 			continue
 		}
 		if mine == "" {
-			if mine, err = worktreeCommit(dir, readAdopted(me.Home())); err != nil {
+			if mine, err = worktreeCommit(dir); err != nil {
 				return nil, err
 			}
 		}
@@ -74,6 +69,15 @@ var taskDoneCompose = func(t foreman.Task) (map[string][]string, error) {
 		}
 	}
 	return conflicts, nil
+}
+
+// ticketSnapshot captures a sibling ticket's worktree on its snapshot ref.
+func ticketSnapshot(primary string, env identity.Env, t string) (string, error) {
+	dir, _, err := ticketWorktree(primary, env, t)
+	if err != nil {
+		return "", err
+	}
+	return sealTicketSnapshot(dir, t)
 }
 
 // ticketWorktree is a ticket's worktree and the canonical repo it belongs to.
@@ -93,9 +97,8 @@ func ticketWorktree(primary string, env identity.Env, t string) (dir, canonical 
 	return dir, repo.Canonical, nil
 }
 
-// worktreeCommit captures dir's working tree as an unreferenced commit on
-// HEAD and the snapshots it adopted, so a merge sees what it already shares.
-func worktreeCommit(dir string, adopted []string) (string, error) {
+// worktreeCommit captures dir's working tree as an unreferenced commit on HEAD.
+func worktreeCommit(dir string) (string, error) {
 	tree, err := worktreeTree(dir)
 	if err != nil {
 		return "", err
@@ -104,60 +107,7 @@ func worktreeCommit(dir string, adopted []string) (string, error) {
 	if head := gitOutIn(dir, "rev-parse", "--verify", "-q", "HEAD^{commit}"); head != "" {
 		parents = append(parents, head)
 	}
-	for _, a := range adopted {
-		if gitOKIn(dir, "cat-file", "-e", a+"^{commit}") {
-			parents = append(parents, a)
-		}
-	}
 	return commitTree(dir, snapshotIdentity, tree, "bbs worktree (plumbing)", parents...)
-}
-
-// carriableGateCodes are the readiness codes an adoption can explain: the
-// verdict is intact, only the tree under it moved.
-var carriableGateCodes = []string{"stale_tree_digest", "stale_surface"}
-
-// adoptionCarry decides whether stale review-pr/qa verdicts may stand: every
-// path changed since the reviewed tree came verbatim from an adopted snapshot
-// and none of them is a path this ticket itself changed. A moved base, any
-// other reason code, or a missing review_tree is never carried.
-func adoptionCarry(dir, home, reviewTree string, codes []string) (string, bool) {
-	if reviewTree == "" || len(codes) == 0 {
-		return "", false
-	}
-	for _, code := range codes {
-		gate, why, _ := strings.Cut(code, ":")
-		if (gate != "review-pr" && gate != "qa") || !slices.Contains(carriableGateCodes, why) {
-			return "", false
-		}
-	}
-	adopted := readAdopted(home)
-	if len(adopted) == 0 || !gitOKIn(dir, "cat-file", "-e", reviewTree+"^{tree}") {
-		return "", false
-	}
-	current, err := worktreeTree(dir)
-	if err != nil {
-		return "", false
-	}
-	moved := nameOnlyDiff(dir, reviewTree, current)
-	if len(moved) == 0 {
-		return "", false
-	}
-	own := nameOnlyDiff(dir, "HEAD", reviewTree)
-	for _, path := range moved {
-		if slices.Contains(own, path) {
-			return "", false
-		}
-		// A deletion is never carried: a snapshot that lacks the path would
-		// match it without having removed it.
-		if !adoptedVerbatim(dir, current, path, adopted) {
-			return "", false
-		}
-	}
-	shown := moved
-	if len(shown) > 5 {
-		shown = append(slices.Clone(shown[:5]), fmt.Sprintf("+%d more", len(moved)-5))
-	}
-	return "adopted work outside the reviewed diff: " + strings.Join(shown, ", "), true
 }
 
 func nameOnlyDiff(dir, from, to string) []string {
@@ -166,14 +116,4 @@ func nameOnlyDiff(dir, from, to string) []string {
 		return nil
 	}
 	return strings.Split(out, "\n")
-}
-
-// ticketAdoptionCarry is adoptionCarry for a ticket by id.
-func ticketAdoptionCarry(primary string, env identity.Env, t string, codes []string) (string, bool) {
-	dir, _, err := ticketWorktree(primary, env, t)
-	if err != nil {
-		return "", false
-	}
-	st := storeForTicket(env, t)
-	return adoptionCarry(dir, st.Home(), ticket.ReadDoc(st.IndexPath()).Get("pointers.review_tree"), codes)
 }
