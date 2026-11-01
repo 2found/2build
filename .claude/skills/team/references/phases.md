@@ -39,10 +39,11 @@ reviewer checks:
   session is cheaper and holds its context better than several cold ones. A
   phase splits only where [split by context](topology.md#split-by-context)
   allows it, and the plan names each split's reason. Tickets in one phase have disjoint file
-  ownership and interface-first contracts named in the manifest, and never
-  depend on each other: dispatch refuses a `blocked_by` edge between two
-  tickets of one phase. Work that needs another ticket's code is the same
-  ticket, or a later phase — cut from a base that already contains it.
+  ownership and interface-first contracts named in the manifest, and prefer
+  no dependency on each other. A `blocked_by` edge inside a phase is
+  allowed: the dependent launches once its prerequisite's `task done`
+  recorded its tree, and builds what it needs (a binary, a bundle) from that
+  tree (`refs/bbs/tickets/<id>`) read-only, never editing it.
 - **`release`** per phase follows the human's two touchpoints. The **last
   phase is `ask`**: its release go is the handover, the human's review of the
   whole product. Every earlier phase is `none` — landed, QA'd cumulatively and

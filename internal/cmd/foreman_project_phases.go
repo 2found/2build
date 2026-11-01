@@ -32,13 +32,16 @@ type projectPhase struct {
 }
 
 type projectPhaseState struct {
-	ID       string           `json:"id"`
-	Title    string           `json:"title"`
-	Release  string           `json:"release"`
-	Ticket   string           `json:"ticket"`
-	Seeds    []string         `json:"seeds"`
-	Children []string         `json:"children"`
-	Subject  string           `json:"subject"`
+	ID       string   `json:"id"`
+	Title    string   `json:"title"`
+	Release  string   `json:"release"`
+	Ticket   string   `json:"ticket"`
+	Seeds    []string `json:"seeds"`
+	Children []string `json:"children"`
+	Subject  string   `json:"subject"`
+	// Work digests only the tickets' recorded work, so a contract change or
+	// re-approval keeps a landed phase landed.
+	Work     string           `json:"-"`
 	State    string           `json:"state"`
 	Evidence []string         `json:"evidence"`
 	Releases []projectRelease `json:"releases"`
@@ -216,6 +219,7 @@ func projectPhaseSetup(st *ticket.Store, s *projectSnapshot, inputs map[string]i
 			}
 		}
 		ps.Subject = digestJSON(map[string]interface{}{"phase": p.ID, "shared": shared, "nodes": nodes})
+		ps.Work = digestJSON(map[string]interface{}{"phase": p.ID, "nodes": nodes})
 		ps.Candidate = projectReadCandidate(st, ps)
 		s.Phases = append(s.Phases, ps)
 	}
@@ -504,7 +508,6 @@ func projectPhaseReasons(s projectSnapshot, action, phase string) []string {
 		if p.Ticket == "" {
 			reasons = append(reasons, "phase "+p.ID+": bind a phase ticket first (bbs team bind --phase)")
 		}
-		reasons = append(reasons, projectInPhaseDependencies(s, p)...)
 	case "integrate", "verify", "land":
 		if !p.Sealed {
 			// Only the seal problems block here; evidence comes after integrate.
@@ -833,22 +836,4 @@ func projectCheckPassedAny(evs []projectEvidence, criterion, kind string) bool {
 		}
 	}
 	return false
-}
-
-// projectInPhaseDependencies refuses a phase whose tickets depend on each
-// other: tickets of one phase run in parallel on disjoint parts, and work that
-// needs another ticket's code is the same ticket or a later phase.
-func projectInPhaseDependencies(s projectSnapshot, p projectPhaseState) []string {
-	var out []string
-	for _, c := range s.Children {
-		if !slices.Contains(p.Children, c.ID) {
-			continue
-		}
-		for _, dep := range c.BlockedBy {
-			if slices.Contains(p.Children, dep) {
-				out = append(out, "phase "+p.ID+": ticket "+c.ID+" depends on "+dep+" in the same phase; merge them into one ticket or move "+c.ID+" to a later phase")
-			}
-		}
-	}
-	return out
 }

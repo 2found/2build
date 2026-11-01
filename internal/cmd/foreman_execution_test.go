@@ -453,6 +453,26 @@ func TestProjectScopeContractInvalidatesApproval(t *testing.T) {
 	}
 }
 
+// A contract change re-approved mid-run keeps a landed phase landed.
+func TestLandedPhaseSurvivesContractChange(t *testing.T) {
+	p, _, _ := executionFixture(t)
+	integrateAndLand(t, p, "p1")
+	var c projectContract
+	readProjectJSON(projectContractPath(p), &c)
+	c.NonGoals = append(c.NonGoals, "exports")
+	writeJSONAtomic(projectContractPath(p), c)
+	if _, err := approvalPublish(p, "project-plan", "later scope", "developer"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := approvalResolve(p, "approve", "accepted", "developer"); err != nil {
+		t.Fatal(err)
+	}
+	s, err := projectRead(p)
+	if err != nil || !s.Phases[0].Delivered {
+		t.Fatalf("re-approval unlanded p1: %v %v", s.Phases[0].Problems, err)
+	}
+}
+
 func TestProjectEvidenceOnlyDelivery(t *testing.T) {
 	p, child, repo := executionFixture(t)
 	// Evidence-only work has no production code and stores its outputs on

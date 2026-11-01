@@ -88,8 +88,8 @@ still open.
 ### Batch dispatch: one wake per phase
 
 Every coordinator wake re-reads the whole lead context, so wakes, not worker
-count, dominate cost. A phase's tickets are independent, so they all launch
-at once. The bbs watcher waits and supervises:
+count, dominate cost. A phase's ready tickets all launch at once; a dependent
+launches with the batch after its prerequisite reports. The bbs watcher waits and supervises:
 
 1. A batch is every ticket of the open phases not yet launched, up to
    `FOREMAN_MAX_WORKERS` ([topology](topology.md#resource-admission));

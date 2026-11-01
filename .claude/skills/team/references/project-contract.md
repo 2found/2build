@@ -50,8 +50,7 @@ Before phase tickets, worktrees, or production dispatch:
    against this bar before it reports: a seed without a brief, an interface
    without one owner and an exact shape, a user-facing seed without
    prototype ids, an architecture, data-model or contract choice left to a
-   ticket, a one-way decision with no alternative weighed, a seed that needs
-   another seed's code in the same phase, or a phase split into several
+   ticket, a one-way decision with no alternative weighed, or a phase split into several
    tickets without a reason [split by context](topology.md#split-by-context)
    accepts. The lead reads the report against the same bar and starts a new
    design session only for a gap that changes a decision.
@@ -120,11 +119,13 @@ Before phase tickets, worktrees, or production dispatch:
    `approved`; or `approval resolve --action redirect --note <changes>` and
    answer with those exact changes — the worker revises and asks again, and
    after two redirects the lead approves with named conditions. A hold/grant
-   refusal or a floor under a self-approved design parks the ticket: the
-   worker reports `NEEDS_CONTEXT`, the ticket parks, the lead relays the
-   pending approval through the preamble's channel, lists it under
-   `Remaining`, and resumes it with a `redirect` on a fresh session once it
-   resolves; unaffected work continues. A decision that reopens accepted
+   refusal or a floor under a self-approved design needs the human: relay
+   the pending approval through the preamble's channel and answer `await`.
+   The worker waits on the approval record in its warm session (a warm wait
+   costs far less than a cold restart) and continues on the human's answer;
+   only if it is still pending after two hours does it end with
+   `NEEDS_CONTEXT`, and the lead lists it under `Remaining` and resumes it
+   with a `redirect` once it resolves. Unaffected work continues. A decision that reopens accepted
    scope is not taken mid-run: the ticket builds what the design says and
    the lead lists the change for the handover, where the human can ask for
    it as a change request.

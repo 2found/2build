@@ -42,10 +42,9 @@ under that phase's ticket.
    from the worktree records the ticket branch in `pointers.branch`; from
    the primary it would record `main`. `init --parent` sets only the child's
    parent field, so add the parent-side membership after initialization:
-   `BABYSIT_TICKET="$PHASE_TICKET" bbs ticket add-child "$CHILD"`. Tickets
-   of one phase have no dependency edges — dispatch refuses a `blocked_by`
-   between two of them; a later phase already starts from an earlier one's
-   code, so it needs none either.
+   `BABYSIT_TICKET="$PHASE_TICKET" bbs ticket add-child "$CHILD"`. A later
+   phase already starts from an earlier one's code, so it needs no edge; an
+   edge inside a phase only delays the dependent (phases.md).
    Never edit `index.json` directly. Write `requirement.md` and assign parent and
    children to this team.
    Bind the accepted seed with `bbs team bind "$PARENT" --seed <key>

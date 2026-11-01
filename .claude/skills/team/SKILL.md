@@ -35,6 +35,22 @@ team:  clarify → spec ─────────→ basic design → phase 1 
        phase k: tickets ∥ → integrate → land → cumulative review + QA (fix forward) → (auto: release)
 ```
 
+## What to optimize, in this order
+
+1. **Fewest sessions and dependencies first, parallelism second.** Cut
+   tickets so a phase needs as few sessions as it can, with no edge between
+   them; split for parallel work only where contexts are disjoint. Keep every
+   session on warm cache (the rules below).
+2. **Coordinate on your own; never ping-pong work.** Advance phases and
+   tickets from `bbs team next` without waiting on anyone. Work one session
+   can do stays in that session: no follow-up, handoff or extra session for
+   a step the current one can take.
+3. **No control rule may strand a ticket.** A check that would keep a ticket
+   from finishing is a note, not a gate, unless it guards a release or
+   someone else's work; a refusal names the fix the same session makes. A
+   rule that still strands work is a 2build bug: log it (`bbs team log`) and
+   take the cheapest path, never extra sessions around it.
+
 ## Two hard rules: they are what makes this cheap
 
 Token cost is context size × turns, discounted by the prompt cache: a turn
@@ -75,11 +91,9 @@ keep work on warm context.
      even when it is large: auto-compaction carries a long session, nothing
      carries a cold one. Split only where contexts are disjoint, joined by an
      interface frozen before either side starts
-     ([topology](references/topology.md#split-by-context)). Tickets of one
-     phase never depend on each other (dispatch refuses it): work that needs
-     another ticket's code is the same ticket, or a later phase cut from the
-     base this one landed. Couplings cost sessions: in the same runs half the
-     tickets needed a second session to refresh or repair against a sibling.
+     ([topology](references/topology.md#split-by-context)). Prefer tickets
+     that do not depend on each other; a `blocked_by` edge inside a phase
+     only delays the dependent ([phases](references/phases.md)).
    - The session ends when it reports done: the watcher closes its terminal as
      soon as the Dispatch settles (an idle agent costs memory and, after about
      54 minutes, tokens in auto-compaction). So its gates must pass while it is

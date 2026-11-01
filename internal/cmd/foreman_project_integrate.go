@@ -25,6 +25,7 @@ type projectCandidate struct {
 	Version  int                    `json:"version"`
 	Phase    string                 `json:"phase"`
 	Subject  string                 `json:"subject"`
+	Work     string                 `json:"work,omitempty"`
 	Message  string                 `json:"message"`
 	BuiltAt  string                 `json:"built_at"`
 	LandedAt string                 `json:"landed_at,omitempty"`
@@ -58,7 +59,7 @@ func projectCandidatePath(st *ticket.Store, phase string) string {
 // the phase's current subject and its commits still exist.
 func projectReadCandidate(st *ticket.Store, p projectPhaseState) *projectCandidate {
 	var c projectCandidate
-	if readProjectJSON(projectCandidatePath(st, p.ID), &c) != nil || c.Version != 1 || c.Subject != p.Subject {
+	if readProjectJSON(projectCandidatePath(st, p.ID), &c) != nil || c.Version != 1 || (c.Subject != p.Subject && (c.Work == "" || c.Work != p.Work)) {
 		return nil
 	}
 	for _, r := range c.Repos {
@@ -249,7 +250,7 @@ func projectComposePhase(st *ticket.Store, s projectSnapshot, p projectPhaseStat
 		pending = projectResolution{}
 	}
 	resolving := projectResolution{Version: 1, Phase: p.ID, Subject: p.Subject, Repos: []projectResolutionRepo{}}
-	c := projectCandidate{Version: 1, Phase: p.ID, Subject: p.Subject, Message: message, BuiltAt: isoNow(), Repos: []projectCandidateRepo{}}
+	c := projectCandidate{Version: 1, Phase: p.ID, Subject: p.Subject, Work: p.Work, Message: message, BuiltAt: isoNow(), Repos: []projectCandidateRepo{}}
 	for _, canonical := range repos {
 		base := baseBranchIn(canonical)
 		baseHead := gitOutIn(canonical, "rev-parse", "--verify", "-q", "refs/heads/"+base+"^{commit}")

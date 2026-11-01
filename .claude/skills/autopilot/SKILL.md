@@ -328,8 +328,11 @@ steps and ends when the ticket is ready for its phase's integration:
    contract: `bbs team task ask <task> --body` the lead with the artifact
    paths and wait in this session (exit 4 is a timeout: `ask --resume
    <question-id>`).
-   `approved` continues; a redirect is revised here and asked again; a park
-   answer ends the Dispatch with `NEEDS_CONTEXT`.
+   `approved` continues; a redirect is revised here and asked again;
+   `await` means a human holds it: run `bbs ticket approval await`, re-run
+   it while pending, continue on `approved` (revise on a redirect), and end
+   the Dispatch with `NEEDS_CONTEXT` only if it is still pending after two
+   hours.
    Never implement on an unapproved plan record.
 3. **Build** with focused checks only — typecheck, lint and the unit tests
    of the touched code, fixed until green — and report as soon as they pass:

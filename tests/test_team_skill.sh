@@ -81,7 +81,7 @@ fi
 
 has_all "ticket-runs-whole-loop-in-one-session" \
   'One context, one session' 'select its route once' \
-  'every follow-up' 'without stopping between steps' 'never depend on each other' \
+  'every follow-up' 'without stopping between steps' 'only delays the dependent' \
   'you resolve every conflict there yourself' 'never a ticket follow-up' 'approval self-resolve'
 
 has_all "ticket-session-ownership" \
@@ -94,7 +94,7 @@ has_all "ticket-session-ownership" \
 has_all "plan-approval-self-by-worker" \
   '### Plan approval' 'Ticket plan checkpoints run inside the ticket session' \
   'self-approved by its worker as' 'no plan waits on the lead by' \
-  'Exit 4 (rubric)' 'Exit 3 (floor) or 5 (hold/grant)' 'parks the' \
+  'Exit 4 (rubric)' 'Exit 3 (floor) or 5 (hold/grant)' 'answer `await`' \
   'Never implement on an unapproved plan record' 'after two redirects'
 
 has_all "ticket-session-cache-economics" \
@@ -102,8 +102,12 @@ has_all "ticket-session-cache-economics" \
   'ticket|repair|redirect`' 'GATE=not-ready' 'none of them costs a follow-up' \
   'A follow-up exists for only two cases' 'manifest rows it owns, by path and heading'
 
+has_all "team-priorities" \
+  'Fewest sessions and dependencies first, parallelism second' \
+  'never ping-pong work' 'No control rule may strand a ticket'
+
 has_all "whole-phase-one-wake" \
-  'one wake per phase' 'are independent, so they all launch' \
+  'one wake per phase' 'ready tickets all launch at once' \
   'Stay light' 'light profiles take the slots first' '`messages:<n>` (an escalated plan'
 
 has_all "watcher-self-heals-lost-workers" \

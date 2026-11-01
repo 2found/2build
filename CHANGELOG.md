@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.123.0 — 2026-11-01
+
+### Changed
+
+- A `blocked_by` edge inside a phase no longer refuses dispatch: it delays the
+  dependent until its prerequisite reports, and the dependent builds from that
+  recorded tree read-only. Phase review lists only that phase's tickets.
+- A contract change or re-approval mid-run no longer reads a landed phase as
+  unlanded (integrate candidates match on work, not only subject). A plan held
+  for a human waits warm in its ticket session (up to two hours) instead of
+  parking and restarting cold. Team skill states its priorities: fewest
+  sessions and dependencies, no ping-pong between sessions, no control rule
+  that strands a ticket.
+
 ## 1.122.0 — 2026-11-01
 
 ### Changed

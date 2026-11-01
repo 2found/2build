@@ -570,18 +570,3 @@ func TestAutoReleaseOverOutsideWorkNeedsConfirmOrSkips(t *testing.T) {
 		t.Fatal("skipped twice")
 	}
 }
-
-// Tickets of one phase are independent: a dependency between two of them is
-// refused at dispatch, a dependency on an earlier phase's ticket is not.
-func TestDispatchRefusesInPhaseDependency(t *testing.T) {
-	s := projectSnapshot{Children: []projectChild{
-		{ID: "a"}, {ID: "b", BlockedBy: []string{"a"}}, {ID: "c", BlockedBy: []string{"old"}},
-	}}
-	r := projectInPhaseDependencies(s, projectPhaseState{ID: "p2", Children: []string{"a", "b", "c"}})
-	if len(r) != 1 || !strings.Contains(r[0], "ticket b depends on a in the same phase") {
-		t.Fatalf("in-phase dependency = %v", r)
-	}
-	if r := projectInPhaseDependencies(s, projectPhaseState{ID: "p2", Children: []string{"b", "c"}}); len(r) != 0 {
-		t.Fatalf("a dependency on another phase was refused: %v", r)
-	}
-}
