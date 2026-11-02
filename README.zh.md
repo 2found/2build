@@ -97,7 +97,7 @@ bbs install
 
 `/bbs:autopilot` 在一个 session 中把一项工作(bug 修复、功能,或需要一整天的长变更)推进到 plan、review 和 QA。从这里开始:一个长 session 让 context 保持温热,token 消耗最少。只有需要单个 session 给不了的东西时,才把整个项目交给 `/bbs:team`([见下文](#team))。专项工作可直接调用 skill。
 
-在 [skill 索引](docs/skills.md)中查阅独立 skill 和 workflow 示例。
+每个步骤只需输入一个命令：`setup-project`、`design-ui`、`autopilot` 或 `team`、`release`、`marketing-video`。其余 skill 由 Autopilot 和 Team 代为运行。[skill 索引](docs/skills.md)按步骤列出。
 
 <a id="配置-foreman"></a>
 <a id="foreman多-ticket-项目"></a>

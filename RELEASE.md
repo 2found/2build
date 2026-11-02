@@ -1,6 +1,6 @@
 # 2build production release
 
-Use `release-prd` from [.claude/skills/release-prd/SKILL.md](.claude/skills/release-prd/SKILL.md).
+Use `release` from [.claude/skills/release/SKILL.md](.claude/skills/release/SKILL.md).
 This profile covers `2found/2build`, base `main`, under the one
 [git flow](.claude/skills/references/git-flow.md). It does not release sibling repos.
 

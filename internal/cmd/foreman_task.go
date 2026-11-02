@@ -173,7 +173,7 @@ func renderTaskSpec(t foreman.Task, spec string) string {
 			b.WriteString(line + "\n")
 		}
 		b.WriteString("Rebuild where they stopped from durable state (handoffs, verdicts, the release record) and continue from the first unfinished step. " +
-			"Never redo an irreversible step that already happened (push, tag, publish, deploy): verify it instead. A release resumes with `release-prd --resume <tag>`.\n")
+			"Never redo an irreversible step that already happened (push, tag, publish, deploy): verify it instead. A release resumes with `release --resume <tag>`.\n")
 	}
 	fmt.Fprintf(&b, "\n\n## Lifecycle (added by bbs)\n"+
 		"Ask the lead only with `bbs team task ask %s --body \"…\"` (it blocks until answered); never AskUserQuestion. "+

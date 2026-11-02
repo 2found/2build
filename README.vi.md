@@ -98,7 +98,7 @@ Bắt đầu với 2build cho công việc engineering; tìm hiểu các sản p
 
 `/bbs:autopilot` đưa một phần việc — sửa bug, tính năng, hay một thay đổi dài cả ngày — qua plan, review và QA trong một session. Hãy bắt đầu từ đây: một session dài giữ ngữ cảnh luôn nóng và tốn ít token nhất. Chỉ giao cả dự án cho `/bbs:team` khi bạn cần điều mà một session không làm được ([bên dưới](#team)). Việc nhỏ, chuyên biệt thì gọi skill trực tiếp.
 
-Xem [danh mục skill](docs/skills.md) để chọn skill riêng và ví dụ workflow.
+Bạn chỉ cần gõ vài lệnh, mỗi bước một lệnh: `setup-project`, `design-ui`, `autopilot` hoặc `team`, `release` và `marketing-video`. Autopilot và Team tự chạy các skill còn lại. [Danh mục skill](docs/skills.md) liệt kê chúng theo từng bước.
 
 <a id="cấu-hình-foreman"></a>
 <a id="foreman-dự-án-nhiều-ticket"></a>

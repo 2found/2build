@@ -255,7 +255,7 @@ bbs team readiness "$PARENT" --action release --phase "$K" --json
   on it and it ships with a later release, whose QA covers it. The last
   phase is never skipped, and a failed release is fixed, not skipped.
 
-With a go, `release-prd` runs for the repository's release profile from local
+With a go, `release` runs for the repository's release profile from local
 base, including hypercare: it pushes base and deploys. For an `auto` phase the
 integration assignment continues into it in the same session once phase QA
 passed and `readiness --action release` is ready — one wake per phase.

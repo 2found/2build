@@ -68,7 +68,7 @@ instructions unless asked.
 - Release profile: for a releasable app, CLI, library or pack, reuse the profile
   linked by the instruction entrypoint, otherwise existing `.babysit/release.md`,
   `RELEASE.md` or a maintained inline section. Fill missing/requested facts using
-  [release-prd's profile contract](../release-prd/references/project-profile.md).
+  [the release skill's profile contract](../release/references/project-profile.md).
   If no equivalent owner exists, create `RELEASE.md` from observed version files,
   scripts, CI and runbooks — a greenfield repo too, with placeholders
   ([project docs § Release profile](references/project-docs.md#release-profile)) —
@@ -127,4 +127,4 @@ NEXT: <remaining prerequisite or /bbs:autopilot "<feature>">
 ```
 Do not branch, commit, push, tag, publish, deploy, suspend workflows or upgrade
 local tools as part of this skill. Creating a release profile prepares future
-delivery; an execution request belongs to `release-prd`.
+delivery; an execution request belongs to `release`.

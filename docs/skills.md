@@ -1,60 +1,88 @@
 # Skill index
 
-Skills carry specialized workflows; `semantic-decision` isolates bounded
-judgment with the current LLM by default and optional Cloudflare inference.
+You type a handful of commands, one per step of the 2found loop. Autopilot and
+Team run the other skills for you as steps of their work.
 
-## Workflows
+## Commands you type
 
-| Command | Use when | Stops at |
-|---------|----------|----------|
-| `/bbs:autopilot "<requirement>"` | Build one production ticket — feature or bug fix (auto-selects build/implement/child/verify) | QA-verified change, left uncommitted |
-| `/bbs:team "<project>"` | Hand a whole project to an autonomous product team on Orca: you confirm the spec and approve the basic design, then review the handover | A reviewed product, one commit per phase with cumulative QA, released on your go at handover; in-scope feedback fixed by the team |
+| Step | Command | Stops at |
+|------|---------|----------|
+| Connect a project | `/bbs:setup-project`, then `/bbs:harness-audit` | 2build config, QA target and project docs; AGENTS.md checked against the code |
+| Prototype | `/bbs:design-ui "<screens>"` | A clickable prototype for you to approve |
+| Build one ticket | `/bbs:autopilot "<requirement>"` — feature or bug fix (auto-selects build/implement/child/verify) | QA-verified change, left uncommitted |
+| Build a whole project | `/bbs:team "<project>"` — an autonomous product team on Orca: you confirm the spec and approve the basic design, then review the handover | A reviewed product, one commit per phase with cumulative QA, released on your go at handover; in-scope feedback fixed by the team |
+| Release | `/bbs:release` (`--local`, `--dry-run`, `--prepare`, `--resume <tag>`) | Verified distribution, deploy and hypercare |
+| Market test and launch | `/bbs:marketing-video "<goal>"` | Per-platform video files you post yourself |
 
 `builder` is autopilot's only built-in workflow; a project may add its own under
 `.claude/workflows/`.
 
-## Which skill when
+`marketing-video` and `agent-first-docs` belong to the marketing step of the
+loop, not to product engineering. When 2market ships they move to its namespace
+and keep a `bbs:` alias.
 
-Skills marked *manual* set `disable-model-invocation: true`: they are not in the
-model's skill listing, so the agent never picks them up on its own — type the
-command.
+### Roles → commands
+
+The start guide names five kinds of work. They are roles you play, not
+commands; each maps to a command you already have.
+
+| Role | Work | Command |
+|------|------|---------|
+| Prototyper | Try a risky idea before building it | `/bbs:design-ui`; a throwaway code spike is a direct agent task |
+| Builder | A feature or bug fix through review and QA | `/bbs:autopilot` (`/bbs:team` for a phased project) |
+| Sweeper | Simplify without changing behaviour | Claude Code `/simplify`, or `/bbs:review-pr` |
+| Grower | Copy, conversion, a growth experiment | `/bbs:marketing-video`, `/bbs:agent-first-docs`; a copy or flow change goes through `/bbs:autopilot` |
+| Maintainer | Failures, security, dependencies | `/bbs:autopilot` (it investigates first); `/bbs:investigate` for root cause only; Claude Code `/security-review` |
+
+## Steps the workflows run
+
+Autopilot and Team call these on their own. Type one only for a focused job
+outside a workflow.
 
 | Need | Skill |
 |------|-------|
-| End-to-end checkpointed work through QA handoff | `/bbs:autopilot` |
 | Plan without coding | `/bbs:plan-draft` |
 | Implement a scoped change | `/bbs:implement` |
 | Add missing behavioral coverage | `/bbs:test create` |
 | Audit weak, redundant or unrun tests | `/bbs:test audit` |
 | Measure and optimize test lanes | `/bbs:test optimize` |
 | Root-cause a bug | `/bbs:investigate` |
-| Make a bounded judgment, including whether human input is needed | `/bbs:semantic-decision` |
 | Focused browser check | `/bbs:browse` |
 | Full test/fix browser loop | `/bbs:qa` |
 | Pre-landing code review | `/bbs:review-pr` |
-| UI design and prototype | `/bbs:design-ui` |
-| Release to production through distribution, deploy and hypercare | `/bbs:release-prd` |
-| Create a pull request after human review | `/bbs:create-pr` *(manual)* |
-| Classify and unblock a stalled/BLOCKED run | `/bbs:triage` *(manual)* |
-| Turn babysit telemetry into ticket-ready findings | `/bbs:analytics-review` *(manual)* |
-| Find where session tokens and background context go, rank savings | `/bbs:token-audit` *(manual)* |
-| Evaluate a running app's UX by using it as a persona; inventory work flows | `/bbs:ui-audit` *(manual)* |
-| Configure repo | `/bbs:setup-project` *(manual)* |
-| Audit AGENTS.md, CLAUDE.md and related harness files | `/bbs:harness-audit` *(manual)* |
-| Evaluate external code | `/bbs:recon` *(manual)* |
-| Docs, quick start or marketing page built around one agent prompt; agent-readable Markdown | `/bbs:agent-first-docs` *(manual)* |
-| Short marketing videos for your own product: facts, audience, trends, script with A/B hooks, per-platform files you post | `/bbs:marketing-video` *(manual)* |
+
+`semantic-decision` makes bounded judgments inside the workflows (the current
+LLM by default, optional Cloudflare inference). It sets `user-invocable: false`,
+so it is not in the `/` menu.
+
+## Occasional commands
+
+These set `disable-model-invocation: true`: they are not in the model's skill
+listing, so the agent never picks them up on its own — type the command.
+
+| Need | Skill |
+|------|-------|
+| Create a pull request after human review | `/bbs:create-pr` |
+| Classify and unblock a stalled/BLOCKED run | `/bbs:triage` |
+| Turn 2build's own telemetry into ticket-ready findings | `/bbs:telemetry-review` |
+| Find where session tokens and background context go, rank savings | `/bbs:token-audit` |
+| Evaluate a running app's UX by using it as a persona; inventory work flows | `/bbs:ui-audit` |
+| Evaluate external code | `/bbs:recon` |
+| Docs, quick start or marketing page built around one agent prompt; agent-readable Markdown | `/bbs:agent-first-docs` |
+
+Renamed, old commands still work: `release-prd` → `release`,
+`analytics-review` → `telemetry-review`, `foreman` → `team`.
 
 ## Skill boundary
 
-`release-prd` reads the target repo's release profile (`RELEASE.md`,
+`release` reads the target repo's release profile (`RELEASE.md`,
 `.babysit/release.md`, or the linked inline instructions). Use
-`/bbs:release-prd --local` when CI quota is exhausted: checks and builds run
+`/bbs:release --local` when CI quota is exhausted: checks and builds run
 locally, required artifacts are published manually, and affected automatic
-workflows are guarded/restored. `/bbs:release-prd --local --dry-run` reports
+workflows are guarded/restored. `/bbs:release --local --dry-run` reports
 the plan without mutations; `--prepare` stops before remote delivery and
 `--resume <tag>` recovers a partial release. Options are skill instructions,
-not a new CLI subcommand. Codex uses `$bbs:release-prd` with the same options.
+not a new CLI subcommand. Codex uses `$bbs:release` with the same options.
 Autopilot's existing QA checkpoint does not grant release authority.
 
 A standalone skill earns its place by owning a 2build contract, evidence format,
@@ -75,6 +103,6 @@ address the PR's review comments; `product-marketing-page` merged into
 `agent-first-docs`. The reasoning benchmark remains archived
 under `tests/reason-bench`; it is not an installed skill.
 
-`create-pr` retains PR and ticket-state protocols; `analytics-review`
+`create-pr` retains PR and ticket-state protocols; `telemetry-review`
 retains telemetry interpretation; `triage` retains bounded checkpoint recovery.
 Low personal usage alone is not a reason to remove these contracts.

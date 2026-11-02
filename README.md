@@ -98,7 +98,7 @@ Start with 2build for the engineering work; explore these products when the need
 
 `/bbs:autopilot` carries one piece of work — a bug fix, a feature, or a long change that takes all day — through plan, review and QA in one session. Start there: one long session keeps its context warm and spends the fewest tokens. Hand a whole project to `/bbs:team` only when you want what a single session cannot give ([below](#team)). For a focused job, invoke a skill directly.
 
-Browse the [skill index](docs/skills.md) for individual skills and workflow examples.
+You type a handful of commands, one per step: `setup-project`, `design-ui`, `autopilot` or `team`, `release`, and `marketing-video`. Autopilot and Team run the other skills for you. The [skill index](docs/skills.md) lists them by step.
 
 <a id="configure-foreman"></a>
 <a id="foreman-multi-ticket-projects"></a>

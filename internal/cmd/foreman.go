@@ -47,7 +47,7 @@ const foremanUsage = `Usage:
   bbs team release <parent> --phase <id> --skip [--reason <text>]
                                          (skip an auto phase's release; it ships with a later one)
   bbs team release <parent> --phase <id> --file receipt.json
-                                         (record a release-prd verdict for the phase)
+                                         (record a release verdict for the phase)
   bbs team evidence <parent> --phase <id> --begin --file spec.json
   bbs team evidence <parent> --phase <id> --carry --from <attempt-id>[,<attempt-id>] --reason <text> [--except <AC-id,...>]
                                          (carry earlier passed checks of this phase onto the current subject;

@@ -10,7 +10,7 @@ A one-shot `BBS_BASE_BRANCH=production` is how a hotfix targets another base.
 |---|---|---|
 | **Autopilot** (a worker) | edits files in the checkout it was started in and leaves the work **uncommitted** | commits, branches, stashes, resets, pushes, opens a PR |
 | **The lead** | cuts ticket worktrees, builds **one commit per phase**, lands it on local base, then QAs it there | commits a single ticket's work; releases a phase QA did not pass on |
-| **release-prd** | pushes the landed base and deploys | runs before phase QA passed on the landed base |
+| **release** | pushes the landed base and deploys | runs before phase QA passed on the landed base |
 | **A human** | owns everything else: PRs, promotion branches, merges done by hand | — |
 
 A ticket's commit is not a deliverable. **Committing a single ticket is an
@@ -63,7 +63,7 @@ unfinished job**: the work counts only when its phase commit is on base.
    worktree, `integrate` snapshots that ticket again and composes the fix delta
    (conflicts with newer base laid out as in step 6), `land`, re-check what
    changed. Passing QA removes the phase's worktrees.
-9. `release-prd` pushes and deploys base, only once phase QA passed. A
+9. `release` pushes and deploys base, only once phase QA passed. A
    mid-run release over work outside the project (commits no phase made,
    uncommitted changes in the base checkout) waits for a human go or is
    skipped at its deadline (`bbs team release --request`, `--skip`).

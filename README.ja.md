@@ -96,7 +96,7 @@ GitHub から直接ダウンロードできます。コマンドと前提条件�
 
 `/bbs:autopilot` は 1 つの作業(bug 修正、機能、丸一日かかる長い変更)を 1 つの session で plan、review、QA まで進めます。まずはこちらを使ってください。長い 1 session は context を温かく保ち、token 消費も最小です。プロジェクト全体を `/bbs:team` に任せるのは、1 session では得られないものが必要なときだけです([後述](#team))。特定の作業には skill を直接呼び出してください。
 
-個別 skill と workflow の例は [skill 一覧](docs/skills.md)を参照してください。
+入力するコマンドはステップごとに一つだけです: `setup-project`、`design-ui`、`autopilot` または `team`、`release`、`marketing-video`。残りの skill は Autopilot と Team が実行します。[skill 一覧](docs/skills.md)にステップ別にまとめています。
 
 <a id="foreman-の設定"></a>
 <a id="foreman複数-ticket-のプロジェクト"></a>

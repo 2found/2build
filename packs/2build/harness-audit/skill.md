@@ -57,7 +57,7 @@ per-service architecture coverage, a system document limited to cross-service
 scope, and every remaining `TODO(2build):` placeholder listed as an open gap.
 
 For a releasable app, CLI, library or pack, use
-[release-prd's profile contract](../release-prd/references/project-profile.md)
+[the release skill's profile contract](../release/references/project-profile.md)
 to audit release coverage. An equivalent linked inline section/runbook is
 valid; missing `RELEASE.md` alone is not a finding. Missing release guidance
 for an actual release surface, an unreachable existing profile or conflicting

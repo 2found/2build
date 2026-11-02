@@ -95,7 +95,7 @@ importance signal, the built-in policy falls back to `pro`.
 | Mechanical re-verification of recorded checks on unchanged code                    | `normal`    |
 | Phase integration: QA of the phase commit, cumulative criteria, then land         | `normal`    |
 | Consolidated heavy QA and product acceptance checks                                | `normal`    |
-| Phase release: `release-prd` and its hypercare                                     | `normal`    |
+| Phase release: `release` and its hypercare                                     | `normal`    |
 | Handover fix: every in-scope feedback item, integrate, land, re-test               | `normal`    |
 | Finish audits, restoration and cleanup in a fresh session                          | `normal`    |
 

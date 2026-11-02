@@ -28,7 +28,7 @@ is no top-level `bbs init`. Persist identifiers and checkpoints as work advances
 Git has one flow and no policy to resolve ([git flow](../references/git-flow.md)):
 workers never commit, the lead lands **one commit per phase** on local base,
 and only a release pushes. Committing a single ticket is an unfinished job,
-never a delivery. Find the release profile release-prd would use (`RELEASE.md`, `.babysit/release.md` or the one
+never a delivery. Find the release profile the `release` skill would use (`RELEASE.md`, `.babysit/release.md` or the one
 linked from `AGENTS.md`/`CLAUDE.md`); without one every phase is `release:
 none`. Rebuild the task list from durable state. On resume, continue the first
 unmet gate — `bbs team next "$PARENT"` names it (`snapshot --json` has the

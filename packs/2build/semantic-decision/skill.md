@@ -1,6 +1,7 @@
 ---
 name: semantic-decision
 description: Make an explicit, structured judgment from evidence and bounded choices. Use for task sizing, skill routing, orchestration need, test impact, review findings, recovery, decision tiers, or whether human/deeper review is warranted. Defaults to the current LLM; configured Cloudflare Clef/Clef-flash can replace the provider.
+user-invocable: false
 ---
 
 > **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.

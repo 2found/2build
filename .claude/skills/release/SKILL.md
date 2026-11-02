@@ -1,30 +1,23 @@
 ---
-name: release-prd
+name: release
 description: Release a repository or selected services to production, from version and changelog through main sync, GitHub release, package distribution, deployment and hypercare. Supports --local when CI quota is exhausted; use --dry-run for a read-only release plan.
 ---
-
-> **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.
-> Install it first: `brew install 2found/2build/bbs` (macOS/Linux), the release
-> tarball on Linux, or WSL/Git-Bash on Windows (no Windows binary is published);
-> `go run ./cmd/bbs setup` from a checkout works on any OS. Without `bbs` the
-> skill reports `BBS_DEGRADED` and stops.
-
-# release-prd
+# release
 
 Own the release through verified distribution, production behavior and local
 consumer updates. Builder owns this delivery skill; autopilot's QA handoff
 does not invoke it or grant release permission.
 
-Follow [preamble](../shared/preamble.md) for bootstrap/telemetry and the
-[Auto-Decision Framework](../shared/auto-decision-framework.md) for decisions.
+Follow [preamble](../references/preamble.md) for bootstrap/telemetry and the
+[Auto-Decision Framework](../references/auto-decision-framework.md) for decisions.
 Shared refs are filesystem paths beside this skill's directory, so read them by path, not as `skill://`.
 For `--dry-run`, skip the mutating bootstrap and telemetry; read context directly.
 
 ## Invocation and scope
 
-Options are agent instructions, not a `bbs release-prd` CLI command:
+Options are agent instructions, not a `bbs release` CLI command:
 
-- `release-prd [project/service] [version|patch|minor|major]`: execute the
+- `release [project/service] [version|patch|minor|major]`: execute the
   requested release using the repo's normal pipeline and delivery policy.
 - `--local`: run all checks, builds and distribution from this machine;
   bypass automatic CI. Read [local mode](references/local-mode.md) before any

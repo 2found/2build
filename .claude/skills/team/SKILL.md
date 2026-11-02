@@ -264,7 +264,7 @@ known limitations — render it with `bbs team recap "$PARENT"`, and request
 the last phase's release go with the recap as its note. End the turn; the
 human reviews the product, not the code.
 
-- **Go** — release the last phase (`release-prd`, hypercare), record it, then
+- **Go** — release the last phase (`release`, hypercare), record it, then
   `bbs team complete "$PARENT" --team "$FOREMAN_ID"`.
 - **Feedback** (`bbs team next` names a `repair` step) — read the comments.
   Everything within the approved spec and design (a defect, a missed

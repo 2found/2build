@@ -244,7 +244,7 @@ func TestPhasedProjectReleasesPhaseByPhase(t *testing.T) {
 		t.Fatal(err)
 	}
 	ph := storeForTicket(st.Env, "ph-p1")
-	full := "Coverage: phase 1 criteria AC1 passed\nHost: N/A — no host page in this phase\nReuse: existing release-prd flow\nPrototype: N/A — non-UI release decision\nScope: phase p1 tickets only\n"
+	full := "Coverage: phase 1 criteria AC1 passed\nHost: N/A — no host page in this phase\nReuse: existing release flow\nPrototype: N/A — non-UI release decision\nScope: phase p1 tickets only\n"
 	if code, _, reason := selfResolveGate(ph, ph.Env, foreman.Record{ID: "fm-test", Auto: true}, full); code != exitGrant {
 		t.Fatalf("an --auto foreman with a full rubric reached a release go: code %d (%s)", code, reason)
 	}

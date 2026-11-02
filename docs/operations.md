@@ -191,7 +191,7 @@ bbs team land <parent> --phase <id>          # after phase QA: fast-forward base
 bbs team bind <parent> --phase <id> --child <phase-ticket>
 bbs team release <parent> --phase <id> --request --note "<what ships>"   # ask: human go (auto phase over outside work: confirm, --wait 30m)
 bbs team release <parent> --phase <id> --skip --reason "<why>"          # auto phase: skip, ship with a later release
-bbs team release <parent> --phase <id> --file receipt.json              # release-prd verdict
+bbs team release <parent> --phase <id> --file receipt.json              # release verdict
 ```
 
 Phase `k` opens once phase `k-1` has landed, so it builds
@@ -400,7 +400,7 @@ See [model routing](../.claude/skills/team/references/model-routing.md) and the
 
 Skill runs append JSON Lines to `~/.babysit/analytics/skill-usage.jsonl`. Because babysit runs unattended, telemetry is the *primary* feedback channel — treat it as load-bearing, not decoration. Local-only by default; nothing leaves the machine.
 
-Nothing summarizes that file on demand — the reader is the `/bbs:analytics-review` skill. Dispatch it by hand (`/bbs:analytics-review`) when you want a report; to look at the raw rows, read the JSONL directly.
+Nothing summarizes that file on demand — the reader is the `/bbs:telemetry-review` skill. Dispatch it by hand (`/bbs:telemetry-review`) when you want a report; to look at the raw rows, read the JSONL directly.
 
 The companion file `~/.babysit/analytics/decisions.jsonl` is the audit trail for ticket-level events (size resizes, approval self-resolves) — one line per decision. Grep or `jq` it directly. It is machine-wide telemetry; a Team project's own record of the judgments it took is `<parent>/decisions.jsonl`, written by `bbs team log` and rendered in the recap.
 

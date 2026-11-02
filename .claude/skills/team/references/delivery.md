@@ -64,7 +64,7 @@ Failure routing — never blind-retry an unchanged state or schedule retry ticks
 | `integrate` / `land`: `CONFLICT=` laid out in `RESOLVE_IN=` | You resolve it in place, focused checks, `integrate` again ([git flow](../references/git-flow.md) step 6); never a ticket follow-up |
 | `land`: `LOCAL_CHANGES=` in a checkout of base | Ask the human to allow committing them; with the go, `land --commit-local "<message>"` (git flow step 7). Never stash, reset or overwrite them |
 | release readiness: base carries work outside the project | Confirmation with a deadline, then release or `--skip` ([phases §5](phases.md#5-release)) |
-| a worker exited, was lost or abandoned mid-task (a release included) | `task launch` the same Task: its spec gains a Resume section from the earlier Dispatches; a release resumes with `release-prd --resume <tag>` |
+| a worker exited, was lost or abandoned mid-task (a release included) | `task launch` the same Task: its spec gains a Resume section from the earlier Dispatches; a release resumes with `release --resume <tag>` |
 | cleanup: worktree kept | Report it; keep the work |
 
 On resume, read `bbs team snapshot` first: a phase whose commit is on base
@@ -119,7 +119,7 @@ run, in one place.
 
 The human answers on the release approval:
 
-- **Approve** — the go. Dispatch the release (`release-prd` with hypercare),
+- **Approve** — the go. Dispatch the release (`release` with hypercare),
   record the verdict with `bbs team release --file`, then finish below.
 - **Redirect** with comments — feedback. `bbs team next` names a `repair`
   step; read the comments (`BABYSIT_TICKET=<last phase> bbs ticket approval

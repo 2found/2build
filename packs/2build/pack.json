@@ -8,11 +8,6 @@
       "description": "Write a product's docs, quick start or marketing page around one copyable coding-agent prompt, and serve docs as agent-readable Markdown (llms.txt, .md URLs). Use for onboarding docs, quick starts, product pages, heroes and CTAs."
     },
     {
-      "name": "2build_analytics-review",
-      "file": "analytics-review/skill.md",
-      "description": "Review babysit telemetry. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED."
-    },
-    {
       "name": "2build_autopilot",
       "file": "autopilot/skill.md",
       "description": "Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; the default for any size of change, including a day-long one. Use team only for phased releases, independent phase verification or parallel work on disjoint parts."
@@ -68,8 +63,8 @@
       "description": "Evaluate an external repository, library, or tool against the current project. Use for adoption decisions, architecture comparisons, or requests to explore and borrow from another project."
     },
     {
-      "name": "2build_release-prd",
-      "file": "release-prd/skill.md",
+      "name": "2build_release",
+      "file": "release/skill.md",
       "description": "Release a repository or selected services to production, from version and changelog through main sync, GitHub release, package distribution, deployment and hypercare. Supports --local when CI quota is exhausted; use --dry-run for a read-only release plan."
     },
     {
@@ -86,6 +81,11 @@
       "name": "2build_setup-project",
       "file": "setup-project/skill.md",
       "description": "Initialize or update a repo's 2build configuration, QA target, architecture and release documents, and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files."
+    },
+    {
+      "name": "2build_telemetry-review",
+      "file": "telemetry-review/skill.md",
+      "description": "Review 2build's own telemetry, not product analytics. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED."
     },
     {
       "name": "2build_test",

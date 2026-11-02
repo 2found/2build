@@ -12,7 +12,7 @@ TODO(2build): <missing fact> — <where it will come from or who decides>
 Use it for a fact the repository cannot answer yet (no deploy target chosen, no
 version policy). Never use it for a fact that a file, script or CI config
 already answers; read and record that instead. A placeholder is an open gap:
-consumers (`plan-draft`, `release-prd`, `harness-audit`) treat it as unresolved,
+consumers (`plan-draft`, `release`, `harness-audit`) treat it as unresolved,
 never as permission or a default. `N/A — <reason>` is a decided answer, not a
 placeholder.
 
@@ -84,7 +84,7 @@ Use the headings above for the document's role. Do not add prose to make it
 look complete.
 
 ## Release profile
-Fields are [release-prd's profile contract](../release-prd/references/project-profile.md).
+Fields are [the release skill's profile contract](../release/references/project-profile.md).
 For a releasable app, CLI, library or pack with no owner, create `RELEASE.md`
 with one row per field: the observed fact (version files, scripts, CI,
 runbooks), `N/A — <reason>`, or `TODO(2build):`. A greenfield repo that will be

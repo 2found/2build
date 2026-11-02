@@ -111,7 +111,7 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 			return releaseConfirmNext(st, s, p)
 		}
 		return []foremanStep{step("release", "", "bbs team release "+parent+" --phase "+p.ID+" --file receipt.json",
-			"phase "+p.ID+" is landed and verified; run release-prd, then record its verdict")}
+			"phase "+p.ID+" is landed and verified; run /bbs:release, then record its verdict")}
 	case p.Sealed && p.Candidate == nil && !s.Contract.ArtifactsOnly:
 		return []foremanStep{step("integrate", "", "bbs team integrate "+parent+" --phase "+p.ID, "every ticket of phase "+p.ID+" is built")}
 	case p.Sealed && !p.Delivered && !s.Contract.ArtifactsOnly:

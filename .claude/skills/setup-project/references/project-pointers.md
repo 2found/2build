@@ -20,7 +20,7 @@ link its project-specific sources of truth with a short note on when to read:
 - **Release — when applicable:** versioned delivery for apps, CLIs, libraries
   or packs, including publication and post-release verification. Link the
   existing profile/inline owner or the `RELEASE.md` prepared during setup and
-  say to read it before invoking `release-prd`. A library can need release
+  say to read it before invoking `release`. A library can need release
   guidance while deployment is N/A. Reuse one owner; do not create a second
   profile merely to satisfy a filename convention.
 
@@ -47,7 +47,7 @@ This repo is configured for 2build autonomous runs.
 
 - Git: autopilot leaves work uncommitted; the lead commits once per phase and lands it on the base branch
 - QA harness: `.babysit/qa.yaml`
-- Production release: read [RELEASE.md](RELEASE.md), then use `/bbs:release-prd`; `--local` runs delivery from this machine when CI is unavailable. Setting up this profile does not execute a release.
+- Production release: read [RELEASE.md](RELEASE.md), then use `/bbs:release`; `--local` runs delivery from this machine when CI is unavailable. Setting up this profile does not execute a release.
 - Browser: for any UI check — open a URL, click a flow, read console errors, screenshot — invoke `/bbs:browse` (or `/bbs:qa` for a full loop). These drive a real Chromium via `agent-browser`; there is no separate browser *tool* to look for, and `WebFetch` is not a substitute. One-time: `npm install -g agent-browser cloakbrowser`.
 - Browser hygiene: automation uses its own browser (Chrome for Testing, Playwright or cloakbrowser), never the installed Chrome. End every browser run with the tool's own close (`agent-browser --session "$AGENT_BROWSER_SESSION" close`), never `kill`/`pkill`/`close --all`, and check what still uses a stale browser or profile clone before reaping it. See `/bbs:browse` § Browser hygiene.
 - Default run: `/goal "STATUS: DONE or STATUS: BLOCKED appears" /bbs:autopilot "<task>"`
@@ -61,7 +61,7 @@ it wholesale. Do not install browser tooling during setup.
 Include the release bullet only for a releasable repo, substituting its actual
 profile link or inline anchor. Do not insert a `RELEASE.md` link if that file
 was not created or an existing owner was reused. Options are skill instructions,
-not a `bbs release-prd` CLI subcommand.
+not a `bbs release` CLI subcommand.
 When related repos exist or the user provides them, also add or update this
 section:
 ```md

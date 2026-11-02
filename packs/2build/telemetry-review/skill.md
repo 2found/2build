@@ -1,6 +1,6 @@
 ---
-name: analytics-review
-description: Review babysit telemetry. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED.
+name: telemetry-review
+description: Review 2build's own telemetry, not product analytics. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED.
 disable-model-invocation: true
 ---
 
@@ -10,7 +10,7 @@ disable-model-invocation: true
 > `go run ./cmd/bbs setup` from a checkout works on any OS. Without `bbs` the
 > skill reports `BBS_DEGRADED` and stops.
 
-# analytics-review
+# telemetry-review
 A maintainer pass over babysit itself. Telemetry is the pack's
 primary feedback channel; this skill closes the loop by reading it and emitting
 tickets, not dashboards. Read-only — it never edits the pack in the same run.
