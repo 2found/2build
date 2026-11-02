@@ -135,6 +135,61 @@ export interface TicketSummary {
    *  detail body is fetchable through GET /api/tickets/{project}/{ticket}.
    *  Absent on data.js written before lazy detail shipped. */
   detail_available?: boolean;
+  /** The planning projection (bs-w5p3c6mq): stored planning fields plus what
+   *  the server derives from the whole project. Absent on snapshots written
+   *  before the planning fields shipped. */
+  planning?: PlanRow;
+}
+
+export type PlanKind = 'milestone' | 'phase' | 'work';
+export type PlanRole = 'swe' | 'human' | 'marketing' | 'ops';
+export const PLAN_ROLES: PlanRole[] = ['swe', 'human', 'marketing', 'ops'];
+export const LOOP_STAGES = ['insight', 'product', 'marketing', 'operation'] as const;
+
+export interface LoopDecision { value: 'go' | 'later' | 'drop'; at: string | null; by: string; note: string | null }
+export interface LoopActual {
+  delta: string; result: 'hit' | 'partial' | 'miss'; at: string; by: string;
+  note: string | null; evidence_refs: string[];
+}
+export interface LoopBlock {
+  stage?: string | null;
+  target_outcome?: string | null;
+  expected_delta?: string | null;
+  check_after_days?: number | null;
+  check_from?: string | null;
+  evidence_refs?: string[];
+  decision?: LoopDecision | null;
+  actual?: LoopActual | null;
+}
+
+/** `internal/ticket/plan.go` PlanRow, serialized as-is. */
+export interface PlanRow {
+  id: string;
+  title: string;
+  kind: PlanKind;
+  status: string;
+  product: string;
+  role: string;
+  person: string;
+  /** The Team lead claim — not the role. */
+  assignee: string;
+  labels: string[];
+  parent: string;
+  children: string[];
+  milestone: string;
+  phase: string;
+  start: string;
+  due: string;
+  done_at: string;
+  control: string;
+  /** Effective blockers still open: own, inherited from ancestors, containers
+   *  expanded to their open work. */
+  blocked_by: string[];
+  ready: boolean;
+  check_due: string;
+  check_overdue: boolean;
+  loop: LoopBlock | null;
+  updated_at: string;
 }
 
 // Where a sub-ticket sits in its parent's plan — index.json `origin`.
@@ -212,6 +267,9 @@ export type DagState = 'done' | 'running' | 'ready' | 'waiting' | 'not_found';
 
 export interface DagNode {
   id: string;
+  /** Title field, else the requirement H1. Absent before v-next servers. */
+  title?: string;
+  kind?: string;
   /** The ticket's parent id; for an outside node, its own parent. */
   parent: string;
   /** `origin.position` — the planner's intended order within the fan-out. */

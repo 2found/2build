@@ -13,6 +13,10 @@ import { Analytics } from './views/Analytics';
 import { Foremen } from './views/Foremen';
 import { DecisionsFeed } from './views/DecisionsFeed';
 import { SkillEvents } from './views/SkillEvents';
+import { NeedsYou } from './views/NeedsYou';
+import { Plan } from './views/Plan';
+import { Milestones } from './views/Milestones';
+import { Company } from './views/Company';
 
 // Routes that moved. Rewritten before matching so a bookmark or a pasted link
 // lands on the view that absorbed it, and the nav highlights that view instead
@@ -62,6 +66,11 @@ function AppInner({ snapshot, hash, error, retry }: { snapshot: LoadedSnapshot; 
   if (route === '#/' || route === '' || route === '#') view = <Home snapshot={snapshot} />;
   else if (route === '#/tickets') view = <TicketsList snapshot={snapshot} />;
   else if (ticketId) view = <TicketDetail snapshot={snapshot} ticketId={ticketId} />;
+  else if (route === '#/needs') view = <NeedsYou snapshot={snapshot} />;
+  else if (route === '#/plan') view = <Plan snapshot={snapshot} />;
+  else if (route === '#/milestones') view = <Milestones snapshot={snapshot} id={null} />;
+  else if (route.startsWith('#/milestones/')) view = <Milestones snapshot={snapshot} id={decodeURIComponent(route.slice('#/milestones/'.length))} />;
+  else if (route === '#/company') view = <Company snapshot={snapshot} />;
   else if (route === '#/timeline') view = <Timeline snapshot={snapshot} />;
   else if (route === '#/analytics') view = <Analytics snapshot={snapshot} />;
   else if (route === '#/foremen') view = <Foremen snapshot={snapshot} />;

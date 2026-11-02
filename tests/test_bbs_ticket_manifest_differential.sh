@@ -182,6 +182,18 @@ cmp_artifacts() {
     fail "$ticket history.jsonl missing" "bash=$bdir go=$gdir"
   fi
 }
+# Deliberate divergence (bs-w5p3c6mq): `init --parent` now also lists the
+# child on the parent, which the frozen oracle never did. Assert the inverse
+# link is exactly that, then strip it so everything else still compares.
+gp="$ROOT/go-home/projects/gitsrc/tickets/bs-mfst1"
+if [ "$(jq -c .children "$gp/index.json")" = '["bs-mfst2"]' ] &&
+   [ "$(grep -c '"event":"child_added".*"via":"inverse"' "$gp/history.jsonl")" = 1 ]; then
+  ok "bs-mfst1 lists bs-mfst2 via the symmetric init --parent link"
+  jq '.children = []' "$gp/index.json" > "$gp/index.tmp" && mv "$gp/index.tmp" "$gp/index.json"
+  grep -v '"event":"child_added"' "$gp/history.jsonl" > "$gp/history.tmp"; mv "$gp/history.tmp" "$gp/history.jsonl"
+else
+  fail "bs-mfst1 inverse child link missing or wrong" "$(jq -c .children "$gp/index.json")"
+fi
 cmp_artifacts bs-mfst1
 cmp_artifacts bs-mfst2
 

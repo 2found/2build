@@ -8,6 +8,7 @@ import { ErrorBox } from '../components/ErrorBox';
 import { Field, inputStyle } from '../components/Field';
 import { Markdown } from '../components/Markdown';
 import { PrototypeFrame } from '../components/PrototypeFrame';
+import { PlanningPanel } from './PlanningPanel';
 import { ApprovalPanel } from './ApprovalPanel';
 import { ProjectPanel } from './ProjectPanel';
 import { Modal } from '../components/Modal';
@@ -281,6 +282,14 @@ export function TicketDetail({ snapshot, ticketId }: { snapshot: Snapshot; ticke
           />
         }
       />
+
+      {summary?.planning && (
+        <PlanningPanel
+          project={project}
+          p={summary.planning}
+          title={id => scopedTickets.find(t => t.id === id)?.planning?.title || id}
+        />
+      )}
 
       <div>
         <div

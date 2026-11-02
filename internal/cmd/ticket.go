@@ -82,6 +82,32 @@ func newTicketCmd() *cobra.Command {
 				runAddRelation(args[1:])
 			case "remove-relation":
 				runRemoveRelation(args[1:])
+			case "set-title":
+				runSetTitle(args[1:])
+			case "set-kind":
+				runSetKind(args[1:])
+			case "set-product":
+				runSetProduct(args[1:])
+			case "assign-to":
+				runAssignTo(args[1:])
+			case "label":
+				runLabel(args[1:])
+			case "set-window":
+				runSetWindow(args[1:])
+			case "loop":
+				runLoop(args[1:])
+			case "decide":
+				runDecide(args[1:])
+			case "record-actual":
+				runRecordActual(args[1:])
+			case "repair-relations":
+				runRepairRelations(args[1:])
+			case "find":
+				runFind(args[1:])
+			case "migrate":
+				runMigrate(args[1:])
+			case "import":
+				runImport(args[1:])
 			case "assign":
 				runAssign(args[1:])
 			case "claim":
@@ -171,12 +197,32 @@ Subcommands:
   get <path>        print a field (dotted path)
   set-status <s>    set ticket status
   set-phase <s>     set current owning skill
-  set-parent <t>    set child-side parent link
-  add-child <t>     append child id to current ticket's children
+  set-parent <t>    set parent; the parent lists this child (a reparent unlists it from the old one)
+  add-child <t>     append child id to children and point the child here (exit 2 if it has another parent)
   add-relation <type> <target>
-                    append blocks|blocked_by|related or set duplicate_of
+                    append blocks|blocked_by|related (inverse written on the target) or set duplicate_of
   remove-relation <type> <target>
-                    remove blocks|blocked_by|related entry or matching duplicate_of
+                    remove blocks|blocked_by|related (and its inverse) or matching duplicate_of
+  repair-relations [--all] [--dry-run] [--json]
+                    add missing relation inverses; parent conflicts are reported, never rewritten
+  set-title <text>              set-kind milestone|phase|work      set-product <slug>|--none
+  assign-to swe|human|marketing|ops [--person P] | --none
+                    who does the work (assignee stays the Team lead claim)
+  label add|remove <label>...
+  set-window [--start YYYY-MM-DD] [--due YYYY-MM-DD] | --none
+  loop set [--stage S] [--target T] [--expected E] [--check-after N] [--check-from D] [--evidence REF]...
+  loop show         print the loop block with its derived check date
+  decide go|later|drop [--note M] [--evidence REF]...
+                    record a human decision (refused for agent roles; go needs a target)
+  record-actual --delta TEXT --result hit|partial|miss [--note M] [--evidence REF]...
+  import <plan.yaml|json> [--dry-run] [--json]
+                    create/update tickets keyed by {plan,key} or id; idempotent; never deletes
+                    or rewrites requirement.md; relations written symmetrically
+  migrate [--dry-run] [--report FILE.json]
+                    backfill planning fields project-wide from H1/header bullets/history;
+                    fills empty fields only; a role word in assignee moves to assigned_to
+  find [--product P] [--kind K] [--milestone ID] [--phase ID] [--role R] [--person P]
+       [--status S] [--label L] [--ready] [--check-due] [--project SLUG | --all-projects] [--json]
   assign <foreman-id>|--none    set the owning foreman (assignee)
   claim <foreman-id>             atomically claim an unowned project; same owner is idempotent
   pause [--note M]  human override: stop dispatch, keep status (reversible)

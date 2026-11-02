@@ -69,7 +69,7 @@ export function useRegisterFocusScope(rows: HTMLElement[]) {
 }
 
 // =============================================================================
-// G-prefix router: G then H/T/F/D/S/M/A within 800 ms.
+// G-prefix router: G then H/T/F/D/S/M/A/N/P/I/C within 800 ms.
 //
 // `G L` is kept pointing at Home: Live was folded into it, and a key that has
 // been in muscle memory since v1.18 should land somewhere rather than do
@@ -85,6 +85,10 @@ const G_ROUTES: Record<string, string> = {
   s: '#/skill-events',
   m: '#/timeline',
   a: '#/analytics',
+  n: '#/needs',
+  p: '#/plan',
+  i: '#/milestones',
+  c: '#/company',
 };
 
 export interface GlobalKeyboardActions {

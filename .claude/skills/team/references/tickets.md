@@ -6,7 +6,11 @@ The wake loop in the skill is the summary; this is the detail behind it.
 
 Read [topology](topology.md) to create/reuse tickets, worktrees
 and dependency edges, then launch a phase's tickets as one batch
-within resource limits. Keep one writer per ticket worktree — its ticket
+within resource limits. Dispatch only agent work: a ticket whose
+`assigned_to.role` is set and is not `swe` belongs to a person and stays
+with them. `bbs ticket find --role swe --ready --json` lists the agent-ready
+work in a store; `--role human` lists what waits on people (fields:
+[ticket layout](../references/ticket-layout.md)). Keep one writer per ticket worktree — its ticket
 session. Never commit a ticket, force-push, overwrite user work or bypass
 readiness. Preserve
 each ticket's `pointers.workflow`.

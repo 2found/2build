@@ -70,6 +70,12 @@ func (s *dashServer) mux() *http.ServeMux {
 	m.HandleFunc("GET /api/tickets/{project}/{ticket}", s.handleTicketDetail)
 	m.HandleFunc("GET /api/tickets/{project}/{ticket}/readiness", s.handleReadiness)
 	m.HandleFunc("GET /api/tickets/{project}/{ticket}/project", s.handleProject)
+	m.HandleFunc("POST /api/tickets/{project}/{ticket}/fields", s.handleFields)
+	m.HandleFunc("POST /api/tickets/{project}/{ticket}/decision", s.handleDecision)
+	m.HandleFunc("POST /api/tickets/{project}/{ticket}/actual", s.handleActual)
+	m.HandleFunc("GET /api/company", s.handleCompany)
+	m.HandleFunc("POST /api/company/scoreboard", s.handleScoreboard)
+	m.HandleFunc("POST /api/company/hours", s.handleHours)
 	m.HandleFunc("POST /api/foremen", s.handleSpawnForeman)
 	m.HandleFunc("POST /api/foremen/{id}/retire", s.handleRetireForeman)
 

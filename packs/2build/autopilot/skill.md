@@ -134,7 +134,12 @@ or a Team lead decides whether to open a ticket for it.
    recommendation to stop. Run `builder`, unless the invocation names a
    project workflow (`.claude/workflows/<name>.md`). `NEEDS_CONTEXT` only
    when there is no ticket, requirement, plan, manifest, or branch work at
-   all.
+   all. A ticket whose `bbs ticket get assigned_to.role` is set and is not
+   `swe` (human, marketing, ops work) is not agent work: stop with
+   `NEEDS_CONTEXT` naming the role and the fix (`bbs ticket assign-to swe`).
+   A `kind` of `milestone` or `phase` is a container: work its `swe`
+   children (`bbs ticket find --milestone|--phase <id> --role swe --ready`),
+   not the container itself.
 4. Seed the plan when the routed mode needs one (build or child mode, size
    above XS) or `--stop-after=plan` explicitly requests it:
    run `plan-draft` in this session, per the planning policy below — `plan.md` on
@@ -261,6 +266,11 @@ into the harness's native task list at loop entry — rebuilt from checkpoint
 + `plan.md` on cold re-entry — and close each as its gate passes; step skills
 add their finer tasks to the same list. The task list is the visible progress
 view, disk stays the brain. End every pass with the status block below.
+Outside a Team dispatch, mark the rung others plan by: `bbs ticket
+set-status in_progress` at loop entry and `in_review` with the `DONE`
+handoff (the human or `create-pr` closes it). Under a Team dispatch leave
+status alone — the lead owns its children's lifecycle, and a stale
+`in_progress` would read as a live worker and stop a follow-up dispatch.
 
 When available, read `bbs autopilot snapshot --json` once at loop entry and
 accept it only when its envelope is `schema_version: 2` and `ok: true`. Use its

@@ -129,6 +129,7 @@ func runInit(args []string) {
 	doc.EnsureDefaults(env.Ticket) // unconditional in bash, idempotent here
 	doc.Set("id", env.Ticket)
 	doc.Set("pointers.branch", env.Branch)
+	oldParent := doc.Get("parent")
 	if parent != "" {
 		doc.Set("parent", parent)
 		doc.Set("origin.parent", parent)
@@ -172,6 +173,30 @@ func runInit(args []string) {
 	}
 
 	st.ReleaseLock()
+	if parent != "" && parent != env.Ticket {
+		// Symmetric parent link: the parent lists this child (bs-w5p3c6mq).
+		if ps := peerStore(st, parent); peerExists(ps) {
+			if err := withLock(ps, func() error {
+				return peerEdit(ps, "child_added", map[string]string{"child": env.Ticket}, func(d ticket.Doc) (bool, error) {
+					return listAdd(d, "children", env.Ticket)
+				})
+			}); err != nil {
+				fmt.Fprintln(os.Stderr, "init: warning — parent children link failed:", err)
+			}
+		}
+		// Re-parented: the old parent stops listing it, as set-parent does.
+		if oldParent != "" && oldParent != parent && oldParent != env.Ticket {
+			if ops := peerStore(st, oldParent); peerExists(ops) {
+				if err := withLock(ops, func() error {
+					return peerEdit(ops, "child_removed", map[string]string{"child": env.Ticket}, func(d ticket.Doc) (bool, error) {
+						return listRemove(d, "children", env.Ticket)
+					})
+				}); err != nil {
+					fmt.Fprintln(os.Stderr, "init: warning — old parent children unlink failed:", err)
+				}
+			}
+		}
+	}
 	if fresh {
 		if err := seedCheckpoint(env); err != nil {
 			fmt.Fprintf(os.Stderr, "init: warning — checkpoint.json seed failed (continuing): %v\n", err)

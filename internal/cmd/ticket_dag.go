@@ -233,6 +233,13 @@ func dagRow(n ticket.GraphNode, byID map[string]ticket.GraphNode) string {
 	if len(n.Children) > 0 {
 		line += fmt.Sprintf("  (%d nested)", len(n.Children))
 	}
+	// Title (and a non-work kind) last, so the fixed columns above stay greppable.
+	if n.Kind != "" && n.Kind != ticket.KindWork {
+		line += "  [" + n.Kind + "]"
+	}
+	if n.Title != "" {
+		line += "  " + n.Title
+	}
 	return line
 }
 

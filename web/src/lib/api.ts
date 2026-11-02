@@ -174,3 +174,71 @@ export function retireForeman(id: string, keepWorkspace = false) {
     keep_workspace: keepWorkspace,
   });
 }
+
+// ─── planning fields and the company loop (bs-w5p3c6mq) ─────────────────────
+
+export interface FieldsPatch {
+  title?: string;
+  kind?: string;
+  product?: string;
+  assigned_to?: { role: string; person: string };
+  labels_add?: string[];
+  labels_remove?: string[];
+  window?: { start: string; due: string };
+  loop?: {
+    stage?: string;
+    target_outcome?: string;
+    expected_delta?: string;
+    check_after_days?: number;
+    check_from?: string;
+    evidence_add?: string[];
+  };
+}
+
+/** Same validators and writer as `bbs ticket set-*`; only changed fields log. */
+export function setTicketFields(project: string, ticket: string, patch: FieldsPatch) {
+  return post<{ ticket: string; changed: string[] }>(`/api/tickets/${project}/${ticket}/fields`, patch);
+}
+
+/** `bbs ticket decide` as the person running the dashboard. `go` needs a target outcome. */
+export function decideTicket(project: string, ticket: string, decision: 'go' | 'later' | 'drop', note: string, evidence: string[]) {
+  return post<{ ticket: string; decision: string }>(`/api/tickets/${project}/${ticket}/decision`, { decision, note, evidence });
+}
+
+export function recordActual(project: string, ticket: string, delta: string, result: string, note: string, evidence: string[]) {
+  return post<{ ticket: string; result: string }>(`/api/tickets/${project}/${ticket}/actual`, { delta, result, note, evidence });
+}
+
+export interface ScoreRow {
+  at: string; week: string; product: string;
+  revenue: number | null; active_users: number | null; support_cases: number | null;
+  cost: number | null; releases: number | null; note?: string; by: string;
+}
+export interface HoursRow { at: string; week: string; product: string; stage: string; hours: number; note?: string; by: string }
+export interface DecisionLogRow {
+  at: string; project: string; product: string; stage: string; opportunity_ref: string; title: string;
+  decision: string; by: string; note: string; evidence_refs: string[]; target_outcome: string;
+  expected_delta: string; check_after_days: number | null; check_due: string; check_overdue: boolean;
+  actual_delta: string | null; result: string; superseded: boolean;
+}
+export interface CompanySummary {
+  today: string;
+  weeks: string[];
+  scoreboard: ScoreRow[];
+  hours: HoursRow[];
+  stages: string[];
+  decisions: DecisionLogRow[];
+  hit_rate: { go: number; checked: number; hit: number; partial: number; miss: number; overdue: number };
+}
+
+export function fetchCompany(weeks = 8) {
+  return get<CompanySummary>(`/api/company?weeks=${weeks}`);
+}
+
+export function recordScore(row: { product: string; week: string; revenue?: number; active_users?: number; support_cases?: number; cost?: number; releases?: number; note?: string }) {
+  return post<{ product: string; week: string }>('/api/company/scoreboard', row);
+}
+
+export function logHours(row: { product: string; stage: string; hours: number; week: string; note?: string }) {
+  return post<{ product: string; week: string }>('/api/company/hours', row);
+}

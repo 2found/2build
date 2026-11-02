@@ -32,6 +32,8 @@ import (
 // a state from it.
 type GraphNode struct {
 	ID       string `json:"id"`
+	Title    string `json:"title"`
+	Kind     string `json:"kind"`
 	Parent   string `json:"parent"`
 	Position string `json:"position"`
 	Status   string `json:"status"`
@@ -174,17 +176,27 @@ func BuildGraph(projectHome, root string) (Graph, error) {
 	// ─── the subtree: descend `children`, breadth-first, cycle-safe ──────────
 	var members []string
 	seen := map[string]bool{root: true}
-	frontier := rootDoc.Children()
+	// treeParent is who listed a member in `children` — the walk's own edge,
+	// which is what blocker inheritance follows (the `parent` field can disagree).
+	treeParent := map[string]string{}
+	type hop struct{ id, from string }
+	var frontier []hop
+	for _, c := range rootDoc.Children() {
+		frontier = append(frontier, hop{c, root})
+	}
 	for len(frontier) > 0 {
-		var next []string
-		for _, id := range frontier {
-			if id == "" || seen[id] {
+		var next []hop
+		for _, h := range frontier {
+			if h.id == "" || seen[h.id] {
 				continue
 			}
-			seen[id] = true
-			members = append(members, id)
-			if d, ok := readDoc(id); ok {
-				next = append(next, d.Children()...)
+			seen[h.id] = true
+			members = append(members, h.id)
+			treeParent[h.id] = h.from
+			if d, ok := readDoc(h.id); ok {
+				for _, c := range d.Children() {
+					next = append(next, hop{c, h.id})
+				}
 			}
 		}
 		frontier = next
@@ -206,6 +218,8 @@ func BuildGraph(projectHome, root string) (Graph, error) {
 			n.State = StateNotFound
 			return n
 		}
+		n.Title = Title(home(id), d)
+		n.Kind = KindOf(d)
 		n.Parent = d.Get("parent")
 		n.Position = d.Get("origin.position")
 		n.Status = d.Get("status")
@@ -266,6 +280,8 @@ func BuildGraph(projectHome, root string) (Graph, error) {
 			addDep(down, id)
 		}
 	}
+
+	inheritBlockers(members, treeParent, root, inTree, deps)
 
 	// A member's serialized edges are the ones the model just used — both ways.
 	// A relation written only on the blocker's `blocks` side still moves the
@@ -652,4 +668,80 @@ func DAGRoots(projectHome string) []string {
 		}
 	}
 	return out
+}
+
+// inheritBlockers applies the two container rules (bs-w5p3c6mq), in place on
+// deps:
+//
+//   - A member inherits the blockers of its ancestors strictly below the root:
+//     work under a phase blocked by an earlier phase waits for that phase. The
+//     root's own blockers are not inherited — the root is context, not a node —
+//     so a flat Team project (every member a direct child) is unchanged.
+//   - A blocker that is a container inside the tree stands for its whole
+//     subtree: "after phase 1" means after phase 1's work, not after the phase
+//     record, whose status nobody advances.
+//
+// Edges are computed from the explicit set only, so the result does not depend
+// on map order. An expansion that lands on the dependent itself (a ticket
+// blocked by its own ancestor's container) is dropped; an explicit self-edge
+// stays and is reported as the cycle it is.
+func inheritBlockers(members []string, treeParent map[string]string, root string, inTree map[string]bool, deps map[string]map[string]bool) {
+	explicit := map[string][]string{}
+	for dep, bs := range deps {
+		for b := range bs {
+			explicit[dep] = append(explicit[dep], b)
+		}
+	}
+	kids := map[string][]string{}
+	for _, m := range members {
+		kids[treeParent[m]] = append(kids[treeParent[m]], m)
+	}
+	var subtree func(id string, out map[string]bool)
+	subtree = func(id string, out map[string]bool) {
+		for _, k := range kids[id] {
+			if !out[k] {
+				out[k] = true
+				subtree(k, out)
+			}
+		}
+	}
+	for _, m := range members {
+		var blockers []string
+		blockers = append(blockers, explicit[m]...)
+		for a, guard := treeParent[m], 0; a != "" && a != root && guard < len(members); a, guard = treeParent[a], guard+1 {
+			blockers = append(blockers, explicit[a]...)
+		}
+		for _, b := range blockers {
+			if b == m {
+				continue // an explicit self-edge stays, and is reported as a cycle
+			}
+			if !inTree[b] || len(kids[b]) == 0 {
+				addTo(deps, m, b)
+				continue
+			}
+			// The container record itself is not a blocker: its status is not
+			// what finishes, its work is.
+			delete(deps[m], b)
+			sub := map[string]bool{}
+			subtree(b, sub)
+			if sub[m] {
+				// Blocked by its own ancestor: that container finishes when m
+				// does, so the edge orders nothing — and expanding it would
+				// make m and its siblings wait on each other.
+				continue
+			}
+			for x := range sub {
+				if x != m && len(kids[x]) == 0 {
+					addTo(deps, m, x)
+				}
+			}
+		}
+	}
+}
+
+func addTo(deps map[string]map[string]bool, dependent, blocker string) {
+	if deps[dependent] == nil {
+		deps[dependent] = map[string]bool{}
+	}
+	deps[dependent][blocker] = true
 }

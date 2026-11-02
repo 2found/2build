@@ -198,6 +198,7 @@ func projectBlock(o Options, projectDir string) obj {
 	details := obj{}
 	timeline := arr{}
 	ids, _ := ticket.TicketIDs(projectDir)
+	docs := map[string]ticket.Doc{}
 	for _, id := range ids {
 		// Only bs-* dirs are ticket dirs; anything else (scratch dirs, .git,
 		// stray folders) is skipped silently as before — it was never a ticket.
@@ -210,6 +211,7 @@ func projectBlock(o Options, projectDir string) obj {
 			continue
 		}
 		id, _ := head["id"].(string)
+		docs[id] = idx
 		// detail_available marks the ticket as fetchable through
 		// GET /api/tickets/{project}/{ticket}; served snapshots leave
 		// ticketDetail empty and the SPA loads the body on navigation.
@@ -240,6 +242,24 @@ func projectBlock(o Options, projectDir string) obj {
 					timeline = append(timeline, m)
 				} else {
 					timeline = append(timeline, r)
+				}
+			}
+		}
+	}
+
+	// The planning projection (bs-w5p3c6mq): stored planning fields plus what
+	// only the whole project can say — milestone/phase placement, effective
+	// blockers, readiness, the loop check date. Derived from the records read
+	// above, so it cannot disagree with the rows it rides on.
+	plan := map[string]ticket.PlanRow{}
+	for _, r := range ticket.DerivePlan(ticketsDir, docs, ticket.Today()) {
+		plan[r.ID] = r
+	}
+	for _, sm := range summaries {
+		if m, ok := sm.(obj); ok {
+			if id, _ := m["id"].(string); id != "" {
+				if r, ok := plan[id]; ok {
+					m["planning"] = r
 				}
 			}
 		}
@@ -279,7 +299,10 @@ func ticketHead(o Options, projectDir, tdir string) (obj, ticket.Doc, bool) {
 		return nil, nil, false
 	}
 
-	title := firstHeading(filepath.Join(tdir, "requirement.md"))
+	title := strings.TrimSpace(idx.Get("title"))
+	if title == "" {
+		title = firstHeading(filepath.Join(tdir, "requirement.md"))
+	}
 	if title == "" {
 		title = id
 	}

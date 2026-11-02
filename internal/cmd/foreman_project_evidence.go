@@ -585,6 +585,7 @@ func projectComplete(st *ticket.Store, id string) error {
 		if err != nil {
 			return err
 		}
+		stampDone(doc, doc.Get("status"), "done")
 		doc.Set("status", "done")
 		if err := ticket.WriteDoc(st.IndexPath(), doc); err != nil {
 			return err

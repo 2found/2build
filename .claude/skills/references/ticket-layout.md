@@ -26,7 +26,7 @@ All fields optional except `id`; unknown fields preserved. Key fields:
 `status`, `phase`, `parent`/`children`, `relations` (`blocks`, `blocked_by`,
 `duplicate_of`, `related`), `siblings` (`{role, repo, ticket}` for cross-repo),
 `labels`, `assignee`, `control`, `origin`, `pointers` (`branch`, `pr`, `plan`,
-`design`, `requirement`, `manifest`).
+`design`, `requirement`, `manifest`), and the planning fields below.
 **Status enum** (set via `bbs ticket set-status`, never derived from
 verdicts): `triage` → `backlog` → `planned` / `decomposed` → `in_progress` →
 `in_review` → `done`; plus `blocked`, `cancelled`, `duplicate`.
@@ -53,23 +53,44 @@ and `reconcile` skips any ticket with a `control.state`. Distinguish it from
 it back.
 **`assignee`** names the owning lead (`bbs ticket assign <id>|--none`).
 Assignment lives on the ticket, so a lead's inbox is derived by scanning
-tickets — there is no parallel queue that can drift.
+tickets — there is no parallel queue that can drift. It is the lead's claim,
+not the role: who does the work is `assigned_to`.
+**Planning fields** (set only through the verbs; each changed field appends
+one `field_set` history row, an unchanged value writes nothing):
+`title` (`set-title`; else the requirement H1), `kind`
+(`milestone|phase|work`, `set-kind`; absent = `work`), `product`
+(`set-product`; work inherits its milestone's), `assigned_to{role,person}`
+(`assign-to swe|human|marketing|ops [--person]`), `labels` (`label
+--add/--remove`), `window{start,due}` (`set-window`), `done_at` (stamped on
+the first `done`), and `loop{stage, target_outcome, expected_delta,
+check_after_days, check_from, evidence_refs, decision, actual}` (`loop set`).
+`decide go|later|drop` and `record-actual` write `loop.decision` /
+`loop.actual` plus a `loop_decision` / `loop_actual` history row — the CL4.3
+decision log is those rows (`bbs company log`). `decide` is human-only: it
+exits 3 under a Team or OpenClaw session or a non-developer/dashboard role.
+`bbs ticket find --role swe --ready --json` is the agent pick-up queue: work
+tickets in `triage|backlog|planned`, uncontrolled, with no open effective
+blocker (own, inherited from ancestors, a container blocker expanded to its
+open work). The dashboard and `find` read the same projection
+(`internal/ticket/plan.go`). `bbs ticket import plan.yaml` creates/updates a
+plan idempotently (keys resolve by `id`, then `import.{plan,key}`);
+`bbs ticket migrate` backfills a pre-planning store from the H1 and header
+bullets, filling only empty fields.
 **`origin.type`**: `standalone` (default) | `sub_ticket` (has `parent`,
 `seed`, `plan`, `position`) | `hotfix` | `design-initiated` (has `design_doc`).
 Set at creation time: `bbs ticket init --parent <id> --origin-type sub_ticket
 --seed <path> --position <n>`. `set-parent` writes only the parent link, so a
 child left at the `standalone` default will not route to `builder`'s child mode.
 
-`init --parent` and `set-parent` write only the child's `parent` field. Add the
-parent-side DAG membership in the parent's scope with
-`BABYSIT_TICKET=<parent> bbs ticket add-child <child>`. Record dependencies and
-other relations in the source ticket's scope with
-`bbs ticket add-relation <blocks|blocked_by|duplicate_of|related> <target>`.
-Remove an edge in that same source ticket's scope with
-`bbs ticket remove-relation <blocks|blocked_by|duplicate_of|related> <target>`;
-for `duplicate_of`, this clears the relation only when the target matches.
-These mutations use the ticket index lock and append history; the DAG walks
-`children`, not `parent`.
+Links are symmetric: `init --parent` / `set-parent` also add the child to the
+parent's `children` (and drop it from a previous parent's), `add-child` sets
+the child's `parent`, and `add-relation` / `remove-relation
+<blocks|blocked_by|related> <target>` write the inverse on the target
+(`duplicate_of` is one-way and clears only when the target matches). A link
+that would close a parent loop exits 2. Each side appends its own history row
+under its own lock. `repair-relations [--all] [--dry-run]` adds missing
+inverses on a store written before this; a child listed by two parents is
+reported, never rewritten. The DAG walks `children`, not `parent`.
 ## Bootstrap: how tickets come into being
 Tickets resolve through the identity ladder — `BABYSIT_TICKET` env →
 `manifest.yaml` cwd-match → branch regex

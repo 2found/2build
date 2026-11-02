@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Home as HomeIcon, HardHat, Inbox, Workflow, Zap, Calendar, BarChart3, ChevronDown, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { Home as HomeIcon, HardHat, Inbox, Flag, Layers, LineChart, CircleAlert, Workflow, Zap, Calendar, BarChart3, ChevronDown, ChevronRight, MoreHorizontal } from 'lucide-react';
 import type { Meta, Snapshot } from '../lib/data';
 import { formatDate } from '../lib/format';
 import { ProjectSwitcher } from './ProjectSwitcher';
@@ -20,7 +20,11 @@ import { pendingApprovals } from './WaitingOnYou';
 // when the active route lives inside it.
 const PRIMARY_ITEMS = [
   { hash: '#/',              label: 'Home',         kbd: 'H', Icon: HomeIcon },
+  { hash: '#/needs',         label: 'Needs you',    kbd: 'N', Icon: CircleAlert },
   { hash: '#/tickets',       label: 'Tickets',      kbd: 'T', Icon: Inbox },
+  { hash: '#/plan',          label: 'Plan',         kbd: 'P', Icon: Layers },
+  { hash: '#/milestones',    label: 'Milestones',   kbd: 'I', Icon: Flag },
+  { hash: '#/company',       label: 'Company',      kbd: 'C', Icon: LineChart },
   { hash: '#/foremen',       label: 'Teams',        kbd: 'F', Icon: HardHat },
 ] as const;
 
@@ -42,7 +46,7 @@ function screenLabel(route: string): string {
   const ticket = /^#\/tickets\/([^/?#]+)/.exec(route);
   if (ticket) return decodeURIComponent(ticket[1]);
   if (route === '#/' || route === '#' || route === '') return 'Home';
-  const item = [...PRIMARY_ITEMS, ...MORE_ITEMS].find(i => i.hash === route);
+  const item = [...PRIMARY_ITEMS, ...MORE_ITEMS].find(i => i.hash === route || route.startsWith(i.hash + '/'));
   return item ? item.label : 'Not found';
 }
 

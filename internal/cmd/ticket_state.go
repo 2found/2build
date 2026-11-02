@@ -151,6 +151,7 @@ func statusSet(st *ticket.Store, status, actor string) error {
 		doc := st.LoadForMutate()
 		old := doc.Get("status")
 		doc.Set("status", status)
+		stampDone(doc, old, status)
 		if err := ticket.WriteDoc(st.IndexPath(), doc); err != nil {
 			return err
 		}
@@ -215,18 +216,7 @@ func runSetParent(args []string) {
 		fmt.Fprintln(os.Stderr, "set-parent: parent ticket id required")
 		os.Exit(2)
 	}
-	st := ticket.New(env)
-	mutateLocked(st, func() error {
-		doc := st.LoadForMutate()
-		doc.Set("parent", parent)
-		doc.Set("origin.parent", parent)
-		if err := ticket.WriteDoc(st.IndexPath(), doc); err != nil {
-			return err
-		}
-		st.HistoryAppendExtra("parent_set", actorRole(), fmt.Sprintf(`{"parent":"%s"}`, parent))
-		return nil
-	})
-	os.Exit(0)
+	exitRelation(parentSet(ticket.New(env), parent, actorRole()))
 }
 
 func appendTicketString(doc ticket.Doc, path, value string) error {
@@ -261,26 +251,7 @@ func runAddChild(args []string) {
 		fmt.Fprintln(os.Stderr, "add-child: child ticket id required")
 		os.Exit(2)
 	}
-	st := ticket.New(env)
-	mutateLocked(st, func() error {
-		doc, err := loadRelationshipDoc(st)
-		if err != nil {
-			return err
-		}
-		extra, err := json.Marshal(map[string]string{"child": child})
-		if err != nil {
-			return err
-		}
-		if err := appendTicketString(doc, "children", child); err != nil {
-			return err
-		}
-		if err := ticket.WriteDoc(st.IndexPath(), doc); err != nil {
-			return err
-		}
-		st.HistoryAppendExtra("child_added", actorRole(), string(extra))
-		return nil
-	})
-	os.Exit(0)
+	exitRelation(childAdd(ticket.New(env), child, actorRole()))
 }
 
 func runAddRelation(args []string) {
@@ -303,28 +274,7 @@ func runAddRelation(args []string) {
 		fmt.Fprintln(os.Stderr, "add-relation: target ticket id required")
 		os.Exit(2)
 	}
-	st := ticket.New(env)
-	mutateLocked(st, func() error {
-		doc, err := loadRelationshipDoc(st)
-		if err != nil {
-			return err
-		}
-		extra, err := json.Marshal(map[string]string{"type": relation, "target": target})
-		if err != nil {
-			return err
-		}
-		if relation == "duplicate_of" {
-			doc.Set("relations.duplicate_of", target)
-		} else if err := appendTicketString(doc, "relations."+relation, target); err != nil {
-			return err
-		}
-		if err := ticket.WriteDoc(st.IndexPath(), doc); err != nil {
-			return err
-		}
-		st.HistoryAppendExtra("relation_added", actorRole(), string(extra))
-		return nil
-	})
-	os.Exit(0)
+	exitRelation(relationEdit(ticket.New(env), relation, target, true, actorRole()))
 }
 
 func runRemoveRelation(args []string) {
@@ -347,37 +297,7 @@ func runRemoveRelation(args []string) {
 		fmt.Fprintln(os.Stderr, "remove-relation: target ticket id required")
 		os.Exit(2)
 	}
-	st := ticket.New(env)
-	mutateLocked(st, func() error {
-		doc, err := loadRelationshipDoc(st)
-		if err != nil {
-			return err
-		}
-		extra, err := json.Marshal(map[string]string{"type": relation, "target": target})
-		if err != nil {
-			return err
-		}
-		path := "relations." + relation
-		if relation == "duplicate_of" {
-			if value, ok := doc.Value(path).(string); ok && value == target {
-				doc.Set(path, "null")
-			}
-		} else {
-			encoded, err := json.Marshal(target)
-			if err != nil {
-				return err
-			}
-			if err := doc.RemoveObj(path, string(encoded)); err != nil {
-				return err
-			}
-		}
-		if err := ticket.WriteDoc(st.IndexPath(), doc); err != nil {
-			return err
-		}
-		st.HistoryAppendExtra("relation_removed", actorRole(), string(extra))
-		return nil
-	})
-	os.Exit(0)
+	exitRelation(relationEdit(ticket.New(env), relation, target, false, actorRole()))
 }
 
 func runSetSibling(args []string) {
@@ -560,4 +480,13 @@ func parseShortstat(s string) int {
 		}
 	}
 	return sum
+}
+
+// stampDone records done_at — the check-after anchor (CL1.2) — on every
+// transition into done, so a reopened-then-finished ticket is checked from its
+// last finish. Every writer of status: done calls it.
+func stampDone(doc ticket.Doc, from, to string) {
+	if to == "done" && from != "done" {
+		doc.Set("done_at", isoNow())
+	}
 }

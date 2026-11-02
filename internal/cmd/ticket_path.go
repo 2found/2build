@@ -700,6 +700,7 @@ func applyStatus(st *ticket.Store, target string) error {
 	doc := st.LoadForMutate()
 	old := doc.Get("status")
 	doc.Set("status", target)
+	stampDone(doc, old, target)
 	if err := ticket.WriteDoc(st.IndexPath(), doc); err != nil {
 		return err
 	}

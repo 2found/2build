@@ -40,9 +40,9 @@ under that phase's ticket.
    <parent design.md>` so `plan-draft` and `implement` take the accepted
    design and prototype as their baseline instead of designing anew. Running it
    from the worktree records the ticket branch in `pointers.branch`; from
-   the primary it would record `main`. `init --parent` sets only the child's
-   parent field, so add the parent-side membership after initialization:
-   `BABYSIT_TICKET="$PHASE_TICKET" bbs ticket add-child "$CHILD"`. A later
+   the primary it would record `main`. `init --parent` also lists the child on
+   the parent; `BABYSIT_TICKET="$PHASE_TICKET" bbs ticket add-child "$CHILD"`
+   after it is an idempotent check that the link holds. A later
    phase already starts from an earlier one's code, so it needs no edge; an
    edge inside a phase only delays the dependent (phases.md).
    Never edit `index.json` directly. Write `requirement.md` and assign parent and
