@@ -30,7 +30,9 @@ or change global settings as part of an audit.
 
 Start at the requested repo/service or file. Discover root and relevant nested
 `AGENTS.md` / `CLAUDE.md`, imports/symlinks and referenced architecture, design,
-run/test/deploy/release docs. Discover the linked release profile, otherwise
+run/test/deploy/release docs. Also search each service for an unlinked
+architecture document (`ARCHITECT*.md`, `ARCHITECTURE*.md`, `docs/architecture*.md`);
+an existing but unlinked one is a reachability finding. Discover the linked release profile, otherwise
 `.babysit/release.md`, `RELEASE.md` or an existing inline release section.
 Follow links needed to establish an operational claim;
 exclude dependency/vendor/generated trees unless referenced. Do not traverse
@@ -68,6 +70,8 @@ Then inspect the following where relevant or present:
 | Instruction entrypoints and linked docs | Actual paths, link anchors, imports/symlink targets and service ownership | Broken links, circular imports, unreachable required guidance or instructions applying to the wrong service |
 | Run/build/test commands | Package scripts, lockfiles, Makefile targets, compose, runner config and CI; resolve working directory and prerequisites | Command missing, wrong runtime/port/cwd, suites excluded from documented checks, required infrastructure omitted |
 | Architecture and operational rules | Representative implementation and current configuration at the named path | Guidance contradicts reality, duplicates have drifted, ownership or exceptions are ambiguous |
+| Architecture owners | Service directories, nested entrypoints and the system/service split in [project docs](../setup-project/references/project-docs.md#which-architecture-documents) | A service without an owner; system doc not linking a service doc; system doc holding service internals, schema detail, deploy env/commands, content conventions, roadmaps, resolved history or account IDs that another owner holds (name the target owner) |
+| Placeholders | `rg -n 'TODO\(2build\):'` across entrypoints and linked owners | Each remaining placeholder (file:line, missing fact) as an open gap; a placeholder the repository already answers is drift |
 | Base branch | [git flow](../shared/git-flow.md) resolution against actual refs | Resolves to a branch the repo does not release from; a leftover `.babysit/git-flow.yaml` is ignored (note, not defect) |
 | `.babysit/qa.yaml` and local overrides | Effective local environment, service commands, credential variable names and meaningful flows | Wrong/missing target, hosted-only QA, no failure/empty/validation case, override changes target or credential source unexpectedly |
 | Release profile (`RELEASE.md`, `.babysit/release.md` or linked inline owner) | Version/mirror/lockfile sources, tags/changelog, CI/script stage ownership, package registries, current deploy/rollback runbook, observation rules and CLI installation paths | Wrong repo/component/version identity, stale commands, missing required stage or unjustified N/A, ambiguous artifact/SHA, unverifiable hypercare bounds, missing local update verification or profile unreachable from entrypoints |
@@ -134,7 +138,9 @@ unverified claims. Do not invent a numerical harness score.
 If fixes are authorized, patch the owning file, preserve unrelated user edits
 and existing policy, then recheck affected links/config/commands. Reuse
 [setup-project](../setup-project/skill.md) when the requested fix is missing
-2build configuration. Do not silently switch release model, credential
+2build configuration or a missing architecture/release owner (skeleton with
+`TODO(2build):` placeholders). Moving over-scoped content to its owner is a
+fix only when requested; otherwise report it. Do not silently switch release model, credential
 names or command semantics as a documentation cleanup.
 
 Return the report directly unless the caller requests a file or supplies a
@@ -146,6 +152,7 @@ STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: CLEAN | FINDINGS | INCOMPLETE
 SCOPE: <entrypoints/services and linked files actually inspected>
 VERIFY: <static checks, optional runtime evidence, NOT RUN and why>
+GAPS: <TODO(2build) count per file, or none>
 NEXT: <smallest correction, missing evidence, or none>
 ```
 `CLEAN` covers only the inspected scope and requires no unresolved material
