@@ -1,6 +1,6 @@
 ---
 name: setup-project
-description: Initialize or update a repo's 2build configuration, QA target, release profile and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files.
+description: Initialize or update a repo's 2build configuration, QA target, architecture and release documents, and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files.
 disable-model-invocation: true
 ---
 
@@ -22,16 +22,19 @@ by path, not as `skill://`.
 ## Discover before writing
 Read applicable `AGENTS.md` / `CLAUDE.md`, existing `.babysit` configuration,
 remote/default branches, package scripts, lockfiles, Makefile/compose and CI.
-Discover the project's architecture authority and, where applicable, design,
-deployment and release guidance, including version sources, package publication
-and automatic pipelines. Derive service working directories, runtime, local
-target and useful checks.
+Discover the architecture owner of every service (nested docs and entrypoints
+included, per [project docs](references/project-docs.md#discover-the-existing-owners))
+and, where applicable, design, deployment and release guidance, including
+version sources, package publication and automatic pipelines. Derive service
+working directories, runtime, local target and useful checks.
 Preserve explicit user choices, intentional overrides, named environments and
 credential variable names. Do not copy template ports or commands as facts.
 
 For an inspection-only request, use [harness-audit](../harness-audit/skill.md).
-Setup owns configuration writes; that skill owns the evidence checklist. Do
-not rewrite architecture docs or unrelated instructions during onboarding.
+Setup owns configuration writes; that skill owns the evidence checklist.
+Setup creates missing architecture/release owners and patches links, headings
+and verified facts; it does not rewrite existing content or unrelated
+instructions unless asked.
 
 ## Configure only missing or requested settings
 - Git needs no configuration ([git flow](../shared/git-flow.md)). Verify
@@ -60,6 +63,11 @@ not rewrite architecture docs or unrelated instructions during onboarding.
   missing placeholders with `bbs secrets seed --repo-root <repo> <names...>`.
   Never replace values or invent accounts. Multiple GitHub accounts may need
   `GH_ACCOUNT`; use a known login, never guess one.
+- Architecture owners: per [project docs](references/project-docs.md), every
+  service has an architecture document and a multi-service repo also has a
+  system document limited to what sits between services. Create a missing one
+  from the skeleton, filled with repository facts and a `TODO(2build):` line
+  under each heading the repository cannot answer yet.
 - Make `AGENTS.md` a project map: link architecture guidance, plus design and
   deployment/release guidance when applicable, with service scope and when to read each.
   Follow [project context links](references/project-pointers.md#project-context-links);
@@ -69,14 +77,17 @@ not rewrite architecture docs or unrelated instructions during onboarding.
   `RELEASE.md` or a maintained inline section. Fill missing/requested facts using
   [release-prd's profile contract](../release-prd/references/project-profile.md).
   If no equivalent owner exists, create `RELEASE.md` from observed version files,
-  scripts, CI and runbooks, then link it from `AGENTS.md`/`CLAUDE.md`. Separate
+  scripts, CI and runbooks — a greenfield repo too, with placeholders
+  ([project docs § Release profile](references/project-docs.md#release-profile)) —
+  then link it from `AGENTS.md`/`CLAUDE.md`. Separate
   independent components/submodules and distinguish normal pipeline ownership
   from the local execution path. Mark non-applicable distribution/deploy/update
   stages N/A with reasons; record unresolved commands, thresholds or authority
-  as gaps rather than inventing them. Preserve existing landing/publication
+  as `TODO(2build):` placeholders rather than inventing them. Preserve existing landing/publication
   policy; setup does not grant workflow suspension or release permission.
   A local path that still invokes Actions/Cloud Build is not `--local` support.
-  For a repo with no release surface, record N/A without creating an empty file.
+  Only a repo with no release surface at all records `Release: N/A — <reason>`
+  in the entrypoint instead of a file.
 - Add one concise 2build pointer section to the existing instruction entrypoint
   (`AGENTS.md` preferred when both exist; create it if neither exists). Read
   [project pointers](references/project-pointers.md) for the section and,
@@ -103,7 +114,10 @@ seed generic migrate/rollback commands: reversal is not necessarily safe.
 Use [harness-audit](../harness-audit/skill.md)'s checks scoped to the files and
 services configured here; reuse the facts already gathered. Parse YAML and
 inspect `bbs secrets qa probe --env <local-name>` without executing its
-output; treat deliberate overrides as valid.
+output; treat deliberate overrides as valid. Audit the architecture and
+release owners — reachability, coverage, scope, truth and remaining
+placeholders — per [project docs § Audit](references/project-docs.md#audit-the-owners),
+for existing files as well as ones created here.
 
 Inspect start/prepare commands before running them. Probe the local app when
 available; start only the intended local service when safe within this task.
@@ -114,6 +128,7 @@ use `browse` / `qa` when actual UI verification is requested.
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 CONFIG: <files/keys changed, or already configured; workspace registration if any>
+DOCS: <architecture/release owners per service: created | linked | audited; findings; TODO(2build) count per file>
 VERIFY: <config checks and local probe results; explicit unverified items>
 NEXT: <remaining prerequisite or /bbs:autopilot "<feature>">
 ```

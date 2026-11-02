@@ -42,7 +42,10 @@ design/deployment/release guidance when those apply. Verify service coverage and
 each document should be read. Distinguish a missing link to existing guidance
 from missing documentation; report either gap even if there is no file to
 inspect. Do not require a particular filename or design/deployment docs for
-projects that do not need them.
+projects that do not need them. Apply the owner audit in
+[project docs](../setup-project/references/project-docs.md#audit-the-owners):
+per-service architecture coverage, a system document limited to cross-service
+scope, and every remaining `TODO(2build):` placeholder listed as an open gap.
 
 For a releasable app, CLI, library or pack, use
 [release-prd's profile contract](../release-prd/references/project-profile.md)

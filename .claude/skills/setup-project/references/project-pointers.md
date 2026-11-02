@@ -8,7 +8,8 @@ link its project-specific sources of truth with a short note on when to read:
   data flow and engineering constraints. Use the repo's actual architecture
   document(s), whether named `ARCHITECT*.md`, `ARCHITECTURE*.md` or a maintained
   section of another document. In a multi-service repo, map each service to the
-  relevant document instead of presenting an undifferentiated list.
+  relevant document instead of presenting an undifferentiated list, and link
+  nested service entrypoints (`<service>/AGENTS.md`) alongside their documents.
 - **Design — when applicable:** UI/UX rules, design system, tokens and shared
   components for projects with a visual/user-facing surface. Link the existing
   design authority and say to read it before visual/UI changes.
@@ -27,12 +28,12 @@ Use real relative Markdown links and existing filenames/anchors; verify the
 linked content covers the claimed purpose. Reuse existing service lists or
 sections rather than adding a second index. If the harness uses `CLAUDE.md` as
 its entrypoint, keep the same map reachable there without duplicating policy.
-Missing architecture guidance, or applicable design/deployment/release guidance, is a
-named documentation gap: report the missing owner/content and next step. Do not
-insert dangling links, create empty templates or invent operational details to
-make setup look complete. Setup can prepare a release profile from verified
-repository facts; drafting missing architecture/design/deployment policy is
-separate scoped work. Unresolved release policy remains a named gap.
+Missing architecture or release guidance is created as a skeleton with
+`TODO(2build):` placeholders ([project docs](references/project-docs.md)) and linked, so
+the gap is visible where agents read. Missing design/deployment guidance is a
+named documentation gap: report the missing owner and next step. Do not insert
+dangling links or invent operational details to make setup look complete;
+deciding the policy behind a placeholder is separate scoped work.
 
 ## 2build pointers
 Add one concise pointer section in `AGENTS.md` or `CLAUDE.md`. Adapt skill

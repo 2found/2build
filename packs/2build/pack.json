@@ -85,7 +85,7 @@
     {
       "name": "2build_setup-project",
       "file": "setup-project/skill.md",
-      "description": "Initialize or update a repo's 2build configuration, QA target, release profile and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files."
+      "description": "Initialize or update a repo's 2build configuration, QA target, architecture and release documents, and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files."
     },
     {
       "name": "2build_test",

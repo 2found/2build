@@ -22,7 +22,9 @@ Never copy deploy settings or secrets out of their maintained owners.
 | Hypercare | Window, cadence, metrics/log source, baseline, thresholds and rollback/stop behavior |
 | Local follow-up | CLI installation owner, pinned update, PATH/version/smoke check; consumer/catalog scope |
 
-An existing runbook can supply these fields. Independently released components
+A field reading `TODO(2build): …` is unresolved: resolve it from evidence or
+the user before the stage that needs it, never treat it as a default or as
+permission. An existing runbook can supply these fields. Independently released components
 need their own version/tag and distribution/deploy rows. A submodule is a
 separate repo; release it there and update its parent pointer only when parent
 delivery is also in scope. An app with no package distribution marks that stage
