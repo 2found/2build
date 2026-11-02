@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.124.0 — 2026-11-02
+
+### Changed
+
+- `bbs ticket` is rebuilt: tickets carry explicit fields and relations
+  (`blocked_by`, dependencies), gain `import`/`migrate` for legacy state, a
+  `plan` view, and a company-wide dashboard view in the web UI
+  (`PlanningPanel`, `TicketDetail` updates).
+- Skills renamed: `release-prd` → `release`, `analytics-review` →
+  `telemetry-review`. Old `/bbs:release-prd` invocations forward to `release`.
+
+### Added
+
+- `harness-audit` audits architecture owners and `TODO(2build)` placeholders;
+  `setup-project` creates/audits architecture and release owner placeholders
+  the same way.
+
 ## 1.123.0 — 2026-11-01
 
 ### Changed
