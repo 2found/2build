@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from .common import HYPERFRAMES, PLATFORMS, Report, dump, heavy_prefix, load
+from .common import HYPERFRAMES, PLATFORMS, Report, config, copy_kind, dump, family, heavy_prefix, load
 from .scaffold import placeholders
 
 
@@ -71,6 +71,8 @@ def encode(master: Path, out: Path, platform: str, canvas_wh: tuple[int, int]) -
         v += ["-b:v", enc["bitrate"], "-maxrate", enc["bitrate"], "-bufsize", "12M"]
     else:
         v += ["-crf", str(enc["crf"]), "-maxrate", enc["maxrate"], "-bufsize", "24M"]
+    if "gop" in enc:  # YouTube: closed GOP of half the frame rate, 2 consecutive B-frames
+        v += ["-g", str(enc["gop"]), "-bf", str(enc["bframes"]), "-flags", "+cgop"]
     a = ["-c:a", "aac", "-profile:a", "aac_low", "-b:a", enc["abitrate"], "-ar", str(enc["ar"]), "-ac", "2"]
     out.parent.mkdir(parents=True, exist_ok=True)
     run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(master), *v, *a, "-movflags", "+faststart", str(out)])
@@ -136,8 +138,10 @@ def qa(path: Path, platform: str, tl: dict) -> Report:
     ratio = max(W, H) / min(W, H)
     if ratio > 3.0:
         r.fail("Q1", where, f"aspect {W}:{H} outside 1:3–3:1")
-    if platform == "tiktok" and abs(H / W - 16 / 9) > 0.02:
-        r.warn("Q1", where, f"{W}x{H} is not 9:16: TikTok letterboxes it")
+    want = PLATFORMS["canvases"][P["canvas"]]
+    if abs(W / H - want["width"] / want["height"]) > 0.02 and not (platform == "youtube" and W == H) \
+            and not (platform == "linkedin" and 1 / 2.4 <= W / H <= 2.4):
+        r.warn("Q1", where, f"{W}x{H} is not {P['canvas'].replace('x', ':')}: {P['label']} letterboxes it")
     if not a:
         r.fail("Q2", where, "no audio stream")
     else:
@@ -201,12 +205,30 @@ def spot(path: Path, t: float, out: Path) -> Path:
     return out
 
 
+def copy_files(script: dict, platform: str) -> dict[str, str]:
+    """The text the user pastes at upload, one file per field."""
+    c = (script.get("platforms") or {}).get(platform) or {}
+    if copy_kind(platform) == "youtube":
+        return {"title.txt": c.get("title", "").strip() + "\n", "description.txt": c.get("description", "").strip() + "\n",
+                "tags.txt": ", ".join(c.get("tags") or []) + "\n"}
+    return {"caption.txt" if copy_kind(platform) == "caption" else "post.txt": post_copy(script, platform)}
+
+
 def post_copy(script: dict, platform: str) -> str:
-    c = (script.get("platforms") or {}).get("x" if platform.startswith("x") else platform) or {}
-    if platform == "tiktok":
+    c = (script.get("platforms") or {}).get(PLATFORMS[platform].get("upload_of") or platform) or {}
+    if copy_kind(platform) == "caption":
         return c.get("caption", "").strip() + "\n"
     parts = [c.get("post", "").strip()] + [f"[reply {i}] {t.strip()}" for i, t in enumerate(c.get("thread") or [], 1)]
     return "\n\n".join(p for p in parts if p) + "\n"
+
+
+def open_review(proj: Path) -> list[str] | None:
+    """Open P0 issues in the project's review.json (07-review.md); None when nobody reviewed it yet."""
+    p = proj / "review.json"
+    if not p.is_file():
+        return None
+    return [f"{i.get('at', '?')}s {i.get('what', '')}".strip() for i in load(p).get("issues") or []
+            if i.get("sev") == "P0" and i.get("status", "open") == "open"]
 
 
 def export(campaign_dir: Path, proj: Path, platforms: list[str], draft: bool = False, skip_render: bool = False) -> Report:
@@ -221,22 +243,43 @@ def export(campaign_dir: Path, proj: Path, platforms: list[str], draft: bool = F
         from .scaffold import _sha
         if _sha(campaign_dir / meta["script"]) != meta["script_sha256"]:
             raise SystemExit("the script changed after scaffold: re-run `mvf scaffold` (and `mvf voice` if lines changed)")
+    from . import art
+    cited = sorted({a for b in script.get("beats") or [] for a in b.get("art") or []})
+    raw = [a for a in cited if not art.approved(campaign_dir, a)]
+    if raw and not draft:
+        raise SystemExit(f"art {raw} is cited by the script but not approved: mvf art approve, then re-scaffold")
+    review = open_review(proj)
+    if review and not draft:
+        raise SystemExit(f"open P0 in review.json: {review}. Fix them and mark them fixed (references/07-review.md)")
     master = proj / "renders/master.mp4"
     if not (skip_render and master.is_file()):
         print(f"rendering {proj.name} ({'draft' if draft else 'delivery'})…", flush=True)
         master = render(proj, draft)
     canvas = PLATFORMS["canvases"][meta["canvas"]]
     wh = (canvas["width"], canvas["height"])
-    out_root = campaign_dir / "08-delivery" / script["id"] / meta["hook"] / meta["canvas"]
+    out_root = campaign_dir / "08-delivery" / script["id"] / meta["canvas"]
     rep = Report()
+    if review is None and not draft:
+        rep.warn("RV1", proj.name, "no review.json: export --draft, look at its contact sheet and stills, record what "
+                 "you saw (references/07-review.md)")
+    if not draft:
+        from .judge import check_video_judge
+        check_video_judge(proj, rep)
     summary = {"script": script["id"], "hook": meta["hook"], "canvas": meta["canvas"], "draft": draft, "files": {}}
     for p in platforms:
         d = out_root / p
-        f = encode(master, d / f"{script['id']}-{meta['hook']}-{p}.mp4", p, wh)
+        f = encode(master, d / f"{script['id']}-{p}.mp4", p, wh)
         r = qa(f, p, tl)
         rep.extend(r)
         (d / "captions.srt").write_text(srt(tl.get("captions", [])), encoding="utf-8")
-        (d / ("caption.txt" if p == "tiktok" else "post.txt")).write_text(post_copy(script, p), encoding="utf-8")
+        for name, text in copy_files(script, p).items():
+            (d / name).write_text(text, encoding="utf-8")
+        if p == "youtube-long":
+            th = campaign_dir / "07-video" / script["id"] / "thumbnail-16x9.jpg"
+            if th.is_file():
+                shutil.copy2(th, d / "thumbnail.jpg")
+            else:
+                rep.warn("Y6", p, f"no custom thumbnail: mvf thumbnail {script['id']} (YouTube picks a random frame otherwise)")
         hook_end = tl["beats"][0]["end"]
         # Frame 0 is the designed still (H0: readable at frame 0, no caption yet); later hook frames may be mid-effect.
         spot(f, 0.0, d / "cover.jpg")
@@ -246,6 +289,22 @@ def export(campaign_dir: Path, proj: Path, platforms: list[str], draft: bool = F
             spot(f, t, d / f"spot-{k}.jpg")
         summary["files"][p] = {"video": str(f.relative_to(campaign_dir)), "fails": r.fails, "warns": r.warns, "qa": r.items}
         dump(d / "qa.json", {"platform": p, "file": f.name, "items": r.items, "listen": "PENDING LISTEN"})
+    cut = art.rmbg_shown(campaign_dir, proj, script)
+    lic = config(campaign_dir).get("rmbg_license")
+    if cut and lic != "bria-agreement":
+        (rep.info if lic == "non-commercial" else rep.warn)(
+            "LIC1", "art", f"{', '.join(cut)} cut out with RMBG-1.4, licensed for non-commercial use only: a product "
+            "video needs a Bria agreement (record config rmbg_license: bria-agreement), or redraw those with model alpha"
+            + (" (declared non-commercial)" if lic == "non-commercial" else ""))
+    ai = art.disclosure(campaign_dir, proj, script)
+    summary["ai_disclosure"] = ai
+    how = {family(p): PLATFORMS[p]["ai_label"] for p in PLATFORMS if isinstance(PLATFORMS[p], dict) and PLATFORMS[p].get("ai_label")}
+    for fam in sorted({family(p) for p in platforms}):
+        state = ai.get(fam, "ON" if ai["photoreal"] else "off")
+        if state == "ON":
+            rep.warn("AI1", fam, f"label as AI ({'; '.join(ai['why'])}): {how[fam]}")
+        elif state == "recommended":
+            rep.info("AI1", fam, f"generated illustration shown ({', '.join(ai['art'])}): labelling is optional; {how[fam]}")
     dump(out_root / "delivery.json", summary)
     shutil.copy2(proj / "STORYBOARD.md", out_root / "STORYBOARD.md")
     return rep

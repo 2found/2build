@@ -18,7 +18,8 @@ from .common import dump, load
 from .export import loudness, run
 
 OPEN_DB = 7.0        # bed this far under the voice between lines
-UNDER_VO_DB = 15.0   # and this far under while the voice speaks
+UNDER_VO_DB = 21.0   # and this far under while the voice speaks: quiet syllables sit ~12 dB under the
+                     # line's loudest, so 21 keeps them sound.MIX_MARGIN_DB (8) over the bed; 15 failed every line
 RAMP = 0.15          # seconds the duck takes to move
 
 

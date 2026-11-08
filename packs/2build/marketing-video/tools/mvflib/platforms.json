@@ -2,6 +2,10 @@
   "_about": "Platform limits the tool enforces. `hard` values FAIL, `recommend` values WARN. Every number names its source and the day it was read; re-read the source before trusting a number older than 90 days.",
   "tiktok": {
     "label": "TikTok",
+    "family": "tiktok",
+    "copy": "caption",
+    "links_clickable": false,
+    "ai_label": "TikTok: More options → AI-generated content ON",
     "canvas": "9x16",
     "sound_default": "on",
     "hard": {
@@ -16,20 +20,72 @@
       "hook_s": 2.5,
       "proposition_s": 3.0,
       "first_value_s": 6.0,
-      "hashtags": [3, 5]
+      "hashtags": [
+        3,
+        5
+      ]
     },
-    "encode": {"width": 1080, "height": 1920, "fps": 30, "vcodec": "libx264", "profile": "high", "pix_fmt": "yuv420p", "crf": 18, "maxrate": "12M", "acodec": "aac", "abitrate": "192k", "ar": 48000, "lufs": -14},
-    "safe": {"top": 168, "bottom_text": 1330, "right_rail": 140, "left": 60},
+    "encode": {
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "vcodec": "libx264",
+      "profile": "high",
+      "pix_fmt": "yuv420p",
+      "crf": 18,
+      "maxrate": "12M",
+      "acodec": "aac",
+      "abitrate": "192k",
+      "ar": 48000,
+      "lufs": -14
+    },
+    "safe": {
+      "top": 168,
+      "bottom_text": 1330,
+      "right_rail": 140,
+      "left": 60
+    },
     "sources": [
-      {"what": "proposition in 3 s, hook in 6 s, 9:16, >=720p, 3-5 creatives per ad group", "url": "https://ads.tiktok.com/help/article/creative-best-practices?lang=en", "read": "2026-10-27"},
-      {"what": "safe band 168-1330 px on 1080x1920, right rail", "url": "hyperframes skill references/types/vertical.md", "read": "2026-10-27"},
-      {"what": "287 MB is the iPhone upload ceiling; desktop allows more. Max 10 min is the reliable ceiling for every account", "url": "https://www.hopperhq.com/blog/tiktok-dimensions/", "read": "2026-10-27", "note": "third-party; TikTok's own help page was not reachable"},
-      {"what": "hook <= 2.5 s, measured on native shorts", "url": "", "read": "2026-10-27"},
-      {"what": "first value <= 6 s: TikTok's 'hook in 6 s'; house rule for X", "url": "https://ads.tiktok.com/help/article/creative-best-practices?lang=en", "read": "2026-10-27"}
+      {
+        "what": "proposition in 3 s, hook in 6 s, 9:16, >=720p, 3-5 creatives per ad group",
+        "url": "https://ads.tiktok.com/help/article/creative-best-practices?lang=en",
+        "read": "2026-10-27"
+      },
+      {
+        "what": "safe band 168-1330 px on 1080x1920, right rail",
+        "url": "hyperframes skill references/types/vertical.md",
+        "read": "2026-10-27"
+      },
+      {
+        "what": "287 MB is the iPhone upload ceiling; desktop allows more. Max 10 min is the reliable ceiling for every account",
+        "url": "https://www.hopperhq.com/blog/tiktok-dimensions/",
+        "read": "2026-10-27",
+        "note": "third-party; TikTok's own help page was not reachable"
+      },
+      {
+        "what": "hook <= 2.5 s, measured on native shorts",
+        "url": "",
+        "read": "2026-10-27"
+      },
+      {
+        "what": "first value <= 6 s: TikTok's 'hook in 6 s'; house rule for X",
+        "url": "https://ads.tiktok.com/help/article/creative-best-practices?lang=en",
+        "read": "2026-10-27"
+      },
+      {
+        "what": "AI-generated content that contains realistic images, audio or video must carry the AI-generated label (set at upload)",
+        "url": "https://support.tiktok.com/en/using-tiktok/creating-videos/ai-generated-content",
+        "read": "2026-11-04",
+        "note": "the help page is a client-rendered app that answered nothing to the fetch; wording from TikTok's 2023 announcement as reported, re-check"
+      }
     ]
   },
   "x": {
     "label": "X",
+    "family": "x",
+    "copy": "post",
+    "links_clickable": true,
+    "ai_label": "X: no upload toggle; say it in the post if the synthetic part could mislead",
     "canvas": "9x16",
     "sound_default": "off",
     "hard": {
@@ -43,33 +99,580 @@
       "max_s": 45,
       "hook_s": 2.0,
       "first_value_s": 6.0,
-      "hashtags": [0, 2]
+      "hashtags": [
+        0,
+        2
+      ]
     },
-    "encode": {"width": 1080, "height": 1920, "fps": 30, "vcodec": "libx264", "profile": "high", "pix_fmt": "yuv420p", "crf": 18, "maxrate": "10M", "acodec": "aac", "abitrate": "192k", "ar": 48000, "lufs": -14},
-    "safe": {"top": 120, "bottom_text": 1500, "right_rail": 0, "left": 60},
+    "encode": {
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "vcodec": "libx264",
+      "profile": "high",
+      "pix_fmt": "yuv420p",
+      "crf": 18,
+      "maxrate": "10M",
+      "acodec": "aac",
+      "abitrate": "192k",
+      "ar": 48000,
+      "lufs": -14
+    },
+    "safe": {
+      "top": 120,
+      "bottom_text": 1500,
+      "right_rail": 0,
+      "left": 60
+    },
     "sources": [
-      {"what": "140 s for accounts without Premium, 512 MB, MP4/MOV H.264 + AAC, aspect 1:3..3:1", "url": "https://dopost.featurebase.app/help/articles/5252120-x-twitter", "read": "2026-10-27", "note": "third-party; help.x.com answered 403 to the fetch"},
-      {"what": "280 weighted characters per post for accounts without Premium", "url": "https://github.com/twitter/twitter-text/tree/master/config", "read": "2026-10-27"},
-      {"what": "autoplays muted in the timeline: the picture and burned-in captions carry the hook", "url": "https://help.x.com/en/using-x/x-videos", "read": "2026-10-27", "note": "page answered 403; long-standing documented behaviour, re-check"}
+      {
+        "what": "140 s for accounts without Premium, 512 MB, MP4/MOV H.264 + AAC, aspect 1:3..3:1",
+        "url": "https://dopost.featurebase.app/help/articles/5252120-x-twitter",
+        "read": "2026-10-27",
+        "note": "third-party; help.x.com answered 403 to the fetch"
+      },
+      {
+        "what": "280 weighted characters per post for accounts without Premium",
+        "url": "https://github.com/twitter/twitter-text/tree/master/config",
+        "read": "2026-10-27"
+      },
+      {
+        "what": "autoplays muted in the timeline: the picture and burned-in captions carry the hook",
+        "url": "https://help.x.com/en/using-x/x-videos",
+        "read": "2026-10-27",
+        "note": "page answered 403; long-standing documented behaviour, re-check"
+      }
     ]
   },
   "x-api": {
     "label": "X (API upload)",
+    "family": "x",
+    "copy": "post",
+    "upload_of": "x",
+    "links_clickable": true,
     "canvas": "9x16",
     "sound_default": "off",
-    "hard": {"min_s": 0.5, "max_s": 140, "max_mb": 512, "post_weight": 280, "max_long_side": 1280, "max_short_side": 1024},
-    "recommend": {"min_s": 10, "max_s": 45, "hook_s": 2.0, "first_value_s": 6.0, "hashtags": [0, 2]},
-    "encode": {"width": 720, "height": 1280, "fps": 30, "vcodec": "libx264", "profile": "high", "pix_fmt": "yuv420p", "bitrate": "6M", "acodec": "aac", "abitrate": "160k", "ar": 48000, "lufs": -14},
-    "safe": {"top": 120, "bottom_text": 1500, "right_rail": 0, "left": 60},
+    "hard": {
+      "min_s": 0.5,
+      "max_s": 140,
+      "max_mb": 512,
+      "post_weight": 280,
+      "max_long_side": 1280,
+      "max_short_side": 1024
+    },
+    "recommend": {
+      "min_s": 10,
+      "max_s": 45,
+      "hook_s": 2.0,
+      "first_value_s": 6.0,
+      "hashtags": [
+        0,
+        2
+      ]
+    },
+    "encode": {
+      "width": 720,
+      "height": 1280,
+      "fps": 30,
+      "vcodec": "libx264",
+      "profile": "high",
+      "pix_fmt": "yuv420p",
+      "bitrate": "6M",
+      "acodec": "aac",
+      "abitrate": "160k",
+      "ar": 48000,
+      "lufs": -14
+    },
+    "safe": {
+      "top": 120,
+      "bottom_text": 1500,
+      "right_rail": 0,
+      "left": 60
+    },
     "sources": [
-      {"what": "between 32x32 and 1280x1024, 720x1280 recommended for portrait, <= 60 fps, H.264 High, AAC LC (no HE-AAC), >= 5000 kbps video, >= 128 kbps audio", "url": "https://docs.x.com/x-api/media/quickstart/best-practices", "read": "2026-10-27"}
+      {
+        "what": "between 32x32 and 1280x1024, 720x1280 recommended for portrait, <= 60 fps, H.264 High, AAC LC (no HE-AAC), >= 5000 kbps video, >= 128 kbps audio",
+        "url": "https://docs.x.com/x-api/media/quickstart/best-practices",
+        "read": "2026-10-27"
+      }
+    ]
+  },
+  "youtube": {
+    "label": "YouTube Shorts",
+    "family": "youtube",
+    "copy": "youtube",
+    "links_clickable": false,
+    "ai_label": "YouTube Studio: Altered or synthetic content → Yes",
+    "canvas": "9x16",
+    "sound_default": "on",
+    "hard": {
+      "min_s": 1,
+      "max_s": 180,
+      "max_mb": 2048,
+      "title_chars": 100,
+      "description_chars": 5000,
+      "tags_chars": 500,
+      "hashtags_max": 60
+    },
+    "recommend": {
+      "min_s": 15,
+      "max_s": 60,
+      "hook_s": 2.5,
+      "first_value_s": 6.0,
+      "hashtags": [
+        1,
+        3
+      ],
+      "title_chars": 70
+    },
+    "encode": {
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "vcodec": "libx264",
+      "profile": "high",
+      "pix_fmt": "yuv420p",
+      "crf": 18,
+      "maxrate": "12M",
+      "gop": 15,
+      "bframes": 2,
+      "acodec": "aac",
+      "abitrate": "384k",
+      "ar": 48000,
+      "lufs": -14
+    },
+    "safe": {
+      "top": 220,
+      "bottom_text": 1440,
+      "right_rail": 150,
+      "left": 60
+    },
+    "sources": [
+      {
+        "what": "Shorts are up to 3 minutes, vertical or square",
+        "url": "https://support.google.com/youtube/answer/10059070",
+        "read": "2026-11-04"
+      },
+      {
+        "what": "upload encoding: MP4, H.264 High progressive, 2 consecutive B-frames, closed GOP of half the frame rate, CABAC, VBR, 4:2:0; 1080p SDR 24-30 fps 8 Mbps; AAC-LC 48 kHz, 384 kbps stereo; moov atom at the front, no edit lists",
+        "url": "https://support.google.com/youtube/answer/1722171",
+        "read": "2026-11-04"
+      },
+      {
+        "what": "up to three hashtags show by the title; more than 60 hashtags and every one is ignored",
+        "url": "https://support.google.com/youtube/answer/6390658",
+        "read": "2026-11-04"
+      },
+      {
+        "what": "custom thumbnail: 16:9 for videos, 9:16 for Shorts, JPG/PNG, min 640 px, 2 MB on mobile (50 MB on desktop); the account must be verified",
+        "url": "https://support.google.com/youtube/answer/72431",
+        "read": "2026-11-04"
+      },
+      {
+        "what": "realistic AI-made or altered content is disclosed at upload ('altered or synthetic content'); non-realistic content, thumbnails, captions and your own cloned voice are exempt",
+        "url": "https://support.google.com/youtube/answer/14328491",
+        "read": "2026-11-04"
+      },
+      {
+        "what": "title <= 100 characters, description <= 5000, tags <= 500 characters in total",
+        "url": "https://support.google.com/youtube/answer/57404",
+        "read": "2026-11-04",
+        "note": "long-standing Studio limits, not re-read this time; re-check"
+      },
+      {
+        "what": "links in Shorts descriptions and comments are not clickable (since 2023-08-31); use the Shorts related-video link or the channel",
+        "url": "",
+        "read": "2026-11-04",
+        "note": "long-standing YouTube announcement; re-check"
+      },
+      {
+        "what": "safe zone on 1080x1920: right action rail ~150 px, title/channel/subscribe block from ~1440 px down, top ~220 px",
+        "url": "",
+        "read": "2026-11-04",
+        "note": "estimate from third-party overlay templates; verify on a phone screenshot of an uploaded Short"
+      }
+    ]
+  },
+  "youtube-long": {
+    "label": "YouTube (long-form)",
+    "family": "youtube",
+    "copy": "youtube",
+    "links_clickable": true,
+    "canvas": "16x9",
+    "sound_default": "on",
+    "hard": {
+      "min_s": 1,
+      "max_s": 900,
+      "max_mb": 2048,
+      "title_chars": 100,
+      "description_chars": 5000,
+      "tags_chars": 500,
+      "hashtags_max": 60,
+      "thumbnail_min_w": 1280,
+      "thumbnail_mb": 2
+    },
+    "recommend": {
+      "min_s": 60,
+      "max_s": 480,
+      "hook_s": 5.0,
+      "first_value_s": 15.0,
+      "hashtags": [
+        1,
+        3
+      ],
+      "title_chars": 70,
+      "chapters_from_s": 180
+    },
+    "encode": {
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "vcodec": "libx264",
+      "profile": "high",
+      "pix_fmt": "yuv420p",
+      "crf": 18,
+      "maxrate": "12M",
+      "gop": 15,
+      "bframes": 2,
+      "acodec": "aac",
+      "abitrate": "384k",
+      "ar": 48000,
+      "lufs": -14
+    },
+    "safe": {
+      "top": 64,
+      "bottom_text": 1000,
+      "right_rail": 64,
+      "left": 64
+    },
+    "sources": [
+      {
+        "what": "Shorts are up to 3 minutes, vertical or square",
+        "url": "https://support.google.com/youtube/answer/10059070",
+        "read": "2026-11-04"
+      },
+      {
+        "what": "upload encoding: MP4, H.264 High progressive, 2 consecutive B-frames, closed GOP of half the frame rate, CABAC, VBR, 4:2:0; 1080p SDR 24-30 fps 8 Mbps; AAC-LC 48 kHz, 384 kbps stereo; moov atom at the front, no edit lists",
+        "url": "https://support.google.com/youtube/answer/1722171",
+        "read": "2026-11-04"
+      },
+      {
+        "what": "up to three hashtags show by the title; more than 60 hashtags and every one is ignored",
+        "url": "https://support.google.com/youtube/answer/6390658",
+        "read": "2026-11-04"
+      },
+      {
+        "what": "custom thumbnail: 16:9 for videos, 9:16 for Shorts, JPG/PNG, min 640 px, 2 MB on mobile (50 MB on desktop); the account must be verified",
+        "url": "https://support.google.com/youtube/answer/72431",
+        "read": "2026-11-04"
+      },
+      {
+        "what": "realistic AI-made or altered content is disclosed at upload ('altered or synthetic content'); non-realistic content, thumbnails, captions and your own cloned voice are exempt",
+        "url": "https://support.google.com/youtube/answer/14328491",
+        "read": "2026-11-04"
+      },
+      {
+        "what": "title <= 100 characters, description <= 5000, tags <= 500 characters in total",
+        "url": "https://support.google.com/youtube/answer/57404",
+        "read": "2026-11-04",
+        "note": "long-standing Studio limits, not re-read this time; re-check"
+      },
+      {
+        "what": "links in Shorts descriptions and comments are not clickable (since 2023-08-31); use the Shorts related-video link or the channel",
+        "url": "",
+        "read": "2026-11-04",
+        "note": "long-standing YouTube announcement; re-check"
+      },
+      {
+        "what": "safe zone on 1080x1920: right action rail ~150 px, title/channel/subscribe block from ~1440 px down, top ~220 px",
+        "url": "",
+        "read": "2026-11-04",
+        "note": "estimate from third-party overlay templates; verify on a phone screenshot of an uploaded Short"
+      },
+      {
+        "what": "an unverified account uploads up to 15 minutes (hard max_s here); verified accounts up to 12 hours",
+        "url": "https://support.google.com/youtube/answer/71673",
+        "read": "2026-11-04",
+        "note": "long-standing; re-check"
+      },
+      {
+        "what": "chapters: description timestamps starting at 0:00, at least 3, each at least 10 s",
+        "url": "https://support.google.com/youtube/answer/9884579",
+        "read": "2026-11-04",
+        "note": "long-standing; re-check"
+      },
+      {
+        "what": "hook <= 5 s and first value <= 15 s are house rules for long-form, not platform numbers",
+        "url": "",
+        "read": "2026-11-04"
+      }
+    ]
+  },
+  "instagram": {
+    "label": "Instagram Reels",
+    "family": "instagram",
+    "copy": "caption",
+    "links_clickable": false,
+    "ai_label": "Instagram: turn the AI label on at upload (Meta's AI disclosure, shown as 'AI info')",
+    "canvas": "9x16",
+    "sound_default": "on",
+    "hard": {
+      "min_s": 3,
+      "max_s": 900,
+      "max_mb": 300,
+      "caption_chars": 2200,
+      "hashtags_max": 5
+    },
+    "recommend": {
+      "min_s": 15,
+      "max_s": 90,
+      "reach_max_s": 180,
+      "hook_s": 2.5,
+      "first_value_s": 6.0,
+      "hashtags": [
+        1,
+        5
+      ]
+    },
+    "encode": {
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "vcodec": "libx264",
+      "profile": "high",
+      "pix_fmt": "yuv420p",
+      "crf": 18,
+      "maxrate": "12M",
+      "acodec": "aac",
+      "abitrate": "192k",
+      "ar": 48000,
+      "lufs": -14
+    },
+    "safe": {
+      "top": 220,
+      "bottom_text": 1500,
+      "right_rail": 130,
+      "left": 60
+    },
+    "cover": {
+      "grid": "3x4"
+    },
+    "sources": [
+      {
+        "what": "upload 1.91:1 to 9:16, 9:16 recommended; 3 s - 15 min; 300 MB; MP4/MOV, H.264 or HEVC, closed GOP, 4:2:0, AAC <= 48 kHz; 23-60 fps; caption 2200 chars; cover: centre 9:16, feed shows its centre 1:1",
+        "url": "https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media",
+        "read": "2026-11-07"
+      },
+      {
+        "what": "minimum 720 px; reel sizes and ratios",
+        "url": "https://www.facebook.com/help/1038071743007909",
+        "read": "2026-11-07"
+      },
+      {
+        "what": "only reels up to 3 min are recommended to people who do not follow you",
+        "url": "https://creators.instagram.com/blog/the-latest-with-instagram",
+        "read": "2026-11-07"
+      },
+      {
+        "what": "at most 5 hashtags per post or reel (announced 2025-12-18, rolling out)",
+        "url": "https://www.socialmediatoday.com/news/instagram-implements-new-limits-on-hashtag-use/808309/",
+        "read": "2026-11-07",
+        "note": "news report quoting Instagram"
+      },
+      {
+        "what": "safe area: organic estimate (top ~220 px, captions/handle from ~1500 px, right rail ~130 px); Meta's Reels-ads guide asks for top 14%, bottom 35%, sides 6% because ads carry a CTA bar",
+        "url": "https://www.facebook.com/business/ads-guide/update/image/instagram-reels",
+        "read": "2026-11-07",
+        "note": "organic numbers are an estimate; verify on a phone screenshot"
+      },
+      {
+        "what": "realistic AI-made or altered video or audio is disclosed at upload; Meta shows 'AI info' when it detects or the uploader discloses AI",
+        "url": "https://about.fb.com/news/2024/04/metas-approach-to-labeling-ai-generated-content-and-manipulated-media/",
+        "read": "2026-11-07",
+        "note": "the toggle's exact name was not confirmed"
+      },
+      {
+        "what": "links in captions are not clickable; feed autoplay sound",
+        "url": "",
+        "read": "2026-11-07",
+        "note": "long-standing behaviour, not confirmed from a Meta page; re-check"
+      }
+    ]
+  },
+  "facebook": {
+    "label": "Facebook Reels",
+    "family": "facebook",
+    "copy": "caption",
+    "links_clickable": false,
+    "ai_label": "Facebook: turn the AI label on at upload (Meta's AI disclosure, shown as 'AI info')",
+    "canvas": "9x16",
+    "sound_default": "on",
+    "hard": {
+      "min_s": 3,
+      "max_s": 14460,
+      "max_mb": 4000,
+      "caption_chars": 63206
+    },
+    "recommend": {
+      "min_s": 15,
+      "max_s": 90,
+      "hook_s": 2.5,
+      "first_value_s": 6.0,
+      "hashtags": [
+        0,
+        3
+      ],
+      "caption_chars": 300
+    },
+    "encode": {
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "vcodec": "libx264",
+      "profile": "high",
+      "pix_fmt": "yuv420p",
+      "crf": 18,
+      "maxrate": "12M",
+      "acodec": "aac",
+      "abitrate": "192k",
+      "ar": 48000,
+      "lufs": -14
+    },
+    "safe": {
+      "top": 220,
+      "bottom_text": 1500,
+      "right_rail": 130,
+      "left": 60
+    },
+    "sources": [
+      {
+        "what": "every Facebook video is shared as a reel, with no length or format restriction (June 2025)",
+        "url": "https://about.fb.com/news/2025/06/making-it-easier-create-videos-facebook/",
+        "read": "2026-11-07"
+      },
+      {
+        "what": "Reels Publishing API: 9:16, 1080x1920 recommended (min 540x960), 3-90 s for API uploads, H.264/H.265, 24-60 fps fixed, closed GOP 2-5 s, AAC-LC 48 kHz stereo >= 128 kbps",
+        "url": "https://developers.secure.facebook.com/documentation/video-api/guides/reels-publishing",
+        "read": "2026-11-07"
+      },
+      {
+        "what": "feed video up to 241 min and 4 GB (the ads sheet; organic limits are unpublished)",
+        "url": "https://www.facebook.com/business/m/one-sheeters/video-requirements",
+        "read": "2026-11-07",
+        "note": "ads sheet"
+      },
+      {
+        "what": "post text limit 63,206 characters (third-party; Meta publishes none); a reel shows about two lines before 'more'",
+        "url": "https://lettercounter.org/blog/facebook-character-limit-guide/",
+        "read": "2026-11-07",
+        "note": "third-party, sources conflict"
+      },
+      {
+        "what": "realistic AI-made or altered video or audio is disclosed at upload; Meta shows 'AI info' when it detects or the uploader discloses AI",
+        "url": "https://about.fb.com/news/2024/04/metas-approach-to-labeling-ai-generated-content-and-manipulated-media/",
+        "read": "2026-11-07"
+      },
+      {
+        "what": "safe area: same organic estimate as Instagram Reels",
+        "url": "",
+        "read": "2026-11-07",
+        "note": "estimate; verify on a phone screenshot"
+      }
+    ]
+  },
+  "linkedin": {
+    "label": "LinkedIn video",
+    "family": "linkedin",
+    "copy": "caption",
+    "links_clickable": true,
+    "ai_label": "LinkedIn: no upload toggle (the 'CR' badge comes only from C2PA metadata); say it in the post when the synthetic part could mislead",
+    "canvas": "9x16",
+    "sound_default": "off",
+    "hard": {
+      "min_s": 3,
+      "max_s": 600,
+      "max_mb": 5000,
+      "caption_chars": 3000
+    },
+    "recommend": {
+      "min_s": 15,
+      "max_s": 90,
+      "hook_s": 2.5,
+      "first_value_s": 6.0,
+      "hashtags": [
+        0,
+        3
+      ],
+      "caption_chars": 600
+    },
+    "encode": {
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "vcodec": "libx264",
+      "profile": "high",
+      "pix_fmt": "yuv420p",
+      "crf": 18,
+      "maxrate": "12M",
+      "acodec": "aac",
+      "abitrate": "192k",
+      "ar": 48000,
+      "lufs": -14
+    },
+    "safe": {
+      "top": 120,
+      "bottom_text": 1560,
+      "right_rail": 120,
+      "left": 60
+    },
+    "sources": [
+      {
+        "what": "aspect 1:2.4 to 2.4:1, 256x144 to 4096x2304, 75 KB - 5 GB, 10-60 fps, 3 s - 15 min (desktop)",
+        "url": "https://www.linkedin.com/help/linkedin/answer/a548372",
+        "read": "2026-11-07"
+      },
+      {
+        "what": "Pages: 3 s - 10 min, MP4 safest (hard max_s here is the Page limit)",
+        "url": "https://www.linkedin.com/help/linkedin/answer/a1311816",
+        "read": "2026-11-07"
+      },
+      {
+        "what": "post text up to 3,000 characters",
+        "url": "https://www.linkedin.com/help/linkedin/answer/a528176",
+        "read": "2026-11-07",
+        "note": "from a search snippet"
+      },
+      {
+        "what": "'CR' content-credentials label comes from embedded C2PA metadata, not a detector",
+        "url": "https://www.mediapost.com/publications/article/396225/",
+        "read": "2026-11-07",
+        "note": "third-party"
+      },
+      {
+        "what": "feed autoplays muted; safe area top ~120 px, controls from ~1560 px",
+        "url": "",
+        "read": "2026-11-07",
+        "note": "long-standing behaviour and an estimate; re-check"
+      }
     ]
   },
   "canvases": {
-    "9x16": {"width": 1080, "height": 1920},
-    "1x1": {"width": 1080, "height": 1080},
-    "4x5": {"width": 1080, "height": 1350},
-    "16x9": {"width": 1920, "height": 1080}
+    "9x16": {
+      "width": 1080,
+      "height": 1920
+    },
+    "1x1": {
+      "width": 1080,
+      "height": 1080
+    },
+    "4x5": {
+      "width": 1080,
+      "height": 1350
+    },
+    "16x9": {
+      "width": 1920,
+      "height": 1080
+    }
   },
   "speech_wps": {
     "_about": "Words per second at TTS speed 1.0, used only to estimate timing before a voice exists. Measured values replace these after `mvf voice`. en 3.2 measured on a cloned narrator, 2026-10-27 (estimate 33.4 s vs measured 27.2 s at 2.6).",

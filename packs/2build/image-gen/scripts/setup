@@ -1,0 +1,58 @@
+#!/bin/sh
+# One-time host preparation for image-gen. HEAVY: a native Metal build of sd-cli
+# and ~9.9 GB of Qwen weights (+1.2 GB --with-vision, +176 MB RMBG-1.4 unless
+# --no-cutout). Run only when the user authorised it and the machine is idle.
+#
+#   setup [--with-vision] [--no-cutout] [--check]
+#
+# Everything lands in $IMAGE_GEN_HOME (default ~/.local/share/image-gen),
+# outside the repository. Idempotent; --check verifies offline.
+set -eu
+
+dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+home=${IMAGE_GEN_HOME:-$HOME/.local/share/image-gen}
+check=""
+for arg in "$@"; do
+  case "$arg" in
+    --with-vision|--no-cutout) ;;
+    --check) check=1 ;;
+    *) echo "image-gen setup: unknown argument $arg" >&2; exit 2 ;;
+  esac
+done
+command -v uv >/dev/null 2>&1 || { echo "image-gen: uv is required" >&2; exit 1; }
+mkdir -p "$home/models"
+
+# 1. Python (hash-locked numpy, onnxruntime, Pillow).
+if [ ! -x "$home/venv/bin/python" ]; then
+  [ -n "$check" ] && { echo "missing $home/venv (run setup)" >&2; exit 1; }
+  uv venv --python 3.12 "$home/venv"
+fi
+[ -n "$check" ] || uv pip sync --python "$home/venv/bin/python" --require-hashes "$dir/requirements.lock"
+
+# 2. sd-cli at the pinned stable-diffusion.cpp commit, Metal build.
+sd_cli="$home/sd-build/bin/sd-cli"
+if [ ! -x "$sd_cli" ]; then
+  [ -n "$check" ] && { echo "missing $sd_cli (run setup)" >&2; exit 1; }
+  read_pin() { "$home/venv/bin/python" -c "import json,sys; print(json.load(open('$dir/models.json'))['sd_cli'][sys.argv[1]])" "$1"; }
+  repo=$(read_pin repository); commit=$(read_pin commit)
+  if [ ! -x "$home/build-venv/bin/cmake" ]; then
+    uv venv --python 3.12 "$home/build-venv"
+    uv pip install --python "$home/build-venv/bin/python" cmake ninja
+  fi
+  PATH="$home/build-venv/bin:$PATH"; export PATH
+  [ -d "$home/sd-source/.git" ] || git clone "$repo" "$home/sd-source"
+  git -C "$home/sd-source" fetch --quiet origin "$commit" 2>/dev/null || true
+  git -C "$home/sd-source" checkout --quiet "$commit"
+  git -C "$home/sd-source" submodule update --init --recursive
+  cmake -S "$home/sd-source" -B "$home/sd-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DSD_METAL=ON
+  cmake --build "$home/sd-build" --target sd-cli -j 2
+fi
+"$sd_cli" --help >/dev/null
+
+# 3. Pinned weights from HuggingFace, size + SHA-256 checked.
+IMAGE_GEN_HOME="$home" "$home/venv/bin/python" -I "$dir/fetch.py" "$@"
+case " $* " in
+  *" --no-cutout "*) ;;
+  *) echo "note: RMBG-1.4 is bria-rmbg-1.4 (non-commercial); commercial cutouts need a Bria agreement" ;;
+esac
+echo "image-gen ready: $home"

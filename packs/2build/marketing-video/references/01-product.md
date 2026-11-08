@@ -1,39 +1,39 @@
 # Stage 1 - Product facts
 
-Output: `01-product/facts.json`, `01-product/screens/`, `brand/` (logo).
-The facts file is the only place a script may take a claim from.
+Output: `01-product/facts.json`, real screens in `01-product/screens/` and the
+logo in `brand/`. The facts file is the only place a script may take a claim
+from.
 
-```json
-{ "one_liner": "how a viewer would explain it to a friend, not the tagline",
-  "category": "", "jobs": ["the job a viewer hires it for, in their words"],
-  "alternatives": [{"name": "", "why_switch": "", "why_stay": ""}],
-  "facts": [{"id": "F1", "kind": "feature|benefit|proof|price|number|limit|positioning",
-             "claim": "", "source": {"type": "url|file|measured|user", "ref": "", "quote": "verbatim"},
-             "checked": "YYYY-MM-DD"}],
-  "demo_moments": [{"what": "the 3 seconds of real product that prove the promise", "screen": "path", "facts": ["F1"]}],
-  "screens": [{"path": "01-product/screens/x.png", "provenance": "prod app, demo account", "facts": ["F1"]}] }
-```
+## Bar
+- `one_liner` says what the product is in the viewer's words, not as a
+  tagline.
+- Every fact has a unique id, a claim, a source and the date it was checked.
+- A `url` or `file` source carries the verbatim quote the claim rests on, and
+  a `url` source is a real http(s) link.
 
-Kinds: `feature` (the demo), `benefit` (the payoff line), `proof` (a real result
-or public sample), `price` (the offer), `limit` (what it does NOT do; keeps the
-script honest and pre-empts the top comment), `number` (users, speed; only if
-sourced), `positioning` (category, who it is for, what it replaces).
+`mvf check product` FAILs on these. It WARNs on fewer than 3 facts, no
+`proof`, no `limit`, or a price or number checked over 30 days ago.
 
-Sources: `url` (live page plus verbatim quote and read date), `file` (repo path
-plus quote), `measured` (something you did: a timing run, a screenshot of the
-real flow), `user` (the owner said it; record who and when).
+## Direction
+- A promise needs a proof (a real result, a number, a quote, a screen). A
+  `limit` keeps the script honest and pre-empts the top comment.
+- Know what competitors already claim. A claim they share is not "the only"
+  (add it to `constraints`).
+- Show the real thing: screens captured at delivery size from the real product
+  (a demo account the user provides, never guessed passwords), footage of a
+  physical product in use, the passage of a book, a service's real before and
+  after. Never a mock-up. Crop test-account names, and let the script's
+  examples use the sample data on the screens.
 
-**Competitor check, always.** Search the category on TikTok and the web; write
-down what competitors already claim. A claim they also make is not "the only"
-(add to `constraints`). Their ads go to stage 3 as `avoid` or `adapt`.
+## Tool
+`facts.json` keys:
+- `one_liner`, `category`, `jobs`
+- `alternatives: [{name, why_switch, why_stay}]`
+- `facts: [{id: "F1", kind, claim, source: {type: url|file|measured|user, ref, quote}, checked}]`
+- `demo_moments: [{what, screen, facts}]`
+- `screens` or `assets: [{path, …}]`
 
-**Real screens.** Capture at delivery size: for 9:16 use a phone-width viewport
-(390-430 CSS px at 3x DPR) so text survives a 1.6-2x push-in. Best first: the
-production app with a demo account the user provides (never guess passwords),
-a public demo page, a recent QA screenshot set. Crop test-account names. Note
-the sample data on the screens (names, titles): the script's jokes and examples
-use that same data so demo and story are one. Never draw a UI.
+The kinds the checks read are `proof`, `limit`, `price` and `number`. Others,
+such as feature, benefit and positioning, are free labels.
 
-Gate (`mvf check product`, plus by eye for screens and competitors): every fact has a source with quote and date; no `price`
-or `number` fact older than 30 days; at least one `limit`; one demo moment has a
-real screen file; competitor claims recorded.
+A script cites fact ids in `beats[].facts` and in its platform copy.

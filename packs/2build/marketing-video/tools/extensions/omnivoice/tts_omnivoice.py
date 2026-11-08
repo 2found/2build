@@ -255,7 +255,13 @@ class Ears:
         self.asr = pipeline("automatic-speech-recognition", model=model, device="cpu")
 
     def hear(self, wav: Path, lang: str) -> dict:
-        r = self.asr(str(wav), generate_kwargs={"language": LANG_NAMES.get(lang, lang), "task": "transcribe"},
+        # Raw samples, not a path: a path makes transformers import torchcodec, whose
+        # wheel can lag the installed torch (dlopen "_aoti_torch_device_type_mps").
+        import soundfile as sf
+        a, sr = sf.read(str(wav), dtype="float32")
+        if a.ndim > 1:
+            a = a.mean(axis=1)
+        r = self.asr({"raw": a, "sampling_rate": sr}, generate_kwargs={"language": LANG_NAMES.get(lang, lang), "task": "transcribe"},
                      return_timestamps="word")
         ws = []
         for c in r.get("chunks", []):

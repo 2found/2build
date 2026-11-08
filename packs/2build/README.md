@@ -6,7 +6,7 @@
 fixes issues. For UI work, it creates a prototype first. You can
 follow progress without reminding the agent to do each step.
 
-The pack contains 21 skills for product engineering and growth.
+The pack contains 22 skills for product engineering and growth.
 The companion `bbs` CLI keeps progress and evidence on disk.
 
 A 2found product. With [Soot](https://trysoot.com), powered by 2agent,
@@ -72,19 +72,20 @@ for that workflow.
 ## Full skill inventory
 
 <details>
-<summary>Browse all 21 skills and their packaged sizes</summary>
+<summary>Browse all 22 skills and their packaged sizes</summary>
 
 | Skill | Bytes | When to use |
 | --- | --- | --- |
 | `agent-first-docs` | 3256 | Write a product's docs, quick start or marketing page around one copyable coding-agent prompt, and serve docs as agent-readable Markdown (llms.txt, .md URLs). Use for onboarding docs, quick starts, product pages, heroes and CTAs. |
 | `autopilot` | 39237 | Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; the default for any size of change, including a day-long one. Use team only for phased releases, independent phase verification or parallel work on disjoint parts. |
-| `browse` | 9759 | Use the browser for focused web-app checks: open a URL, inspect state, click through a flow, capture screenshots, read console errors, or verify a frontend fix. Prefer this over a full QA workflow. |
+| `browse` | 10000 | Use the browser for focused web-app checks: open a URL, inspect state, click through a flow, capture screenshots, read console errors, or verify a frontend fix. Prefer this over a full QA workflow. |
 | `create-pr` | 3056 | Prepare and create a pull request from the current branch. Use when a human requests a PR; 2build workflows never open one. |
 | `design-ui` | 3388 | Design and iterate a reviewable UI using the project's design authority and existing screens. Use for UI design requests or a workflow's design/prototype handoff; a direct build request can use the working UI as its prototype. |
 | `harness-audit` | 12143 | Audit AGENTS.md, CLAUDE.md and linked project instructions against repository code, scripts, CI and agent configuration. Use to find stale commands, broken references, conflicting rules or missing verification paths; setup-project owns initial 2build configuration. |
+| `image-gen` | 4961 | Generate raster images locally with Qwen Image 2.1 Turbo (Metal, no account, no network at generation time) and cut subjects out of their background with RMBG-1.4. Use for draft plates, backgrounds, covers, stickers and reference-guided edits; not pixel-exact edits, UI mock-ups or likenesses of real people. |
 | `implement` | 6125 | Implement a scoped code change from the user's request, an accepted plan.md, or ticket context. Use for feature work, bug fixes, endpoints, UI changes, integrations, and contained refactors. |
 | `investigate` | 1709 | Debug a failure before fixing it. Use when the user asks why something is broken, wants root cause analysis, or reports an error, regression, flaky test, crash, or unexpected behavior. |
-| `marketing-video` | 7262 | Plan and produce short marketing videos (TikTok and X first) for your own product, from product facts and audience research to a script with A/B hooks, production and per-platform files; you post them. |
+| `marketing-video` | 14650 | Plan and produce marketing videos for your own product on TikTok, YouTube (Shorts and long-form), Instagram and Facebook Reels, X and LinkedIn, for any product and any kind of video, from research to a script strangers can retell, art, voice, edit and per-platform files; you post them. |
 | `plan-draft` | 12568 | Draft a technical plan before implementation. Use when the user asks for a plan, architecture, ticket breakdown, or wants to turn a requirement into plan.md without coding yet. |
 | `qa` | 20398 | Systematically test a web application, fix issues caused by the current change, and re-verify. Use for full QA loops, critical user flows, release checks, or test-and-fix requests. |
 | `recon` | 1262 | Evaluate an external repository, library, or tool against the current project. Use for adoption decisions, architecture comparisons, or requests to explore and borrow from another project. |

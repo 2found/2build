@@ -5,6 +5,8 @@
     {
       "id": "A1",
       "priority": 1,
+      "ring": "broad | genre | core",
+      "knows": "what they already know about the topic: nothing, the genre, the story",
       "name": "",
       "who": "age, situation, what they already do",
       "pains": ["in their words"],
@@ -14,7 +16,8 @@
       "language": {"register": "how they talk", "words": ["their slang"], "avoid": ["words that read as an ad to them"]},
       "platforms": {
         "tiktok": {"habits": ["when and how they watch"], "search_terms": ["what they type in TikTok search"], "creators": ["@who they follow"]},
-        "x": {"habits": [""], "communities": ["who they follow / which conversations"]}
+        "x": {"habits": [""], "communities": ["who they follow / which conversations"]},
+        "youtube": {"habits": ["Shorts feed or search; long-form while doing what"], "search_terms": ["what they type in YouTube search"], "creators": ["@channels they watch"]}
       },
       "evidence": [{"type": "url", "ref": "https://…", "quote": "a real comment or review"}]
     }

@@ -90,8 +90,8 @@ class MaterialLint(unittest.TestCase):
         ok = lint(with_material([REVIEW["id"]], recipe="social-proof"), CAMPAIGN, self.refs())
         self.assertNotIn("M3", codes(ok, "FAIL"))
         bad = lint(with_material([PROMO["id"]], recipe="social-proof"), CAMPAIGN, self.refs())
-        self.assertIn("M3", codes(bad, "FAIL"))
-        self.assertIn("M3", codes(lint(with_material([REVIEW["id"]], recipe="nope"), CAMPAIGN, self.refs()), "FAIL"))
+        self.assertIn("M3", codes(bad, "WARN"))
+        self.assertIn("M3", codes(lint(with_material([REVIEW["id"]], recipe="nope"), CAMPAIGN, self.refs()), "WARN"))
 
     def test_unknown_rights_cannot_be_shown_promo_can(self):
         self.assertIn("M4", codes(lint(with_material([STILL["id"]]), CAMPAIGN, self.refs()), "FAIL"))

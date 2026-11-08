@@ -1,5 +1,7 @@
 """Unit tests for the mvf library (stdlib only): python3 -m unittest discover -s tools/tests"""
+import contextlib
 import copy
+import io
 import importlib.util
 import json
 import os
@@ -32,6 +34,10 @@ def script(**over):
     s = {
         "id": "s01-test", "angle": "G1", "format": "demo", "language": "en", "value": "learns a trick",
         "voice": {"mode": "none"},
+        "spine": {"question": "why is the inbox lying", "stakes": "missed mail", "turn": "it hides mail on purpose",
+                  "payoff": "one filter shows it", "takeaway": "one filter shows the mail your inbox hides",
+                  "use": "set one filter tonight and stop missing mail from clients",
+                  "loops": [{"id": "L1", "q": "how does it lie", "open": "B01", "close": "B02"}]},
         "beats": [
             {"id": "B01", "role": "hook", "vo": "Your inbox is lying.", "onscreen": "your inbox lies", "visual": "a phone"},
             {"id": "B02", "role": "demo", "vo": "Watch this filter sort it.", "onscreen": "one filter", "visual": "screen"},
@@ -121,6 +127,19 @@ class Lint(unittest.TestCase):
         s = script(variants=[{"id": "H2", "vo": "Hey guys, welcome back to my channel today.", "onscreen": "x", "visual": "y"}])
         self.assertIn("H2", codes(lint(s, CAMPAIGN, REFS)))
 
+    def test_hook_must_name_the_topic(self):
+        seg = {"id": "A1", "platforms": {"tiktok": {"search_terms": ["bảng nguyệt phiếu qidian", "top truyện trung tháng 10"]}}}
+        refs = {**REFS, "segments": {"A1": seg}}
+        s = script()
+        s["beats"][0].update(vo="Hạng nhất tháng này… là một chiếc gương.", onscreen="TOP 1 = CHIẾC GƯƠNG?")
+        self.assertIn("H6", codes(lint(s, CAMPAIGN, refs), "WARN"))
+        s["beats"][0].update(vo="Top mười truyện nguyệt phiếu Qidian tháng mười.", onscreen="TOP 10 NGUYỆT PHIẾU QIDIAN")
+        self.assertNotIn("H6", codes(lint(s, CAMPAIGN, refs)))
+        s = script(variants=[{"id": "H2", "vo": "Ai ngờ được cú này?", "onscreen": "AI NGỜ?", "visual": "v"}])
+        s["beats"][0].update(vo="Top 10 truyện Trung tháng 10.", onscreen="TOP 10 THÁNG 10")
+        rep = lint(s, CAMPAIGN, refs)
+        self.assertEqual([i["where"] for i in rep.items if i["code"] == "H6"], ["s01-test[H2]"])
+
     def test_x_post_over_280_fails(self):
         s = script()
         s["platforms"]["x"]["post"] = "a" * 281
@@ -142,10 +161,10 @@ class Lint(unittest.TestCase):
         s["beats"][1]["vo"] = setup + " It was a long one, honestly."
         self.assertIn("R1", codes(lint(s, CAMPAIGN, REFS), "FAIL"))
 
-    def test_script_without_value_beat_fails(self):
+    def test_script_without_value_beat_warns(self):
         s = script()
         s["beats"][1]["role"] = "problem"
-        self.assertIn("R1", codes(lint(s, CAMPAIGN, REFS), "FAIL"))
+        self.assertIn("R1", codes(lint(s, CAMPAIGN, REFS), "WARN"))
 
     def test_brand_in_hook_text_warns(self):
         s = script()
@@ -156,6 +175,11 @@ class Lint(unittest.TestCase):
         s = script()
         self.assertIn("B2", codes(lint(s, CAMPAIGN, REFS), "WARN"))
         s["beats"][1]["visual"] = "the real Acme filter screen"
+        self.assertNotIn("B2", codes(lint(s, CAMPAIGN, REFS)))
+
+    def test_story_recipe_keeps_product_for_the_end(self):
+        s = script()
+        s["recipe"] = "researched-story"
         self.assertNotIn("B2", codes(lint(s, CAMPAIGN, REFS)))
 
 
@@ -292,6 +316,29 @@ class Encode(unittest.TestCase):
         self.assertEqual(target_size((1080, 1920), {"width": 720, "height": 1280}, {"max_long_side": 1280, "max_short_side": 1024}), (720, 1280))
         self.assertEqual(target_size((1080, 1080), {"width": 720, "height": 1280}, {"max_long_side": 1280, "max_short_side": 1024}), (1024, 1024))
         self.assertEqual(target_size((1080, 1080), {"width": 1080, "height": 1920}, {}), (1080, 1080))  # never upscale
+
+    def test_mix_margin_ignores_word_tails_not_hits(self):
+        import numpy as np
+        from mvflib.sound import SR, span_margin
+        t = np.arange(SR) / SR
+        voice = 0.2 * np.sin(2 * np.pi * 220 * t)
+        voice[int(0.8 * SR):] *= 0.01                     # a -40 dB word tail
+        bed = np.full(SR, 0.01) * np.sin(2 * np.pi * 90 * t)
+        self.assertGreater(span_margin(voice, bed), 15)   # the tail under the bed is not a buried word
+        hit = bed.copy()
+        hit[int(0.3 * SR):int(0.4 * SR)] = 0.3 * np.sin(2 * np.pi * 60 * t[:int(0.1 * SR)])
+        self.assertLess(span_margin(voice, hit), 0)       # a hit on a spoken word still fails
+
+    def test_open_p0_blocks_delivery(self):
+        from mvflib.export import open_review
+        with tempfile.TemporaryDirectory() as d:
+            proj = Path(d)
+            self.assertIsNone(open_review(proj))
+            (proj / "review.json").write_text(json.dumps({"issues": [
+                {"sev": "P0", "at": 3.1, "what": "caption over the face", "status": "open"},
+                {"sev": "P0", "at": 9.0, "what": "black frame", "status": "fixed"},
+                {"sev": "P1", "at": 12.0, "what": "soft plate"}]}))
+            self.assertEqual(open_review(proj), ["3.1s caption over the face"])
 
 
 class Speech(unittest.TestCase):
@@ -436,29 +483,74 @@ class Scaffold(unittest.TestCase):
             self.assertIn(f'data-start="{tl["beats"][1]["start"]}"', idx)
             self.assertIn("--mv-accent: #ff0000", idx)
 
-    def test_hook_copies_follow_source_until_edited(self):
+    def test_one_project_per_canvas_and_a_hook_switch_keeps_the_old_opening(self):
         with tempfile.TemporaryDirectory() as d:
             cd = Path(d)
             (cd / "05-scripts").mkdir()
             (cd / "campaign.json").write_text(json.dumps(CAMPAIGN))
             sp = cd / "05-scripts/s01-test.json"
             sp.write_text(json.dumps(script(variants=[{"id": "H2", "vo": "New hook here.", "onscreen": "n", "visual": "v"}])))
+            proj = scaffold(cd, sp, "9x16", "H1", None, ["tiktok"])
+            self.assertEqual(proj, cd / "07-video/s01-test/9x16")
+            (proj / "compositions/B01.html").write_text("<template>h1 hook</template>")
+            (proj / "compositions/B02.html").write_text("<template>body</template>")
+            self.assertEqual(scaffold(cd, sp, "9x16", "H2", None, ["tiktok"]), proj)
+            self.assertIn("h1 hook", (proj / "compositions/B01.H1.html").read_text())
+            self.assertNotIn("h1 hook", (proj / "compositions/B01.html").read_text())
+            self.assertIn("body", (proj / "compositions/B02.html").read_text())
+
+    def test_copies_from_another_project_follow_source_until_edited(self):
+        with tempfile.TemporaryDirectory() as d:
+            cd = Path(d)
+            (cd / "05-scripts").mkdir()
+            (cd / "campaign.json").write_text(json.dumps(CAMPAIGN))
+            sp = cd / "05-scripts/s01-test.json"
+            sp.write_text(json.dumps(script(variants=[{"id": "H2", "vo": "New hook here.", "onscreen": "n", "visual": "v"}])))
+            sp2 = cd / "05-scripts/s02-test.json"
+            sp2.write_text(json.dumps(script(id="s02-test", variants=[{"id": "H2", "vo": "New hook here.", "onscreen": "n", "visual": "v"}])))
             h1 = scaffold(cd, sp, "9x16", "H1", None, ["tiktok"])
-            h2 = scaffold(cd, sp, "9x16", "H2", None, ["tiktok"], from_dir=h1)
+            h2 = scaffold(cd, sp2, "9x16", "H2", None, ["tiktok"], from_dir=h1)
             (h1 / "compositions/B01.html").write_text("<template>h1 hook</template>")
             (h1 / "compositions/B02.html").write_text("<template>v1</template>")
-            scaffold(cd, sp, "9x16", "H2", None, ["tiktok"], from_dir=h1)
+            scaffold(cd, sp2, "9x16", "H2", None, ["tiktok"], from_dir=h1)
             self.assertIn("v1", (h2 / "compositions/B02.html").read_text())          # placeholder → authored
             self.assertNotIn("h1 hook", (h2 / "compositions/B01.html").read_text())  # beat 0 is the variant's own
-            scaffold(cd, sp, "9x16", "H2", None, ["tiktok"])                         # `mvf score` re-scaffolds without a source
+            scaffold(cd, sp2, "9x16", "H2", None, ["tiktok"])                         # `mvf score` re-scaffolds without a source
             (h1 / "compositions/B02.html").write_text("<template>v2</template>")
-            scaffold(cd, sp, "9x16", "H2", None, ["tiktok"], from_dir=h1)
+            scaffold(cd, sp2, "9x16", "H2", None, ["tiktok"], from_dir=h1)
             self.assertIn("v2", (h2 / "compositions/B02.html").read_text())          # untouched copy still follows
             (h2 / "compositions/B02.html").write_text("<template>local</template>")
             (h1 / "compositions/B02.html").write_text("<template>v3</template>")
-            scaffold(cd, sp, "9x16", "H2", None, ["tiktok"], from_dir=h1)
+            scaffold(cd, sp2, "9x16", "H2", None, ["tiktok"], from_dir=h1)
             self.assertIn("local", (h2 / "compositions/B02.html").read_text())       # local edit wins
 
+
+
+class Score(unittest.TestCase):
+    """`mvf score` mixes the cues of the current direction, not the last scaffold's."""
+
+    def test_score_rescaffolds_before_it_renders_sfx(self):
+        from unittest import mock
+        from mvflib import mix, scaffold as scaf, sound
+        spec = importlib.util.spec_from_file_location("mvfcli", TOOLS / "mvf.py")
+        mvf = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mvf)
+        with tempfile.TemporaryDirectory() as d:
+            cd = Path(d)
+            (cd / "campaign.json").write_text(json.dumps(CAMPAIGN))
+            proj = cd / "07-video/s01-test/9x16"
+            proj.mkdir(parents=True)
+            (proj / "mvf.json").write_text(json.dumps({"script": "05-scripts/s01-test.json", "canvas": "9x16", "hook": "H1",
+                                                       "take": None, "platforms": ["tiktok"]}))
+            calls = []
+            with mock.patch.object(scaf, "scaffold", lambda *x, **k: calls.append("scaffold")), \
+                    mock.patch.object(sound, "render_sfx", lambda *x: calls.append("sfx") or {"cues": 0, "sources": {}, "unknown": []}), \
+                    mock.patch.object(mix, "score", lambda *x: {"items": []}), \
+                    mock.patch.object(sound, "mixcheck", lambda *x: {"under": [], "min_db": 9, "target_db": 6}):
+                args = mvf.argparse.Namespace(campaign=str(cd), proj=str(proj), bed=None, none=True, sfx="auto", seed=1)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    mvf.cmd_score(args)
+            self.assertEqual(calls[:2], ["scaffold", "sfx"])
 
 
 class BeatVoice(unittest.TestCase):

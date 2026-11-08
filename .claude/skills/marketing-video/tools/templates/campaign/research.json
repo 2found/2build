@@ -1,0 +1,34 @@
+{
+  "_template": true,
+  "_about": "Stage 3.5 topic research (references/03b-research.md). Read the web before writing: what the audience asks and argues, what the top videos already said, the specific details a stranger would stay for. Then write 10+ ideas, score them, pick.",
+  "topic": "the topic as the audience searches it",
+  "sources": [
+    {"id": "R1", "kind": "reddit", "url": "https://...", "title": "", "lang": "en", "fetched_at": "YYYY-MM-DD",
+     "says": "what this page told you, or the verbatim line", "signal": "412 upvotes, 230 comments"}
+  ],
+  "competitors": [
+    {"url": "https://www.tiktok.com/@.../video/...", "views": 0, "posted": "YYYY-MM-DD",
+     "hook": "its first line and first picture, verbatim", "what": "what it covers",
+     "top_comments": ["verbatim"], "gap": "what it got wrong, skipped, or the comments still ask"}
+  ],
+  "competitors_note": "",
+  "top_videos": [
+    {"url": "https://...", "views": 0, "scope": "topic | benefit", "title": "",
+     "subject": "the viewer's pain or wish it answers", "says": "the answer it gives", "moves": "the order it says it in",
+     "transcript": "03-research/top/<id>.txt (mvf top-videos)"}
+  ],
+  "top_videos_note": "",
+  "patterns": [{"id": "P1", "what": "what the top videos share (the problem they answer, the answer they give, the order they give it in)", "videos": ["https://..."]}],
+  "adaptations": [{"title": "an animation, comic, game, drama or mascot the audience knows", "kind": "animation | comic | game | live-action", "url": "https://...", "year": 0}],
+  "lore_terms": ["the topic's own words a stranger does not know: world terms, ranks, place and character names"],
+  "covered": ["what the existing videos already said; ours must add something"],
+  "questions": [{"q": "what the audience asks, in their words", "sources": ["R1"], "heat": "how often / how many likes"}],
+  "nuggets": [{"id": "N1", "type": "scene", "text": "a specific detail: a name, a number, a line, a scene", "sources": ["R1"], "where": "page / chapter / timestamp / doc section"}],
+  "ideas": [
+    {"id": "I1", "premise": "the video in one sentence", "question": "the question it opens in the first 2 s",
+     "payoff": "the answer, which makes the viewer see the question differently",
+     "benefit": "lesson", "use_when": "the moment in the viewer's own life it is for", "pattern": "P1",
+     "nuggets": ["N1"], "new": "what this adds that `covered` does not",
+     "scores": {"curiosity": 1, "use": 1, "emotion": 1, "share": 1, "novelty": 1, "proof": 1, "reach": 1}, "pick": false}
+  ]
+}

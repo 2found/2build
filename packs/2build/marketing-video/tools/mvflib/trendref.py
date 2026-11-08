@@ -15,7 +15,9 @@ def meta(url: str) -> dict:
     if r.returncode:
         raise SystemExit(f"yt-dlp could not read {url}: {r.stderr.strip()[-400:]}")
     d = json.loads(r.stdout)
-    views = d.get("view_count") or 0
+    views = d.get("view_count") or 0  # yt-dlp leaves a count out (or 0) when the page hid it: unknown, not zero
+    if not views:
+        print(f"WARN {url}: no view count in the public page this time; re-run later before trusting it")
     eng = sum(d.get(k) or 0 for k in ("like_count", "comment_count", "repost_count"))
     host = "tiktok" if "tiktok" in (d.get("extractor") or "").lower() else "x" if d.get("extractor", "").lower() in {"twitter", "x"} else d.get("extractor")
     return {
@@ -25,7 +27,7 @@ def meta(url: str) -> dict:
         "posted": _date(d.get("upload_date")), "duration_s": d.get("duration"),
         "text": (d.get("description") or d.get("title") or "").strip()[:1000],
         "sound": " — ".join(x for x in (d.get("track"), d.get("artist")) if x) or None,
-        "metrics": {k: d.get(k) for k in ("view_count", "like_count", "comment_count", "repost_count") if d.get(k) is not None},
+        "metrics": {k: d.get(k) for k in ("view_count", "like_count", "comment_count", "repost_count") if d.get(k)},
         "engagement_rate": round(eng / views, 4) if views else None,
         "observed_at": today().isoformat(),
     }
@@ -62,6 +64,10 @@ def add(campaign_dir: Path, urls: list[str], with_frames: bool, note: str | None
         if with_frames:
             m["frames"] = [str(Path(p).relative_to(campaign_dir)) for p in
                            frames(u, campaign_dir / "03-trends/refs" / f"{m['platform']}-{m['id']}")]
+        old = next((r for r in refs if r.get("url") == m["url"]), None)
+        if old and not m["metrics"].get("view_count") and (old.get("metrics") or {}).get("view_count"):
+            m["metrics"], m["engagement_rate"] = old["metrics"], old.get("engagement_rate")
+            m["note"] = f"{m.get('note') or ''} counts from {old.get('observed_at')}: the page hid them on {m['observed_at']}".strip()
         refs[:] = [r for r in refs if r.get("url") != m["url"]]
         refs.append(m)
         added.append(m)

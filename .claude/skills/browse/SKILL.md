@@ -64,8 +64,11 @@ call. Re-running the blocks per call is safe (session name and fingerprint are
 deterministic, so the launchHash stays constant and the daemon is reused), but
 to skip the repeated `node` startup cost, write all five exports
 (`AGENT_BROWSER_SESSION`, `AGENT_BROWSER_IDLE_TIMEOUT_MS`, and the three
-stealth vars) once to `env.sh` in the scratchpad and source it at the top of
-every later call. Don't stash the command in a var hoping word-splitting
+stealth vars, plus `AGENT_BROWSER_NAMESPACE` when set) once to `env.sh` in the
+scratchpad and source it at the top of every later call. Parallel subagents
+share one scratchpad, so each writes its file under a folder named after its
+namespace (`<scratchpad>/<namespace>/env.sh`); a shared `env.sh` lets one
+agent drive another's window. Don't stash the command in a var hoping word-splitting
 expands it: zsh doesn't split unquoted vars, so `$CMD click @e1` fails — call
 `agent-browser …` directly.
 Drop to plain headless (unset the three stealth vars, or `--headless`; keep

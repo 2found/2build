@@ -17,7 +17,10 @@ from pathlib import Path
 from mvflib.extensions import Voice
 
 HERE = Path(__file__).resolve().parent
-DEPS = ("omnivoice", "torch", "torchaudio", "torchcodec", "transformers", "num2words", "regex", "numpy")
+# torch/torchaudio/torchcodec are pinned as a matching set: unpinned, uv paired torch 2.7
+# with torchcodec 0.17, whose dylib fails to load (Symbol not found: _aoti_torch_device_type_mps).
+DEPS = ("omnivoice", "torch>=2.7,<2.8", "torchaudio>=2.7,<2.8", "torchcodec>=0.4,<0.5", "transformers", "num2words",
+        "regex", "numpy", "soundfile")
 
 
 def _command() -> list[str]:

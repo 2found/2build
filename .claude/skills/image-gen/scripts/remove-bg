@@ -1,0 +1,10 @@
+#!/bin/sh
+# image-gen: remove-bg (see ../SKILL.md). Needs a prepared host: scripts/setup.
+set -eu
+dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+home=${IMAGE_GEN_HOME:-$HOME/.local/share/image-gen}
+if [ ! -x "$home/venv/bin/python" ]; then
+  echo "image-gen: host not prepared; run $dir/setup (heavy, idle machine only)" >&2
+  exit 1
+fi
+IMAGE_GEN_HOME="$home" exec "$home/venv/bin/python" -I "$dir/remove_bg.py" "$@"

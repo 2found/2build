@@ -42,6 +42,7 @@ def campaign(root: Path, voice=None, **script_over) -> Path:
     cd = root / "marketing/campaigns/demo"
     s = script(voice=voice or {"mode": "recorded"}, **script_over)
     (cd / "05-scripts/s01-test.json").write_text(json.dumps(s))
+    mvf(cd, "approve", "s01-test", "--verdict", "approved")  # the owner read it: production may start
     return cd
 
 
@@ -115,7 +116,7 @@ class Loading(unittest.TestCase):
         recipes = {"launch-note": {"needs": [{"kind": "changelog", "min": 1}]}}
         rep = lint(s, CAMPAIGN, {**REFS, "material": {note["id"]: note}, "recipes": recipes})
         self.assertNotIn("M3", codes(rep, "FAIL"))
-        self.assertIn("M3", codes(lint(s, CAMPAIGN, {**REFS, "material": {note["id"]: note}}), "FAIL"))
+        self.assertIn("M3", codes(lint(s, CAMPAIGN, {**REFS, "material": {note["id"]: note}}), "WARN"))
 
 
 FAKE_ENGINE = textwrap.dedent("""

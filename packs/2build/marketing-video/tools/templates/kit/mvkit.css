@@ -1,0 +1,146 @@
+/* mvkit — layers for generated scenes (see mvkit.js). Inlined into index.html by mvf scaffold. */
+/* no fill on the scene: a way in that overlaps the outgoing beat must show that beat under it (index #ground is the base) */
+.mvk-scene { position: absolute; inset: 0; overflow: hidden; }
+/* everything the camera may shake or punch; captions and chrome live outside the scene */
+.mvk-world { position: absolute; inset: 0; transform-origin: 50% 45%; }
+/* a shot is a timed clip: the runtime shows it over its data-start/data-duration window */
+.mvk-shot { position: absolute; inset: 0; overflow: hidden;
+            -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+/* two camera layers: .mvk-kbo takes the keys (punch-ins, transitions), .mvk-kb the drift */
+.mvk-kbo { position: absolute; inset: 0; transform-origin: 50% 50%; will-change: transform; }
+.mvk-kb { position: absolute; inset: calc(-1 * var(--mvk-over, 6%)); transform-origin: 50% 50%; will-change: transform; }
+.mvk-kb > img, .mvk-kb > video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+/* a card: the picture contained over a blurred, darkened copy of itself (art of another aspect, a screen) */
+.mvk-kb > .mvk-card-bg { filter: blur(48px) brightness(0.55) saturate(1.2); transform: scale(1.15); }
+.mvk-kb > .mvk-card-fg { object-fit: contain; }
+/* 2.5D layers: cut-outs over the plate; the foot point sits at (left, top) */
+.mvk-lyc { position: absolute; inset: 0; transform-origin: 50% 50%; pointer-events: none; will-change: transform; }
+.mvk-ly { position: absolute; }
+.mvk-lym, .mvk-lyh, .mvk-lyi { position: relative; transform-origin: 50% 100%; }
+.mvk-lyc-center .mvk-lym, .mvk-lyc-center .mvk-lyh, .mvk-lyc-center .mvk-lyi { transform-origin: 50% 50%; }
+/* the art: one img per swap stacked in one cell (only the shown one is opaque), or a rig's svg */
+.mvk-lyi { display: grid; justify-items: center; align-items: end; }
+.mvk-lyi > .mvk-lyart { grid-area: 1 / 1; display: block; width: auto; max-width: none; }
+.mvk-lyfill .mvk-lym, .mvk-lyfill .mvk-lyh, .mvk-lyfill .mvk-lyi { width: 100%; height: 100%; }
+.mvk-lyfill .mvk-lyi > .mvk-lyart { width: 100%; height: 100%; object-fit: cover; }
+/* stick rig: bones turn about their joint (an svg element's own origin); dots and text fill with the ink */
+.mvk-rig g { transform-box: view-box; transform-origin: 0 0; }
+.mvk-rig .rig-dot { fill: var(--rig-ink); stroke: none; }
+.mvk-rig .rig-hot { stroke: var(--mv-accent); }
+.mvk-speed { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.mvk-lysh { position: absolute; left: 50%; bottom: -1.5%; width: 75%; height: 7%; transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0)); }
+.mvk-color { position: absolute; inset: 0; }
+.mvk-dim { position: absolute; inset: 0; background: #000; pointer-events: none; }
+/* top/bottom scrims keep text readable on any plate without dimming the picture */
+.mvk-scrim-top { position: absolute; left: 0; right: 0; top: 0; height: 34%; pointer-events: none;
+                 background: linear-gradient(to bottom, rgba(0,0,0,.55), rgba(0,0,0,0)); }
+.mvk-scrim-bottom { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; pointer-events: none;
+                    background: linear-gradient(to top, rgba(0,0,0,.62), rgba(0,0,0,0)); }
+.mvk-flash { position: absolute; inset: 0; background: #fff; opacity: 0; mix-blend-mode: screen; pointer-events: none; }
+.mvk-black { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+
+/* transitions drawn with a mask: bloom grows a soft disc from the focus, wipe a soft diagonal edge */
+.mvk-mask-bloom { --mvk-r: 0%; --mvk-ox: 50%; --mvk-oy: 45%;
+  -webkit-mask-image: radial-gradient(circle at var(--mvk-ox) var(--mvk-oy), #000 calc(var(--mvk-r) - 12%), transparent var(--mvk-r));
+          mask-image: radial-gradient(circle at var(--mvk-ox) var(--mvk-oy), #000 calc(var(--mvk-r) - 12%), transparent var(--mvk-r)); }
+.mvk-mask-wipe { --mvk-w: -30%;
+  -webkit-mask-image: linear-gradient(115deg, #000 calc(var(--mvk-w) - 14%), transparent var(--mvk-w));
+          mask-image: linear-gradient(115deg, #000 calc(var(--mvk-w) - 14%), transparent var(--mvk-w)); }
+
+/* text effects: positions and sizes come inline from the resolver */
+.mvk-fx { position: absolute; pointer-events: none; opacity: 0; }
+.mvk-slam { text-align: center; font-family: var(--mv-display-font); font-weight: 900; line-height: 1.0;
+            letter-spacing: 0.01em; color: var(--mv-ink-on-plate); text-transform: var(--mv-slam-case, uppercase);
+            -webkit-text-stroke: 3px rgba(0,0,0,.6); paint-order: stroke fill;
+            text-shadow: 0 6px 0 rgba(0,0,0,.45), 0 0 40px rgba(0,0,0,.55); }
+.mvk-slam small { display: block; font-family: var(--mv-body-font); font-weight: 700; font-size: 0.36em; letter-spacing: 0.08em;
+                  -webkit-text-stroke: 0; margin-top: 0.3em; opacity: 0.92; text-transform: none; }
+.mvk-slam .hot, .mvk-title .hot { color: var(--mv-hot); }
+.mvk-title { text-align: center; font-family: var(--mv-display-font); font-weight: 800; line-height: 1.08;
+             color: var(--mv-ink-on-plate); opacity: 1; -webkit-text-stroke: 2px rgba(0,0,0,.7); paint-order: stroke fill;
+             text-shadow: 0 4px 0 rgba(0,0,0,.4), 0 0 30px rgba(0,0,0,.65); }
+.mvk-title .mvk-w { display: inline-block; opacity: 0; }
+.mvk-type { font-family: var(--mv-mono-font, "IBM Plex Mono"); font-weight: 600; color: var(--mv-ink-on-plate); opacity: 1;
+            -webkit-text-stroke: 1.5px rgba(0,0,0,.7); paint-order: stroke fill; text-shadow: 0 2px 14px rgba(0,0,0,.8); }
+.mvk-type .mvk-c { opacity: 0; }
+.mvk-stamp { font-family: var(--mv-display-font); font-weight: 900; color: var(--mv-hot); border: 0.09em solid currentColor;
+             padding: 0.08em 0.3em; letter-spacing: 0.04em; text-transform: uppercase; border-radius: 0.08em;
+             mix-blend-mode: multiply; }
+.mvk-label { display: flex; flex-direction: column; gap: 0.18em; padding: 0.35em 0.6em 0.4em 0.55em;
+             border-left: 0.12em solid var(--mv-hot); background: rgba(0,0,0,.55); color: var(--mv-ink-on-plate);
+             font-family: var(--mv-display-font); font-weight: 800; line-height: 1.05; }
+.mvk-label small { font-family: var(--mv-body-font); font-weight: 600; font-size: 0.5em; opacity: 0.85; }
+.mvk-counter { text-align: center; font-family: var(--mv-display-font); font-weight: 900; color: var(--mv-ink-on-plate);
+               -webkit-text-stroke: 3px rgba(0,0,0,.55); paint-order: stroke fill; line-height: 1; }
+.mvk-counter small { display: block; font-family: var(--mv-body-font); font-size: 0.3em; font-weight: 700; margin-top: 0.25em;
+                     -webkit-text-stroke: 0; }
+.mvk-weather { position: absolute; inset: 0; pointer-events: none; opacity: 0; overflow: hidden; }
+.mvk-p { position: absolute; left: 0; top: 0; }
+.mvk-weather.rain .mvk-p { width: 2px; height: 70px; background: linear-gradient(to bottom, rgba(220,230,245,0), rgba(220,230,245,.7));
+                           transform-origin: 50% 0; rotate: 10deg; }
+.mvk-weather.snow .mvk-p { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.9); filter: blur(1px); }
+.mvk-weather.embers .mvk-p { width: 6px; height: 6px; border-radius: 50%; background: #ffb347; box-shadow: 0 0 10px 3px rgba(255,140,40,.8); }
+.mvk-weather.petals .mvk-p { width: 18px; height: 12px; border-radius: 60% 0 60% 0; background: rgba(240,170,190,.9); }
+.mvk-endtag { position: absolute; inset: 0; pointer-events: none; }
+.mvk-end-fade { position: absolute; inset: 0; opacity: 0; background: linear-gradient(to top, rgba(0,0,0,.82) 0%, rgba(0,0,0,.35) 55%, rgba(0,0,0,0) 80%); }
+.mvk-end-title { position: absolute; left: 0; right: 0; text-align: center; opacity: 0; font-family: var(--mv-display-font);
+                 font-weight: 900; color: var(--mv-ink-on-plate); line-height: 1.02; -webkit-text-stroke: 3px rgba(0,0,0,.6);
+                 paint-order: stroke fill; text-shadow: 0 6px 30px rgba(0,0,0,.7); }
+.mvk-end-line { position: absolute; left: 0; right: 0; text-align: center; opacity: 0; font-family: var(--mv-body-font);
+                font-weight: 800; color: var(--mv-hot); letter-spacing: 0.03em; -webkit-text-stroke: 2px rgba(0,0,0,.75);
+                paint-order: stroke fill; text-shadow: 0 3px 16px rgba(0,0,0,.7); }
+/* explain and show: callout, tap, steps, compare, bars, quote, lower third */
+.mvk-callout { transform-origin: 50% 50%; }
+/* pointer: comic lettering with a leader line drawn on to a dot */
+.mvk-pointer svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.mvk-pt-line { fill: none; stroke: var(--pc); stroke-width: var(--pw, 7px); stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.mvk-pt-dot { fill: var(--pc); transform-box: fill-box; transform-origin: 50% 50%; }
+.mvk-pt-text { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; color: var(--pc);
+  font-family: var(--mv-display-font); font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1;
+  text-shadow: 0.06em 0.06em 0 var(--mv-ground); }
+.mvk-pt-text > span { display: inline-block; }
+.mvk-pt-text .hot { color: var(--mv-accent); }
+.mvk-raw { position: absolute; }
+.mvk-callout-box { position: absolute; inset: 0; border: 7px solid var(--mv-hot); border-radius: 18px;
+                   box-shadow: 0 0 0 3px rgba(0,0,0,.45), 0 0 34px rgba(0,0,0,.35); }
+.mvk-callout-spot { position: absolute; inset: 0; border-radius: 18px; box-shadow: 0 0 0 4000px rgba(0,0,0,.55); }
+.mvk-callout-label { position: absolute; white-space: nowrap; padding: 0.18em 0.5em; border-radius: 0.3em; background: var(--mv-hot);
+                     color: #111; font-family: var(--mv-display-font); font-weight: 850; line-height: 1.1; }
+.mvk-tap { width: 0; height: 0; }
+.mvk-tap i { position: absolute; border-radius: 50%; left: 0; top: 0; }
+.mvk-tap-ring { width: 150px; height: 150px; margin: -75px 0 0 -75px; border: 8px solid rgba(255,255,255,.95);
+                box-shadow: 0 0 0 3px rgba(0,0,0,.35); }
+.mvk-tap-dot { width: 54px; height: 54px; margin: -27px 0 0 -27px; background: rgba(255,255,255,.85); box-shadow: 0 0 0 4px rgba(0,0,0,.3); }
+.mvk-steps { display: flex; flex-direction: column; gap: 0.32em; font-family: var(--mv-display-font); font-weight: 800;
+             color: var(--mv-ink-on-plate); line-height: 1.12; }
+.mvk-step { display: flex; align-items: center; gap: 0.5em; opacity: 0; padding: 0.22em 0.4em; border-radius: 0.3em; background: rgba(0,0,0,.55); }
+.mvk-step b { flex: none; width: 1.5em; height: 1.5em; border-radius: 50%; display: grid; place-items: center; background: var(--mv-hot);
+              color: #111; font-size: 0.8em; }
+.mvk-step .hot, .mvk-compare .hot, .mvk-bars .hot, .mvk-quote .hot, .mvk-lower .hot { color: var(--mv-hot); }
+.mvk-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5em; font-family: var(--mv-body-font); font-weight: 700;
+               color: var(--mv-ink-on-plate); line-height: 1.2; }
+.mvk-cmp-col { opacity: 0; padding: 0.5em 0.6em; border-radius: 0.4em; background: rgba(0,0,0,.6); }
+.mvk-cmp-r { border: 0.08em solid var(--mv-hot); }
+.mvk-cmp-col h4 { margin: 0 0 0.35em; font-family: var(--mv-display-font); font-weight: 900; font-size: 1.15em; color: var(--mv-hot); }
+.mvk-cmp-col p { margin: 0 0 0.3em; opacity: 0; }
+.mvk-bars { display: flex; flex-direction: column; gap: 0.55em; font-family: var(--mv-body-font); font-weight: 750;
+            color: var(--mv-ink-on-plate); padding: 0.6em 0.7em; border-radius: 0.4em; background: rgba(0,0,0,.55); }
+.mvk-bar { display: grid; grid-template-columns: 34% 1fr auto; align-items: center; gap: 0.5em; }
+.mvk-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mvk-bar-track { height: 0.9em; border-radius: 0.45em; background: rgba(255,255,255,.14); overflow: hidden; }
+.mvk-bar-track i { display: block; height: 100%; width: var(--w); background: var(--mv-hot); transform-origin: 0 50%; border-radius: 0.45em; }
+.mvk-bar em { font-style: normal; font-family: var(--mv-display-font); font-weight: 900; opacity: 0; }
+.mvk-quote { font-family: var(--mv-display-font); font-weight: 800; color: var(--mv-ink-on-plate); line-height: 1.15; text-align: left;
+             padding: 0.4em 0.6em 0.5em; border-radius: 0.3em; background: rgba(0,0,0,.5); border-left: 0.14em solid var(--mv-hot); }
+.mvk-q-mark { font-size: 2em; line-height: 0.6; height: 0.5em; color: var(--mv-hot); opacity: 0; }
+.mvk-quote .mvk-w { display: inline-block; opacity: 0; }
+.mvk-quote small { display: block; margin-top: 0.6em; font-family: var(--mv-body-font); font-weight: 650; font-size: 0.5em; opacity: 0; }
+.mvk-lower { display: inline-flex; flex-direction: column; gap: 0.1em; padding: 0.3em 0.7em 0.35em 0.6em; opacity: 1;
+             clip-path: inset(0 100% 0 0); border-left: 0.16em solid var(--mv-hot); background: rgba(0,0,0,.66);
+             color: var(--mv-ink-on-plate); }
+.mvk-lower-name { font-family: var(--mv-display-font); font-weight: 900; line-height: 1.05; }
+.mvk-lower-sub { font-family: var(--mv-body-font); font-weight: 650; font-size: 0.62em; opacity: 0; }
+.mvk-fx.mvk-shown, .mvk-shown .mvk-w, .mvk-shown .mvk-c, .mvk-shown .mvk-step, .mvk-shown .mvk-cmp-col,
+.mvk-shown .mvk-cmp-col p, .mvk-shown .mvk-q-mark, .mvk-shown small, .mvk-shown .mvk-bar em, .mvk-shown .mvk-lower-sub { opacity: 1; }
+.mvk-lower.mvk-shown { clip-path: none; }

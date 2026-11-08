@@ -1,51 +1,57 @@
-# Stage 0 and 0.5 - Brief and material
+# Stage 0 - Brief and material
 
-## Brief: `campaign.json`
-```json
-{ "slug": "launch-v1", "product": "Name", "goal": "awareness|signups|activation",
-  "kpi": "3-second view rate >= 35%; 50 profile visits per 10k views",
-  "markets": ["US"], "languages": ["en"], "platforms": ["tiktok", "x"],
-  "brand": { "names": ["Name"], "say": {"Name": "how it is pronounced"},
-             "handle": {"tiktok": "@...", "x": "@..."}, "url": "https://...",
-             "colors": {"bg": "", "fg": "", "accent": ""}, "fonts": {"display": "", "body": ""} },
-  "constraints": ["no competitor names", "no prices unless checked this week"],
-  "budget": {"videos": 3, "hook_variants_per_video": 3} }
-```
-`mvf init <slug> --product NAME` writes it from the template (plus every
-later stage file and the campaign `.gitignore`). Optional `"voice_engine"`
-names the default voice engine (stage 7).
+Output: `campaign.json` and `00-material/index.json`.
 
-Gate (`mvf check brief`): product, goal, one measurable KPI, at least one
-platform, language and brand names are set; `_template` is gone. Read the product's own branding
-rules (spelling, case, words to avoid) before filling `brand`. Handles and any
-paid spend are the user's call: ask, never guess.
+## Bar
+- **The brief** names the slug, the product, a goal, the platforms, the
+  languages, the markets and every spelling of the brand. A measurable KPI is
+  expected.
+- **The benefit** is what a viewer can use after the video: `lesson`,
+  `decide`, `answer`, `match` or `how-to`. It is the owner's call, so ask once
+  if the request does not say. Handles and any paid spend are the user's call
+  too; ask, and never guess them.
+- **The material pack** is not empty. Every item has a kind, a title, a source
+  with a read date, and rights. Anything from outside has a URL, and
+  `official-promo` carries a credit.
 
-## Material: `00-material/index.json`
-Material is what the video will stand on that already has an audience: the
-feature users praise most, a public changelog moment, reviews, a ranking the
-product appears in, a meme the niche shares, official assets. Without it,
-angles drift into what the product wants to say.
+`mvf check brief` and `mvf check material` FAIL when any of this is missing
+or invalid.
 
-Item envelope (`mvf gather` validates it; `mvf material` reads the pack as cards):
-```json
-{ "id": "ns:kind:key", "kind": "product|feature|quote|review|post|ranking|metric|person|asset|trend",
-  "title": "", "body": "the text a card shows", "signals": {"stars": 5, "likes": 1200},
-  "source": {"name": "who read it", "url": "https://...", "fetched_at": "YYYY-MM-DD"},
-  "rights": "own|licensed|public-domain|official-promo|unknown", "credit": "", "links": [], "meta": {} }
-```
-Ids are stable. Research by hand (search, the product's own analytics, store
-reviews, community threads), save the items as a JSON list and
-`mvf gather manual file=items.json`. A recurring source (the product's API, a
-store export) becomes a **source extension** (`mvf extensions`, SKILL.md).
+## Direction
+- Material is what already has an audience: an app's best store review, a
+  clip players share, a book's most-quoted line, a ranking, an official asset.
+  Without it, angles drift into what the product wants to say. A pure feature
+  demo may skip it; say so.
+- Some of it should measure what people like (reviews, rankings, metrics). A
+  signal older than 30 days is re-read before a script cites it.
+- Fill `brand` from the product's own branding rules.
 
-**Rights policy.** On screen: `own`, `licensed`, `public-domain`,
-`official-promo` (posters, stills, trailers released to promote a title; use
-briefly, credited on screen and in the caption, with your own commentary, never
-replacing the original). `unknown` (fan edits, reposts, screen-recorded clips)
-may inform the script, never appears in a beat. A real person appears only in
-official pictures supplied by the rights holder.
+**Rights.** On screen: `own`, `licensed`, `public-domain`, and `official-promo`
+(brief, credited on screen and in the caption, with your own commentary).
+`unknown` may inform a script, never appear in it. A real person appears only
+in official pictures from the rights holder.
 
-Gate (`mvf check material`): at least 3 items with a signal and read date; every item has `rights`;
-anything a beat will show is showable; a signal older than 30 days is re-read
-or dropped. A script cites item ids in `beats[].material` the way it cites fact
-ids. Skipping material is allowed for a pure feature demo; say so.
+## Tool
+- `mvf init <slug> --product NAME [--root DIR]` writes every stage file from
+  the templates, plus the campaign `.gitignore`.
+- `campaign.json` holds `slug`, `product`, `goal` (awareness, follow, signup,
+  install, purchase, retention or launch), `benefit`, `kpi`, `markets`,
+  `languages`, `platforms` (tiktok, x, youtube, youtube-long),
+  `brand.{names, say, handle, url, logo, colors, fonts}`, `constraints`,
+  `budget` (`scripts`: candidates to write, default 3; `videos`;
+  `hook_variants_per_video`), and optionally `voice_engine` and `known_words`
+  (words this audience already knows, such as a country or the title they
+  search for, which the stranger checks then skip).
+  `style` is the default look preset for every video: `stickman` (the comic
+  default), `ink`, `anime` or `none`. A direction or art.json that names its own
+  preset wins.
+- `mvf gather <source> [k=v …]` validates and merges items. Use
+  `mvf gather manual file=items.json` for hand research. `mvf sources` lists
+  the sources; a recurring one becomes a source extension (`mvf extensions`).
+- `mvf material [ls|show ID…] [--kind K] [-q TEXT]` reads the pack as cards,
+  strongest first.
+- An item is `{id: "<ns>:<kind>:<key>", kind, title, body, signals: {name: number},
+  source: {name, url, fetched_at}, rights, credit, links: [ids], meta}`. The kinds
+  are product, feature, quote, review, post, ranking, metric, person, asset and
+  trend, plus any that extensions add.
+- A script cites item ids in `beats[].material`.

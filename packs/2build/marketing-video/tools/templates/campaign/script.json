@@ -1,12 +1,36 @@
 {
   "_template": true,
-  "_about": "Stage 5 script. One beat = one scene. vo is spoken (display spelling; brand pronunciations live in campaign.brand.say). voice.mode: recorded (you read the lines; the built-in files engine), clone (ref = a voice in voices/), design (pick a ref first), preset (name = an engine's stock voice) or none; voice.engine overrides campaign.voice_engine. Shape: hook by 2.5 s, first value by 6 s, re-hook half-way, payoff keeps the hook's promise (references/05-script.md). Variants replace beat B01 only, so hooks can be A/B tested on one body. recipe (mvflib/recipes.json) names what the script is built from; beats[].material cites the 00-material item ids each beat stands on (mvf material ls), the way facts cites F ids. Delete this _about when done.",
+  "_about": "Stage 5 script. One beat = one scene. vo is spoken (display spelling; brand pronunciations live in campaign.brand.say). voice.mode: recorded (you read the lines; the built-in files engine), clone (ref = a voice in voices/), design (pick a ref first), preset (name = an engine's stock voice) or none; voice.engine overrides campaign.voice_engine. spine: the question, stakes, turn, payoff and the loops (open questions, each opened and closed by a beat) that keep one question open from the hook to the payoff. Shape: hook by 2.5 s, first value by 6 s, re-hook half-way, payoff keeps the hook's promise (references/05-script.md). Variants replace beat B01 only, so hooks can be A/B tested on one body; `hook` is the one the video is made with (the pre-test winner), and only it is voiced and produced. spine.use is what the viewer does differently in their own life, in plain words; an apply beat (role apply, spoken to 'bạn'/'you') turns the book to the viewer before 80% of the runtime. recipe (mvflib/recipes.json) names what the script is built from; beats[].material cites the 00-material item ids each beat stands on (mvf material ls), the way facts cites F ids; beats[].art lists the approved generated pictures it shows (07-video/art/art.json, never the product UI or a real person). youtube is Shorts (9x16, ≤ 3 min); youtube-long is a 16x9 upload with its own scaffold and thumbnail. YouTube copy: title ≤ 70 chars with the search phrase first; the description's first line carries the search phrase, 1-3 #hashtags at the end; long-form chapters from 3 min (0:00 first, ≥ 3, each ≥ 10 s); thumbnail_text ≤ 5 words. Caption platforms (tiktok, instagram, facebook, linkedin): the promise and the search words in the first line, since the feed cuts the caption early; Instagram allows at most 5 #hashtags; LinkedIn autoplays muted, so its hook needs on-screen text. warn_notes answers a lint WARN that does not fit this script ({'V2': 'why'}); never bend the script to quiet one. Delete this _about when done.",
   "id": "{{SID}}",
   "angle": "G1",
   "format": "demo",
   "recipe": "product-demo",
   "language": "en",
   "value": "what the viewer walks away with",
+  "hook": "H1",
+  "warn_notes": {},
+  "spine": {
+    "question": "the one question the viewer stays to answer (opened by the hook)",
+    "stakes": "why it matters to this viewer: what is lost, won or wrong",
+    "turn": "what deepens or corrects the expected answer (optional; it never replaces the answer)",
+    "payoff": "the answer to the hook's question, in the form it asked (a verdict, a mapping, the cause, the steps)",
+    "takeaway": "the retell: the one or two sentences a stranger says after one viewing; the vo lines must say it",
+    "use": "answer: the answer they can now repeat, in the topic's words; lesson/decide/match/how-to: what they do or think differently in their own life, with no lore word",
+    "loops": [
+      {
+        "id": "L1",
+        "q": "the hook's question",
+        "open": "B01",
+        "close": "B03"
+      },
+      {
+        "id": "L2",
+        "q": "the next, bigger question, opened before L1 closes",
+        "open": "B02",
+        "close": "B03"
+      }
+    ]
+  },
   "voice": {
     "mode": "recorded",
     "speed": 1.0
@@ -28,9 +52,11 @@
       "vo": "",
       "onscreen": "",
       "visual": "first value by 6 s: the real product screen, its name in frame, pushed in on the control that matters",
+      "shots": ["the planned visible changes inside this beat (cut, push, reveal); the pacing check counts them"],
       "facts": [
         "F1"
-      ]
+      ],
+      "art": []
     },
     {
       "id": "B03",
@@ -41,6 +67,13 @@
     },
     {
       "id": "B04",
+      "role": "apply",
+      "vo": "",
+      "onscreen": "",
+      "visual": "the viewer's own situation: what to do instead, spoken to 'you'"
+    },
+    {
+      "id": "B05",
       "role": "payoff",
       "vo": "",
       "onscreen": "",
@@ -48,7 +81,7 @@
       "material": []
     },
     {
-      "id": "B05",
+      "id": "B06",
       "role": "cta",
       "vo": "",
       "onscreen": "",
@@ -80,6 +113,35 @@
       "canvas": "9x16",
       "post": "",
       "thread": [],
+      "cover_text": ""
+    },
+    "youtube": {
+      "canvas": "9x16",
+      "title": "",
+      "description": "",
+      "tags": [],
+      "cover_text": ""
+    },
+    "youtube-long": {
+      "canvas": "16x9",
+      "title": "",
+      "description": "",
+      "tags": [],
+      "thumbnail_text": ""
+    },
+    "instagram": {
+      "canvas": "9x16",
+      "caption": "",
+      "cover_text": ""
+    },
+    "facebook": {
+      "canvas": "9x16",
+      "caption": "",
+      "cover_text": ""
+    },
+    "linkedin": {
+      "canvas": "9x16",
+      "caption": "",
       "cover_text": ""
     }
   }

@@ -15,7 +15,46 @@ SKILL = TOOLS.parent
 HYPERFRAMES = "0.8.153"  # pinned HyperFrames CLI; bump after `npx hyperframes upgrade --check` on a finished film
 
 PLATFORMS = json.loads((LIB / "platforms.json").read_text(encoding="utf-8"))
-PLATFORM_IDS = ("tiktok", "x", "x-api")
+# 2.5D visual style presets (stickman, ink, anime): defaults for art prompts, the look and the stick rig
+STYLES = json.loads((LIB / "styles.json").read_text(encoding="utf-8"))["styles"]
+
+
+def campaign_style(cd: Path) -> str | None:
+    """The campaign's default style preset (campaign.json `style`): what a direction or art.json without its own
+    `preset` takes. None or "none" is no preset (an older campaign that never named one keeps its look)."""
+    p = Path(cd) / "campaign.json"
+    try:
+        st = json.loads(p.read_text(encoding="utf-8")).get("style") if p.is_file() else None
+    except (OSError, ValueError):
+        return None
+    return st if st and st != "none" else None
+# Every delivery target platforms.json describes; `upload_of` marks an encode variant of another network's
+# target (x-api is X uploaded through the API), which a campaign never names on its own.
+PLATFORM_IDS = tuple(k for k, v in PLATFORMS.items() if isinstance(v, dict) and "hard" in v)
+CAMPAIGN_PLATFORMS = tuple(p for p in PLATFORM_IDS if not PLATFORMS[p].get("upload_of"))
+# What a viewer can use after the video. A retold story, a feeling or a debate is not one: those are how a
+# video holds and spreads, on top of a benefit. references/05-script.md#the-benefit
+BENEFITS = {
+    "lesson": "a principle the viewer applies in their own life: the situation, the usual wrong move, what to do instead",
+    "decide": "help deciding: whether this is for them, what to pick, where to start",
+    "answer": "the answer to a question they already have, settled with evidence",
+    "match": "something that fits their taste, with the reason it fits",
+    "how-to": "a skill or steps they can do today",
+}
+# Benefits whose script must turn the point onto the viewer in an `apply` beat.
+APPLY_BENEFITS = {"lesson", "decide", "match", "how-to"}
+
+
+def family(platform: str) -> str:
+    """The network a delivery target belongs to: audiences, trends and copy are per network
+    (youtube-long is YouTube, x-api is X)."""
+    return (PLATFORMS.get(platform) or {}).get("family", platform)
+
+
+def copy_kind(platform: str) -> str:
+    """How a platform's text is written: `caption` (one caption under the video), `post` (X: a post and a
+    thread) or `youtube` (title, description, tags)."""
+    return (PLATFORMS.get(platform) or {}).get("copy", "caption")
 
 # Stage folders, in flow order. `mvf status` walks them.
 STAGES = [
@@ -24,9 +63,11 @@ STAGES = [
     ("product", "01-product/facts.json"),
     ("audience", "02-audience/segments.json"),
     ("trends", "03-trends/trends.json"),
+    ("research", "03-research/research.json"),
     ("strategy", "04-strategy/angles.json"),
     ("scripts", "05-scripts"),
     ("pretest", "06-pretest"),
+    ("art", "07-video/art/art.json"),
     ("video", "07-video"),
     ("delivery", "08-delivery"),
 ]
@@ -38,7 +79,7 @@ ID_RE = {
     "angle": re.compile(r"^G\d{1,2}$"),
     "beat": re.compile(r"^B\d{2}$"),
     "hook": re.compile(r"^H\d$"),
-    "script": re.compile(r"^s\d{2}(-[a-z0-9]+)*$"),
+    "script": re.compile(r"^(s\d{2}|ctl)(-[a-z0-9]+)*$"),  # ctl-…: a control, written to lose
 }
 
 # Per-project, machine-local state: extensions, reference voices, config. `mvf extensions init`
@@ -91,10 +132,28 @@ def local_dir(start: Path | None = None) -> Path:
     return project_root(start) / LOCAL
 
 
-def config(start: Path | None = None) -> dict:
-    """Optional .babysit/marketing-video/config.json: {"heavy": [cmd…], "voice_engine": "…"}."""
-    p = local_dir(start) / "config.json"
+def user_dir() -> Path:
+    """Per-OS-user state that no repo owns: the evaluator choice (Soot provider and model) and its Micro Fish
+    workspace. $BABYSIT_HOME moves it (tests point it at a temp dir)."""
+    return Path(os.environ.get("BABYSIT_HOME") or Path.home() / ".babysit") / "marketing-video"
+
+
+def user_config() -> dict:
+    p = user_dir() / "config.json"
     return load(p) if p.is_file() else {}
+
+
+def save_user_config(patch: dict) -> Path:
+    p = user_dir() / "config.json"
+    dump(p, {**user_config(), **patch})
+    return p
+
+
+def config(start: Path | None = None) -> dict:
+    """Machine config: ~/.babysit/marketing-video/config.json (this OS user), overridden key by key by the
+    repo's .babysit/marketing-video/config.json: {"heavy": [cmd…], "voice_engine": "…", "judge": {…}}."""
+    p = local_dir(start) / "config.json"
+    return {**user_config(), **(load(p) if p.is_file() else {})}
 
 
 def heavy_prefix(start: Path | None = None) -> list[str]:

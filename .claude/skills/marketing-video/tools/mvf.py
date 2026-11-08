@@ -5,26 +5,36 @@ platform it ships to. Run from anywhere inside a campaign (or pass --campaign).
 
   init <slug> --product NAME        new campaign from templates (default <repo>/marketing/campaigns/<slug>)
   status                            stage by stage: present, FAIL/WARN counts, what is next
+  next [--json]                     the one next action, and whether the agent or the owner takes it
+  sheet <sid>                       the script as the owner reads it; approve <sid> --verdict … records their word
   extensions [ls|init]              where extensions load from and what they add; init the local dir
   sources                           every data source: what it yields, its params
   gather <source> [k=v …]           pull items from a source into 00-material/index.json
   material [ls|show ID…] [--kind K] [-q TEXT]   read the pack as short cards, strongest first
-  check [stage]                     validate brief|material|product|audience|trends|strategy|pretest|all
+  check [stage]                     validate brief|material|product|audience|trends|research|strategy|art|pretest|all
   new-script <sid>                  05-scripts/<sid>.json from the template
   lint <script> [--hook H2]         hook timing, first value, length, claims→facts, brand, on-screen load, platform copy
   trend-video URL… [--frames]       public metadata (+ hook frames) of reference posts into trends.json
+  top-videos "QUERY" | --url URL…   the most-viewed videos and what they say: transcripts into 03-research/top/
   pretest-brief <script>… [--round r1]   pre-test brief with the material verbatim
-  voice <script> [--engine E]       a take: every line (+ hook variants) as audio with word timing
+  coldread <script> [--hooks H1 …]  second-by-second feed view for fresh-context swipe tests
+  feed <script>… --control <sid>    shuffled feed of candidates, a rejected control and real benchmark videos
+  voice <script> [--engine E]       a take: every line + the script's chosen `hook` as audio with word timing
   voice-design --name --instruct …  candidate voices for a designed narrator (an engine with `design`)
   voice-pick <cand> --as NAME       a candidate becomes the campaign's reference voice
-  scaffold <script> [--hook H1|all] HyperFrames project per canvas × hook on the measured timing
-  score <proj> --bed FILE | --none  your music bed, ducked and levelled against the voice
-  export <proj> [--platforms …]     render, master −14 LUFS, encode per platform, QA, copy
+  art [ls|check|draw|approve] [ID…]  generated plates, backgrounds, insets, stickers (07-video/art/art.json)
+  scaffold <script> [--hook H2]     one HyperFrames project per canvas, on the chosen hook and measured timing
+  score <proj> --bed FILE|auto:MOOD|--none  SFX from the direction + a bed (yours or procedural), ducked, mix-checked
+  export <proj> [--platforms …]     render, master −14 LUFS, encode per platform, QA, copy, AI-label notes
+  thumbnail <sid> [--canvas 16x9]  custom thumbnail/cover still: approved art + the thumbnail line, ≤ 2 MB JPEG
   qa <video> --platform P --proj D  measure one file against a platform
+  doctor [--json]                   is this machine ready (HyperFrames, OmniVoice, Qwen+RMBG, Micro Fish)
+  judge setup|scripts|video …       Micro Fish on the user's Soot judges the scripts, then the cut
 
 Voice engines: `files` (built in — your own recordings, one per line) and any
 extension (`mvf extensions`; `omnivoice` ships with the skill). Data sources:
-`manual` (built in) and any extension. Extensions live in <campaign>/extensions/
+`manual` (built in) and any extension. Image engines: `qwen` (built in — the
+image-gen skill, local and free) and any extension; a paid one needs --spend. Extensions live in <campaign>/extensions/
 or <repo>/.babysit/marketing-video/extensions/, both gitignored. Model and render
 jobs run through $MVF_HEAVY (or config "heavy") when set. Nothing here uploads
 or publishes.
@@ -45,8 +55,6 @@ from mvflib.common import (PLATFORMS, STAGES, TOOLS, Report, config, dump, find_
                            heavy_prefix, load, local_dir, project_root, say_map, today)
 
 TEMPLATES = TOOLS / "templates/campaign"
-REFERENCE = {"brief": "00-brief-material.md", "material": "00-brief-material.md", "product": "01-product.md",
-             "audience": "02-audience.md", "trends": "03-trends.md", "strategy": "04-strategy.md"}
 
 
 # ---------- campaign helpers ----------
@@ -75,7 +83,12 @@ def refs(cd: Path) -> dict:
             "segments": {s["id"]: s for s in opt("02-audience/segments.json", "segments") if "id" in s},
             "trends": {t["id"]: t for t in opt("03-trends/trends.json", "trends") if "id" in t},
             "angles": {g["id"]: g for g in opt("04-strategy/angles.json", "angles") if "id" in g},
-            "material": material.load_pack(cd)["items"], "recipes": recipes(cd)}
+            "ideas": ({x["id"]: x for x in opt("03-research/research.json", "ideas") if "id" in x}
+                      if (cd / "03-research/research.json").is_file() else None),
+            "lore_terms": (load(cd / "03-research/research.json").get("lore_terms") or []
+                           if (cd / "03-research/research.json").is_file() else []),
+            "material": material.load_pack(cd)["items"], "recipes": recipes(cd),
+            "art": {j.get("id"): j for j in opt("07-video/art/art.json", "jobs")}}
 
 
 def script_path(cd: Path, s: str) -> Path:
@@ -116,7 +129,9 @@ def cue_list(script: dict) -> list[dict]:
             c["voice"] = b["voice"].strip()
         return c
     cues = [cue(b) for b in script["beats"] if (b.get("vo") or "").strip()]
-    cues += [cue(v) for v in script.get("variants") or [] if (v.get("vo") or "").strip()]
+    # One video: only the hook it ships with is voiced. Other variants live in the script for the pre-test.
+    hook = script.get("hook") or "H1"
+    cues += [cue(v) for v in script.get("variants") or [] if v.get("id") == hook and (v.get("vo") or "").strip()]
     return cues
 
 
@@ -173,14 +188,14 @@ def cmd_init(a):
         raise SystemExit(f"{cd} already has a campaign")
     for rel, tmpl in (("campaign.json", "campaign.json"), ("01-product/facts.json", "facts.json"),
                       ("02-audience/segments.json", "segments.json"), ("03-trends/trends.json", "trends.json"),
-                      ("04-strategy/angles.json", "angles.json")):
+                      ("03-research/research.json", "research.json"), ("04-strategy/angles.json", "angles.json")):
         text = (TEMPLATES / tmpl).read_text(encoding="utf-8").replace("{{SLUG}}", a.slug).replace("{{PRODUCT}}", a.product)
         (cd / rel).parent.mkdir(parents=True, exist_ok=True)
         (cd / rel).write_text(text, encoding="utf-8")
     for d in ("01-product/screens", "05-scripts", "06-pretest", "07-video", "08-delivery", "brand", "voices", "extensions"):
         (cd / d).mkdir(parents=True, exist_ok=True)
     (cd / ".gitignore").write_text(CAMPAIGN_GITIGNORE, encoding="utf-8")
-    print(f"campaign {cd}\nnext: fill campaign.json, then stage 0 (references/00-brief-material.md); `mvf status` shows the way")
+    print(f"campaign {cd}\nnext: `mvf next` (it walks the stages and says who acts)")
 
 
 def _stage_report(cd: Path, stage: str, c: dict) -> Report | None:
@@ -191,22 +206,35 @@ def _stage_report(cd: Path, stage: str, c: dict) -> Report | None:
     p = cd / dict(STAGES)[stage]
     if stage == "material":
         return material.check_pack(material.load_pack(cd), material.kinds(cd)) if p.is_file() else None
-    if stage in {"product", "audience", "trends", "strategy"} and not p.is_file():
+    if stage in {"product", "audience", "trends", "research", "strategy"} and not p.is_file():
         return None
     if stage == "product":
         return checks.check_facts(load(p))
     if stage == "audience":
-        return checks.check_segments(load(p), plats)
+        return checks.check_segments(load(p), plats, c.get("goal"))
     if stage == "trends":
         return checks.check_trends(load(p), plats, set(r["segments"]))
+    if stage == "research":
+        from mvflib import research
+        return research.check(load(p), c.get("benefit"), int((c.get("budget") or {}).get("scripts") or 3),
+                              r["facts"])
     if stage == "strategy":
-        return checks.check_angles(load(p), r["facts"], set(r["segments"]), set(r["trends"]), plats)
+        return checks.check_angles(load(p), r["facts"], set(r["segments"]), set(r["trends"]), plats, r.get("ideas"),
+                                   c.get("benefit"), r.get("lore_terms"))
+    if stage == "art":
+        from mvflib import art
+        return art.check(cd, persons(cd)) if (cd / art.ART / "art.json").is_file() else None
     if stage == "pretest":
         ds = sorted(p.glob("*/decision.json")) if p.is_dir() else []
         if not ds:
             return None
+        from mvflib import flow
         rep = Report()
+        cur = flow.decision(cd)
         for d in ds:
+            if cur and d != cur[0]:  # a newer round decided: an older one is history, not a gate
+                rep.info("PRE", f"pretest.{d.parent.name}", f"superseded by {cur[0].parent.name}")
+                continue
             rep.extend(checks.check_pretest(d))
         return rep
     return None
@@ -246,7 +274,7 @@ def cmd_material(a):
             if iid not in items:
                 raise SystemExit(f"no item {iid}")
             it = items[iid]
-            print(material.card(it, items, width=4000))
+            print(material.card(it, items, width=0))
             for k in ("before", "after"):
                 if (it.get("meta") or {}).get(k):
                     print(f"  [{k}] {it['meta'][k]}")
@@ -263,7 +291,7 @@ def cmd_material(a):
 def cmd_check(a):
     cd = campaign_dir(a)
     c = load(cd / "campaign.json")
-    stages = ["brief", "material", "product", "audience", "trends", "strategy", "pretest"] if a.stage == "all" else [a.stage]
+    stages = ["brief", "material", "product", "audience", "trends", "research", "strategy", "art", "pretest"] if a.stage == "all" else [a.stage]
     total = Report()
     for st in stages:
         r = _stage_report(cd, st, c)
@@ -279,8 +307,7 @@ def cmd_status(a):
     cd = campaign_dir(a)
     c = load(cd / "campaign.json")
     print(f"campaign {c.get('slug')} — {c.get('product')} · {', '.join(c.get('platforms') or [])} · today {today()}")
-    nxt = None
-    for st, rel in STAGES[:6]:
+    for st, rel in STAGES[:7]:
         r = _stage_report(cd, st, c)
         mark = "—" if r is None else ("FAIL" if r.fails else "ok")
         extra = ""
@@ -291,8 +318,6 @@ def cmd_status(a):
                 kinds[it["kind"]] = kinds.get(it["kind"], 0) + 1
             extra = " · " + " ".join(f"{k} {n}" for k, n in sorted(kinds.items()))
         print(f"  {st:9} {rel:28} {mark:5}" + ("" if r is None else f" {r.fails} FAIL {r.warns} WARN") + extra)
-        if nxt is None and (r is None or r.fails):
-            nxt = f"stage {st}: references/{REFERENCE[st]}" if r is None else f"fix FAILs: mvf check {st}"
     scripts = sorted((cd / "05-scripts").glob("*.json"))
     rf = refs(cd)
     from mvflib.lint import lint
@@ -300,18 +325,61 @@ def cmd_status(a):
         s = load(sp)
         t = pick_take(cd, s, "latest") if takes(cd, s["id"]) else None
         rep = lint(s, c, rf, timing.load_manifest(t) if t else None)
-        projs = sorted((cd / "07-video" / s["id"]).glob("*-H*")) if (cd / "07-video" / s["id"]).is_dir() else []
-        deliv = sorted((cd / "08-delivery" / s["id"]).glob("*/*/delivery.json")) if (cd / "08-delivery" / s["id"]).is_dir() else []
+        projs = sorted((cd / "07-video" / s["id"]).glob("*/mvf.json")) if (cd / "07-video" / s["id"]).is_dir() else []
+        deliv = sorted((cd / "08-delivery" / s["id"]).glob("*/delivery.json")) if (cd / "08-delivery" / s["id"]).is_dir() else []
         print(f"  script    {sp.name:28} {'FAIL' if rep.fails else 'ok':5} {rep.fails} FAIL {rep.warns} WARN · take "
               f"{t.name if t else '—'} · projects {len(projs)} · deliveries {len(deliv)}")
-        if nxt is None and rep.fails:
-            nxt = f"fix script: mvf lint {sp.name}"
+    ar = _stage_report(cd, "art", c)
+    if ar is not None:
+        from mvflib import art
+        st = art.status(cd)
+        print(f"  art       07-video/art/art.json        {'FAIL' if ar.fails else 'ok':5} {ar.fails} FAIL {ar.warns} WARN · "
+              f"jobs {len(st)} · drafted {sum(1 for x in st if x['drafts'])} · approved {sum(x['approved'] for x in st)}")
     pre = _stage_report(cd, "pretest", c)
     print(f"  pretest   06-pretest/*/decision.json  " + ("—" if pre is None else f"{pre.fails} FAIL {pre.warns} WARN"))
-    if nxt is None:
-        nxt = "write scripts (references/05-script.md)" if not scripts else \
-              "pre-test (references/06-pretest.md), then mvf voice → scaffold → scenes → score → export"
-    print(f"next: {nxt}")
+    from mvflib import flow
+    flow.print_action(next_of(cd, c))
+
+
+def next_of(cd: Path, c: dict) -> dict:
+    from mvflib import flow
+    from mvflib.lint import lint
+    rf = refs(cd)
+
+    def lint_fails(sid):
+        sc = load(cd / "05-scripts" / f"{sid}.json")
+        t = pick_take(cd, sc, "latest") if takes(cd, sc["id"]) else None
+        return lint(sc, c, rf, timing.load_manifest(t) if t else None).fails
+    return flow.next_action(cd, lambda st: _stage_report(cd, st, c), lint_fails)
+
+
+def cmd_next(a):
+    from mvflib import flow
+    cd = campaign_dir(a)
+    x = next_of(cd, load(cd / "campaign.json"))
+    if a.json:
+        print(json.dumps(x, ensure_ascii=False))
+    else:
+        flow.print_action(x)
+
+
+def cmd_sheet(a):
+    from mvflib import flow
+    cd = campaign_dir(a)
+    sid = load(script_path(cd, a.sid))["id"]
+    text = flow.sheet(cd, sid)
+    out = cd / "06-pretest" / f"sheet-{sid}.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+    print(text + f"\n→ {out}")
+
+
+def cmd_approve(a):
+    from mvflib import flow
+    cd = campaign_dir(a)
+    sid = load(script_path(cd, a.sid))["id"]
+    rec = flow.approve(cd, sid, a.verdict, a.note or "", a.hook)
+    print(f"owner {rec['verdict']} {sid}/{rec['hook']} on {rec['at']} → {cd / flow.OWNER}")
 
 
 def cmd_new_script(a):
@@ -324,8 +392,17 @@ def cmd_new_script(a):
     d = json.loads(text)
     d["language"] = (c.get("languages") or ["en"])[0]
     d["platforms"] = {p: d["platforms"][p] for p in c.get("platforms") or [] if p in d["platforms"]}
+    angles = {g.get("id"): g for g in (load(cd / "04-strategy/angles.json").get("angles") or [])} \
+        if (cd / "04-strategy/angles.json").is_file() else {}
+    if a.angle and a.angle not in angles:
+        raise SystemExit(f"no angle {a.angle} in 04-strategy/angles.json (have {', '.join(angles) or 'none'})")
+    g = angles.get(a.angle) or (next(iter(angles.values())) if len(angles) == 1 else None)
+    d["angle"] = g["id"] if g else None
+    if g and g.get("format"):
+        d["format"] = g["format"]
+    d["recipe"] = (g or {}).get("recipe")  # the template's product-demo is an example, not every script's build
     dump(p, d)
-    print(p)
+    print(f"{p}  (angle {d['angle']}, format {d['format']})" if d["angle"] else f"{p}  (no angle set: --angle G…)")
 
 
 def cmd_lint(a):
@@ -338,6 +415,12 @@ def cmd_lint(a):
         s = load(sp)
         t = pick_take(cd, s, a.take)
         rep = lint(s, c, refs(cd), timing.load_manifest(t) if t else None, a.hook)
+        v = s.get("voice") or {}
+        if v.get("mode") in {"clone", "design"} and v.get("ref"):
+            try:
+                voice_ref(cd, v["ref"])
+            except SystemExit as e:
+                rep.warn("S2", f"{s.get('id')}.voice.ref", f"{e}: the take will fail; add the voice or change voice.ref")
         rep.print(f"{sp.name}" + (f" (take {t.name})" if t else " (estimated timing)"))
         bad += rep.fails
     sys.exit(1 if bad else 0)
@@ -346,6 +429,11 @@ def cmd_lint(a):
 def cmd_trend_video(a):
     from mvflib.trendref import add
     add(campaign_dir(a), a.urls, a.frames, a.note)
+
+
+def cmd_top_videos(a):
+    from mvflib.topvideos import study
+    study(campaign_dir(a), a.query, a.url, a.n, a.seconds, a.scope, a.max_min, a.platform)
 
 
 def cmd_pretest_brief(a):
@@ -369,6 +457,51 @@ def cmd_pretest_brief(a):
           f"then fill {dec} (method, run id, winner, evidence, changes)")
 
 
+def cmd_coldread(a):
+    from mvflib.pretest import coldread
+    cd = campaign_dir(a)
+    sp = script_path(cd, a.script)
+    s = load(sp)
+    take = pick_take(cd, s, "latest") if takes(cd, s["id"]) else None
+    hooks = a.hooks or ["H1"] + [v["id"] for v in s.get("variants") or []]
+    out = cd / "06-pretest" / a.round / "coldread"
+    out.mkdir(parents=True, exist_ok=True)
+    for h in hooks:
+        f = out / f"{s['id']}-{h}.md"
+        f.write_text(coldread(s, h, take), encoding="utf-8")
+        print(f)
+    print(f"give each file to {a.readers}+ fresh-context readers (no campaign files, no other context); save each JSON\n"
+          f"answer as {out}/<sid>-<hook>.<reader>.json, fix what they flag, re-run (references/06-pretest.md#cold-read)")
+
+
+def cmd_feed(a):
+    import json as _json
+    from mvflib.pretest import bench_clip, feed, script_clip
+    cd = campaign_dir(a)
+    clips = []
+    for kind, names in (("candidate", a.script), ("control", a.control or [])):
+        for n in names:
+            sid, _, h = n.partition("/")
+            s = load(script_path(cd, sid))
+            clips.append(script_clip(s, h or "H1", pick_take(cd, s, "latest") if takes(cd, s["id"]) else None, kind))
+    bench = sorted((cd / "06-pretest" / "bench").glob("*.json"))
+    clips += [bench_clip(load(p)) for p in bench]
+    if not a.control:
+        print("WARN no --control: add a script the team already rejected; a feed with no known loser cannot tell a "
+              "generous reader from a good script")
+    if not bench:
+        print("WARN no 06-pretest/bench/*.json: transcribe 2-3 real videos with known views (references/06-pretest.md#feed)")
+    out = cd / "06-pretest" / a.round / "feed"
+    out.mkdir(parents=True, exist_ok=True)
+    for i in range(a.readers):
+        text, key = feed(clips, a.seed + i)
+        (out / f"feed-{i + 1}.md").write_text(text, encoding="utf-8")
+        (out / f"feed-{i + 1}.key.json").write_text(_json.dumps(key, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(out / f"feed-{i + 1}.md")
+    print(f"give feed-N.md (never the key) to reader N, a fresh-context agent with a one-line persona; save the answer\n"
+          f"as {out}/feed-N.<reader>.json, then read it against feed-N.key.json (references/06-pretest.md#feed)")
+
+
 # ---------- voice engines ----------
 
 CAMPAIGN_GITIGNORE = """# Machine-local or heavy: never committed.
@@ -379,6 +512,8 @@ voices/
 07-video/*/recordings/
 07-video/*/*/renders/
 07-video/*/*/assets/vo/
+07-video/*/*/assets/art/
+07-video/art/draft/
 08-delivery/
 """
 
@@ -448,9 +583,18 @@ def cmd_voice(a):
     mode = v.get("mode") or "recorded"
     if mode == "none":
         raise SystemExit("voice.mode is none: nothing to voice (scaffold uses on-screen timing)")
+    from mvflib import flow
+    if not a.rehear:
+        gate = flow.owner_gate(cd, s["id"], a.owner_skip)
+        if gate:
+            raise SystemExit(f"BLOCKED owner: {gate}")
+        drift = flow.owner_drift(cd, s["id"])
+        if drift:
+            print(f"WARN {drift}")
     name, eng = engine_for(cd, c, s, a.engine)
     opts = parse_opts(a.opt)
-    say = say_map((c.get("brand") or {}).get("say"))
+    # a script in another language overrides how brand names are said (script.say wins)
+    say = say_map({**((c.get("brand") or {}).get("say") or {}), **(s.get("say") or {})})
     tdir = cd / "07-video" / s["id"] / "takes"
     prev = takes(cd, s["id"])
     if a.rehear:
@@ -557,33 +701,56 @@ def cmd_scaffold(a):
     sp = script_path(cd, a.script)
     s = load(sp)
     take = pick_take(cd, s, a.take)
-    hooks = ["H1"] + [v["id"] for v in s.get("variants") or []] if a.hook == "all" else a.hook.split(",")
+    hook = a.hook or s.get("hook") or "H1"
+    if hook != "H1" and hook not in {v.get("id") for v in s.get("variants") or []}:
+        raise SystemExit(f"no hook {hook} in {sp.name}: one video is made from one hook (set the script's `hook` to "
+                         "the pre-test winner)")
     plats = [p for p in (s.get("platforms") or {}) if p in PLATFORMS] or c.get("platforms")
     canvases = a.canvas.split(",") if a.canvas else sorted({(s["platforms"][p] or {}).get("canvas", PLATFORMS[p]["canvas"]) for p in plats})
-    base = None
+    firsts = []
     for cv in canvases:
-        for h in hooks:
-            src = Path(a.from_).resolve() if a.from_ else base
-            proj = scaffold(cd, sp, cv, h, take, plats, from_dir=src)
-            base = base or proj  # later hooks/canvases start from the first project's scenes
-    left = placeholders(base) if base else []
-    if left:
-        print(f"placeholder scenes in {base.relative_to(cd)}: {left}\nnext: author them (SCENE_GUIDE.md, references/07-production.md)")
+        src = Path(a.from_).resolve() if a.from_ else None
+        firsts.append(scaffold(cd, sp, cv, hook, take, plats, from_dir=src))
+    for base in firsts:
+        left = placeholders(base)
+        if left:
+            print(f"placeholder scenes in {base.relative_to(cd)}: {left}\nnext: author them (SCENE_GUIDE.md, references/07-production.md)")
 
 
 def cmd_score(a):
+    from mvflib import sound
     from mvflib.mix import score
     from mvflib.scaffold import scaffold
     cd = campaign_dir(a)
     proj = proj_path(cd, a.proj)
     if not a.bed and not a.none:
-        raise SystemExit("--bed FILE (a track you own or licensed) or --none")
-    rep = score(proj, None if a.none else Path(a.bed).expanduser().resolve())
-    for it in rep["items"]:
-        print(f"{it['level']:4} MIX  {it['msg']}")
-    # index.html picks the stems up on re-scaffold (same script, hook, canvas, take)
+        raise SystemExit("--bed FILE (a track you own or licensed), --bed auto:<mood> "
+                         f"({'|'.join(sound.MOODS)}, procedural) or --none")
     m = load(proj / "mvf.json")
     take = Path(cd / m["take"]) if m.get("take") else None
+    # sfx.json and timeline.json come from direction.json: refresh them first, or an edited
+    # direction is mixed against the previous cues
+    scaffold(cd, cd / m["script"], m["canvas"], m["hook"], take, m["platforms"])
+    if a.sfx != "none":
+        sr = sound.render_sfx(proj, cd)
+        print(f"INFO SFX  {sr['cues']} cues → assets/music/sfx.wav · " + ", ".join(f"{k} {v}" for k, v in sr["sources"].items())
+              + (f" · unknown kinds {sr['unknown']}" if sr["unknown"] else ""))
+    else:
+        (proj / "assets/music/sfx.wav").unlink(missing_ok=True)
+    bed = None
+    if not a.none:
+        bed = sound.auto_bed(proj, a.bed.split(":", 1)[1], a.seed) if a.bed.startswith("auto:") \
+            else Path(a.bed).expanduser().resolve()
+    rep = score(proj, bed)
+    if bed is not None and bed.name == "bed.src.wav":
+        bed.unlink(missing_ok=True)
+    for it in rep["items"]:
+        print(f"{it['level']:4} MIX  {it['msg']}")
+    mc = sound.mixcheck(proj)
+    lvl = "WARN" if mc["under"] else "INFO"
+    print(f"{lvl:4} MIX  voice over bed+sfx: worst {mc['min_db']} dB (target ≥ {mc['target_db']:g})"
+          + (f"; under in {', '.join(mc['under'])}: lower those cues or the bed" if mc["under"] else "") + " · PENDING LISTEN")
+    # index.html picks the stems up on re-scaffold (same script, hook, canvas, take)
     scaffold(cd, cd / m["script"], m["canvas"], m["hook"], take, m["platforms"])
     print(f"SCORED {proj.name} → {proj / 'assets/music'}")
 
@@ -642,20 +809,76 @@ mvflib/extensions.py for the job and manifest contract (references/07-production
 """
 
 
+def project_platforms(cd: Path, proj: Path) -> list[str]:
+    """The script's platforms whose canvas is this project's canvas (a 16x9 project is not a TikTok file)."""
+    m = load(proj / "mvf.json")
+    s = load(cd / m["script"])
+    return [p for p, c in (s.get("platforms") or {}).items()
+            if p in PLATFORMS and (c or {}).get("canvas", PLATFORMS[p]["canvas"]) == m["canvas"]]
+
+
 def cmd_export(a):
     from mvflib.export import export
     cd = campaign_dir(a)
-    plats = a.platforms.split(",")
-    for p in plats:
-        if p not in PLATFORMS:
-            raise SystemExit(f"unknown platform {p}")
     for pj in a.proj:
         proj = proj_path(cd, pj)
+        plats = a.platforms.split(",") if a.platforms else project_platforms(cd, proj)
+        for p in plats:
+            if p not in PLATFORMS or p in {"canvases", "speech_wps", "_about"}:
+                raise SystemExit(f"unknown platform {p}")
+        if not plats:
+            raise SystemExit(f"{proj.name}: no script platform uses canvas {load(proj / 'mvf.json')['canvas']}; pass --platforms")
         rep = export(cd, proj, plats, draft=a.draft, skip_render=a.skip_render)
         rep.print(f"QA {proj.name}")
         print(f"delivered → {cd / '08-delivery'}  (listen and watch every file before it is called done; nothing was uploaded)")
         if rep.fails:
             sys.exit(1)
+
+
+def persons(cd: Path) -> list[str]:
+    """Names of the real people in the material pack: an art prompt never names them."""
+    return [it.get("title", "") for it in material.load_pack(cd)["items"].values() if it.get("kind") == "person"]
+
+
+def cmd_art(a):
+    from mvflib import art
+    cd = campaign_dir(a)
+    if a.action == "ls":
+        if not (cd / art.ART / "art.json").is_file():
+            print(f"no {art.ART / 'art.json'} (references/07-production.md#art)")
+            return
+        for x in art.status(cd):
+            print(f"  {x['id']:10} {x['use']:10} {x['look']:12} drafts {x['drafts']} · "
+                  + (f"approved {x['verdict']}" + (f" ({x['upscale']}x)" if x['upscale'] else "") if x["approved"] else "not approved"))
+        name, eng = art.engine_for(cd, a.engine)
+        print(f"engine {name}: {eng.about}" + (" · PAID (--spend)" if eng.paid else ""))
+        return
+    if a.action == "check":
+        rep = art.check(cd, persons(cd))
+        rep.print("art")
+        sys.exit(1 if rep.fails else 0)
+    if a.action == "draw":
+        rep = art.draw(cd, a.ids, a.engine, a.seed, a.spend, persons(cd))
+        rep.print("art draw")
+        print("next: open each draft and look at it (anatomy, text, artifacts, likeness), then mvf art approve ID")
+        sys.exit(1 if rep.fails else 0)
+    if len(a.ids) != 1:
+        raise SystemExit("mvf art approve ID [--draft PATH]")
+    fx, fy = (float(v) for v in a.focus.split(","))
+    rec = art.approve(cd, a.ids[0], a.draft, (fx, fy), a.force, a.upscaler)
+    print(f"{rec['verdict']:4} {rec['id']}: {rec['drawn']} → {rec.get('shown', 'native')}"
+          + (f" ({rec['upscale']}x, {rec.get('upscaler')})" if rec.get("upscale") else "") + f" → {art.ART / (rec['id'] + '.png')}"
+          + ("  FORCED past the upscale gate" if rec.get("forced") else ""))
+    print("re-run mvf scaffold so projects pick it up (assets/art/)")
+
+
+def cmd_thumbnail(a):
+    from mvflib.thumbnail import thumbnail
+    cd = campaign_dir(a)
+    out, rep = thumbnail(cd, a.sid, a.canvas, a.art, a.text)
+    rep.print(f"thumbnail {out.name}")
+    print(f"{out.relative_to(cd)}  (edit {Path('07-video') / a.sid / f'thumb-{a.canvas}' / 'index.html'} and re-run; look at it at 320 px wide)")
+    sys.exit(1 if rep.fails else 0)
 
 
 def cmd_qa(a):
@@ -665,6 +888,50 @@ def cmd_qa(a):
     rep = qa(Path(a.video).resolve(), a.platform, load(proj / "timeline.json"))
     rep.print(f"QA {Path(a.video).name} for {a.platform}")
     sys.exit(1 if rep.fails else 0)
+
+
+def cmd_doctor(a):
+    from mvflib import doctor
+    sys.exit(doctor.run(maybe_campaign(a), a.json, a.quick))
+
+
+def cmd_judge(a):
+    from mvflib import judge
+    if a.action in ("status", "setup"):
+        if a.action == "setup" and a.provider and a.model:
+            judge.setup(a.provider, a.model, a.effort, a.soot_forge)
+            return
+        if a.action == "setup" and (a.provider or a.model):
+            raise SystemExit("--provider and --model go together: the user names both on first use")
+        st = judge.status()
+        judge.print_status(st)
+        sys.exit(0 if not st["problems"] else judge.NEEDS_CONTEXT)
+    cd = campaign_dir(a)
+    c = load(cd / "campaign.json")
+    plat = a.platform or (c.get("platforms") or ["tiktok"])[0]
+    if plat not in PLATFORMS:
+        raise SystemExit(f"unknown platform {plat}")
+    if a.action == "scripts":
+        items, manifests = [], {}
+        for kind, names in (("candidate", a.names), ("control", a.control or [])):
+            for n in names:
+                sid, _, h = n.partition("/")
+                s = load(script_path(cd, sid))
+                t = pick_take(cd, s, "latest") if takes(cd, s["id"]) else None
+                manifests[s["id"]] = timing.load_manifest(t) if t else None
+                items.append((s, h or s.get("hook") or "H1", kind))
+        if not a.control:
+            print("WARN no --control: add a script the team already rejected; without a known loser the panel's "
+                  "enthusiasm cannot be told from a good script")
+        bench = [load(cd / "06-pretest/bench" / f"{b}.json") for b in a.bench or []]
+        judge.judge_scripts(cd, items, a.round, a.size, plat, manifests, bench, a.dry, not a.no_interview)
+    elif a.action == "video":
+        if len(a.names) != 1:
+            raise SystemExit("mvf judge video <proj>")
+        judge.judge_video(cd, proj_path(cd, a.names[0]), a.round if a.round != "r1" else "v1", a.size, plat, a.dry)
+    elif a.action in ("resume", "collect"):
+        out = Path(a.names[0]).resolve() if a.names else cd / "06-pretest" / a.round / "microfish"
+        (judge.resume if a.action == "resume" else judge.collect)(cd, out)
 
 
 def main():
@@ -677,6 +944,18 @@ def main():
     p.add_argument("--root")
     p.set_defaults(fn=cmd_init)
     sub.add_parser("status").set_defaults(fn=cmd_status)
+    p = sub.add_parser("next", help="the one next action and who takes it (agent or owner)")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_next)
+    p = sub.add_parser("sheet", help="the script as the owner reads it (06-pretest/sheet-<sid>.md)")
+    p.add_argument("sid")
+    p.set_defaults(fn=cmd_sheet)
+    p = sub.add_parser("approve", help="record the owner's word on a script")
+    p.add_argument("sid")
+    p.add_argument("--verdict", required=True, choices=["approved", "rejected", "delegated"])
+    p.add_argument("--note", help="the owner's words (required for rejected)")
+    p.add_argument("--hook", help="the hook they approved (default: the script's hook)")
+    p.set_defaults(fn=cmd_approve)
     sub.add_parser("sources").set_defaults(fn=cmd_sources)
     p = sub.add_parser("extensions")
     p.add_argument("action", nargs="?", default="ls", choices=["ls", "init"])
@@ -693,10 +972,11 @@ def main():
     p.add_argument("--limit", type=int, default=30)
     p.set_defaults(fn=cmd_material)
     p = sub.add_parser("check")
-    p.add_argument("stage", nargs="?", default="all", choices=["all", "brief", "material", "product", "audience", "trends", "strategy", "pretest"])
+    p.add_argument("stage", nargs="?", default="all", choices=["all", "brief", "material", "product", "audience", "trends", "research", "strategy", "art", "pretest"])
     p.set_defaults(fn=cmd_check)
     p = sub.add_parser("new-script")
     p.add_argument("sid")
+    p.add_argument("--angle", help="the angle it is written from (04-strategy/angles.json id); fills angle and format")
     p.set_defaults(fn=cmd_new_script)
     p = sub.add_parser("lint")
     p.add_argument("script", nargs="+")
@@ -708,6 +988,18 @@ def main():
     p.add_argument("--frames", action="store_true", help="download and cut hook frames + a contact sheet")
     p.add_argument("--note")
     p.set_defaults(fn=cmd_trend_video)
+    p = sub.add_parser("top-videos")
+    p.add_argument("query", nargs="*", help="search words as the audience types them (logged out)")
+    p.add_argument("--url", nargs="*", default=[], help="videos to transcribe directly (TikTok, YouTube, X)")
+    p.add_argument("--n", type=int, default=6, help="how many of the most-viewed results to transcribe")
+    p.add_argument("--seconds", type=float, default=300, help="how much of each transcript to keep (0 = all)")
+    p.add_argument("--max-min", type=float, default=30, help="skip search results longer than this many minutes "
+                   "(compilations, livestreams); 0 = no limit")
+    p.add_argument("--scope", choices=["topic", "benefit"], default="topic",
+                   help="topic = videos about the subject; benefit = videos that give this audience the same kind of benefit")
+    p.add_argument("--platform", choices=["youtube", "tiktok"], default="youtube",
+                   help="where to search; tiktok prints the browse steps for the agent (mvf cannot search it)")
+    p.set_defaults(fn=cmd_top_videos)
     p = sub.add_parser("pretest-brief")
     p.add_argument("script", nargs="+")
     p.add_argument("--round", default="r1")
@@ -715,12 +1007,26 @@ def main():
     p.add_argument("--hooks", nargs="*", help="limit to sid/H1 sid/H2 …")
     p.add_argument("--question")
     p.set_defaults(fn=cmd_pretest_brief)
+    p = sub.add_parser("coldread")
+    p.add_argument("script")
+    p.add_argument("--hooks", nargs="*", help="H1 H2 … (default: all)")
+    p.add_argument("--round", default="r1")
+    p.add_argument("--readers", type=int, default=3)
+    p.set_defaults(fn=cmd_coldread)
+    p = sub.add_parser("feed")
+    p.add_argument("script", nargs="+", help="candidate scripts, sid or sid/H2")
+    p.add_argument("--control", nargs="*", help="a script already rejected (the known loser)")
+    p.add_argument("--round", default="r1")
+    p.add_argument("--readers", type=int, default=4, help="one shuffled feed per reader")
+    p.add_argument("--seed", type=int, default=1)
+    p.set_defaults(fn=cmd_feed)
     p = sub.add_parser("voice")
     p.add_argument("script")
     p.add_argument("--engine", help="voice engine (default: voice.engine, campaign voice_engine, config, files)")
     p.add_argument("--opt", action="append", help="engine option key=value (repeatable; `mvf extensions` lists them)")
     p.add_argument("--all", action="store_true", help="re-voice every line, not only changed ones")
     p.add_argument("--rehear", action="store_true", help="re-run ASR + alignment on the latest take (same audio)")
+    p.add_argument("--owner-skip", metavar="REASON", help="voice before the owner read the script (a test take, a demo)")
     p.set_defaults(fn=cmd_voice)
     p = sub.add_parser("voice-design")
     p.add_argument("--name", required=True)
@@ -736,24 +1042,63 @@ def main():
     p.add_argument("--as", dest="as_", required=True)
     p.add_argument("--force", action="store_true", help="adopt a candidate that failed the hearing check")
     p.set_defaults(fn=cmd_voice_pick)
+    p = sub.add_parser("art")
+    p.add_argument("action", nargs="?", default="ls", choices=["ls", "check", "draw", "approve"])
+    p.add_argument("ids", nargs="*", help="job ids (draw: default every job with no draft yet)")
+    p.add_argument("--engine", help="image engine (default: art.json engine, else qwen)")
+    p.add_argument("--seed", type=int, help="a redraw is a new seed; drafts are never overwritten")
+    p.add_argument("--spend", action="store_true", help="allow a paid engine: only when the user said yes to this spend")
+    p.add_argument("--draft", help="approve this draft (default: the newest)")
+    p.add_argument("--focus", default="0.5,0.5", help="crop focus x,y in 0..1 when the aspect differs")
+    p.add_argument("--force", action="store_true", help="approve past the upscale gate (after looking at it)")
+    p.add_argument("--upscaler", choices=["esrgan", "blend", "lanczos"],
+                   help="approve: esrgan (default for illustration when installed), blend, or lanczos")
+    p.set_defaults(fn=cmd_art)
+    p = sub.add_parser("thumbnail")
+    p.add_argument("sid")
+    p.add_argument("--canvas", default="16x9", choices=["16x9", "9x16", "1x1"])
+    p.add_argument("--art", help="approved art id for the plate (default: the approved thumbnail job on this canvas)")
+    p.add_argument("--text", help="the line (default: youtube-long thumbnail_text, else a cover_text)")
+    p.set_defaults(fn=cmd_thumbnail)
     p = sub.add_parser("scaffold")
     p.add_argument("script")
-    p.add_argument("--hook", default="H1", help="H1 | H2,H3 | all")
+    p.add_argument("--hook", help="the one hook this video ships with (default: the script's `hook`, else H1)")
     p.add_argument("--canvas", help="9x16,1x1,… (default: the script's platform canvases)")
     p.add_argument("--take", default="latest", help="latest | none | tNN")
     p.add_argument("--from", dest="from_", help="copy authored scenes from another project")
     p.set_defaults(fn=cmd_scaffold)
     p = sub.add_parser("score")
     p.add_argument("proj")
-    p.add_argument("--bed", help="music bed: a track you own or licensed")
+    p.add_argument("--bed", help="music bed: a track you own or licensed, or auto:<mood> (procedural)")
     p.add_argument("--none", action="store_true", help="no bed (removes a previous one)")
+    p.add_argument("--sfx", default="auto", choices=["auto", "none"], help="render sfx.json cues (default) or drop them")
+    p.add_argument("--seed", type=int, default=7, help="auto bed seed: another seed, another melody")
     p.set_defaults(fn=cmd_score)
     p = sub.add_parser("export")
     p.add_argument("proj", nargs="+")
-    p.add_argument("--platforms", default="tiktok,x")
+    p.add_argument("--platforms", help="comma list (default: the script's platforms on this project's canvas)")
     p.add_argument("--draft", action="store_true", help="rough cut: allows placeholders and estimated timing")
     p.add_argument("--skip-render", action="store_true", help="reuse renders/master.mp4")
     p.set_defaults(fn=cmd_export)
+    p = sub.add_parser("doctor", help="is this machine ready: HyperFrames, OmniVoice, Qwen+RMBG, Micro Fish")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--quick", action="store_true", help="skip verifying the image weights")
+    p.set_defaults(fn=cmd_doctor)
+    p = sub.add_parser("judge", help="Micro Fish (Soot) judges the scripts or the cut")
+    p.add_argument("action", choices=["status", "setup", "scripts", "video", "resume", "collect"])
+    p.add_argument("names", nargs="*", help="scripts: sid or sid/H2 …; video: proj; resume/collect: the microfish dir")
+    p.add_argument("--provider", help="setup: the Soot provider the user chose (soot providers)")
+    p.add_argument("--model", help="setup: the model the user chose")
+    p.add_argument("--effort", help="setup: reasoning effort, if the model takes one")
+    p.add_argument("--soot-forge", help="setup: install society-sim from this soot-forge checkout instead of the release")
+    p.add_argument("--control", nargs="*", help="scripts: one script the team already rejected (the known loser)")
+    p.add_argument("--bench", nargs="*", help="scripts: 06-pretest/bench/<id>.json real videos to rank against")
+    p.add_argument("--round", default="r1")
+    p.add_argument("--size", default="quick", choices=["quick", "standard", "deep"])
+    p.add_argument("--platform", help="the feed the crowd scrolls (default: the campaign's first platform)")
+    p.add_argument("--dry", action="store_true", help="write the brief and key only; run nothing")
+    p.add_argument("--no-interview", action="store_true", help="skip the follow-up retell interview")
+    p.set_defaults(fn=cmd_judge)
     p = sub.add_parser("qa")
     p.add_argument("video")
     p.add_argument("--platform", required=True, choices=list(k for k in PLATFORMS if k not in {"canvases", "speech_wps", "_about"}))

@@ -1,10 +1,22 @@
 {
-  "_about": "A recipe names the material a script is built from. `needs`: cited items the script must carry (kind, at least `min`, `signal`: true = with a measured popularity number). A script names its recipe in `recipe`; lint M3 checks the cited ids cover it. Pick by what the data is best at, not by habit. Extensions add recipes with RECIPES = {name: {...}}.",
+  "_about": "A recipe names the material a script is built from. `needs`: cited items the script must carry (kind, at least `min`, `signal`: true = with a measured popularity number). A script names its recipe in `recipe`; lint M3 checks the cited ids cover it. A recipe is a starting point, not a structure: lint warns when its material is missing and never dictates the beats. Pick by what the data is best at, not by habit. `brand`: \"end\" = the product is shown only at the CTA (a product card inside a story or a lesson reads as an ad), so B2 does not ask for it in the first half. Extensions add recipes with RECIPES = {name: {...}}.",
   "recipes": {
     "product-demo": {
       "about": "A product/feature shown working; facts (01-product) carry it, material optional",
       "needs": [],
       "optional": ["feature", "metric", "trend", "asset"]
+    },
+    "researched-story": {
+      "about": "A picked idea from 03-research told as a story: its nuggets carry it, and each beat that quotes a source cites that passage (a chapter, an interview, a post)",
+      "needs": [{"kind": "passage|quote|post|review", "min": 1}],
+      "optional": ["canon", "asset", "metric"],
+      "brand": "end"
+    },
+    "lesson": {
+      "about": "A principle the viewer applies in their own life, with a cited source as the authority (a book, an expert, a case, the product's own result). The viewer's situation is the subject and the source is the proof; each quoted line cites its passage",
+      "needs": [{"kind": "passage|quote", "min": 1}],
+      "optional": ["canon", "post", "review", "asset"],
+      "brand": "end"
     },
     "social-proof": {
       "about": "What users said, in their words: a review or post with a measured signal, then the product proving it",

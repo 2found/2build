@@ -1,0 +1,81 @@
+{
+  "_about": "Pinned weights (HuggingFace repo@revision, size, SHA-256) and the native runtime. Changing any line needs a side-by-side test.",
+  "sd_cli": {
+    "repository": "https://github.com/leejet/stable-diffusion.cpp.git",
+    "commit": "f89d9b13d730eabeede7314ce49dacd18d3c90c2"
+  },
+  "qwen": {
+    "model": "Qwen/Qwen-Image-2.1-Turbo",
+    "revision": "d65dbc9a7e8f6b5479e33dee6030eaab2a906509",
+    "quantization": "Q4_K_M",
+    "license": "Apache-2.0",
+    "steps": 8,
+    "cfg": 1,
+    "sample_sigmas": [
+      1.0,
+      0.978453,
+      0.95418,
+      0.926626,
+      0.89508,
+      0.845148,
+      0.704534,
+      0.414568,
+      0.0
+    ],
+    "weights": {
+      "diffusion": {
+        "repository": "Abiray/Qwen-Image-2.1-Turbo-GGUF",
+        "revision": "912070141874687f049212a50b710570882c61c7",
+        "file": "qwen_image_2.1_turbo_Q4_K_M.gguf",
+        "bytes": 4189346592,
+        "sha256": "0f5a11ebbaf3110a16120311454eaac35db13798e0102339e4f2b8fd5be6ba82",
+        "as": "qwen_image_2.1_turbo_Q4_K_M.gguf"
+      },
+      "llm": {
+        "repository": "Qwen/Qwen3-VL-8B-Instruct-GGUF",
+        "revision": "f982a07559d4a2f6c8744d840bf6fccab30eea96",
+        "file": "Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+        "bytes": 5027784800,
+        "sha256": "67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2",
+        "as": "Qwen3VL-8B-Instruct-Q4_K_M.gguf"
+      },
+      "vae": {
+        "repository": "Qwen/Qwen-Image-2.1-Turbo",
+        "revision": "d65dbc9a7e8f6b5479e33dee6030eaab2a906509",
+        "file": "vae/diffusion_pytorch_model.safetensors",
+        "bytes": 675508656,
+        "sha256": "71879ffd5321e6d10c3c87513e2b474b1252efa7f3dec2969214a9bf06a6dd5c",
+        "as": "qwen-image-2.1-vae.safetensors"
+      }
+    },
+    "vision": {
+      "repository": "Qwen/Qwen3-VL-8B-Instruct-GGUF",
+      "revision": "f982a07559d4a2f6c8744d840bf6fccab30eea96",
+      "file": "mmproj-Qwen3VL-8B-Instruct-F16.gguf",
+      "bytes": 1159029824,
+      "sha256": "ca524100ebf825c9a870db1c580d03879e0da0ab2541697e2458e64891cf9d38",
+      "as": "mmproj-Qwen3VL-8B-Instruct-F16.gguf"
+    }
+  },
+  "rmbg": {
+    "license": "bria-rmbg-1.4: source-available, non-commercial; commercial use needs a Bria agreement",
+    "mean": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "std": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "weights": {
+      "repository": "briaai/RMBG-1.4",
+      "revision": "2ceba5a5efaec153162aedea169f76caf9b46cf8",
+      "file": "onnx/model.onnx",
+      "bytes": 176153355,
+      "sha256": "8cafcf770b06757c4eaced21b1a88e57fd2b66de01b8045f35f01535ba742e0f",
+      "as": "rmbg-1.4.onnx"
+    }
+  }
+}

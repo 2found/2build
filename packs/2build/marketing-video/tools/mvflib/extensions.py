@@ -5,6 +5,7 @@ An extension is a Python file in an extensions dir — `<dir>/<name>.py` or
 
   SOURCES = {"ns.name": Source(...)}   ways data reaches the material pack (`mvf gather`)
   VOICES  = {"name": Voice(...)}       voice engines (`mvf voice --engine name`)
+  IMAGES  = {"name": Image(...)}       image engines (`mvf art draw --engine name`)
   KINDS   = {"kind": "what it is"}     extra material kinds
   RECIPES = {"name": {...}}            extra recipes (same shape as recipes.json)
 
@@ -17,8 +18,10 @@ Dirs are searched in this order; the first definition of a name wins:
 
 Campaign extensions and .babysit/marketing-video/ are gitignored (`mvf init`,
 `mvf extensions init`): they hold private endpoints, local model paths and voices.
-An extension reads only — it never posts, logs in to a platform or spends money —
-and takes secrets from environment variables it names in `needs`, never from files.
+An extension reads only — it never posts or logs in to a platform — and takes
+secrets from environment variables it names in `needs`, never from files. An image
+engine that costs money says `paid=True`; `mvf art draw` then runs it only with
+`--spend`, the user's explicit say for that run.
 """
 from __future__ import annotations
 
@@ -62,6 +65,31 @@ class Voice:
     opts: dict[str, str] = field(default_factory=dict)  # option → help, shown by `mvf extensions`
 
 
+@dataclass
+class Image:
+    """An image engine (references/07-production.md#art). One drawing per call.
+
+    command: run as `[*command, prompt, "-o", out.png, "--size", "WxH", "--seed", N, ["--ref", path],
+             ["--transparent"]]` (the image-gen skill's generate-image); it writes the PNG and may print a JSON receipt
+             as its last stdout line ({"seconds", "cost_usd", …}).
+    run:     an in-process callable run(job: dict, out: Path) -> receipt dict, with the same job keys
+             (prompt, size, seed, ref, transparent).
+    Sizes the engine draws: multiples of `step`, each side within `sides`, at most `max_pixels`.
+    `heavy`: a local model; it runs through the heavy prefix (one job at a time on a shared machine).
+    """
+    about: str
+    command: list[str] | None = None
+    run: Callable[[dict, Path], dict] | None = None
+    max_pixels: int = 262144
+    step: int = 32
+    sides: tuple = (256, 768)
+    refs: bool = True
+    transparent: bool = True
+    paid: bool = False
+    heavy: bool = True
+    needs: list[str] = field(default_factory=list)
+
+
 def dirs(campaign: Path | None = None) -> list[Path]:
     out = []
     if campaign:
@@ -97,6 +125,7 @@ def _import(path: Path):
 class Loaded:
     sources: dict = field(default_factory=dict)
     voices: dict = field(default_factory=dict)
+    images: dict = field(default_factory=dict)
     kinds: dict = field(default_factory=dict)
     recipes: dict = field(default_factory=dict)
     origin: dict = field(default_factory=dict)  # (kind, name) → file
@@ -116,13 +145,16 @@ def load(campaign: Path | None = None) -> Loaded:
         for f in _files(d):
             mod = _import(f)
             out.files.append(f)
-            for attr, table in (("SOURCES", out.sources), ("VOICES", out.voices), ("KINDS", out.kinds), ("RECIPES", out.recipes)):
+            for attr, table in (("SOURCES", out.sources), ("VOICES", out.voices), ("IMAGES", out.images),
+                                ("KINDS", out.kinds), ("RECIPES", out.recipes)):
                 for name, val in (getattr(mod, attr, None) or {}).items():
                     if name in table:
                         out.shadowed.append((attr, name, f))
                         continue
                     if attr == "VOICES":
                         _check_voice(name, val, f)
+                    if attr == "IMAGES" and (not isinstance(val, Image) or (val.command is None) == (val.run is None)):
+                        raise SystemExit(f"{f}: IMAGES[{name!r}] must be a mvflib.extensions.Image with one of command= or run=")
                     table[name] = val
                     out.origin[(attr, name)] = f
     _CACHE[key] = out

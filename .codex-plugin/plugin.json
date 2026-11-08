@@ -1,6 +1,6 @@
 {
   "name": "bbs",
-  "version": "1.124.0",
+  "version": "1.125.0",
   "description": "Give your coding agent a goal. 2build plans, builds, reviews and verifies, with progress saved on disk.",
   "author": {
     "name": "2found",
@@ -9,7 +9,12 @@
   "homepage": "https://github.com/2found/2build",
   "repository": "https://github.com/2found/2build",
   "license": "MIT",
-  "keywords": ["autonomy", "coding", "qa", "workflows"],
+  "keywords": [
+    "autonomy",
+    "coding",
+    "qa",
+    "workflows"
+  ],
   "skills": "./.claude/skills",
   "interface": {
     "displayName": "2build",
@@ -17,7 +22,10 @@
     "longDescription": "Autopilot carries one ticket from requirement to a verified local commit in your Codex session. Plans, checkpoints and review/QA evidence stay on disk so work can resume after a restart. Team runs a whole project as an autonomous product team on Orca: you approve the design, then review the handover and give the release go.",
     "developerName": "2found",
     "category": "Productivity",
-    "capabilities": ["Read", "Write"],
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
     "websiteURL": "https://github.com/2found/2build",
     "defaultPrompt": "Use 2build autopilot to build this requirement end to end."
   }

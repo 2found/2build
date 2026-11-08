@@ -1,0 +1,100 @@
+{
+  "_about": "Visual style presets for 2.5D production. campaign.json `style` names the campaign's default (a new campaign starts on stickman); art.json `preset` and direction.json `look.preset` override it, and \"none\" turns it off. A preset only fills defaults: art.json gets `style` (plates), `cutout_style` (stickers) and how stickers are lifted off their ground; the direction gets the look, captions and the rig's body, ink and line. Anything the files set wins. The agent may ignore presets entirely.",
+  "styles": {
+    "stickman": {
+      "about": "The default. Comic stick figures, the Vietnamese webcomic explainer look: big-headed characters drawn in code (rig body: chibi) with a jaw, ears, a signature hair shape in a strong colour, a flat T-shirt on stick arms and round hands, one bold even black outline on everything, flat colour, white paper; faces act (brows, open mouths, blinks) and labels point at things with a line and a dot",
+      "art": {
+        "style": "flat comic background, bold even black outlines, flat muted colour fills, no shading, no gradient, simple shapes, plain white or light grey wall, no people, no text, no letters, no watermark, no border",
+        "cutout_style": "flat comic drawing of a single object, bold even black outline, flat colour fill, no shading, alone on a plain pure white background, no scenery, no text, no letters, no watermark, no border",
+        "sticker": "multiply"
+      },
+      "look": {
+        "colors": {
+          "ground": "#fbfbf8",
+          "ink": "#1b1b1b",
+          "accent": "#e2445c",
+          "hot": "#f2b632",
+          "on_plate": "#ffffff"
+        },
+        "grade": {
+          "grain": 0.015,
+          "vignette": 0.0
+        },
+        "slam_case": "uppercase",
+        "paper": true,
+        "fonts": {
+          "display": "Nunito",
+          "body": "Nunito",
+          "caption": "Nunito"
+        }
+      },
+      "captions": {
+        "style": "comic",
+        "weight": 900
+      },
+      "rig": {
+        "body": "chibi",
+        "ink": "#1b1b1b",
+        "width": 0.019,
+        "boil": 0.2
+      }
+    },
+    "ink": {
+      "about": "Plain ink stick figures: black line drawings on paper, characters drawn in code (rig body: stick) so every limb moves, props as line art multiplied onto the paper, a hand-drawn boil on the lines",
+      "art": {
+        "style": "minimal hand-drawn black ink line drawing on warm off-white paper, simple sparse outlines, flat with at most a light grey wash, lots of empty space, no people, no text, no letters, no watermark, no border",
+        "cutout_style": "minimal hand-drawn black ink line drawing of a single object on plain pure white paper, simple clean outline, no shading, no background, nothing else in the picture, no text, no letters, no watermark, no border",
+        "sticker": "multiply"
+      },
+      "look": {
+        "colors": {
+          "ground": "#f4efe3",
+          "ink": "#1d1b18",
+          "accent": "#d2452f",
+          "hot": "#e0a526",
+          "on_plate": "#fffdf7"
+        },
+        "grade": {
+          "grain": 0.08,
+          "vignette": 0.12
+        },
+        "slam_case": "none"
+      },
+      "captions": {
+        "style": "box",
+        "weight": 800
+      },
+      "rig": {
+        "ink": "#1d1b18",
+        "width": 0.022,
+        "boil": 0.6
+      }
+    },
+    "anime": {
+      "about": "Japanese TV/film anime: painted backgrounds, cel-shaded characters with clean lineart, limited animation (holds, then a fast action), speed lines and impact flashes on hits",
+      "art": {
+        "style": "anime film background art, hand-painted cel animation background, clean simple shapes, soft atmospheric perspective, painterly sky and light, cinematic composition, no text, no letters, no watermark, no logo, no border",
+        "cutout_style": "anime character art, clean confident even lineart, flat cel shading with one shadow tone and a soft highlight, soft saturated colours, a single subject alone on a flat plain uniform light grey background, no scenery, no floor, no cast shadow, no text, no letters, no watermark, no border",
+        "sticker": "alpha"
+      },
+      "look": {
+        "colors": {
+          "ground": "#141826",
+          "ink": "#0e0f14",
+          "accent": "#e8473c",
+          "hot": "#ffd23f",
+          "on_plate": "#fffaf0"
+        },
+        "grade": {
+          "grain": 0.03,
+          "vignette": 0.25
+        },
+        "slam_case": "none"
+      },
+      "captions": {
+        "style": "stroke",
+        "weight": 900
+      }
+    }
+  }
+}

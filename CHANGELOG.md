@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.125.0 — 2026-11-08
+
+### Added
+
+- New `image-gen` skill: local raster generation with Qwen Image 2.1 Turbo
+  (Metal, no account, no network at generation time) and RMBG-1.4 cutouts,
+  with pinned model weights in `scripts/models.json`.
+- `marketing-video` gains a research stage (`03b-research`), a direction
+  stage, review and formats references, and new `mvf` modules for art,
+  direction, doctor, flow, judge, research, rig, sound, synth, thumbnail and
+  top-videos analysis, plus a kit template.
+
+### Changed
+
+- `marketing-video` now targets TikTok, YouTube (Shorts and long-form),
+  Instagram, Facebook Reels, X and LinkedIn for any product and any kind of
+  video, end to end from research through a retellable script, art, voice,
+  edit and per-platform delivery files. Its art stage draws through
+  `image-gen`.
+
 ## 1.124.0 — 2026-11-02
 
 ### Changed

@@ -31,7 +31,7 @@ KINDS = {
     "feature": "one thing the product does, as users meet it",
     "quote": "a line someone said or wrote that the video can carry",
     "review": "a user's review or rating (store, marketplace, survey), with its signals",
-    "post": "a community/social post about the product",
+    "post": "a community/social post or comment about the product",
     "ranking": "an ordered list (store chart, leaderboard, award); members in links",
     "metric": "a measured number about the product or its users",
     "person": "a real person (founder, customer, creator) — never drawn by AI",
@@ -68,7 +68,8 @@ def validate(item: dict, where: str = "item", known: dict | None = None) -> Repo
     if not isinstance(iid, str) or not ID.match(iid):
         r.fail("MAT", where, f"id {iid!r} must look like <ns>:<kind>:<key>")
     elif iid.split(":")[1] != item.get("kind"):
-        r.fail("MAT", where, f"id {iid} names kind {iid.split(':')[1]!r} but kind is {item.get('kind')!r}")
+        r.fail("MAT", where, f"id {iid} names kind {iid.split(':')[1]!r} but kind is {item.get('kind')!r}: "
+                            f"the middle part is the kind, e.g. {iid.split(':')[0]}:{item.get('kind')}:{iid.split(':', 2)[-1]}")
     if item.get("kind") not in known:
         r.fail("MAT", where, f"kind {item.get('kind')!r} not in {sorted(known)}")
     if not str(item.get("title", "")).strip():
@@ -156,6 +157,9 @@ def check_pack(pack: dict, known: dict | None = None) -> Report:
     seen = {it.get("kind") for it in items.values()}
     if items and not seen & MEASURED:
         r.warn("MAT", INDEX, f"no {'/'.join(sorted(MEASURED))}: nothing measured says what people like yet")
+    elif items and not seen & {"review", "post"}:
+        r.warn("MAT", INDEX, "no review or post: rankings say what people pick, not why; gather what they say in "
+               "their own words (reviews, comments, forum posts)")
     return r
 
 
@@ -183,9 +187,13 @@ def card(item: dict, pack_items: dict | None = None, width: int = 400) -> str:
              f"  rights={item.get('rights')}" + (f" credit={item['credit']}" if item.get("credit") else "") +
              (f"  {sig}" if sig else "") + f"  ({src.get('name')}, {src.get('fetched_at')}"
              + (f", {age}d old" if age else "") + ")"]
-    body = " ".join(str(item.get("body") or "").split())
+    if width:
+        body = " ".join(str(item.get("body") or "").split())
+        body = body[:width] + "…" if len(body) > width else body
+    else:  # `material show`: the whole text, with its line breaks (a chapter, a review thread)
+        body = "\n  ".join(ln.strip() for ln in str(item.get("body") or "").splitlines() if ln.strip())
     if body:
-        lines.append("  " + (body[:width] + "…" if len(body) > width else body))
+        lines.append("  " + body)
     if src.get("url"):
         lines.append(f"  {src['url']}")
     for ln in item.get("links") or []:
