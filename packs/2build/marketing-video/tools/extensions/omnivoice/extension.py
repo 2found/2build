@@ -1,5 +1,5 @@
 """OmniVoice (k2-fsa/OmniVoice, open weights) as an mvf voice engine: clone a reference
-voice or design a new one, voiced locally and heard back by Whisper.
+voice or design a new one, voiced locally; Whisper times each word for the captions.
 
 No voices ship with it. A clone reference is yours: <campaign>/voices/<name>.wav + .txt
 (the words it says), or .babysit/marketing-video/voices/ for every campaign on this
@@ -33,10 +33,9 @@ def _command() -> list[str]:
 
 VOICES = {
     "omnivoice": Voice(
-        "OmniVoice local TTS (clone a reference or design a voice) + Whisper hearing check; needs uv or $MVF_OMNIVOICE_PYTHON",
+        "OmniVoice local TTS (clone a reference or design a voice) + Whisper word timing; needs uv or $MVF_OMNIVOICE_PYTHON",
         modes=("take", "design", "rehear"),
         command=_command(),
-        opts={"retries": "re-voice a cue that dropped/added words, up to N times (default 2)",
-              "asr-model": "Whisper model for the hearing check (default openai/whisper-small)"},
+        opts={"asr-model": "Whisper model for word timing (default openai/whisper-small)"},
     ),
 }

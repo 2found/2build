@@ -237,8 +237,8 @@ timing is measured.
     `07-video/<sid>/recordings/<cue>.wav|mp3|m4a`. Run it without recordings to
     list the lines to record.
   - `omnivoice` (shipped extension, no voices included) clones `voice.ref` or
-    designs a voice (`mvf voice-design`, `mvf voice-pick`), and Whisper hears
-    each line back. `--rehear --engine omnivoice` aligns any take.
+    designs a voice (`mvf voice-design`, `mvf voice-pick`), and Whisper times
+    each word. `--rehear --engine omnivoice` re-times any take.
   - Reference voices live in `<campaign>/voices/` or
     `.babysit/marketing-video/voices/` (`<name>.wav` with a `.txt` of its
     words).
@@ -289,8 +289,7 @@ has helper files. It exports any of:
   - The job is `{language, say, voice: {mode, ref_wav?, ref_txt?, name?,
     speed}, cues: [{id, text, voice?}], workdir}`.
   - The engine writes `<cue>.wav` and `manifest.json`, which is `{cues: [{id,
-    text, path, duration_s, speech: [s, e], words: [{w, s, e}], asr: {heard,
-    dropped, added}}]}`.
+    text, path, duration_s, speech: [s, e], words: [{w, s, e}]}]}`.
 - `IMAGES = {"name": Image(about, command=[…] | run=fn, max_pixels, step,
   sides, refs, transparent, paid, heavy, needs)}`.
   - A command is run as `[*command, prompt, -o out.png, --size WxH, --seed N,

@@ -599,7 +599,7 @@ def cmd_voice(a):
     prev = takes(cd, s["id"])
     if a.rehear:
         if not prev:
-            raise SystemExit("no take to re-hear")
+            raise SystemExit("no take to re-time")
         job = tdir / f"{prev[-1].name}.rehear.json"
         dump(job, {"language": s.get("language", "en"), "say": say})
         run_voice(cd, name, eng, "rehear", job, prev[-1], opts)
@@ -651,15 +651,13 @@ def cmd_voice(a):
         order = {x["id"]: i for i, x in enumerate(cues)}
         m["cues"].sort(key=lambda x: order.get(x["id"], 99))
         m["reused_from"] = {prev[-1].name: sorted(reuse)}
-    m["asr_problems"] = [x["id"] for x in m["cues"] if x["asr"]["dropped"] or x["asr"]["added"]]
     m["mvf_voice"] = voice_key(s, name)
     m["script_sha256"] = __import__("hashlib").sha256(sp.read_bytes()).hexdigest()[:16]
     dump(part / "manifest.json", m)
     part.rename(new)
-    print(f"take {new.relative_to(cd)}" + (f"\nWARN ASR problems left in {m['asr_problems']}: listen, rewrite the line "
-                                           f"or re-run `mvf voice` (new seeds)" if m["asr_problems"] else ""))
-    if all(x["asr"].get("heard") is None for x in m["cues"]):
-        print("INFO nothing heard this take back: listen to every line (an engine with rehear can check it: --rehear --engine …)")
+    print(f"take {new.relative_to(cd)}: listen to every line")
+    if not m.get("asr_model"):
+        print("INFO word times are spread by length: an engine with rehear times them from the audio (--rehear --engine …)")
     for x in m["cues"]:
         print(f"  {x['id']:4} {x['speech'][1] - x['speech'][0]:5.2f}s  {x['text'][:70]}")
 
@@ -682,13 +680,6 @@ def cmd_voice_pick(a):
     w, t = src / f"{a.cand}.wav", src / f"{a.cand}.txt"
     if not w.is_file():
         raise SystemExit(f"no candidate {w}")
-    # A clone reference that says the wrong words teaches every line to slur: the
-    # Whisper check from voice-design must be clean unless the person overrides it.
-    rep = src / f"{a.cand.rsplit('.cand', 1)[0]}.candidates.json"
-    row = next((r for r in (load(rep)["candidates"] if rep.is_file() else []) if r["name"] == a.cand), None)
-    if row and (row["dropped"] or row["added"]) and not a.force:
-        raise SystemExit(f"{a.cand} failed its hearing check (dropped={row['dropped']} added={row['added']}); "
-                         f"pick a clean candidate, re-run voice-design, or --force after listening")
     shutil.copy2(w, cd / "voices" / f"{a.as_}.wav")
     shutil.copy2(t, cd / "voices" / f"{a.as_}.txt")
     print(f"voices/{a.as_}.wav is the reference; set script voice.ref = \"{a.as_}\" (mode clone or design)")
@@ -1025,7 +1016,7 @@ def main():
     p.add_argument("--engine", help="voice engine (default: voice.engine, campaign voice_engine, config, files)")
     p.add_argument("--opt", action="append", help="engine option key=value (repeatable; `mvf extensions` lists them)")
     p.add_argument("--all", action="store_true", help="re-voice every line, not only changed ones")
-    p.add_argument("--rehear", action="store_true", help="re-run ASR + alignment on the latest take (same audio)")
+    p.add_argument("--rehear", action="store_true", help="re-time the words of the latest take from its audio (same audio)")
     p.add_argument("--owner-skip", metavar="REASON", help="voice before the owner read the script (a test take, a demo)")
     p.set_defaults(fn=cmd_voice)
     p = sub.add_parser("voice-design")
@@ -1040,7 +1031,6 @@ def main():
     p = sub.add_parser("voice-pick")
     p.add_argument("cand")
     p.add_argument("--as", dest="as_", required=True)
-    p.add_argument("--force", action="store_true", help="adopt a candidate that failed the hearing check")
     p.set_defaults(fn=cmd_voice_pick)
     p = sub.add_parser("art")
     p.add_argument("action", nargs="?", default="ls", choices=["ls", "check", "draw", "approve"])

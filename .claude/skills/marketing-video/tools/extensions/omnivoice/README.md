@@ -2,8 +2,8 @@
 
 `mvf voice --engine omnivoice` (or `"voice_engine": "omnivoice"` in campaign.json)
 voices a script with [OmniVoice](https://huggingface.co/k2-fsa/OmniVoice) on
-this machine. Whisper then hears each line back. A line that dropped or added
-words is voiced again with a new seed.
+this machine, once per line. Whisper times each word for the captions; nothing
+checks what was said, so listen to every line.
 
 - **Voices.** None ship. Voice references are machine-local and never committed.
   Put `<name>.wav` plus `<name>.txt` (the exact words the clip says, 10–15 s) in
@@ -20,7 +20,7 @@ words is voiced again with a new seed.
 - **Heavy jobs.** If the machine is shared, set `MVF_HEAVY` or `"heavy"` in
   `.babysit/marketing-video/config.json` to a queue or lock command. Every
   model and render job then runs through that prefix.
-- **Options.** `--opt retries=3` and `--opt asr-model=openai/whisper-medium`.
+- **Options.** `--opt asr-model=openai/whisper-medium`.
 
 `tts_text.py` (cleaning and chunking) and `vi_numbers.py` (Vietnamese numbers
 read as words) are stdlib-only helpers for the worker. mvf's tests exercise

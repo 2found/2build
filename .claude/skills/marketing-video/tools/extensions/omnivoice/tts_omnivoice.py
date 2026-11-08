@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Voice a marketing script locally with OmniVoice, then hear it back with Whisper.
+"""Voice a marketing script locally with OmniVoice; Whisper times each word.
 
 Runs in its own Python environment for torch, OmniVoice and Whisper — by default an
 ephemeral `uv run --with …` env built by extension.py, or $MVF_OMNIVOICE_PYTHON —
@@ -9,13 +9,11 @@ hand only to debug.
 
   take   --job cues.json --out <take-dir>          one WAV per cue + manifest.json
   design --job design.json --out <voices-dir>      N candidate reference voices
-  rehear --job say.json --out <take-dir>           re-listen to a take: new words + ASR verdicts, same audio
+  rehear --job say.json --out <take-dir>           re-time the words of a take, same audio
 
-Each cue is cleaned and chunked by tts_text.py (chunk_plan),
-synthesised chunk by chunk, transcribed with word timestamps, and compared with what it
-should say. A cue that dropped or added two or more words is re-voiced with a
-new seed, up to --retries times; the attempt with the fewest problems is kept and
-any remaining problem is written to the manifest, never hidden.
+Each cue is cleaned and chunked by tts_text.py (chunk_plan), synthesised chunk by
+chunk once, and transcribed with word timestamps only to time the script's words.
+Nothing checks what was said against the script: listen to every line.
 
 Display words map to spoken words one to many (a brand respelling, a number said
 as words), so captions keep the script's spelling with the voice's timing. Vietnamese
@@ -241,7 +239,7 @@ def wav_info(path: Path):
     return dur, (max(0.0, act[0] * 0.01 - 0.03), min(dur, (act[-1] + 1) * 0.01 + 0.05))
 
 
-# ---------- ASR and alignment ----------
+# ---------- word timing (ASR alignment) ----------
 
 class Ears:
     def __init__(self, model: str):
@@ -274,8 +272,8 @@ class Ears:
         return {"heard": r["text"].strip(), "words": ws}
 
 
-def align(display: str, counts: list[int], spoken: str, heard: dict, speech: tuple[float, float]) -> tuple[list, list, list]:
-    """Display words with times, plus dropped/added runs (>= 2 tokens)."""
+def align(display: str, counts: list[int], spoken: str, heard: dict, speech: tuple[float, float]) -> list:
+    """Display words with times: matched words take Whisper's, the rest are interpolated."""
     sp_raw = fold(spoken)
     sp, sp_map = _merge_letters(sp_raw)
     h_raw, h_times_raw = [], []
@@ -289,7 +287,6 @@ def align(display: str, counts: list[int], spoken: str, heard: dict, speech: tup
         a, b = h_times_raw[i]
         htimes[j] = (a, b) if htimes[j] is None else (htimes[j][0], b)
     times: list = [None] * len(sp)
-    dropped, added = [], []
     for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, sp, htoks, autojunk=False).get_opcodes():
         if op == "equal":
             for k in range(i2 - i1):
@@ -303,11 +300,6 @@ def align(display: str, counts: list[int], spoken: str, heard: dict, speech: tup
             step = (b - a) / (i2 - i1)
             for k in range(i2 - i1):
                 times[i1 + k] = (a + step * k, a + step * (k + 1))
-        else:
-            if (i2 - i1) - (j2 - j1) >= 2 or (op == "delete" and i2 - i1 >= 2):
-                dropped.append(" ".join(sp[i1:i2]))
-            if (j2 - j1) - (i2 - i1) >= 2 or (op == "insert" and j2 - j1 >= 2):
-                added.append(" ".join(htoks[j1:j2]))
     # Interpolate unmatched tokens between known neighbours (or the speech span).
     known = [(i, t) for i, t in enumerate(times) if t]
     n = len(sp)
@@ -333,7 +325,7 @@ def align(display: str, counts: list[int], spoken: str, heard: dict, speech: tup
         w["s"] = max(w["s"], last)
         w["e"] = max(w["e"], w["s"] + 0.05)
         last = w["s"]
-    return out, dropped, added
+    return out
 
 
 # ---------- synthesis ----------
@@ -399,41 +391,25 @@ class Voice:
             w.writeframes(pcm)
 
 
-def voice_cue(v: Voice, ears: Ears, cue: dict, lang: str, speed: float, say: dict, out: Path, retries: int,
+def voice_cue(v: Voice, ears: Ears, cue: dict, lang: str, speed: float, say: dict, out: Path,
               instruct: str | None = None) -> dict:
     spoken, counts = spoken_text(cue["text"], lang, say)
     plan = chunk_plan(spoken, lang)
     if not plan:
         raise SystemExit(f"{cue['id']}: nothing left to say after cleaning")
     tts_text = "\n".join(" ".join(unit) for unit in plan)
-    best = None
-    base = int(hashlib.sha1(cue["id"].encode()).hexdigest()[:6], 16)
-    for attempt in range(retries + 1):
-        audio, sr = v.say(plan, lang, speed, seed=base + attempt, instruct=instruct)
-        wav = out / f"{cue['id']}.try{attempt}.wav"
-        v.save(wav, audio, sr)
-        dur, speech = wav_info(wav)
-        heard = ears.hear(wav, lang)
-        ws, dropped, added = align(cue["text"], counts, spoken, heard, speech)
-        score = len(" ".join(dropped).split()) + len(" ".join(added).split())
-        rec = {"wav": wav, "dur": dur, "speech": speech, "heard": heard["heard"], "words": ws,
-               "dropped": dropped, "added": added, "score": score, "attempt": attempt}
-        print(f"  {cue['id']} try {attempt}: {dur:.2f}s" + (f"  dropped={dropped} added={added}" if score else "  ok"), flush=True)
-        if best is None or score < best["score"]:
-            best = rec
-        if score == 0:
-            break
-    final = out / f"{cue['id']}.wav"
-    best["wav"].replace(final)
-    for p in out.glob(f"{cue['id']}.try*.wav"):
-        p.unlink()
-    return {"id": cue["id"], "text": cue["text"], "spoken": tts_text, "path": final.name, "sha256": sha(final),
-            "duration_s": round(best["dur"], 3), "speech": [round(best["speech"][0], 3), round(best["speech"][1], 3)],
-            "words": best["words"], "asr": {"heard": best["heard"], "dropped": best["dropped"], "added": best["added"],
-                                            "attempts": best["attempt"] + 1}}
+    seed = int(hashlib.sha1(cue["id"].encode()).hexdigest()[:6], 16)
+    audio, sr = v.say(plan, lang, speed, seed=seed, instruct=instruct)
+    wav = out / f"{cue['id']}.wav"
+    v.save(wav, audio, sr)
+    dur, speech = wav_info(wav)
+    ws = align(cue["text"], counts, spoken, ears.hear(wav, lang), speech)
+    print(f"  {cue['id']}: {dur:.2f}s", flush=True)
+    return {"id": cue["id"], "text": cue["text"], "spoken": tts_text, "path": wav.name, "sha256": sha(wav),
+            "duration_s": round(dur, 3), "speech": [round(speech[0], 3), round(speech[1], 3)], "words": ws}
 
 
-def run_take(job: dict, out: Path, retries: int, asr_model: str) -> None:
+def run_take(job: dict, out: Path, asr_model: str) -> None:
     lang, voice, say = job["language"], job["voice"], say_map(job.get("say"))
     speed = float(voice.get("speed", 1.0))
     if out.exists() and any(out.iterdir()):
@@ -453,44 +429,41 @@ def run_take(job: dict, out: Path, retries: int, asr_model: str) -> None:
         # a cue with its own reference (a second voice) speaks as a clone of it; the rest keep the script voice
         own = c.get("ref_wav")
         v.use(Path(own) if own else None, Path(c["ref_txt"]).read_text(encoding="utf-8").strip() if own else None)
-        rec = voice_cue(v, ears, c, lang, speed, say, out, retries, instruct=None if own else voice.get("instruct"))
+        rec = voice_cue(v, ears, c, lang, speed, say, out, instruct=None if own else voice.get("instruct"))
         if c.get("voice"):
             rec["voice"] = c["voice"]
             rec["voice_reference"] = {"wav_sha256": sha(Path(own))}
         cues.append(rec)
-    bad = [c["id"] for c in cues if c["asr"]["dropped"] or c["asr"]["added"]]
     manifest = {"engine": "local-omnivoice", "language": lang, "voice": voice, "settings": {**SETTINGS, "speed": speed},
                 "asr_model": asr_model, "voice_reference": {"wav_sha256": sha(ref), "transcript": ref_text} if ref else None,
-                "cues": cues, "asr_problems": bad, "qa": "PENDING LISTEN"}
+                "cues": cues, "qa": "PENDING LISTEN"}
     (out / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"VOICED {len(cues)} cues → {out}" + (f"; ASR problems left in {bad}" if bad else "; every cue says its line"))
+    print(f"VOICED {len(cues)} cues → {out}; listen to every line")
 
 
 def run_rehear(job: dict, take: Path, asr_model: str) -> None:
-    """Re-listen to an existing take (after an alignment fix): same audio, new words and ASR verdicts."""
+    """Re-time the words of an existing take (recorded lines, an alignment fix): same audio."""
     mp = take / "manifest.json"
     manifest = json.loads(mp.read_text(encoding="utf-8"))
     lang, say, ears = manifest["language"], say_map(job.get("say")), Ears(asr_model)
     for c in manifest["cues"]:
         spoken, counts = spoken_text(c["text"], lang, say)
         wav = take / c["path"]
-        dur, speech = wav_info(wav)
-        heard = ears.hear(wav, lang)
-        ws, dropped, added = align(c["text"], counts, spoken, heard, speech)
-        c.update(words=ws, asr={**c["asr"], "heard": heard["heard"], "dropped": dropped, "added": added})
-        print(f"  {c['id']}: " + (f"dropped={dropped} added={added}" if dropped or added else "ok"), flush=True)
-    manifest["asr_problems"] = [c["id"] for c in manifest["cues"] if c["asr"]["dropped"] or c["asr"]["added"]]
+        _, speech = wav_info(wav)
+        c["words"] = align(c["text"], counts, spoken, ears.hear(wav, lang), speech)
+        print(f"  {c['id']}: timed", flush=True)
+    manifest["asr_model"] = asr_model
     mp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"REHEARD {len(manifest['cues'])} cues in {take}; ASR problems: {manifest['asr_problems'] or 'none'}")
+    print(f"RETIMED {len(manifest['cues'])} cues in {take}")
 
 
-def run_design(job: dict, out: Path, asr_model: str) -> None:
+def run_design(job: dict, out: Path) -> None:
     """Candidates for a designed voice; the picked one becomes a clone reference."""
     out.mkdir(parents=True, exist_ok=True)
-    v, ears = Voice(), Ears(asr_model)
+    v = Voice()
     lang, text = job["language"], job["sample"]
-    # the sample is read like a cue: "1.300", "15:30" said as words, compared with what was said
-    spoken, counts = spoken_text(text, lang, say_map(job.get("say")))
+    # the sample is read like a cue: "1.300", "15:30" said as words
+    spoken, _ = spoken_text(text, lang, say_map(job.get("say")))
     plan = chunk_plan(spoken, lang)
     rows = []
     for k in range(job.get("n", 3)):
@@ -499,11 +472,9 @@ def run_design(job: dict, out: Path, asr_model: str) -> None:
         wav = out / f"{name}.wav"
         v.save(wav, audio, sr)
         (out / f"{name}.txt").write_text(text + "\n", encoding="utf-8")
-        dur, speech = wav_info(wav)
-        heard = ears.hear(wav, lang)
-        _, dropped, added = align(text, counts, spoken, heard, speech)
-        rows.append({"name": name, "duration_s": round(dur, 2), "heard": heard["heard"], "dropped": dropped, "added": added})
-        print(f"  {name}: {dur:.1f}s" + (f" dropped={dropped} added={added}" if dropped or added else " ok"), flush=True)
+        dur, _ = wav_info(wav)
+        rows.append({"name": name, "duration_s": round(dur, 2)})
+        print(f"  {name}: {dur:.1f}s", flush=True)
     (out / f"{job['name']}.candidates.json").write_text(json.dumps({"instruct": job["instruct"], "language": lang,
                                                                     "sample": text, "candidates": rows}, ensure_ascii=False, indent=2) + "\n")
     print(f"DESIGNED {len(rows)} candidates → {out}")
@@ -514,16 +485,15 @@ def main() -> None:
     ap.add_argument("mode", choices=["take", "design", "rehear"])
     ap.add_argument("--job", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--retries", type=int, default=2)
     ap.add_argument("--asr-model", default="openai/whisper-small")
     a = ap.parse_args()
     job = json.loads(a.job.read_text(encoding="utf-8"))
     if a.mode == "take":
-        run_take(job, a.out.resolve(), a.retries, a.asr_model)
+        run_take(job, a.out.resolve(), a.asr_model)
     elif a.mode == "rehear":
         run_rehear(job, a.out.resolve(), a.asr_model)
     else:
-        run_design(job, a.out.resolve(), a.asr_model)
+        run_design(job, a.out.resolve())
 
 
 if __name__ == "__main__":

@@ -1,4 +1,15 @@
 # Changelog
+## 1.126.2 — 2026-11-08
+
+### Changed
+
+- `marketing-video` OmniVoice voice stage drops the ASR dropped/added-word
+  judge and its re-voice retry loop: each cue is voiced once and Whisper is
+  used only to time the words for captions; `--rehear` re-times the latest
+  take instead of re-listening to it. The `retries` engine option,
+  `mvf voice-pick --force`, and the manifest `asr`/`asr_problems` fields are
+  removed — listen to every line.
+
 
 ## 1.126.1 — 2026-11-08
 

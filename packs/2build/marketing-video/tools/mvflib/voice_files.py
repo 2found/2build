@@ -3,9 +3,8 @@
 One file per cue, named by its id — `<from>/<cue>.{wav,mp3,m4a,aac,flac,ogg}`;
 `from` defaults to 07-video/<script>/recordings/ (`mvf voice --opt from=DIR`).
 Each is converted to 48 kHz mono WAV, its speech span found by silence detection,
-and word times spread across the span by length. Nothing hears it back: the ASR
-check is empty until an engine with `rehear` (e.g. `--rehear --engine omnivoice`)
-aligns the take.
+and word times spread across the span by length until an engine with `rehear`
+(e.g. `--rehear --engine omnivoice`) times them from the audio.
 """
 from __future__ import annotations
 
@@ -77,13 +76,13 @@ def run(mode: str, job: dict, out: Path, opts: dict) -> None:
         dur = duration(wav)
         s, e = speech_span(wav, dur)
         row = {"id": c["id"], "text": c["text"], "path": wav.name, "duration_s": round(dur, 3), "speech": [s, e],
-               "words": spread(c["text"], s, e), "asr": {"heard": None, "dropped": [], "added": []}}
+               "words": spread(c["text"], s, e)}
         if c.get("voice"):
             row["voice"] = c["voice"]
         cues.append(row)
     dump(out / "manifest.json", {"engine": "files", "language": job.get("language"), "voice": job.get("voice"),
                                  "settings": {"from": str(src)}, "asr_model": None, "voice_reference": None,
-                                 "cues": cues, "asr_problems": [], "qa": "PENDING LISTEN"})
+                                 "cues": cues, "qa": "PENDING LISTEN"})
 
 
 VOICE = Voice("Your own recordings, one file per line (07-video/<script>/recordings/<cue>.wav)", modes=("take",), run=run,

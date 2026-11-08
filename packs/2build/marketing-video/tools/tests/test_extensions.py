@@ -130,7 +130,7 @@ FAKE_ENGINE = textwrap.dedent("""
         with wave.open(str(out / f"{c['id']}.wav"), "wb") as w:
             w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(b"\\0\\0" * 16000)
         cues.append({"id": c["id"], "text": c["text"], "path": f"{c['id']}.wav", "duration_s": 1.0,
-                     "speech": [0.1, 0.9], "words": [], "asr": {"heard": c["text"], "dropped": [], "added": []}})
+                     "speech": [0.1, 0.9], "words": []})
     json.dump({"engine": "fake", "language": job["language"], "voice": job["voice"], "extra": extra, "cues": cues},
               open(out / "manifest.json", "w"))
 """)

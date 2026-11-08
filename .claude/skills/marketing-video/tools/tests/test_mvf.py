@@ -354,19 +354,17 @@ class Speech(unittest.TestCase):
         sp, c = tts.spoken_text("Reading MTL be like", "en", self.SAY)
         heard = {"words": [{"w": "Reading", "s": 0.1, "e": 0.4}, {"w": "MTL", "s": 0.45, "e": 0.9},
                            {"w": "be", "s": 0.95, "e": 1.0}, {"w": "like", "s": 1.05, "e": 1.3}]}
-        ws, dropped, added = tts.align("Reading MTL be like", c, sp, heard, (0.1, 1.3))
-        self.assertEqual((dropped, added), ([], []))
+        ws = tts.align("Reading MTL be like", c, sp, heard, (0.1, 1.3))
         self.assertEqual(ws[1], {"w": "MTL", "s": 0.45, "e": 0.9})
 
-    def test_url_heard_without_spaces_is_not_dropped(self):
+    def test_url_heard_without_spaces_keeps_its_times(self):
         text = "Paste at 2novel.app. First"
         sp, c = tts.spoken_text(text, "en", self.SAY)
         for w in ("twonovel.app,", "2novel.app,"):
             heard = {"words": [{"w": "Paste", "s": 0.1, "e": 0.4}, {"w": "at", "s": 0.45, "e": 0.55},
                                {"w": w, "s": 0.6, "e": 1.5}, {"w": "First", "s": 1.7, "e": 2.0}]}
-            ws, dropped, added = tts.align(text, c, sp, heard, (0.1, 2.0))
-            self.assertEqual((dropped, added), ([], []), w)
-            self.assertEqual((ws[2]["w"], ws[2]["s"], ws[3]["w"], ws[3]["e"]), ("2novel", 0.6, "app", 1.5))
+            ws = tts.align(text, c, sp, heard, (0.1, 2.0))
+            self.assertEqual((ws[2]["w"], ws[2]["s"], ws[3]["w"], ws[3]["e"]), ("2novel", 0.6, "app", 1.5), w)
 
     def test_english_is_voiced_sentence_by_sentence(self):
         s = "Okay, so it got dropped. I'm reading the raws tonight, and honestly? It's better."
@@ -400,11 +398,12 @@ class Speech(unittest.TestCase):
         # Vietnamese: written forms read, quotes and dashes gone
         self.assertEqual(clean("— “Giá 49.000đ lúc 15:30!!”", "vi"), "Giá bốn mươi chín nghìn đồng lúc mười lăm giờ ba mươi!")
 
-    def test_dropped_words_are_reported(self):
+    def test_unheard_words_are_interpolated(self):
         sp, c = tts.spoken_text("one two three four five", "en", {})
         heard = {"words": [{"w": "one", "s": 0, "e": 0.2}, {"w": "five", "s": 1.0, "e": 1.2}]}
-        _, dropped, _ = tts.align("one two three four five", c, sp, heard, (0, 1.2))
-        self.assertEqual(dropped, ["two three four"])
+        ws = tts.align("one two three four five", c, sp, heard, (0, 1.2))
+        self.assertEqual([w["w"] for w in ws], ["one", "two", "three", "four", "five"])
+        self.assertTrue(0.2 <= ws[1]["s"] < ws[2]["s"] < ws[3]["s"] < 1.0)
 
 
 class VietnameseReading(unittest.TestCase):
@@ -454,8 +453,7 @@ class VietnameseReading(unittest.TestCase):
         heard = {"words": [{"w": "Cả", "s": 0.1, "e": 0.3}, {"w": tts.normalize_vi("1300"), "s": 0.35, "e": 1.2},
                            {"w": "chương", "s": 1.25, "e": 1.5}, {"w": "anh", "s": 1.55, "e": 1.7},
                            {"w": "tóm", "s": 1.75, "e": 2.0}]}
-        ws, dropped, added = tts.align(display, c, sp, heard, (0.1, 2.0))
-        self.assertEqual((dropped, added), ([], []))
+        ws = tts.align(display, c, sp, heard, (0.1, 2.0))
         self.assertEqual((ws[1]["w"], ws[1]["s"], ws[1]["e"]), ("1300", 0.35, 1.2))
 
 

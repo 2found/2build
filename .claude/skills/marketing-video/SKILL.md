@@ -58,7 +58,7 @@ browser or a video it cannot read. Do it yourself before that stage's check.
 | Job | Engine | First use |
 | --- | --- | --- |
 | Edit and render | HyperFrames (HTML to video, `npx hyperframes`, Node 22+) | the first scaffold downloads the pinned version |
-| Voice | OmniVoice (clone or designed voice; Whisper hears each line back) | uv builds its environment on the first take (about 2 GB, once) |
+| Voice | OmniVoice (clone or designed voice; Whisper times the words) | uv builds its environment on the first take (about 2 GB, once) |
 | Pictures | Qwen Image 2.1 Turbo, and RMBG-1.4 cutouts (the `image-gen` skill) | `image-gen/scripts/setup` downloads the weights once; free and local |
 | Judge | Micro Fish on the user's Soot: a simulated crowd and an expert panel | the user signs in to a provider and names the model, then `mvf judge setup` |
 

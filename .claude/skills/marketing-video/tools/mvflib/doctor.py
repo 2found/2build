@@ -54,7 +54,7 @@ def checks(cd: Path | None = None, quick: bool = False) -> list[dict]:
     else:
         add("edit", "MISSING", "npx", "comes with Node.js")
 
-    # ---- voice: OmniVoice (+ Whisper hearing check) ----
+    # ---- voice: OmniVoice (+ Whisper word timing) ----
     py = os.environ.get("MVF_OMNIVOICE_PYTHON", "").strip()
     if py:
         ok = Path(py).is_file() and _ver([py, "-c", "import omnivoice, whisper; print('ok')"]) == "ok"
