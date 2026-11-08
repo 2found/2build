@@ -17,9 +17,10 @@ Exercise the application like a user and leave reproducible evidence.
    - `bbs ticket path requirement --read` — acceptance criteria
    - `bbs ticket path plan --read` — intended behavior, accepted scope,
      contracts/invariants, `**Unknowns:**`, `**Design:**` and `**Verify:**`
-   - For changed UI, the plan's design/prototype links or
-     `bbs ticket path design --read` — inspect the accepted prototype and
-     covered flows/states; presence of a path alone is not a comparison
+   - For changed UI, the Task spec's `## Prototype` section (Team), else the
+     plan's design/prototype links or `bbs ticket path design --read` —
+     inspect the accepted prototype and covered flows/states; presence of a
+     path alone is not a comparison
    - `bbs ticket path handoff --skill implement --latest --read` — and its
      `## Deviations`: each deviation is where the plan diverged from reality,
      the likeliest home of a wrong guess; also read findings/unknown outcomes
@@ -143,14 +144,22 @@ Exercise the application like a user and leave reproducible evidence.
    the `browse` engine — Read only `../browse/skill.md` § Engine before the
    first browser command; its session-name export and setup are mandatory. Non-UI: a real
    call sequence (curl, CLI, the repo's e2e suite). Never "test" a flow by
-   reading code or unit tests alone. For changed UI, compare the rendered
-   result with the accepted prototype at the relevant viewport and key states:
-   layout, interactions, content hierarchy and empty/error behavior. Link the
-   reference and actual screenshots; explain material differences against the
-   acceptance criteria, including accepted changes. Do not rewrite the baseline
-   to match the implementation. If the required reference is unavailable,
-   record the conformance gap instead of claiming a visual match. This is
-   acceptance verification, not pixel equality or a new design exercise.
+   reading code or unit tests alone. **Prototype conformance.** For changed
+   UI, every accepted prototype state the change owns is a case — all of
+   them, not a sample (a Team spec's `## Prototype` section lists them with
+   links). Per state: open its link, element-screenshot it, then drive the
+   real build with data that produces that state and screenshot it at the
+   same viewport; also run each screen with 80-character user-named strings
+   and at its narrowest supported width, even where the prototype omits
+   them. Compare layout, interactions, content hierarchy, overflow and
+   empty/error behavior, and save `prototype-conformance.md`: one row per
+   state — both screenshot paths, `match` / `fixed` / `deviates`, one
+   sentence on where it deviates. The prototype is the standard: fix the
+   build and re-shoot; never edit the prototype to match the build. A state
+   left `deviates` needs an accepted reason tied to a criterion; one not
+   checked, or whose reference will not load, is a conformance gap that
+   blocks PASS. This is acceptance verification, not pixel equality or a new
+   design exercise.
    Off-script time around the changed
    surface — findings feed back as derived cases — a few minutes, more when
    § Case count makes it mandatory.

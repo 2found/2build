@@ -163,7 +163,9 @@ run `review-pr` on `git diff <base_head> <phase commit>` at the effort in
 the check `{"criterion":"<phase id>","kind":"review"}` whose log is the
 review report. Readiness requires a passing one whenever a ticket of the phase
 deferred `review-pr` (every ticket off the floor). It then runs the `qa` skill's
-Team integration mode against **every criterion of this phase**, the
+Team integration mode against **every criterion of this phase**, **every
+prototype state** in its spec's `## Prototype` section (qa § prototype
+conformance — a phase with an unchecked state does not pass), the
 cross-ticket journeys, adjacent regressions and each earlier phase's
 criterion whose files or flows this phase's diff touches — not a union of
 ticket PASS counts — then submits the evidence. The rest of phases 1..k

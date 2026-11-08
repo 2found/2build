@@ -33,13 +33,16 @@ owns its own planning and review) and reused by every follow-up; see
 `--kind ticket` (`repair` or `redirect` for a follow-up) so `task
 done` holds the session to its gates. Each assignment includes the ticket's
 **slice** of the accepted parent artifacts — its ticket brief
-(`design.md#<seed key>`), the prototype ids it owns, and the plan and
+(`design.md#<seed key>`) and the plan and
 manifest rows it owns, by path and heading, with the whole documents linked
 for lookup rather than read up front: whatever a worker reads first it re-reads
 from cache on every later turn, and whole parent documents measured about 35k
 tokens of each worker's base context — the ticket requirement/seed, size and
 acceptance IDs, owned files and contracts, review effort, deferred heavy checks, selected
-route, resource lease and required evidence; bbs adds the
+route, resource lease and required evidence. Never retype or narrow the
+prototype states: `task show --spec` appends a `## Prototype` section listing
+every state the ticket's brief owns (a phase ticket: its children's), each
+with a `file://…/prototype.html#<id>` link. bbs adds the
 [worker lifecycle](worker-lifecycle.md) itself: the worker is already spawned,
 executes immediately, and reports exactly one `bbs team task done` per
 Dispatch. Missing inputs come through `bbs team task ask`, answered with

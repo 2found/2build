@@ -327,7 +327,11 @@ steps and ends when the ticket is ready for its phase's integration:
    before reporting ([contracts](../shared/contracts.md)).
 
    The ticket brief (`origin.design_doc`) and the parent prototype it links
-   are the accepted design: an `M`/`L` plan records only what the brief left
+   are the accepted design. Before building UI, open every state link in the
+   spec's `## Prototype` section and build from the rendered states, not
+   from the brief's prose; a link that does not load, or a state marked
+   "not in" the prototype, is a missing input for `bbs team task ask`, never
+   a guess. An `M`/`L` plan records only what the brief left
    open and any deviation, without restating it. Ticket-level `design-ui`
    only extends the parent prototype with a state the brief missed, linking
    the parent id; never a new layout. Changing a brief's decision —

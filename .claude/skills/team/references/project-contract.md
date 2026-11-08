@@ -22,9 +22,14 @@ Before phase tickets, worktrees, or production dispatch:
      and why each lost against those criteria. "None viable" with the reason
      is an answer; the human reads this section at design review.
    - `prototype.html`: one prototype of the whole product across all phases,
-     with transitions and empty/error states, each screen and state under an
-     element id the owning brief links to. Non-UI designs use interfaces,
-     examples and a workflow with visual prototype N/A.
+     with transitions and empty/error states, each screen and state one
+     element under an id the owning brief links to, so
+     `prototype.html#<id>` opens it and an element screenshot captures it.
+     It also draws the hard data: every user-named string (names, titles,
+     labels) at 80 characters in at least one state per screen, and each
+     screen at the narrowest width the product supports. Every id has
+     exactly one owning brief. Non-UI designs use interfaces, examples and a
+     workflow with visual prototype N/A.
    - `plan.md`: the phase plan — what each phase ships and why it is safe to
      release alone — and acceptance criteria.
    - `manifest.md`: one row per ticket — phase, stable seed key, scope, size,
@@ -43,13 +48,16 @@ Before phase tickets, worktrees, or production dispatch:
    otherwise each re-decide. A **ticket brief** is decision-complete for its
    seed: owned files and modules; the exact shape of every interface it
    provides or consumes, with the providing seed; its data and schema
-   changes; the prototype ids of the screens and states it owns; its
+   changes; the prototype ids of the screens and states it owns, written
+   as `` `#<id>` `` inside its `## <seed key>` section (bbs reads them from
+   there into every Task spec of the ticket and its phase); its
    acceptance IDs; and the few choices it may make locally. The bar: an
    `XS`/`S` ticket builds from its brief alone, and an `M`/`L` ticket plans
    only what its brief leaves open. The design worker checks its draft
    against this bar before it reports: a seed without a brief, an interface
    without one owner and an exact shape, a user-facing seed without
-   prototype ids, an architecture, data-model or contract choice left to a
+   prototype ids, a prototype id no brief owns or one a brief cites that the
+   prototype lacks, a screen without its long-text or narrow state, an architecture, data-model or contract choice left to a
    ticket, a one-way decision with no alternative weighed, or a phase split into several
    tickets without a reason [split by context](topology.md#split-by-context)
    accepts. The lead reads the report against the same bar and starts a new

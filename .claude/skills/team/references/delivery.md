@@ -91,6 +91,9 @@ run, in one place.
    **What you can do now** — the journeys of the spec, in product terms.
    **See it** — preview URL or start command; where test accounts live.
    **Evidence** — per acceptance criterion: PASS and its evidence link.
+   **Prototype conformance** — one row per prototype state of phases 1..k:
+     prototype and build screenshots side by side, match / fixed / deviates,
+     and one sentence on where it deviates (from each phase QA's table).
    **Decisions taken for you** — each with the reason and how to reverse it.
    **Limits and follow-ups** — known gaps, skipped gates, carried evidence,
      anything parked; what is out of scope by the spec. Every open finding

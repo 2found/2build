@@ -151,6 +151,7 @@ func renderTaskSpec(t foreman.Task, spec string) string {
 	}
 	fmt.Fprintf(&b, "Before any bbs command: `export %s`.\n\n", exports)
 	b.WriteString(strings.TrimRight(spec, "\n"))
+	b.WriteString(prototypeSection(t))
 	// A relaunched Task (its worker exited, was lost or abandoned) resumes:
 	// the earlier Dispatches are named so the lead never retypes what was done.
 	earlier := t.Dispatches

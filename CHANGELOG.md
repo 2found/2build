@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.126.0 — 2026-11-08
+
+### Added
+
+- Team Task specs now carry a `## Prototype` section: `bbs team task show
+  --spec` appends every prototype state the ticket's brief owns (a phase
+  ticket: its children's), each with a `file://…/prototype.html#<id>` link,
+  so workers build from the accepted prototype instead of a retyped summary.
+- `qa` gains a prototype-conformance contract for changed UI: every owned
+  prototype state is a case — screenshot the reference and the real build,
+  compare layout, overflow and empty/error behavior, record
+  `prototype-conformance.md`; an unchecked or unloadable state blocks PASS.
+
+### Changed
+
+- Phase QA and the delivery recap require the conformance table per
+  prototype state; autopilot instructs workers to open every state link
+  before building UI and to treat missing/unloadable links as `task ask`
+  input.
+
 ## 1.125.0 — 2026-11-08
 
 ### Added
