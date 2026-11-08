@@ -663,7 +663,7 @@ def judge_video(cd: Path, proj: Path, round_: str, size: str, platform: str, dry
     (out / "retell.md").write_text(retell_sheet(cd, t, key), encoding="utf-8")
     print(f"judge video: watch {s['watch_through']}% · attention {s['attention']} · clarity top2 {s['clarity_top2']}% · "
           f"intent top2 {s['intent_top2']}% · ad-feel {s['ad_feel']} · expert P0/P1 {len(s['expert_blocking'])} → "
-          f"{out / 'judge.json'}; read {out / 'answer.md'} and {out / 'retell.md'}, fix before export")
+          f"{out / 'judge.json'}; read {out / 'answer.md'} and {out / 'retell.md'}, fix once, then export without judging again")
     return out
 
 

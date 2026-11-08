@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.126.1 — 2026-11-08
+
+### Changed
+
+- `marketing-video` review now contracts "judge once, fix once, ship": after
+  the panel judges a cut, fix the findings and export without a second
+  `mvf judge video` round; re-judge only on owner request or a
+  script-level change.
+
 ## 1.126.0 — 2026-11-08
 
 ### Added

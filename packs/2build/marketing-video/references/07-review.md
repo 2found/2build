@@ -20,6 +20,13 @@ caption over a face or a plate that melts at full size.
   still retell it once the picture, pace and captions are real. Each expert
   P0 goes into `review.json` as an issue. Export WARNs (JV1) when a delivered
   cut was never judged.
+- **Judge once, fix once, ship.** After the panel has judged a cut, fix what it
+  found (or accept it in `review.json` with a reason), check the fix with your
+  own eyes and `mvf score`, and deliver. Do not run `mvf judge video` again on
+  the fixed cut: a second round costs the owner another ~10 minutes and tokens
+  for a verdict they did not ask for. Re-judge only when the owner asks, or
+  when the fix changed what the video says end to end (a new script, not a
+  corrected line).
 
 | Sev | Means | Examples |
 | --- | --- | --- |
