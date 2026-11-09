@@ -166,12 +166,72 @@ Từ một lần audit, owner nhận được:
 
 ## Sau khi sửa
 
-<!-- RESULTS: cập nhật sau khi autopilot xong và chạy /bbs:perf-audit verify -->
+`autopilot` làm F1 và F2 trong một lượt. Bản sửa lên production lúc 17:05
+cùng ngày (giờ VN). Khoảng hai giờ sau, tụi mình chạy `/bbs:perf-audit verify`
+trên chính báo cáo đó, với cùng nguồn log, cùng script và cùng cách bỏ phút sự
+cố khi tính p95.
 
-`autopilot` đang chạy các việc sửa từ báo cáo. Khi xong, tụi mình sẽ chạy
-`/bbs:perf-audit verify` trên chính báo cáo đó: đo lại đúng các đường, cùng
-phương pháp, cùng loại cửa sổ, rồi chấm từng phát hiện là `fixed`, `still`
-hay `regressed`. Kết quả cập nhật ở đây.
+Kết quả là `fixed=1 still=2 regressed=0`. Chuyện không đơn giản như con số
+đó.
+
+| | trước | sau |
+|---|---|---|
+| Cả API treo khi có lần huỷ lớn | ~4 phút | ~15 s |
+| `/readyz` (`SELECT 1`) chậm nhất | 23,7 s | 0,56 s |
+| Nút huỷ chậm nhất | 69 s | 23 s |
+| Nút huỷ báo lỗi | 2/25 lần | **3/5 lần** |
+| Log có route, workspace, mã lỗi SQL | không | có |
+| Thư viện của khách thật | không tách được | ~0,02 s (mới có 2 lượt) |
+
+**F2 `fixed`.** Cả ba lệnh nghiệm thu đều đạt. `log_paths.py` tự in route
+template mà không cần danh sách route viết tay, không còn dòng log nào chứa
+tham số SQL, và lỗi DB có mã SQLSTATE. Log mới trả lời được ngay câu hỏi mà
+báo cáo gốc phải để ngỏ: trang thư viện chỉ chậm với workspace nội bộ (p95
+0,89 s), còn khách thật mở trong khoảng 20 ms. Mẫu còn nhỏ, nhưng nó khớp với
+điều kiện mà báo cáo đặt cho F3 ("chỉ làm khi F2 cho thấy khách bị chậm").
+Nên F3 vẫn `still`, và tụi mình cố ý để nó như vậy: chưa cần dựng bảng bộ đếm
+và trigger trên một bảng 1,5 GB.
+
+**F1 `still`, dù đã sửa đúng chỗ.** Cái `Promise.all` đã được thay bằng hoàn
+tiền theo lô ở luồng nền. Ở lab, 5/5 test DB đều qua: số transaction chạy
+cùng lúc không vượt giới hạn, mỗi job chỉ được hoàn một lần. Lần huỷ lớn đầu
+tiên sau khi deploy chỉ làm app chậm khoảng 15 giây, thay vì 4 phút. Nhưng
+nghiệm thu live đòi "không có `keepalive_timeout`, không route nào vượt 2 s",
+và lần này vẫn có cả hai. Thêm vào đó, 3 trên 5 lần bấm huỷ báo lỗi.
+
+Lần này thì log nói được vì sao, nhờ chính F2. Cả ba lỗi đều là `40P01`, tức
+deadlock. Log Postgres có đủ 5 deadlock trong phút đó, và cả 5 đều là đúng một
+cặp câu lệnh, cùng do lệnh huỷ sinh ra. Lệnh huỷ bắn một câu UPDATE lên pool
+worker để nhả quyền giữ các job đang chờ, không chờ nó xong. Ngay sau đó, nó
+chạy câu UPDATE thứ hai trên pool request để chuyển chính các job đó sang
+trạng thái đã huỷ. Hai câu đi qua cùng mấy nghìn dòng theo hai thứ tự khác
+nhau, nên Postgres phải giết một bên. Người dùng thấy lỗi thì bấm lại, và các
+lần bấm lại góp phần tạo ra 15 giây chậm kia.
+
+Trước khi sửa, lỗi này bị che hai lớp: sau bốn phút nghẽn pool, và sau dòng
+`Failed query` không có mã lỗi. Nó thành F4, cũng ở bậc 1, chi phí 0 đồng,
+không cần migration, kèm nghiệm thu "0 deadlock khi huỷ 10 lần liên tiếp 5.000
+job".
+
+Verify còn bắt được hai chuyện nhỏ hơn:
+
+- **Gợi ý "restart translate-api" vẫn hiện ra** khi pool đang bận 9/10 kết
+  nối, vì code chỉ coi pool là bận ở mức 10/10. Probe xong sau 14 giây, tức
+  nó đã phải xếp hàng chứ socket không chết. Đây là F5, sửa vài dòng.
+- **Một lần chậm 10 giây lúc 18:41 không dính tới lần huỷ nào.** Đúng lúc đó
+  CPU của máy chủ dùng chung nghẽn 80 %. Báo cáo ghi nó là nghi vấn thuộc
+  tầng nền tảng, không xếp thành việc sửa cho 2novel.
+
+Còn hai chỗ chưa chắc, và báo cáo ghi thẳng ra. Thứ nhất, mới có một cửa sổ
+đo khoảng hai giờ, trong khi luật nhiễu của skill đòi hai cửa sổ có lượng
+truy cập tương đương. Thứ hai, tiền hoàn trên production chưa được đối soát,
+vì việc đó cần đọc DB, mà quyền đọc DB phải được owner duyệt lại cho từng
+lần.
+
+Điều tụi mình rút ra là verify đáng chạy thật. Nếu dừng ở "test xanh, deploy
+xong", F1 đã được đánh dấu là xong. Đo lại cho thấy bản sửa đúng hướng (4 phút
+xuống 15 giây), thấy nó chưa đủ, và tìm ra nguyên nhân kế tiếp. Nguyên nhân đó
+chỉ lộ ra vì việc sửa log (F2) đã được làm cùng lượt.
 
 ## Vòng khép kín
 

@@ -94,6 +94,23 @@ method and comparable traffic and marks each finding `fixed`, `still` or
 range and differs by at least 10 %. A lab verify of undeployed code says so;
 production confirmation is a later `verify`.
 
+A verify judges each finding by its own acceptance criteria, not by whether
+the patch merged. On 2novel (2026-11-09) the audit found that a bulk cancel
+refunded every job at once on the request pool and froze the API for about
+four minutes. Two hours after the fix shipped, `verify` returned
+`VERIFIED(fixed=1 still=2 regressed=0)`:
+
+| Finding | Before → after | Verdict |
+|---|---|---|
+| F1 bulk cancel drains the request pool | freeze ~4 min → ~15 s; cancel errors 2/25 → 3/5 | `still`: the root cause is gone (lab tests pass), but live acceptance failed |
+| F2 logs lack route, workspace and SQLSTATE | all three present, no SQL params | `fixed` |
+| F3 library aggregates every chapter per poll | customers ~20 ms, internal workspace 0.89 s | `still`, deferred by design |
+
+The F2 logs also exposed what the freeze had hidden: each failed cancel was a
+`40P01` deadlock between two updates fired by the cancel itself. That became
+a new rung-1 finding with its own acceptance. A one-window verify says that
+its numbers are provisional until a second comparable window is measured.
+
 ### The performance profile
 
 `docs/PERFORMANCE.md` carries what one audit learns to the next: the read-only
