@@ -8,6 +8,11 @@
       "description": "Write a product's docs, quick start or marketing page around one copyable coding-agent prompt, and serve docs as agent-readable Markdown (llms.txt, .md URLs). Use for onboarding docs, quick starts, product pages, heroes and CTAs."
     },
     {
+      "name": "2build_architect",
+      "file": "architect/skill.md",
+      "description": "Map a system's current architecture and design its next generation with diagrams: verified as-is design, headroom, safety gaps, and a staged scaling roadmap (edge, database, cache, jobs, replicas, services) where each stage waits for a measured trigger."
+    },
+    {
       "name": "2build_autopilot",
       "file": "autopilot/skill.md",
       "description": "Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; the default for any size of change, including a day-long one. Use team only for phased releases, independent phase verification or parallel work on disjoint parts."
@@ -51,6 +56,11 @@
       "name": "2build_marketing-video",
       "file": "marketing-video/skill.md",
       "description": "Plan and produce marketing videos for your own product on TikTok, YouTube (Shorts and long-form), Instagram and Facebook Reels, X and LinkedIn, for any product and any kind of video, from research to a script strangers can retell, art, voice, edit and per-platform files; you post them."
+    },
+    {
+      "name": "2build_perf-audit",
+      "file": "perf-audit/skill.md",
+      "description": "Audit one feature's or the whole system's performance for an owner who is not an engineer: what users feel, proven causes from production signals, fixes ranked easiest and safest first. Use when something feels slow, before buying capacity, or to verify a fix."
     },
     {
       "name": "2build_plan-draft",
@@ -110,7 +120,7 @@
     {
       "name": "2build_ui-audit",
       "file": "ui-audit/skill.md",
-      "description": "Evaluate a running app's UI/UX by using it as a named persona through one real work flow, scored with PURE step ratings, Nielsen severities and measured thresholds; also builds the app's flow inventory. Use before planning UI improvements or to re-audit a flow after a fix."
+      "description": "Audit a running app's UI/UX by walking real user or founder journeys end to end (PASS/FRICTION/BLOCKED), checking every screen against backend ground truth, dead ends, discoverability and non-happy paths; scored with PURE step ratings, Nielsen severities and measured thresholds. Also builds the flow inventory and re-audits after a fix. Use before planning UI improvements, when users report getting stuck, or to audit a live app safely."
     }
   ]
 }

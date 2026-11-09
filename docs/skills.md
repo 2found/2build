@@ -11,6 +11,7 @@ Team run the other skills for you as steps of their work.
 | Prototype | `/bbs:design-ui "<screens>"` | A clickable prototype for you to approve |
 | Build one ticket | `/bbs:autopilot "<requirement>"` — feature or bug fix (auto-selects build/implement/child/verify) | QA-verified change, left uncommitted |
 | Build a whole project | `/bbs:team "<project>"` — an autonomous product team on Orca: you confirm the spec and approve the basic design, then review the handover | A reviewed product, one commit per phase with cumulative QA, released on your go at handover; in-scope feedback fixed by the team |
+| Check performance | `/bbs:perf-audit "<feature>"`, or no target for the whole system | A plain-language report: what users feel, the proven causes, fixes ranked easiest and safest first, each a ready `/bbs:autopilot` requirement with before/after acceptance |
 | Release | `/bbs:release` (`--local`, `--dry-run`, `--prepare`, `--resume <tag>`) | Verified distribution, deploy and hypercare |
 | Market test and launch | `/bbs:marketing-video "<goal>"` | Per-platform video files (TikTok, YouTube, Reels, X, LinkedIn) from a script a simulated panel could retell; you read the script, then post them yourself |
 
@@ -47,6 +48,7 @@ outside a workflow.
 | Audit weak, redundant or unrun tests | `/bbs:test audit` |
 | Measure and optimize test lanes | `/bbs:test optimize` |
 | Root-cause a bug | `/bbs:investigate` |
+| Baseline and verify a performance change | `/bbs:perf-audit` (`verify <report>`) |
 | Focused browser check | `/bbs:browse` |
 | Full test/fix browser loop | `/bbs:qa` |
 | Pre-landing code review | `/bbs:review-pr` |
@@ -67,6 +69,7 @@ listing, so the agent never picks them up on its own — type the command.
 | Turn 2build's own telemetry into ticket-ready findings | `/bbs:telemetry-review` |
 | Find where session tokens and background context go, rank savings | `/bbs:token-audit` |
 | Evaluate a running app's UX by using it as a persona; inventory work flows | `/bbs:ui-audit` |
+| Map the current architecture and design the next generation: diagrams, headroom, a scaling roadmap with measured triggers | `/bbs:architect` |
 | Evaluate external code | `/bbs:recon` |
 | Docs, quick start or marketing page built around one agent prompt; agent-readable Markdown | `/bbs:agent-first-docs` |
 | Draw an image or cut one out locally (Qwen Image, RMBG-1.4; no account); marketing-video's `mvf art` uses it | `/bbs:image-gen` |

@@ -1,4 +1,44 @@
 # Changelog
+## 1.127.0 — 2026-11-09
+
+### Added
+
+- New `perf-audit` skill: audits one feature or the whole system's
+  performance for a non-engineer owner — what users feel, causes proven
+  from production signals (route templates from request logs, burst-second
+  and 429-retry signatures, read-only SQL snapshot), fixes ranked easiest
+  and safest first, each shipped as a ready `autopilot` requirement with
+  before/after acceptance; `verify <report>` re-measures a fix.
+- New `architect` skill: maps a system's verified as-is architecture and
+  designs its next generation — diagrams, headroom, safety gaps and a
+  staged scaling roadmap (edge, database, cache, jobs, replicas, services)
+  where each stage waits for a measured trigger; writes
+  `docs/architecture-next.md`, never code or config.
+- Handoff contracts: `perf-audit` reports `AUDITED(<verdict>, counts)` /
+  `VERIFIED(fixed/still/regressed)`; `architect` reports
+  `ARCHITECTED(<scope>, findings, stages)`.
+- `tests/test_perf_audit_scripts.sh` covers the log aggregator's route
+  templating, id redaction and log shapes.
+
+### Changed
+
+- `ui-audit` reworked around end-to-end journeys (PASS/FRICTION/BLOCKED):
+  backend ground truth gathered first and checked against every screen,
+  dead ends, discoverability and non-happy paths; live/production audits
+  get a read-only safety contract; detail split into `references/`
+  (checklists, live-safety, helpers, report-template).
+- `autopilot` routes performance work to `perf-audit`: a requirement
+  citing its report takes the report as baseline and `verify <report>`
+  as acceptance.
+- `setup-project` documents that `docs/architecture-next.md` and the
+  `perf-audit` profile (`docs/PERFORMANCE.md`) link from the system
+  document's Sources; they are not architecture owners.
+- `marketing-video` adds a craft stage and cold-viewer review: new mvflib
+  modules (craft, picture, formats, fresh, viewer) and `07-craft.md` cut
+  standards; the benefit is now the owner's optional call, ideas ranked by
+  what the audience watched; stage 7 is reviewed by a cold viewer who
+  never read the plan.
+
 ## 1.126.2 — 2026-11-08
 
 ### Changed

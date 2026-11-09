@@ -6,7 +6,7 @@
 fixes issues. For UI work, it creates a prototype first. You can
 follow progress without reminding the agent to do each step.
 
-The pack contains 22 skills for product engineering and growth.
+The pack contains 24 skills for product engineering and growth.
 The companion `bbs` CLI keeps progress and evidence on disk.
 
 A 2found product. With [Soot](https://trysoot.com), powered by 2agent,
@@ -72,12 +72,13 @@ for that workflow.
 ## Full skill inventory
 
 <details>
-<summary>Browse all 22 skills and their packaged sizes</summary>
+<summary>Browse all 24 skills and their packaged sizes</summary>
 
 | Skill | Bytes | When to use |
 | --- | --- | --- |
 | `agent-first-docs` | 3256 | Write a product's docs, quick start or marketing page around one copyable coding-agent prompt, and serve docs as agent-readable Markdown (llms.txt, .md URLs). Use for onboarding docs, quick starts, product pages, heroes and CTAs. |
-| `autopilot` | 39520 | Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; the default for any size of change, including a day-long one. Use team only for phased releases, independent phase verification or parallel work on disjoint parts. |
+| `architect` | 7082 | Map a system's current architecture and design its next generation with diagrams: verified as-is design, headroom, safety gaps, and a staged scaling roadmap (edge, database, cache, jobs, replicas, services) where each stage waits for a measured trigger. |
+| `autopilot` | 39698 | Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; the default for any size of change, including a day-long one. Use team only for phased releases, independent phase verification or parallel work on disjoint parts. |
 | `browse` | 10000 | Use the browser for focused web-app checks: open a URL, inspect state, click through a flow, capture screenshots, read console errors, or verify a frontend fix. Prefer this over a full QA workflow. |
 | `create-pr` | 3056 | Prepare and create a pull request from the current branch. Use when a human requests a PR; 2build workflows never open one. |
 | `design-ui` | 3388 | Design and iterate a reviewable UI using the project's design authority and existing screens. Use for UI design requests or a workflow's design/prototype handoff; a direct build request can use the working UI as its prototype. |
@@ -86,6 +87,7 @@ for that workflow.
 | `implement` | 6125 | Implement a scoped code change from the user's request, an accepted plan.md, or ticket context. Use for feature work, bug fixes, endpoints, UI changes, integrations, and contained refactors. |
 | `investigate` | 1709 | Debug a failure before fixing it. Use when the user asks why something is broken, wants root cause analysis, or reports an error, regression, flaky test, crash, or unexpected behavior. |
 | `marketing-video` | 16568 | Plan and produce marketing videos for your own product on TikTok, YouTube (Shorts and long-form), Instagram and Facebook Reels, X and LinkedIn, for any product and any kind of video, from research to a script strangers can retell, art, voice, edit and per-platform files; you post them. |
+| `perf-audit` | 7639 | Audit one feature's or the whole system's performance for an owner who is not an engineer: what users feel, proven causes from production signals, fixes ranked easiest and safest first. Use when something feels slow, before buying capacity, or to verify a fix. |
 | `plan-draft` | 12568 | Draft a technical plan before implementation. Use when the user asks for a plan, architecture, ticket breakdown, or wants to turn a requirement into plan.md without coding yet. |
 | `qa` | 20977 | Systematically test a web application, fix issues caused by the current change, and re-verify. Use for full QA loops, critical user flows, release checks, or test-and-fix requests. |
 | `recon` | 1262 | Evaluate an external repository, library, or tool against the current project. Use for adoption decisions, architecture comparisons, or requests to explore and borrow from another project. |
@@ -97,7 +99,7 @@ for that workflow.
 | `test` | 7358 | Create meaningful regression coverage, audit weak or redundant tests, and optimize test lanes using measured cost and change impact. Use for test creation, suite audits, failing-test investigation, or CI test optimization; browser journey QA stays with qa/browse. |
 | `token-audit` | 5997 | Audit where agent sessions spend tokens and what every session loads before work starts (skill listing, CLAUDE.md/AGENTS.md, memory), then rank savings that keep quality. Use when runs feel expensive, before tuning skills, models, effort or compaction, or to check background context bloat. |
 | `triage` | 4510 | Tier-1 triage for a stalled or BLOCKED autonomous run. Use when a worker returned BLOCKED/NEEDS_CONTEXT or a ticket's checkpoint stopped advancing — classify recoverable vs needs-human, post a structured handoff, optionally resume from the checkpoint. |
-| `ui-audit` | 6907 | Evaluate a running app's UI/UX by using it as a named persona through one real work flow, scored with PURE step ratings, Nielsen severities and measured thresholds; also builds the app's flow inventory. Use before planning UI improvements or to re-audit a flow after a fix. |
+| `ui-audit` | 9354 | Audit a running app's UI/UX by walking real user or founder journeys end to end (PASS/FRICTION/BLOCKED), checking every screen against backend ground truth, dead ends, discoverability and non-happy paths; scored with PURE step ratings, Nielsen severities and measured thresholds. Also builds the flow inventory and re-audits after a fix. Use before planning UI improvements, when users report getting stuck, or to audit a live app safely. |
 
 </details>
 

@@ -23,6 +23,9 @@ root: `ARCHITECT*.md`, `ARCHITECTURE*.md`, `docs/architecture*.md`, nested
 `AGENTS.md`/`CLAUDE.md` that link one, and maintained sections of a README.
 Starters often ship one per service (e.g. `api/docs/ARCHITECTURE-API.md`,
 `web/docs/ARCHITECT-WEB.md`). Reuse what exists; create only what is missing.
+`docs/architecture-next.md` (the `architect` skill's next-generation design)
+and the performance profile (`perf-audit`, default `docs/PERFORMANCE.md`) are
+not architecture owners: the system document links them from Sources.
 Release owners: the profile linked from the entrypoint, otherwise
 `.babysit/release.md`, `RELEASE.md` or a maintained inline section.
 
@@ -38,7 +41,8 @@ Keep it about boundaries, so it stays short and stays true:
 
 1. **Sources** — a "need → read" table pointing at each service document,
    database/schema doc, content/data pipeline, deployment runbook, release
-   profile and design system that exist.
+   profile, performance profile, next-generation design and design system
+   that exist.
 2. **Fixed constraints** — stack, infrastructure, domains, identity provider.
 3. **Components** — one diagram and a one-line role per top-level directory.
 4. **Boundaries and contracts** — who calls whom, over what, who owns data and

@@ -216,7 +216,7 @@ terminal or wrap them in an orchestrator that can relay `NEEDS_CONTEXT`.
 
 | Compatibility | Skills |
 |---------------|--------|
-| **`INVOKER`-agnostic** (safe to chain unattended) | `agent-first-docs`, `autopilot`, `browse`, `create-pr`, `design-ui`, `harness-audit`, `implement`, `investigate`, `phased-build`, `plan-draft`, `qa`, `recon`, `release`, `review-pr`, `semantic-decision`, `setup-project`, `team`, `telemetry-review`, `test`, `token-audit`, `triage`, `ui-audit` |
+| **`INVOKER`-agnostic** (safe to chain unattended) | `agent-first-docs`, `architect`, `autopilot`, `browse`, `create-pr`, `design-ui`, `harness-audit`, `implement`, `investigate`, `perf-audit`, `phased-build`, `plan-draft`, `qa`, `recon`, `release`, `review-pr`, `semantic-decision`, `setup-project`, `team`, `telemetry-review`, `test`, `token-audit`, `triage`, `ui-audit` |
 | **`developer`-only** (require a human at the keyboard) | None; unresolved setup policy uses the caller's `NEEDS_CONTEXT` channel. |
 
 Team reaches its parent human design checkpoint by default; unattended callers

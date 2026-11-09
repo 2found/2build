@@ -279,7 +279,10 @@ inline. Use `SKILL_REF` in prompts: Claude Code `/bbs:<name>`, Codex
 `$bbs:<name>`, OMP `/<name>`. Use the installed skill name for tool calls.
 Planning: `plan-draft`. Coding: `implement`. Landing review: `review-pr`.
 QA: `qa` (no runnable target → record the fallback, use `browse` or a narrow
-local check). Debug: `investigate`. Committing and closing out is the human's
+local check). Debug: `investigate`. Performance: `perf-audit` — a
+requirement citing its report takes that report as the baseline and
+`verify <report>` as acceptance evidence; `audit` runs only when none exists.
+Committing and closing out is the human's
 (`create-pr`) or the lead's phase landing — never autopilot's.
 ### Managed project evidence
 
