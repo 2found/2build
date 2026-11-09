@@ -275,4 +275,4 @@ Lần tới có ai bảo "nâng server đi", hãy chạy `perf-audit` trước. 
 trả lời là một `Promise.all`.
 
 Hướng dẫn đầy đủ (tiếng Anh): [Performance and architecture](../docs/performance-and-architecture.md).
-Bản viết cho người không phải kỹ sư nằm trên [blog 2found.dev](https://2found.dev/vi/blog/); tài liệu 2build đọc tại [2found.dev/docs/2build](https://2found.dev/vi/docs/2build/).
+Bản viết cho người không phải kỹ sư: [App chậm? Đừng vội nâng server](https://2found.dev/vi/blog/before-you-buy-a-bigger-server-vi/) (tiếng Anh: [Measure before you buy a bigger server](https://2found.dev/blog/before-you-buy-a-bigger-server-en/)); tài liệu 2build đọc tại [2found.dev/docs/2build](https://2found.dev/vi/docs/2build/).
