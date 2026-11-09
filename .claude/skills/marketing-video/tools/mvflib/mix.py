@@ -21,6 +21,7 @@ OPEN_DB = 7.0        # bed this far under the voice between lines
 UNDER_VO_DB = 21.0   # and this far under while the voice speaks: quiet syllables sit ~12 dB under the
                      # line's loudest, so 21 keeps them sound.MIX_MARGIN_DB (8) over the bed; 15 failed every line
 RAMP = 0.15          # seconds the duck takes to move
+KEY_DB = 6.0         # a key line's hold (its last word to the next line): the bed steps back further so it lands
 
 
 def voice_level(proj: Path, tl: dict) -> tuple[float | None, list[tuple[float, float]]]:
@@ -38,6 +39,12 @@ def voice_level(proj: Path, tl: dict) -> tuple[float | None, list[tuple[float, f
         if lufs == lufs and lufs > -70:  # NaN / silent clip carry no level
             acc, total = acc + lufs * d, total + d
     return (acc / total if total else None), spans
+
+
+def key_holds(tl: dict) -> list[tuple[float, float]]:
+    """Each key line's hold: from its last word to the end of its slot."""
+    return [(b["vo_end"], b["end"]) for b in tl["beats"]
+            if b.get("key") and b.get("vo_end") is not None and b["end"] - b["vo_end"] > 2 * RAMP]
 
 
 def duck_expr(spans: list[tuple[float, float]], low: float) -> str:
@@ -73,7 +80,9 @@ def score(proj: Path, bed: Path | None) -> dict:
     gain = target - bed_lufs
     low = 10 ** ((OPEN_DB - UNDER_VO_DB) / 20)
     fade = min(0.8, dur / 4)
-    af = (f"volume={gain:.2f}dB,volume='{duck_expr(spans, low)}':eval=frame,"
+    keys = key_holds(tl)
+    kduck = f"volume='{duck_expr(keys, 10 ** (-KEY_DB / 20))}':eval=frame," if keys else ""
+    af = (f"volume={gain:.2f}dB,volume='{duck_expr(spans, low)}':eval=frame,{kduck}"
           f"afade=t=in:d=0.25,afade=t=out:st={max(0.0, dur - fade):.3f}:d={fade:.3f}")
     run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(raw), "-af", af, str(music / "bed.wav")])
     raw.unlink(missing_ok=True)
@@ -81,7 +90,8 @@ def score(proj: Path, bed: Path | None) -> dict:
     if vo_lufs is None:
         items.append({"level": "WARN", "msg": "no voice clips measured: bed set to -23 LUFS open; check it by ear"})
     items.append({"level": "INFO", "msg": f"bed {OPEN_DB:g} dB under the voice between lines, {UNDER_VO_DB:g} dB under while "
-                                          f"it speaks ({len(spans)} spans)"})
+                                          f"it speaks ({len(spans)} spans)"
+                                          + (f", {KEY_DB:g} dB more over {len(keys)} key-moment holds" if keys else "")})
     report = {"bed": str(bed), "voice_lufs": None if vo_lufs is None else round(vo_lufs, 1),
               "bed_lufs_raw": round(bed_lufs, 1), "gain_db": round(gain, 2), "open_db": OPEN_DB,
               "under_voice_db": UNDER_VO_DB, "items": items}

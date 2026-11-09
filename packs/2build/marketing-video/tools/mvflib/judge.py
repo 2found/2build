@@ -537,11 +537,13 @@ def judge_scripts(cd: Path, items: list[tuple[dict, str, str]], round_: str, siz
     cands = [e[0] for e in entries if e[1] == "candidate"]
     decision = ((f"Chọn MỘT trong {len(cands)} kịch bản (và hook của nó) để sản xuất thành video duy nhất. Tiêu chí theo thứ tự: "
                  "người lạ nghe một lần kể lại đúng điều video nói; họ dùng được gì; họ lưu hay gửi; họ xem tới đâu. "
-                 "Có một phương án đối chứng đã bị loại; nếu nó ngang hoặc hơn, hãy nói thẳng.")
+                 "Một phương án là đối chứng đã bị loại, nhưng không ai biết là phương án nào: đừng đoán và đừng gọi "
+                 "phương án nào là đối chứng; xếp hạng tất cả như nhau.")
                 if vi else
                 (f"Pick ONE of {len(cands)} scripts (with its hook) to produce as the only video. In order: a stranger who "
                  "hears it once retells what it said; what they can use; whether they save or send it; how far they "
-                 "watch. One variant is a control the team already rejected; if it ties or wins, say so."))
+                 "watch. One variant is a control the team already rejected, but nobody knows which: do not guess or "
+                 "call any variant the control; rank them all alike."))
     def stim(e: tuple, chars: int) -> str:
         if e[1] == "bench":
             return bench_stimulus(e[2], platform, vi, chars)
@@ -610,7 +612,25 @@ def collect(cd: Path, out: Path, interview: bool = True) -> Path:
           + (f", {out / 'interview.md'}" if (out / 'interview.md').is_file() else ""))
     for w in t.get("warnings") or []:
         print(f"WARN tally: {w}")
+    print("key: " + ", ".join(f"{lab} = {s['id']} ({s['kind']})" for lab, s in k["stimuli"].items()))
+    if (out / "answer.md").is_file():
+        for lab in mislabelled_controls((out / "answer.md").read_text(encoding="utf-8"), k["stimuli"]):
+            print(f"WARN answer.md calls {lab} ({k['stimuli'][lab]['id']}) the control; the control is "
+                  + ", ".join(f"{x} ({s['id']})" for x, s in k["stimuli"].items() if s["kind"] == "control")
+                  + ": read its verdict on that letter as a candidate's")
     return out
+
+
+CONTROL_WORD = r"(?:đối chứng|control)"
+
+
+def mislabelled_controls(answer: str, stimuli: dict) -> list[str]:
+    """Letters the analyst names as the control that the hidden key says are not. The panel never sees the key,
+    so an analyst asked about 'the control' guesses one, and a guess on a candidate reads as a rejected script."""
+    labs = "".join(stimuli)
+    hits = set(re.findall(rf"{CONTROL_WORD}\s+([{labs}])\b", answer, re.I))
+    hits |= set(re.findall(rf"\b([{labs}])\s*\(\s*{CONTROL_WORD}", answer, re.I))
+    return sorted(lab for lab in hits if stimuli[lab]["kind"] != "control")
 
 
 def resume(cd: Path, out: Path) -> Path:

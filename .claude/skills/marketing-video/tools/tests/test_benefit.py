@@ -29,10 +29,10 @@ def apply_script(vo="Next time you lend money, set the date first.", **over):
 
 
 class Campaign(unittest.TestCase):
-    def test_benefit_is_asked_for_and_checked(self):
+    def test_a_campaign_benefit_is_optional_and_checked(self):
         base = {"slug": "s", "product": "p", "goal": "awareness", "platforms": ["tiktok"], "languages": ["vi"],
                 "markets": ["VN"], "brand": {"names": ["p"]}, "kpi": "views"}
-        self.assertIn("BRF", codes(checks.check_campaign(base), "WARN"))
+        self.assertNotIn("BRF", codes(checks.check_campaign(base), "WARN"))  # each angle picks its own
         self.assertIn("BRF", codes(checks.check_campaign({**base, "benefit": "story"}), "FAIL"))
         self.assertNotIn("BRF", codes(checks.check_campaign({**base, "benefit": "lesson"})))
 
@@ -51,8 +51,36 @@ class Angle(unittest.TestCase):
         self.assertIn("STR3", codes(self.angles({**ok, "takeaway": "Trần Bình An never takes back a gift"}), "WARN"))
         self.assertIn("STR3", codes(self.angles({**ok, "type": "decide"}), "WARN"))
 
+    def test_an_awareness_angle_that_only_decides_about_the_product_warns(self):
+        g = {"id": "G1", "segment": "A1", "insight": "i", "promise": "p", "why_watch": "w", "why_share": "s",
+             "format": "story", "facts": ["F1"],
+             "benefit": {"type": "decide", "takeaway": "try thirteen chapters, then keep going if still curious",
+                         "use_when": "the first chapters of a long novel drag"}}
+        run = lambda goal: checks.check_angles({"angles": [g]}, {"F1"}, {"A1"}, set(), ["tiktok"], goal=goal)  # noqa: E731
+        self.assertIn("STR3", codes(run("awareness"), "WARN"))
+        self.assertNotIn("STR3", codes(run("signup"), "WARN"))
+
 
 class Lint(unittest.TestCase):
+    def test_past_scripts_are_the_other_campaigns_beside_this_one(self):
+        import json
+        import mvf as cli
+        with tempfile.TemporaryDirectory() as d:
+            for c in ("old", "new", "notes"):
+                (Path(d) / c / "05-scripts").mkdir(parents=True)
+                (Path(d) / c / "05-scripts/s01.json").write_text(json.dumps({"beats": [{"vo": f"lời của {c}"}]}))
+                if c != "notes":  # a folder without campaign.json is not a campaign
+                    (Path(d) / c / "campaign.json").write_text("{}")
+            self.assertEqual(cli.past_scripts(Path(d) / "new"), [("old/s01", "lời của old")])
+
+    def test_a_script_that_repeats_an_earlier_campaign_fails(self):
+        s = script()
+        vo = " ".join(b.get("vo") or "" for b in s["beats"])
+        self.assertIn("RP1", codes(lint(s, CAMPAIGN, {**REFS, "past": [("old/s01", vo)]}), "FAIL"))
+        self.assertNotIn("RP1", codes(lint(s, CAMPAIGN, {**REFS, "past": [("old/s01", "một câu chuyện khác hẳn về chuyện khác")]})))
+        ctl = {**s, "id": "ctl-old"}  # a control is an old rejected script on purpose
+        self.assertNotIn("RP1", codes(lint(ctl, CAMPAIGN, {**REFS, "past": [("old/s01", vo)]})))
+
     def test_use_is_required(self):
         s = script()
         del s["spine"]["use"]

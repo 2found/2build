@@ -4,7 +4,7 @@ Local music models do not run usably on a laptop and a catalog track is the
 user's to license, so a directed video still gets a score: pentatonic plucks, a
 pad, a drone and drums placed on the measured timeline. Every function returns
 float64 mono at SR; one-shots peak near 1.0 so a cue's dB is its peak level.
-Ported from the storyshort kit that shipped the Kiếm Lai films."""
+Ported from the storyshort kit."""
 from __future__ import annotations
 
 import numpy as np

@@ -18,13 +18,18 @@ away, before any angle exists.
 - **The ideas the scripts stand on are picked, and each stands on nuggets.**
   Pick one idea per candidate script (up to `budget.scripts`); the angles in
   [04](04-strategy.md) are built on them. Each pick names its `premise`, its
-  `benefit` (lesson, decide, answer, match or how-to) and `use_when`, the
-  moment in the viewer's own life it is for, in real sentences: a picked
-  idea with filler fields (`"x"`, `"?"`, a few words) FAILs.
+  `inside` (the scene, twist, line or rule from inside the subject that a
+  stranger would tell a friend tomorrow), its `benefit` (lesson, decide,
+  answer, match or how-to) and `use_when`, the moment in the viewer's own life
+  it is for, in real sentences: a picked idea with filler fields (`"x"`, `"?"`,
+  a few words) FAILs.
 
 `mvf check research` FAILs on these. It WARNs on thin research, on a pick that
-scores low, on more picks than scripts, on filler ideas, and on a pick that is
-off the campaign benefit or off every pattern. Thin research means fewer than
+stands only on number and fact nuggets (the subject's packaging), on one
+that rides a pattern whose best video has under a quarter of the views of
+the strongest pattern in the same scope (topic against topic, benefit against
+benefit), on more picks than scripts, on filler ideas, and on a pick
+that is off the owner's benefit or off every pattern. Thin research means fewer than
 8 sources from 3 sites with 2 community voices, 3 competitors, 5 questions, 8
 nuggets, about twice as many ideas as scripts (at least 6), or 5 top videos (2
 of them in the benefit scope). The counts are a floor for comparing, not a
@@ -45,26 +50,36 @@ scopes:
 
 Then write the `patterns` they share: the problem, the answer, the order.
 
-The benefit audience is usually far bigger than the topic's fans. Kiếm Lai is
-one example. Recaps of the novel drew a few hundred thousand views. Life-advice
-videos on "how to handle people who look down on you" drew more, by using a
-historical or fictional figure as the authority while the viewer stayed the
-subject. A budgeting app's best reference may be a money-advice creator, not
+The benefit audience is usually far bigger than the topic's fans. Recaps of
+a novel may draw a few hundred thousand views while life-advice videos on "how
+to handle people who look down on you" draw millions, by using a historical or
+fictional figure as the authority while the viewer stays the subject. A budgeting app's best reference may be a money-advice creator, not
 another app demo. A campaign that reads only its own topic writes a fan recap.
 
 ### Reach
 Write each premise once in the words of someone who has never heard of the
 topic: no title, no hero's or product name, no jargon. If it still makes them
 need the answer, it reaches. If it only works once the world or the product is
-explained, it is an insider video, and its `reach` score says so. List the
+explained, it is an insider video; pick another or find the everyday situation inside it. List the
 insider words in `lore_terms`; the lint flags them in hooks and early beats.
 
 ### Ideas
-- **Benefit first.** Score `use`: something the viewer can do or think the
-  next time it happens to them; for an `answer`, how fully the evidence
-  settles the question as the audience asked it. A good story, an explainer or a ranking with
-  nothing to keep is how a video holds attention, not what it gives. Two
-  story scripts that every agent panel passed were rejected for exactly this.
+- **Inside first, then the use.** Start from what the top videos and the
+  community keep retelling: the scenes, twists, lines and rules of the
+  subject. Then ask what the viewer keeps from it: something to do or think
+  the next time it happens to them, or, for an `answer`, the question
+  settled as the audience asked it. Each half fails on its own. Two story
+  scripts with nothing to keep were rejected. So was a campaign of guides
+  about the product itself (which version to pick, how much to try first,
+  what to remember): the guides were useful and nobody had anything to retell.
+- **The audience ranks the ideas, not the writer.** Sort the patterns in
+  each scope by the views of their best videos, and ride the strongest unless
+  `new` says what it misses. Signals the audience leaves on the subject's own
+  parts (most-loved passages, most-replayed scenes, most-used features, top
+  reviews) count as evidence too. Agents score their own ideas high, so self-scores are not
+  kept.
+- **Not made before.** Read the scripts of every earlier campaign beside this
+  one and list what they said in `covered`; an idea that re-tells one is out.
 - **Shapes that tend to work:**
   - a principle for a moment in the viewer's life, with the subject as the
     proof;
@@ -74,6 +89,8 @@ insider words in `lore_terms`; the lint flags them in hooks and early beats.
   - a misread corrected;
   - one specific detail nobody retells.
 - **Shapes that tend to bore:**
+  - a guide to the product's packaging (how long, how many parts, which
+    edition, where to get it) with nothing from inside it;
   - a system or feature explained in order, like a wiki: names and parts
     with no question pulling them (explaining is fine; a list without a
     reason is not);
@@ -127,8 +144,7 @@ insider words in `lore_terms`; the lint flags them in hooks and early beats.
   - `nuggets: [{id, type, text, sources, where}]`. `sources` are source ids or
     01-product fact ids. `type` is fact, scene, quote,
     number, controversy, theory, behind-the-scenes, connection or mistake.
-  - `ideas: [{id, premise, question, payoff, benefit, use_when, pattern, nuggets, new, scores, pick}]`
-    with `scores` 1-5 for curiosity, use, emotion, share, novelty, proof and
-    reach. A strong pick totals 26 or more with nothing under 3 and `use` of
-    at least 4.
+  - `ideas: [{id, premise, question, payoff, inside, benefit, use_when, pattern, nuggets, new, pick}]`.
+    `patterns[].videos` name top videos by id or url, so their views rank
+    the patterns.
 - Angles (04) build on a picked idea: `idea: "I3"`.

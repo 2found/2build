@@ -27,6 +27,9 @@
   }
 
   const $ = (id) => "#" + id;
+  // a point k of the way from a to b, numeric keys only (k < 0 leans back before a move: anticipation)
+  const lerp = (a, b, k) => Object.fromEntries(Object.keys(b).map((key) =>
+    [key, typeof a[key] === "number" && typeof b[key] === "number" ? a[key] + (b[key] - a[key]) * k : b[key]]));
   // GSAP shifts every existing child later when one is placed at a negative time: never let that happen.
   const at = (t) => Math.max(0, t);
 
@@ -236,6 +239,36 @@
       });
       tl.to($(f.el), { opacity: 0, duration: 0.2, ease: "power1.in" }, at(f.at + f.dur - 0.2));
     },
+    dots(tl, f) {
+      // the grid lands, then the lit dots light one by one (the number as a share the eye can count)
+      const q = (c) => $(f.el) + " " + c;
+      tl.fromTo($(f.el), { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "power1.out", immediateRender: false }, at(f.at));
+      const all = document.querySelectorAll(q(".mvk-dot-grid i")), lit = document.querySelectorAll(q(".mvk-dot-grid i.lit b"));
+      const step = Math.min(0.012, 0.45 / Math.max(1, all.length));
+      all.forEach((d, i) => tl.fromTo(d, { scale: 0 }, { scale: 1, duration: 0.16, ease: "back.out(2)", immediateRender: false }, at(f.at + 0.1 + i * step)));
+      const t1 = f.at + 0.2 + all.length * step + (f.hold ?? 0.25), ls = Math.min(0.12, 0.9 / Math.max(1, lit.length));
+      lit.forEach((d, i) => tl.fromTo(d, { opacity: 0 }, { opacity: 1, duration: 0.14, ease: "power2.out", immediateRender: false }, at(t1 + i * ls)));
+      const sm = document.querySelector(q("small"));
+      if (sm) tl.fromTo(sm, { opacity: 0 }, { opacity: 0.9, duration: 0.25, ease: "none", immediateRender: false }, at(t1));
+      tl.to($(f.el), { opacity: 0, duration: 0.2, ease: "power1.in" }, at(f.at + f.dur - 0.2));
+    },
+    ladder(tl, f) {
+      // both ladders climb from the bottom at once; the marked rung lights last
+      const q = (c) => $(f.el) + " " + c;
+      tl.fromTo($(f.el), { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "power1.out", immediateRender: false }, at(f.at));
+      let last = f.at;
+      ["l", "r"].forEach((side) => {
+        const ps = document.querySelectorAll(q(".mvk-lad-" + side + " p")), st = Math.min(0.08, 0.8 / Math.max(1, ps.length));
+        ps.forEach((p, i) => {
+          const t = f.at + 0.15 + i * st;
+          tl.fromTo(p, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.2, ease: "power2.out", immediateRender: false }, at(t));
+          last = Math.max(last, t + 0.2);
+        });
+      });
+      const hot = document.querySelector(q("p.hot"));
+      if (hot) tl.fromTo(hot, { scale: 1 }, { scale: 1.12, duration: 0.18, ease: "power2.out", yoyo: true, repeat: 1, immediateRender: false }, at(last + 0.15));
+      tl.to($(f.el), { opacity: 0, duration: 0.2, ease: "power1.in" }, at(f.at + f.dur - 0.2));
+    },
     quote(tl, f) {
       tl.fromTo($(f.el), { opacity: 0 }, { opacity: 1, duration: 0.01, ease: "none", immediateRender: false }, at(f.at));
       tl.fromTo($(f.el) + " .mvk-q-mark", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(1.7)", immediateRender: false }, at(f.at));
@@ -312,7 +345,13 @@
       }
     }
     for (const m of L.moves || []) {
-      tl.fromTo(q(".mvk-lym"), mv(m.from), { ...mv(m.to), duration: m.dur, ease: m.ease || "power2.inOut", immediateRender: false }, at(m.at));
+      if (m.antic) {  // lean back a little, then travel past and settle: the move reads as alive, its end time unchanged
+        const pre = lerp(m.from, m.to, -m.antic), d1 = m.dur * 0.22;
+        tl.fromTo(q(".mvk-lym"), mv(m.from), { ...mv(pre), duration: d1, ease: "power1.out", immediateRender: false }, at(m.at));
+        tl.fromTo(q(".mvk-lym"), mv(pre), { ...mv(m.to), duration: m.dur - d1, ease: "back.out(1.4)", immediateRender: false }, at(m.at + d1));
+      } else {
+        tl.fromTo(q(".mvk-lym"), mv(m.from), { ...mv(m.to), duration: m.dur, ease: m.ease || "power2.inOut", immediateRender: false }, at(m.at));
+      }
     }
     for (const h of L.hits || []) {
       tl.fromTo(q(".mvk-lyh"), { x: 0, y: 0, rotation: 0 }, { x: h.dx, y: h.dy, rotation: h.rot, duration: 0.07, ease: "power2.out", immediateRender: false }, at(h.at));
@@ -345,7 +384,13 @@
     const R = L.rig, root = $(L.id) + " .mvk-rig";
     const vars = (p) => Object.fromEntries(Object.entries(p).map(([k, v]) => ["--" + k, v]));
     for (const p of R.tweens || []) {
-      tl.fromTo(root, vars(p.from), { ...vars(p.to), duration: p.dur, ease: p.ease || "power2.inOut", immediateRender: false }, at(p.at));
+      if (p.antic) {
+        const pre = lerp(p.from, p.to, -p.antic), d1 = p.dur * 0.25;
+        tl.fromTo(root, vars(p.from), { ...vars(pre), duration: d1, ease: "power1.out", immediateRender: false }, at(p.at));
+        tl.fromTo(root, vars(pre), { ...vars(p.to), duration: p.dur - d1, ease: "back.out(1.3)", immediateRender: false }, at(p.at + d1));
+      } else {
+        tl.fromTo(root, vars(p.from), { ...vars(p.to), duration: p.dur, ease: p.ease || "power2.inOut", immediateRender: false }, at(p.at));
+      }
     }
     const faces = document.querySelectorAll(root + " .rig-f");
     for (const f of R.facesets || []) faces.forEach((g) => tl.set(g, { opacity: g.classList.contains("rig-f-" + f.face) ? 1 : 0 }, at(f.at)));

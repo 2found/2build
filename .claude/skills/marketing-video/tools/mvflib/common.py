@@ -98,6 +98,15 @@ def parse_date(s) -> dt.date | None:
         return None
 
 
+SHEET_PX = 1_000_000  # a review image the agent reads stays under ~1 MP: more pixels cost tokens, not judgement
+
+
+def tile_width(W: int, H: int, cols: int, rows: int, cap: int = 240) -> int:
+    """Tile width (even px) so a cols×rows sheet of W×H frames stays under SHEET_PX."""
+    w = int((SHEET_PX / (cols * rows * H / W)) ** 0.5) - 8
+    return max(80, min(cap, w - w % 2))
+
+
 def load(path: Path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 

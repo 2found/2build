@@ -72,8 +72,9 @@ def good_research():
     nugs = [{"id": f"N{i}", "type": "scene", "text": f"detail {i}", "sources": ["R1"]} for i in range(1, 9)]
     ideas = [{"id": f"I{i}", "premise": f"premise number {i} in a sentence", "question": "why give the gift back?",
               "payoff": "because a gift that binds is a debt", "benefit": "lesson", "nuggets": ["N1"],
+              "inside": "the boy hands back the jade the immortal gave him",
               "use_when": "a friend asks for a gift back", "pattern": "P1", "new": "no top video says the debt part",
-              "scores": dict.fromkeys(research.SCORES, 4), "pick": i == 1} for i in range(1, 11)]
+              "pick": i == 1} for i in range(1, 11)]
     tops = [{"id": f"V{i}", "url": f"https://youtube.com/watch?v={i}", "views": 300000 - i, "scope": scope,
              "subject": "being looked down on at work", "says": "do not argue; let results answer",
              "moves": "pain → two usual reactions → question → an old sage → the advice", "transcript": f"t/{i}.txt"}
@@ -120,25 +121,31 @@ class Research(unittest.TestCase):
         d["sources"] = []
         self.assertIn("RS1", codes(research.check(d), "FAIL"))
 
-    def test_weak_pick_warns(self):
+    def test_a_pick_rides_the_pattern_the_audience_watched(self):
         d = good_research()
-        d["ideas"][0]["scores"]["novelty"] = 2
+        self.assertNotIn("RS6", codes(research.check(d), "WARN"))
+        d["ideas"][0]["pattern"] = "P2"
+        self.assertNotIn("RS6", codes(research.check(d), "WARN"))  # P2 is topic-scope: P1's benefit views are no rival
+        d["patterns"].append({"id": "P3", "what": "a power question with a surprising answer", "videos": ["V4"]})
+        d["top_videos"][2]["views"] = 40000  # P2's only video, against P3's 299,996 in the same scope
+        self.assertIn("RS6", codes(research.check(d), "WARN"))
+
+    def test_a_pick_needs_something_from_inside_the_subject(self):
+        d = good_research()
+        d["ideas"][0]["inside"] = ""
+        self.assertIn("RS5", codes(research.check(d), "FAIL"))
+        d = good_research()
+        for n in d["nuggets"]:
+            n["type"] = "number"  # 1770 chapters, 2.5 hours, 6 names: the packaging
         self.assertIn("RS6", codes(research.check(d), "WARN"))
 
     def test_a_pick_must_be_usable(self):
-        d = good_research()
-        d["ideas"][0]["scores"]["use"] = 3
-        self.assertIn("RS6", codes(research.check(d), "WARN"))
         d = good_research()
         d["ideas"][0]["use_when"] = ""
         self.assertIn("RS5", codes(research.check(d), "FAIL"))
         d = good_research()
         d["ideas"][0]["benefit"] = "story"
         self.assertIn("RS5", codes(research.check(d), "FAIL"))
-        d = good_research()
-        sc = d["ideas"][0]["scores"]
-        sc["value"] = sc.pop("use")
-        self.assertIn("RS5", codes(research.check(d), "WARN"))
 
     def test_top_videos_are_read_not_listed(self):
         d = good_research()

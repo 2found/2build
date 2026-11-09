@@ -120,7 +120,7 @@ arrives, is struck or crosses the frame. A held talking head gains little.
 | `swaps` | `[{at, art}]`: show another drawing of the same layer from that word (a pose, an expression) |
 | `flip`, `shadow` | mirror it; a soft contact shadow under the feet |
 | `enter` | `fade`, `pop`, `slide-left`, `slide-right`, `rise` or `drop`, or `{type, at, dur}` |
-| `moves` | `[{at, x?, y?, s?, rot?, dur, ease}]`: to a frame point, scale or angle; each starts where the last ended |
+| `moves` | `[{at, x?, y?, s?, rot?, dur, ease, antic?}]`: to a frame point, scale or angle; each starts where the last ended. A far move (≥ 3% of the width, Δs ≥ 0.06 or ≥ 6°) of ≥ 0.35 s with no `ease` leans back first and settles past the mark (`antic`, default 0.08 of the travel); `antic: false` or any `ease` turns it off |
 | `idle` | `breathe`, `bob` or `sway`, or `{type, amt, period}`: a loop over the whole shot |
 | `hits` | `[{at, from: left|right|front, amt, sfx?}]`: a recoil away from the blow, silent unless `sfx` names a sound |
 | `tweens` | `[{at, part | sel, from?, to, dur, ease}]`: raw GSAP vars on one `part` (`layer`, `move`, `hit`, `idle`, `img`, `rig`) or any CSS selector `sel` inside the layer; `repeat: -1` becomes a finite loop over the shot |
@@ -143,7 +143,7 @@ their bone. The hips sink by themselves so the lower foot stays on the ground.
 | Key | Values |
 | --- | --- |
 | `pose` | the first pose: `stand`, `wave`, `cheer`, `point`, `shrug`, `think`, `hands-up`, `crouch`, `bow`, `slump`, `sit` (side view), a `rig.poses` name, or a joint dict |
-| `poses` | `[{at, pose?, set?, face?, dur, ease}]`: `pose` names one, `set` changes the joints it names over the last pose, `face` changes the face |
+| `poses` | `[{at, pose?, set?, face?, dur, ease, antic?}]`: `pose` names one, `set` changes the joints it names over the last pose, `face` changes the face. A swing of ≥ 15° over ≥ 0.25 s with no `ease` gets the same lean-back and settle (`antic: false` opts out) |
 | `walk` | `[{at, until, speed, amt}]`: a stride cycle (side view; pair it with a `moves` across), back to the pose before it |
 | `face` | `calm`, `happy`, `sad`, `angry`, `surprised`, `blank`; the `chibi` body adds `laugh`, `shout`, `shocked`, `cry`, `smug`, `disgust`, `think`, `worried`, `focus`. Or one of `rig.faces` (`{name: [eyes svg, mouth svg]}` in head coordinates, centre `(0, -13)`, radius 9; on chibi `{b}` is a brow's line width and `{t}` a thin one, and eyes inside `<g class="rig-ey">` blink) |
 | `talk` | `true` or `[{at, until}]`: the mouth opens on each spoken word of the beat (the character is the voice) |
@@ -205,6 +205,8 @@ An effect is `{type, at, until | dur, …}`, at beat level or on a shot:
 | `steps` (numbered items, one per spoken step) | `items` (or `text` lines), `ats` (one anchor per item), `focus: true` dims the earlier ones |
 | `compare` (two columns) | `heads` `[left, right]`, `left`, `right` (lists), `ats` |
 | `bars` (a measured comparison) | `items` `[{label, value}]`, `max`, `suffix`; every value names a fact in the beat |
+| `dots` (a share you can count: 3 in 100) | `total` (1–400), `lit`, `cols` (default about a 1.6:1 grid), `text` (`*hot*`), `sub` (what one dot is); the lit dots light one by one |
+| `ladder` (two ranks side by side: levels of one against the other) | `left`, `right` (rung labels, bottom first; over 16 WARNs), `heads` `[left, right]`, `mark` `["l"|"r", index]` (the rung the line names), `offset` (how far the right column sits up, a share of a rung, so equal rungs do not read as equal ranks) |
 | `quote` (one cited line, word by word) | `text`, `sub` (who said it, where) |
 | `lower` (a name strip) | `text` (the name), `sub` (the role) |
 | `pointer` (comic lettering naming a point) | `text` (uppercase, `*hot*`), `point` `[x, y]` (what it names), `label` `[x, y]` (where the lettering sits), `size`, `bend`, `color`; the line draws on from the lettering and ends in a dot |
@@ -215,7 +217,7 @@ anything in its scene: `sel` is scoped to the scene, and `#id` is used as is.
 `#B03-s1` is a shot, so a tween on it is a transition of your own (`in: cut`
 plus your tween). `#B03-fx0` is an effect.
 
-`steps`, `compare`, `bars` and `quote` stay until the beat ends unless `until`
+`steps`, `compare`, `bars`, `dots`, `ladder` and `quote` stay until the beat ends unless `until`
 or `dur` is set. `rect`, `x`, `y` and `size` may be per canvas, such as
 `{"9x16": [0.1, 0.3, 0.8, 0.12], "16x9": [0.3, 0.2, 0.4, 0.15]}`, because a
 share of a tall frame is not the same spot on a wide one. A missing canvas
@@ -239,6 +241,10 @@ Transitions, punch-ins and text effects place their own cues in the project's
 check flags it otherwise. `sound.ambience` lays wind, rain or room tone.
 `sound.cues` adds named sounds: `sword`, `gong`, `heartbeat`, `bell`, `taiko`,
 `riser`, `boom`, `impact`, `pop`, `click` and `ding`. `mvf score` renders them (07 Tool).
+A script beat with `key_moment: true` gets one `hit` at its line's last word
+(a shot's `key_sfx` names another kind, or `false` drops it) unless a cue
+already sits within 0.3 s, and `mvf score` ducks the bed a further 6 dB over
+the hold after it ([07-craft](07-craft.md#key-moments)).
 
 ## Checks (printed by `mvf scaffold`)
 - **FAIL (the file cannot be built):**
@@ -259,6 +265,13 @@ check flags it otherwise. `sound.ambience` lays wind, rain or room tone.
 - **Advice (WARN):**
   - V1 and V2: transition variety.
   - V3: something changes every 3.5 s, unless the hold is the point.
+  - V5: two adjacent shots make the same camera move (a steady `drift`,
+    `hold` or `custom` is fine).
+  - V6: over five or more shots, the shot lengths are too even (spread under
+    30% of the mean): the cut ticks like a metronome.
+  - DV1: a script beat whose line carries a number or a comparison shows no
+    device effect (`counter`, `bars`, `compare`, `steps`, `dots`, `ladder`,
+    `html`, `callout`, `pointer`); the script's `device: none` answers it.
   - D4 flash cuts (≤ 0.2 s), D12 opaque art without a blend, and z below -1.
   - D10: a storyline is named.
   - D11: the hook's line is on screen at frame 0, and a captionless beat still

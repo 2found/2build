@@ -83,6 +83,9 @@ Later runs reuse the choice. Set it again only when the user asks.
      lead is clear and beats the control;
    - `retell.md`, the intended retell beside the quoted ones;
    - `interview.md`, the two leaders interviewed in the same conversation.
+   The panel never learns which letter is the control, so the analyst may
+   guess one: `mvf` prints the key and WARNs when `answer.md` calls a
+   candidate the control. Read that letter's verdict as a candidate's.
    It also drafts `decision.json`, or writes `decision.suggested.json` when a
    decision already exists.
 3. Read `retell.md` and `interview.md`. Write `retell` with the quoted lines,
@@ -135,8 +138,21 @@ Without Soot, use the feed and cold read below as an `agent-panel`, and say so.
 second by second. One way to run it is to give each file to a few fresh
 subagents, one per ring plus one impatient viewer, each with a one-line
 persona. Save each JSON answer beside the file as `<sid>-<hook>.<reader>.json`.
-Each answer has `swipe_at`, `retell`, `unclear`, `learned_or_felt`, `use`,
-`use_when`, `save`, `send_to`, `comment` and `reads_like_an_ad`.
+Each answer has `swipe_at`, `retell`, `tell_a_friend`, `unclear`, `learned_or_felt`, `use`,
+`use_when`, `save`, `send_to`, `comment` and `reads_like_an_ad`, plus four
+the retell misses: `who_or_what` (a "he", "it" or "that" whose referent was
+lost), `because_gaps` (a "so" or "because" the reader could not follow),
+`ending_premise` (what the ending needed that the video never set up) and
+`hanging` (a line that opened something nobody closed). Three more catch what
+only a listener gets wrong: `numbers` (each number as heard once, `(?)` on one
+that could be heard as another or was lost by the next line), `numbers_dont_fit`
+(a total, count or time that does not add up or changes between lines) and
+`who_made_it` (who the reader thinks is asking, and when they found out). Fix a
+`(?)` number by saying it in digits on screen as it is spoken, or by dropping
+it; fix a mismatch in the script, not in the picture. `tell_a_friend` is the
+one thing a reader would pass on. If most readers write "nothing", the script
+bores: rebuild it on a scene, twist or rule from inside the subject. Clearer
+wording will not fix it.
 
 ## Feed
 1. Transcribe 2-3 real videos into `06-pretest/bench/<id>.json`:

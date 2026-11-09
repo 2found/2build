@@ -51,18 +51,29 @@ def owner_verdict(cd: Path, sid: str) -> dict | None:
     return rows[-1] if rows else None
 
 
-def approve(cd: Path, sid: str, verdict: str, note: str, hook: str | None) -> dict:
+def approve(cd: Path, sid: str, verdict: str, note: str, hook: str | None, thesis: int | None = None) -> dict:
     sp = cd / "05-scripts" / f"{sid}.json"
     if not sp.is_file():
         raise SystemExit(f"no script {sid}")
     if verdict == "rejected" and not note.strip():
         raise SystemExit("a rejection carries the owner's reason (--note): it is what the rewrite works from")
-    rec = {"script": sid, "hook": hook or load(sp).get("hook") or "H1", "verdict": verdict, "note": note,
+    s = load(sp)
+    rec = {"script": sid, "hook": hook or s.get("hook") or "H1", "verdict": verdict, "note": note,
            "sha": sha(sp), "at": today().isoformat()}
+    if thesis is not None:
+        th = [str(x).strip() for x in (s.get("spine") or {}).get("thesis") or [] if str(x).strip()]
+        if not 1 <= thesis <= len(th):
+            raise SystemExit(f"--thesis {thesis}: {sid} has {len(th)} thesis wordings (spine.thesis), numbered 1–{len(th)}")
+        rec["thesis"] = th[thesis - 1]
     o = owner(cd)
     o.setdefault("approvals", []).append(rec)
     dump(cd / OWNER, o)
     return rec
+
+
+def thesis_picks(cd: Path) -> dict:
+    """{script id: the thesis wording the owner picked last}."""
+    return {a["script"]: a["thesis"] for a in owner(cd).get("approvals") or [] if a.get("thesis")}
 
 
 def owner_gate(cd: Path, sid: str, skip: str | None) -> str | None:
@@ -108,6 +119,10 @@ def sheet(cd: Path, sid: str) -> str:
     out = [f"# {sid} · {hook} · ~{tl['duration']:.0f} s · {s.get('format', '')}", ""]
     out += [f"**{L('Người xem được gì', 'What the viewer gets')}:** {sp.get('use') or s.get('value', '')}",
             f"**{L('Người lạ kể lại được', 'A stranger retells')}:** {sp.get('takeaway', '')}", ""]
+    th = [str(x).strip() for x in sp.get("thesis") or [] if str(x).strip()]
+    if th:
+        out.append(f"**{L('Câu chốt, chọn một', 'The payoff line, pick one')}:**")
+        out += [f"{i}. {x}" for i, x in enumerate(th, 1)] + [""]
     out += [f"| s | {L('Hình', 'Picture')} | {L('Chữ', 'Text')} | {L('Lời', 'Voice')} |", "| --- | --- | --- | --- |"]
     for b, t in zip(sv["beats"], tl["beats"]):
         pic = (b.get("visual") or "").strip().replace("|", "/")
@@ -138,9 +153,9 @@ def sheet(cd: Path, sid: str) -> str:
                 out.append(f"\n**{L('Chuyên gia lưu ý', 'Experts flagged')}:**")
                 out += [f"- {e}" for e in x["expert_blocking"]]
     out.append("\n" + L(f"Duyệt: `mvf approve {sid} --verdict approved` · không được: `--verdict rejected --note \"lý do\"` · "
-                        f"giao cho agent tự quyết: `--verdict delegated`",
+                        f"giao cho agent tự quyết: `--verdict delegated`" + (" · chọn câu chốt: `--thesis N`" if th else ""),
                         f"Approve: `mvf approve {sid} --verdict approved` · no: `--verdict rejected --note \"why\"` · "
-                        f"let the agent decide: `--verdict delegated`"))
+                        f"let the agent decide: `--verdict delegated`" + (" · pick the payoff line: `--thesis N`" if th else "")))
     return "\n".join(out) + "\n"
 
 

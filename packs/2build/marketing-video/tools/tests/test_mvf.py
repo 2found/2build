@@ -166,6 +166,19 @@ class Lint(unittest.TestCase):
         s["beats"][1]["role"] = "problem"
         self.assertIn("R1", codes(lint(s, CAMPAIGN, REFS), "WARN"))
 
+    def test_post_copy_that_never_names_the_brand_warns(self):
+        s = script()
+        self.assertIn("AD1", codes(lint(s, CAMPAIGN, REFS), "WARN"))  # the X post never says Acme
+        s["platforms"]["x"]["post"] = "Acme: your inbox is lying."
+        self.assertNotIn("AD1", codes(lint(s, CAMPAIGN, REFS)))
+        self.assertNotIn("AD1", codes(lint(script(id="ctl-plain"), CAMPAIGN, REFS)))  # a control is written to lose
+
+    def test_cold_read_asks_for_numbers_and_who_made_it(self):
+        from mvflib.pretest import coldread
+        text = coldread(script(), "H1", None)
+        for k in ("numbers", "numbers_dont_fit", "who_made_it", "tell_a_friend"):
+            self.assertIn(f'"{k}"', text)
+
     def test_brand_in_hook_text_warns(self):
         s = script()
         s["beats"][0]["onscreen"] = "Acme sorts your inbox"
@@ -406,6 +419,18 @@ class Speech(unittest.TestCase):
         self.assertTrue(0.2 <= ws[1]["s"] < ws[2]["s"] < ws[3]["s"] < 1.0)
 
 
+class OmniVoiceTake(unittest.TestCase):
+    def test_a_stock_voice_name_is_refused_before_any_line_is_voiced(self):
+        """OmniVoice ships no voices: a preset name reached it as nothing, and every beat got its own speaker."""
+        with tempfile.TemporaryDirectory() as d:
+            job = {"language": "vi", "voice": {"mode": "preset", "name": "Thuỳ Trang", "speed": 1.0},
+                   "cues": [{"id": "B01", "text": "Xin chào."}]}
+            with self.assertRaises(SystemExit) as e:
+                tts.run_take(job, Path(d) / "t01", "openai/whisper-small")
+            self.assertIn("different speaker", str(e.exception))
+            self.assertFalse((Path(d) / "t01").exists())
+
+
 class VietnameseReading(unittest.TestCase):
     """extensions/omnivoice/vi_numbers.py: Vietnamese written forms read as words."""
 
@@ -579,6 +604,26 @@ class BeatVoice(unittest.TestCase):
             s["beats"][1]["voice"] = "other"
             ok, stale = self.mvf.take_state(s, take)
             self.assertEqual(stale, {"B02"})
+
+    def test_rescaffold_follows_a_newer_take_after_a_line_changed(self):
+        s = script()
+        with tempfile.TemporaryDirectory() as d:
+            cd = Path(d)
+            def write(name, sc):
+                t = cd / "07-video" / sc["id"] / "takes" / name
+                t.mkdir(parents=True)
+                cues = [{"id": c["id"], "text": c["text"]} for c in self.mvf.cue_list(sc)]
+                (t / "manifest.json").write_text(json.dumps({"mvf_voice": self.mvf.voice_key(sc), "cues": cues}))
+                return t
+            t1 = write("t01", s)
+            self.assertEqual(self.mvf.current_take(cd, s, t1), t1)
+            s["beats"][1]["vo"] = "a corrected line"
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(self.mvf.current_take(cd, s, t1), t1)  # nothing newer: keep it, but say so
+            self.assertIn("WARN take t01", out.getvalue())
+            t2 = write("t02", s)
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(self.mvf.current_take(cd, s, t1), t2)
 
 
 if __name__ == "__main__":

@@ -70,7 +70,7 @@ def _expand_word(w: str, lang: str, say: dict) -> str:
 def spoken_text(display: str, lang: str, say: dict) -> tuple[str, list[int]]:
     """The text to synthesise, and how many spoken tokens each display word became.
     A say key or a Vietnamese written form may span several display words
-    ("2novel.app", "28/10/2026", "49.000đ"): its spoken tokens are shared out so every
+    ("acme2.app", "28/10/2026", "49.000đ"): its spoken tokens are shared out so every
     display word still gets at least one."""
     counts: list[int] = []
     multi = sorted((k for k in say if len(words(k)) > 1), key=len, reverse=True)
@@ -114,13 +114,13 @@ def _merge_letters(toks: list[str]) -> tuple[list[str], list[int]]:
 _SPOKEN_SYMBOLS = {"dot", "chấm", "cham"}  # "cham": "chấm" once fold() has dropped the tones
 _DIGIT_WORDS = dict(zip("0123456789", "zero one two three four five six seven eight nine".split()))
 _DIGIT_WORDS_VI = dict(zip("0123456789", "khong mot hai ba bon nam sau bay tam chin".split()))
-_HOMOPHONES = {"to": "two", "too": "two"}  # "2novel" is said "to novel"
+_HOMOPHONES = {"to": "two", "too": "two"}  # "2go" is said "to go"
 
 
 def _same_letters(spoken: list[str], heard: list[str]) -> bool:
     """True when two token runs differ only in spacing, a spoken "dot"/"chấm" or a digit
-    written for its word, in English or Vietnamese: "to novel dot app" vs "2novel app",
-    "lo hi hai cham com" vs "lohi2 com"."""
+    written for its word, in English or Vietnamese: "acme two dot app" vs "acme2 app",
+    "acme hai cham com" vs "acme2 com"."""
     def squash(toks, digits, homophones):
         s = "".join(homophones.get(t, t) for t in toks if t not in _SPOKEN_SYMBOLS)
         return "".join(digits.get(c, c) for c in s)
@@ -295,7 +295,7 @@ def align(display: str, counts: list[int], spoken: str, heard: dict, speech: tup
             for k in range(i2 - i1):
                 times[i1 + k] = htimes[j1 + k]
         elif op == "replace" and _same_letters(sp[i1:i2], htoks[j1:j2]):
-            # Spacing only: "two novel dot app" heard as "twonovel.app". Spread the heard span.
+            # Spacing only: "two go dot app" heard as "twogo.app". Spread the heard span.
             a, b = htimes[j1][0], htimes[j2 - 1][1]
             step = (b - a) / (i2 - i1)
             for k in range(i2 - i1):
@@ -412,6 +412,13 @@ def voice_cue(v: Voice, ears: Ears, cue: dict, lang: str, speed: float, say: dic
 def run_take(job: dict, out: Path, asr_model: str) -> None:
     lang, voice, say = job["language"], job["voice"], say_map(job.get("say"))
     speed = float(voice.get("speed", 1.0))
+    if voice["mode"] != "clone" and not voice.get("instruct"):
+        # no clone prompt and no instruct: OmniVoice draws a new speaker for every cue (each has its own seed)
+        raise SystemExit(f"OmniVoice has no stock voices: voice.mode {voice['mode']!r}"
+                         + (f" ({voice['name']!r})" if voice.get("name") else "")
+                         + " would give every line a different speaker. Set voice.mode clone with voice.ref "
+                         "(<name>.wav + .txt in the campaign's voices/ or ~/.babysit/marketing-video/voices/), or fix one first "
+                         "with `mvf voice-design`")
     if out.exists() and any(out.iterdir()):
         raise SystemExit(f"{out} is not empty: voice into a new take dir")
     out.mkdir(parents=True, exist_ok=True)

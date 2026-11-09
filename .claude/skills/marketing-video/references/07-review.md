@@ -28,6 +28,42 @@ caption over a face or a plate that melts at full size.
   when the fix changed what the video says end to end (a new script, not a
   corrected line).
 
+- **Look at motion on a strip, not a still.** A still shows a frame; motion is
+  in the frames between. For each shot that moves, take a strip of 6–8 frames
+  over the move (`ffmpeg -ss <t> -t <dur> -vf fps=8,scale=180:-2,tile=8x1`) and
+  ask: does one thing lead and the rest follow? Does the cause come before its
+  effect? Does a move lean back before it goes and settle after it lands, and
+  does it hold long enough to be read? Does an exit take less time than its
+  entrance? Is a third of the frame or less moving at once? Do the eyes look
+  where the next thing happens? ([07-craft](07-craft.md#motion))
+- **Could this frame belong to another video?** Name any frame that a stock
+  look would fill as well: see the cliché list in
+  [07-craft](07-craft.md#clichés). Replace it with something only this
+  video has (its character, its object, its number).
+- **Score it** in `review.json` `score` (1–10), on this scale: 5 a student's
+  cut, 6 a template, 7 a working pro, 8 an agency, 9 an award entry. Say what
+  keeps it from the next step. Export WARNs without a score (RV2).
+
+## Cold viewer
+You wrote the plan, so you see the plan in the frames. A fresh helper who never
+read it sees the video. `mvf viewer <proj>` writes `review/viewer-brief-vN.md`:
+1 fps frame sheets (each under 1 MP, the second stamped on each frame), the
+voice as heard with its times, the logline and what the video is for, and
+nothing else: no script, plan or direction path. Give it to a fresh helper with
+no other context. It retells the video, names where it would swipe, checks each
+frame against the voice and for breaks and stock looks, and writes
+`review/viewer-vN.md` ending in three lines:
+```
+Verdict: APPROVE | FIX | UNVERIFIABLE
+Red items: 3s caption over the face; 6.5s frozen hand   (or none)
+Retell: one or two sentences
+```
+Each red item goes into `review.json` as an issue, fixed or accepted with a
+reason. A delivery export WARNs when no viewer ran, the latest says
+UNVERIFIABLE (VW1), or red items have no issue near their second (VW2). One
+viewer per cut; after the fixes, check them yourself and ship, as with the
+panel.
+
 | Sev | Means | Examples |
 | --- | --- | --- |
 | P0 | a viewer would notice and leave, or the post is wrong | a black or frozen frame, a caption over a face or the subject, stray text or a mangled hand in art, an uncited claim on screen, a wrong name or number, a draft plate |
@@ -35,7 +71,7 @@ caption over a face or a plate that melts at full size.
 | P2 | polish | a transition that fights the beat, a colour off the look |
 
 ```json
-{"reviewed_at": "YYYY-MM-DD", "looked_at": ["contact.jpg", "spot-0.jpg", "12.4s still"],
+{"reviewed_at": "YYYY-MM-DD", "looked_at": ["contact.jpg", "spot-0.jpg", "12.4s still"], "score": 7,
  "seen": [{"at": 0.0, "what": "the potter's hands lift a white paperweight; 'đập vỡ vận mệnh con' over his chest"}],
  "issues": [{"sev": "P0", "at": 3.1, "what": "caption covers the product screen", "status": "open|fixed|accepted",
              "fix": "captions y up 80 px on B02"}]}

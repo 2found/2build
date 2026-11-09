@@ -133,6 +133,18 @@ Answer as JSON only:
   "retell": "if you stayed: in one or two sentences, what this video told you, as you would tell a friend;
              empty if you could not say",
   "unclear": ["each word or step you did not follow"],
+  "who_or_what": ["each 'he', 'it', 'that' or name you could not place when you heard it"],
+  "because_gaps": ["each 'so' or 'because' step you did not see follow from what came before"],
+  "ending_premise": "what earlier line the ending rests on, or 'none' if it came from nowhere",
+  "hanging": ["each line that raised something the video never answered"],
+  "numbers": ["each number as you heard it, once, at speaking pace; mark (?) any you could have heard as another
+              number or had lost by the next line"],
+  "numbers_dont_fit": ["after it ends, put its numbers side by side once: each total, count or time that does not
+                       add up or changes between lines"],
+  "who_made_it": "who you think made this and what they want from you, and the second you found out; 'never' if
+                  it asks something of you without saying who is asking",
+  "tell_a_friend": "the one thing from it you would tell a friend tomorrow (a scene, a twist, a line, a rule, a
+                   fact you did not know), in your words; 'nothing' if there is nothing worth retelling",
   "learned_or_felt": "what you walk away with, in your words; empty if nothing",
   "use": "one sentence: what you could do, decide or think differently in your own life after this, or the
           answer you now have to a question you really had; write 'nothing' if it only told you a story or

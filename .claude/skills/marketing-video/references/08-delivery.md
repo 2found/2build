@@ -64,6 +64,25 @@ reference, Meta's Reels publishing guide, LinkedIn Help a548372 and a1311816.
   - the CTA matches its fact.
 
   Keep `PENDING LISTEN` in the QA file until you or the user have heard it.
+  Export names the seconds to hear first (LISTEN, also in `qa.json`): the
+  hook, each key moment and the ending.
+- **Measured picture and sound** (WARN, once per export on the master; the
+  numbers stand in for eyes, they do not replace them):
+  - PX1: the first 2 s barely move (under 0.5% of the frame changes per
+    quarter second): the open reads as a still.
+  - PX2: once the best small zoom or pan is taken out, under 0.25% of the frame
+    acts in a beat (or under 30% of the video's median): only the camera
+    moves. One line per video, naming the beats.
+  - PX3: a beat's middle frame looks like one 6 s or more earlier: a rerun,
+    unless the callback is the point.
+  - PX4: one frame differs from both neighbours: a flash frame.
+  - PX5: a beat more than 3 dB louder or quieter than the median beat, or more
+    than 3 dB more 2–5 kHz energy (harsh on phone speakers).
+  The caption rows are masked: captions change on every word and are not action.
+- **The cold viewer** (WARN): VW1 when no `review/viewer-vN.md` has a verdict,
+  or the latest is `UNVERIFIABLE`; VW2 when a `FIX` verdict names red items
+  that `review.json` has no issue for within 1.5 s; RV2 when `review.json` has
+  no `score` ([07-review](07-review.md#cold-viewer)).
 
 ## AI labels
 `delivery.json` carries `ai_disclosure`, and export notes it per platform.

@@ -46,15 +46,18 @@ FX_DUR = {"slam": 1.2, "title": 1.8, "type": 2.0, "stamp": 1.1, "label": 2.2, "c
           "speedlines": 0.6,
           # comic: a hand-lettered label with a leader line drawn on to the point it names
           "pointer": 2.4,
+          # devices that tell a number: a grid of dots (lit of total), two ladders whose rungs do not line up
+          "dots": None, "ladder": None,
           # raw: any markup the agent writes (HTML or inline SVG), timed and faded like the rest
           "html": 2.0}
-BLOCK_FX = {"steps", "compare", "bars", "quote"}  # read blocks: on a wide canvas they keep a readable measure
+BLOCK_FX = {"steps", "compare", "bars", "quote", "dots", "ladder"}  # read blocks: on a wide canvas they keep a readable measure
 POS_KEYS = ("rect", "x", "y", "size")  # any of these may be {canvas: value} when one number cannot fit every frame
-TEXT_FX = {"slam", "title", "type", "stamp", "label", "counter", "endtag", "steps", "compare", "bars", "quote", "lower"}
+TEXT_FX = {"slam", "title", "type", "stamp", "label", "counter", "endtag", "steps", "compare", "bars", "quote", "lower",
+           "dots", "ladder"}
 TEXT_SIZE = {"slam": 128, "title": 92, "type": 54, "stamp": 96, "label": 60, "counter": 190, "endtag": 104,
-             "steps": 58, "compare": 56, "bars": 46, "quote": 70, "lower": 48}
+             "steps": 58, "compare": 56, "bars": 46, "quote": 70, "lower": 48, "dots": 48, "ladder": 40}
 TEXT_Y = {"slam": 0.24, "title": 0.2, "type": 0.62, "stamp": 0.3, "label": 0.16, "counter": 0.28, "endtag": None,
-          "steps": 0.2, "compare": 0.2, "bars": 0.22, "quote": 0.22, "lower": 0.6}
+          "steps": 0.2, "compare": 0.2, "bars": 0.22, "quote": 0.22, "lower": 0.6, "dots": 0.2, "ladder": 0.18}
 WEATHER = {"rain": 90, "snow": 60, "embers": 40, "petals": 22}
 OVER = 0.06  # .mvk-kb overhang per side (share of the frame)
 EVENT_GAP_WARN = 3.5
@@ -77,12 +80,18 @@ SFX_FOR_FX = {"slam": ("hit", -17, -0.02), "stamp": ("stamp", -18, 0.0), "counte
               "shake": ("rumble", -20, 0.0), "punch": ("thump", -20, -0.02), "endtag": ("bell", -22, 0.05),
               "flash": ("hit", -18, 0.0), "callout": ("swish", -26, -0.05), "tap": ("click", -20, 0.0),
               "steps": ("pop", -24, 0.0), "compare": ("swish", -26, -0.05), "bars": ("swish", -27, 0.0),
-              "quote": ("air", -27, -0.05), "lower": ("swish", -27, -0.05), "speedlines": ("whoosh-short", -24, -0.04)}
+              "quote": ("air", -27, -0.05), "lower": ("swish", -27, -0.05), "speedlines": ("whoosh-short", -24, -0.04),
+              "dots": ("ticks", -27, 0.0), "ladder": ("pop", -25, 0.0)}
 PER_ITEM_SFX = {"steps", "compare"}  # one sound per item that lands, not one for the block
 
 # 2.5D layers: cut-outs over a shot's plate, each with its own depth and motion
 LAYER_IN = {"fade": 0.4, "pop": 0.45, "slide-left": 0.6, "slide-right": 0.6, "rise": 0.6, "drop": 0.55}
 IDLE = {"breathe": 3.2, "bob": 1.6, "sway": 3.0}  # seconds per cycle
+DEVICE_FX = {"counter", "bars", "compare", "steps", "dots", "ladder", "html", "callout", "pointer"}  # show a number or relation
+STEADY_CAMS = {"drift", "hold", "custom", "none"}  # repeating these is the absence of a move, not a repeat
+ANTIC = 0.08  # a move first leans back this share of its travel, then overshoots and settles (opt out: antic: false)
+KEY_SFX = ("hit", -19)  # a key line's impact, at its last word, unless a cue is already there
+KEY_SFX_NEAR = 0.3
 HIT_FROM = {"left": (1, 0, 2.5), "right": (-1, 0, -2.5), "front": (0, -1, 0.0)}  # recoil away: x sign, y sign, lean deg
 LAYER_PARTS = {"layer": ".mvk-ly", "move": ".mvk-lym", "hit": ".mvk-lyh", "idle": ".mvk-lyi", "img": ".mvk-lyi > .mvk-lyart",
                "rig": ".mvk-rig"}
@@ -100,7 +109,8 @@ def load_direction(cd: Path, sid: str) -> dict | None:
     p = path(cd, sid)
     if not p.is_file():
         return None
-    d = load(p)
+    from . import formats
+    d = formats.under(load(p), formats.defaults(cd))  # a saved format's look/captions/ambience under the direction's own
     st = campaign_style(cd)
     if st and isinstance(d, dict) and "preset" not in (d.get("look") or {}):
         d["look"] = {**(d.get("look") or {}), "preset": st}
@@ -317,7 +327,7 @@ def plan(d: dict, tl: dict, geo: dict, art: dict, media: dict) -> tuple[dict, Re
         if bid not in beats:
             rep.fail("D0", f"direction.{bid}", f"no beat {bid} in the script ({', '.join(order)})")
     W, H = geo["W"], geo["H"]
-    out = {"beats": {}, "sfx": [], "events": [], "transitions": [], "custom": [], "missing": [], "draft_art": [],
+    out = {"beats": {}, "sfx": [], "events": [], "transitions": [], "custom": [], "missing": [], "draft_art": [], "shotlog": [],
            "preset": preset_of(d), "rigs": (d or {}).get("rigs") or {}, "props": (d or {}).get("props") or {}}
     # pass 1: each beat's shots with their own transitions; the beat lead comes from its first shot's way in
     for i, bid in enumerate(order):
@@ -353,7 +363,23 @@ def plan(d: dict, tl: dict, geo: dict, art: dict, media: dict) -> tuple[dict, Re
         _resolve_beat(bid, beats[bid], out["beats"][bid], out["beats"].get(nxt), geo, art, media, rep, out)
     out["events"].sort()
     _sound_globals(d, beats, rep, out)
+    _key_cues(spec_beats, tl, out)
     return out, rep
+
+
+def _key_cues(spec_beats, tl, out):
+    """A key line lands on one sound at its last word, unless a cue is already there or the beat says key_sfx: false."""
+    for b in tl["beats"]:
+        bs = spec_beats.get(b["id"])
+        if not b.get("key") or b.get("vo_end") is None or (isinstance(bs, dict) and bs.get("key_sfx") is False):
+            continue
+        t = b["vo_end"]
+        if any(abs(c["t"] - t) <= KEY_SFX_NEAR for c in out["sfx"] if not c.get("bed")):
+            continue
+        kind, db = KEY_SFX
+        if isinstance(bs, dict) and isinstance(bs.get("key_sfx"), str):
+            kind = bs["key_sfx"]
+        out["sfx"].append({"t": round(t, 3), "kind": kind, "db": db, "src": f"{b['id']}.key"})
 
 
 def _resolve_beat(bid, b, slot, nxt_slot, geo, art, media, rep, out):
@@ -447,6 +473,10 @@ def _resolve_beat(bid, b, slot, nxt_slot, geo, art, media, rep, out):
                "words": [(w["s"] - b["start"] + lead, w["e"] - b["start"] + lead) for w in b.get("words") or []]}
         s["layers"] = _layers(sh, sid, start, end, cam, at_s, where(k), art, W, H, rep, sounds, out, b["start"] - lead, cap_band, ctx)
         shots.append(s)
+        cn = sh.get("cam", "drift")
+        out["shotlog"].append({"at": round(b["start"] - lead + start, 3), "end": round(b["start"] - lead + end, 3),
+                               "where": sid, "cam": "custom" if isinstance(cn, dict) else
+                               ("none" if cn in (None, False) else str(cn).split(":")[0])})
         out["events"].append(round(b["start"] - lead + start, 3))
         if k:
             out["transitions"].append({"at": round(b["start"] - lead + start, 3), "type": tr["type"], "where": sid})
@@ -687,7 +717,12 @@ def _layers(sh, sid, start, end, cam, at, w, art, W, H, rep, sounds, out, origin
                 to["s"] = float(m["s"])
             if "rot" in m:
                 to["rot"] = float(m["rot"])
-            r["moves"].append({"at": ma, "dur": d, "ease": m.get("ease", "power2.inOut"), "from": cur, "to": to})
+            mv = {"at": ma, "dur": d, "ease": m.get("ease", "power2.inOut"), "from": cur, "to": to}
+            far = abs(to["x"] - cur["x"]) + abs(to["y"] - cur["y"]) >= 0.03 * W or abs(to["s"] - cur["s"]) >= 0.06 \
+                or abs(to["rot"] - cur["rot"]) >= 6
+            if m.get("antic", True) is not False and "ease" not in m and d >= 0.35 and far:
+                mv["antic"] = float(m["antic"]) if isinstance(m.get("antic"), (int, float)) and m["antic"] is not True else ANTIC
+            r["moves"].append(mv)
             cur, busy = to, ma + d
             out["events"].append(round(origin + ma, 3))
         if L.get("idle"):
@@ -835,7 +870,12 @@ def _rig(L, lw, start, end, at, rep, out, origin, ctx) -> dict | None:
                 rep.fail("D12", ew, str(err))
                 continue
             d = float(e.get("dur", 0.3))
-            tweens.append({"at": ta, "dur": d, "ease": e.get("ease", "power2.inOut"), "from": cur, "to": to})
+            tw = {"at": ta, "dur": d, "ease": e.get("ease", "power2.inOut"), "from": cur, "to": to}
+            swing = max([abs(float(to[k]) - float(cur[k])) for k in to if k in cur and isinstance(to[k], (int, float))
+                         and isinstance(cur[k], (int, float)) and k != "drop"] or [0])
+            if e.get("antic", True) is not False and "ease" not in e and d >= 0.25 and swing >= 15:
+                tw["antic"] = ANTIC
+            tweens.append(tw)
             cur, busy = to, ta + d
             out["events"].append(round(origin + ta, 3))
     flaps = []
@@ -958,6 +998,8 @@ def _fx(f, n, bid, b, lead, dur, end_local, geo, w, rep) -> dict | None:
                 rep.fail("D3", w, f"{ty} ats {ts} fall outside the effect (0–{d}s after its start)")
                 return None
             r["times"] = ts
+    if ty in {"dots", "ladder"} and not _device(ty, f, r, w, rep):
+        return None
     if ty in {"callout", "tap"}:
         if not _region(ty, f, r, geo, w, rep):
             return None
@@ -1071,6 +1113,39 @@ def _items(ty, f, r, w, rep) -> bool:
     return True
 
 
+def _device(ty, f, r, w, rep) -> bool:
+    """dots: total (≤ 400) dots in a grid, the first `lit` of them lit; ladder: left and right rungs listed bottom
+    to top, each column spread over the same height so unequal counts do not line up, `mark` [side, rung] lit."""
+    if ty == "dots":
+        try:
+            total, lit = int(f.get("total", 0)), int(f.get("lit", 0))
+        except (TypeError, ValueError):
+            rep.fail("D8", w, "dots: total and lit are whole numbers")
+            return False
+        if not 1 <= total <= 400 or not 0 <= lit <= total:
+            rep.fail("D8", w, f"dots: total {total} must be 1–400 and lit {lit} 0–total (show a big number as a "
+                     "share: 1 dot = 100 people, said in sub)")
+            return False
+        cols = int(f.get("cols") or min(20, max(1, math.ceil(math.sqrt(total * 1.6)))))
+        r.update(total=total, lit=lit, cols=cols, rows=math.ceil(total / cols))
+        return True
+    left, right = [str(x) for x in f.get("left") or []], [str(x) for x in f.get("right") or []]
+    if not left or not right:
+        rep.fail("D8", w, "ladder needs left and right rungs, bottom to top (and heads [left, right])")
+        return False
+    if max(len(left), len(right)) > 16:
+        rep.warn("D8", w, "a ladder over 16 rungs reads as texture: group rungs or show part of it")
+    mark = f.get("mark")
+    if mark is not None:
+        ok = isinstance(mark, list) and len(mark) == 2 and mark[0] in {"l", "r", "left", "right"} and isinstance(mark[1], int)
+        if not ok or not 0 <= mark[1] < len(left if str(mark[0])[0] == "l" else right):
+            rep.fail("D8", w, "ladder mark is [\"l\"|\"r\", rung index from the bottom, 0-based]")
+            return False
+        r["mark"] = [str(mark[0])[0], mark[1]]
+    r.update(left=left, right=right, heads=f.get("heads") or ["", ""], offset=float(f.get("offset", 0)))
+    return True
+
+
 def _region(ty, f, r, geo, w, rep) -> bool:
     """callout: rect [x, y, w, h] in frame shares (or px) around what the viewer must look at; tap: point x, y."""
     W, H = geo["W"], geo["H"]
@@ -1148,6 +1223,16 @@ def _place_text(r, f, geo, w, rep):
         h = (max(len(r["left"]), len(r["right"])) + (1 if r.get("heads") else 0)) * size * 1.55
     elif ty == "bars":
         h = len(r["items"]) * size * 2.2
+    elif ty == "dots":
+        size = min(size, (W - s["left"] - s["right"] - 40) / (r["cols"] * 1.25))
+        h = r["rows"] * size * 1.25 + (size * 1.6 if text else 0) + (size * 1.2 if f.get("sub") else 0)
+    elif ty == "ladder":
+        n = max(len(r["left"]), len(r["right"])) * 1.5 + 1.6
+        if f.get("size") is None and not f.get("allow_caption_zone"):  # a tall ladder shrinks to end above the captions
+            y0 = float(f.get("y", TEXT_Y[ty]))
+            room = geo["cap_top"] - 12 - 20 - (y0 * H if y0 <= 1 else y0)
+            size = max(24.0, min(size, room / n)) if room > 0 else size
+        h = n * size
     elif ty == "quote":
         h = size * 1.15 * lines + size * 1.0 + (size * 0.7 if f.get("sub") else 0)
     elif ty == "lower":
@@ -1222,6 +1307,18 @@ def variety(p: dict, tl: dict, rep: Report) -> None:
                  f"every ≤ {EVENT_GAP_WARN:g}s, unless the hold is the point)")
     for bid in p["missing"]:
         rep.info("V4", f"direction.{bid}", "not in direction.json: the scene is a placeholder or hand-authored")
+    log = sorted(p.get("shotlog") or [], key=lambda x: x["at"])
+    for a, b in zip(log, log[1:]):
+        if a["cam"] == b["cam"] and a["cam"] not in STEADY_CAMS:
+            rep.warn("V5", f"direction.{b['where']}", f"'{a['cam']}' again right after {a['where']}: two shots in a row "
+                     "with the same camera move read as one; change the move, or hold one")
+    lens = [x["end"] - x["at"] for x in log if x["end"] > x["at"]]
+    if len(lens) >= 5:
+        mean = sum(lens) / len(lens)
+        cv = (sum((x - mean) ** 2 for x in lens) / len(lens)) ** 0.5 / mean
+        if cv < 0.30:
+            rep.warn("V6", "direction", f"{len(lens)} shots all about {mean:.1f}s long (spread {cv:.2f}): an even cut "
+                     "ticks like a metronome; let a key line hold longer and a run of quick shots cut faster")
 
 
 def check(cd: Path, sid: str, tl: dict, geo: dict, art: dict, media: dict) -> tuple[dict | None, Report]:
@@ -1243,7 +1340,25 @@ def check(cd: Path, sid: str, tl: dict, geo: dict, art: dict, media: dict) -> tu
         rep.warn("D10", "direction", "no storyline: one line naming the picked storyline and why a stranger follows it")
     variety(p, tl, rep)
     _onscreen(cd, sid, d, p, rep)
+    _devices(cd, sid, d, p, rep)
     return p, rep
+
+
+def _devices(cd: Path, sid: str, d: dict, p: dict, rep: Report) -> None:
+    """A beat whose line carries a number or a comparison shows it with a device (DV1 in lint asks for the name)."""
+    from .craft import needs_device
+    sp = cd / "05-scripts" / f"{sid}.json"
+    if not sp.is_file():
+        return
+    for b in load(sp).get("beats") or []:
+        slot = p["beats"].get(b.get("id"))
+        if not slot or not needs_device(b) or str(b.get("device") or "").strip().lower() == "none":
+            continue
+        shown = {f["type"] for f in (slot.get("spec") or {}).get("fx") or []}
+        if not shown & DEVICE_FX:
+            rep.warn("DV1", f"direction.{b['id']}", f"the line carries a number or a comparison"
+                     + (f" (device: {b['device']})" if b.get("device") else "")
+                     + f" and no shot shows it: add one of {sorted(DEVICE_FX)}, or answer why the picture tells it")
 
 
 def _cast_rigs(cd: Path, d: dict, rep: Report) -> None:
@@ -1382,6 +1497,21 @@ def _fx_html(f: dict) -> str:
         inner = "".join(f'<div class="mvk-bar"><span>{_hot(it["label"])}</span><div class="mvk-bar-track">'
                         f'<i style="--w:{max(2.0, min(100.0, 100 * it["value"] / mx)):.1f}%"></i></div>'
                         f'<em>{it["value"]:g}{suf}</em></div>' for it in f["items"])
+    elif ty == "dots":
+        head = f'<div class="mvk-dots-head">{"<br>".join(lines)}</div>' if text else ""
+        grid = "".join('<i class="lit"><b></b></i>' if k < f["lit"] else "<i></i>" for k in range(f["total"]))
+        inner = (head + f'<div class="mvk-dot-grid" style="grid-template-columns:repeat({f["cols"]},1fr)">{grid}</div>'
+                 + (f"<small>{_hot(sub)}</small>" if sub else ""))
+    elif ty == "ladder":
+        hd, mk = f.get("heads") or ["", ""], f.get("mark")
+        cols = []
+        for side, rungs, head in (("l", f["left"], hd[0]), ("r", f["right"], hd[1] if len(hd) > 1 else "")):
+            off = f' style="transform:translateY({-f["offset"] * 100 / len(rungs):.1f}%)"' if side == "r" and f["offset"] else ""
+            ps = "".join(f'<p{" class=\"hot\"" if mk and mk[0] == side and mk[1] == k else ""}>{_hot(x)}</p>'
+                         for k, x in enumerate(rungs))
+            cols.append(f'<div class="mvk-lad-col mvk-lad-{side}"><h4>{_hot(head)}</h4><div class="mvk-rungs"{off}>{ps}</div></div>')
+        pos += f'height:{b["h"]}px;'
+        inner = "".join(cols)
     elif ty == "quote":
         inner = ('<div class="mvk-q-mark">\u201c</div><div class="mvk-q-text">' + "<br>".join(" ".join(_title_words(ln)) for ln in text.split("\n"))
                  + "</div>" + (f"<small>{_hot(sub)}</small>" if sub else ""))

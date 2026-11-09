@@ -7,7 +7,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from .common import dump, load, today
+from .common import dump, load, tile_width, today
 
 
 def meta(url: str) -> dict:
@@ -45,10 +45,18 @@ def frames(url: str, out: Path, seconds: float = 3.0) -> list[str]:
         r = subprocess.run(["yt-dlp", "-q", "--no-warnings", "-f", "mp4/best", "-o", str(vid), url], capture_output=True, text=True)
         if r.returncode or not vid.exists():
             raise SystemExit(f"yt-dlp download failed for {url}: {r.stderr.strip()[-400:]}")
+    pr = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of",
+                         "csv=p=0", str(vid)], capture_output=True, text=True)
+    try:
+        W, H = (int(x) for x in pr.stdout.strip().split(",")[:2])
+    except ValueError:
+        W, H = 9, 16
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-t", str(seconds), "-i", str(vid),
-                    "-vf", "fps=4,scale=270:-2,tile=6x2:padding=4", "-frames:v", "1", str(out / "hook-sheet.jpg")], check=True)
+                    "-vf", f"fps=4,scale={tile_width(W, H, 6, 2, 270)}:-2,tile=6x2:padding=4", "-frames:v", "1",
+                    str(out / "hook-sheet.jpg")], check=True)
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(vid),
-                    "-vf", "fps=1/2,scale=200:-2,tile=8x4:padding=4", "-frames:v", "1", str(out / "contact.jpg")], check=True)
+                    "-vf", f"fps=1/2,scale={tile_width(W, H, 8, 4, 200)}:-2,tile=8x4:padding=4", "-frames:v", "1",
+                    str(out / "contact.jpg")], check=True)
     return [str(out / "hook-sheet.jpg"), str(out / "contact.jpg")]
 
 

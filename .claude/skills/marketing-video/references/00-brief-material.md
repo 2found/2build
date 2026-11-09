@@ -7,8 +7,9 @@ Output: `campaign.json` and `00-material/index.json`.
   languages, the markets and every spelling of the brand. A measurable KPI is
   expected.
 - **The benefit** is what a viewer can use after the video: `lesson`,
-  `decide`, `answer`, `match` or `how-to`. It is the owner's call, so ask once
-  if the request does not say. Handles and any paid spend are the user's call
+  `decide`, `answer`, `match` or `how-to`. Each angle picks its own
+  ([04](04-strategy.md#benefit)); write `benefit` into the brief only when the
+  owner names one, and do not ask for it. Handles and any paid spend are the user's call
   too; ask, and never guess them.
 - **The material pack** is not empty. Every item has a kind, a title, a source
   with a read date, and rights. Anything from outside has a URL, and

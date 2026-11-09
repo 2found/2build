@@ -77,7 +77,7 @@ def split_paragraphs(content: str) -> list[str]:
 # source chapter can be swallowed as a control token instead of spoken.
 #
 # `!` and `?` are kept on purpose: they are sentence terminators in OmniVoice's
-# own SPLIT_PUNCTUATION, and dropping them flattens every question in the novel
+# own SPLIT_PUNCTUATION, and dropping them flattens every question in the text
 # to a statement. Narrow this to ".," to go comma-and-dot only.
 KEPT_PUNCTUATION = ".,!?"
 

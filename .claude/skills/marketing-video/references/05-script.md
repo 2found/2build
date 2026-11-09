@@ -50,8 +50,11 @@ A viewer stays, saves and sends a video for what it does for *them*. The story,
 demo or joke is the proof; the benefit is the product. In one campaign, two
 scripts passed every agent panel and the owner rejected both: one was a fan
 recap, and one was a good story that "gave the listener nothing".
-- The campaign `benefit` (lesson, decide, answer, match or how-to) is the
-  owner's call, and each angle restates it ([04](04-strategy.md#benefit)).
+- The angle's `benefit` (lesson, decide, answer, match or how-to) is what the
+  script delivers ([04](04-strategy.md#benefit)). The use rides on something
+  from inside the subject that a stranger would retell. A script whose body is
+  the product's packaging (length, chapter counts, where to get it) has
+  nothing to retell, however useful the decision is.
 - `spine.use` is the sentence a viewer could say afterwards, in plain words.
   For a lesson, a decision, a match or a how-to it is about their own life:
   "next time the build breaks I check the cache first", "I'll start this
@@ -114,6 +117,9 @@ topic ([rings](02-audience.md)). A reach script works for them first:
   what each one gets.
 - **Keep findability.** The caption, the title and the end carry the search
   terms.
+- **Say who is asking.** The post copy names the brand before the video asks
+  anything (AD1), and the platform's branded-content label goes on. A viewer
+  who learns at the CTA that a "tip" was an ad reads it as seeding.
 - **Sound like someone telling a friend.** A solemn or salesy voice from the
   first line reads as a lecture or an ad.
 
@@ -153,6 +159,56 @@ What cold readers punished, in general terms:
 - a name or title used as the introduction;
 - unsourced lines. Fans and users check.
 
+## Craft
+Lint WARNs on each of these (answer one in `warn_notes` when it is wrong for
+the script). Control scripts (`ctl-…`) skip the key, thesis and turn checks.
+- **Write the ending first.** Decide the payoff line and the picture it lands
+  on before the hook. Everything the ending needs is set up in the first third,
+  so the last beat pays off instead of explaining. Nothing new comes after the
+  payoff except a CTA or an end card (E1). The payoff keeps its own seconds
+  after the last word: 2 s when the video ends there, 1.5 s when a CTA follows
+  (E2); give the last beat `"hold": <seconds>` (a `tempo` of `hold` adds no time).
+- **Key moments.** Mark the 2–4 lines a viewer should remember with
+  `key_moment: true` (K1). Each holds at least 1.5 s after its last word (K2),
+  so the line can land. Direction gives each one its own sound moment: one hit
+  at the line's end and the bed ducked a further 6 dB over the hold, unless a
+  cue already sits there or the shot sets `key_sfx: false`.
+  ([07-craft](07-craft.md#key-moments)). `keys` is something else: caption
+  word highlights.
+- **Thesis wordings.** `spine.thesis` holds 2–3 wordings of the payoff line,
+  each with a different verb or stance (TH0). `mvf sheet` shows them, the owner
+  picks one with `mvf approve <sid> --thesis N`, and the picked wording must be
+  said in a payoff or turn `vo` (TH1). Wording is the owner's taste; the agent
+  offers, it does not pick.
+- **The turn has a before and an after.** `spine.turn` says what the viewer
+  believed and what they believe now: "Trước: … / Sau: …", "Before … after …",
+  or `{"before": "", "after": "", "kind": ""}` (TN1). Kinds that work:
+  reversal (the reason flips), reveal (a hidden fact), transformation (the
+  person changes), threshold (a line is crossed), mirror (the hook comes back
+  meaning more), contrast (two things side by side).
+- **Chain of questions** (an informing short): each beat answers the last
+  beat's question and raises the next one, so no stretch passes without an open
+  question (N3, N4 time the gaps). The next question is held in the picture or
+  in a word, then answered in the very next beat. A question carried to the end
+  and answered vaguely is a tease, which the owner rejects.
+- **Two passes.** First pass: every step of the explanation, in order. Second
+  pass: read it aloud at the voice's pace and cut filler inside lines (a
+  qualifier, a repeated subject, "actually"), never a step. Lint prints the
+  word count and words per second at the voice's rate (WC).
+- **Tells.** Readers hear certain shapes as generated copy or as an ad, and
+  stop trusting the line: a dash joining clauses (WT0; a numeric range is
+  fine), "không phải X mà là Y" / "not just X, but Y", "hãy tưởng tượng" /
+  "imagine…", "hành trình" / "journey", "khám phá ngay", "đừng bỏ lỡ",
+  inflated words (siêu phẩm, kiệt tác, game-changer, unlock), three abstract
+  nouns in a row, stacked "!" (WT1). Lint reads every `vo`, `onscreen` and
+  hook variant. Say the plain thing instead.
+- **Tempo.** An optional beat `tempo` (`fast`, `breath`, `hold`) says how the
+  beat should feel; three alike in a row reads as one long beat (TP1).
+- **Devices.** A line with a number or a comparison names a relation the
+  picture can show. Give the beat a `device` (counter, dots, ladder, bars,
+  compare, steps, html), or `"device": "none"` when the picture already shows
+  it (DV1). Direction checks the device is on screen.
+
 ## Tool
 `mvf new-script <sid>` writes the template (`tools/templates/campaign/script.json`);
 `mvf lint <sid> [--hook H2] [--take latest|none|tNN]` runs the checks. When the
@@ -166,10 +222,10 @@ so only live candidates remain. The keys the tool reads:
  "value": "what the viewer walks away with", "hook": "H1",
  "layers": {"broad": "", "genre": "", "core": ""},
  "spine": {"question": "", "stakes": "", "turn": "", "payoff": "", "takeaway": "", "use": "",
-           "loops": [{"id": "L1", "q": "", "open": "B01", "close": "B04"}]},
+           "thesis": ["wording 1", "wording 2"], "loops": [{"id": "L1", "q": "", "open": "B01", "close": "B04"}]},
  "voice": {"mode": "recorded|clone|design|preset|none", "ref": "", "instruct": "", "name": "", "engine": "", "speed": 1.0},
  "beats": [{"id": "B01", "role": "hook", "vo": "", "onscreen": "", "visual": "", "shots": [], "facts": [],
-            "material": [], "art": [], "keys": [], "voice": ""}],
+            "material": [], "art": [], "keys": [], "voice": "", "key_moment": false, "tempo": "", "device": ""}],
  "variants": [{"id": "H2", "vo": "", "onscreen": "", "visual": ""}],
  "material_override": "",
  "warn_notes": {"V2": "why this advice does not fit", "U1 s01[H2]": "a note for one place only"},

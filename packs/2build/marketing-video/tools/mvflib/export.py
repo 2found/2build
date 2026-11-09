@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from .common import HYPERFRAMES, PLATFORMS, Report, config, copy_kind, dump, family, heavy_prefix, load
+from .common import HYPERFRAMES, PLATFORMS, Report, config, copy_kind, dump, family, heavy_prefix, load, tile_width
 from .scaffold import placeholders
 
 
@@ -191,11 +191,13 @@ def srt(groups: list[dict]) -> str:
 def contact_sheet(path: Path, out: Path, cols: int = 6) -> Path:
     info = probe(path)
     dur = float(info["format"]["duration"])
+    v = next(s for s in info["streams"] if s["codec_type"] == "video")
     n = cols * 3
     step = dur / n
+    w = tile_width(int(v["width"]), int(v["height"]), cols, 3)
     run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(path), "-vf",
          # select (not fps): fps relabels a later frame as 00:00:00, so the sheet showed mid-effect frames as frame 0
-         f"select='isnan(prev_selected_t)+gte(t-prev_selected_t\\,{step:.3f})',scale=240:-2,drawtext=text='%{{pts\\:hms}}':x=6:y=6:fontsize=18:fontcolor=white:box=1:boxcolor=black@0.5,"
+         f"select='isnan(prev_selected_t)+gte(t-prev_selected_t\\,{step:.3f})',scale={w}:-2,drawtext=text='%{{pts\\:hms}}':x=4:y=4:fontsize={max(12, w // 12)}:fontcolor=white:box=1:boxcolor=black@0.5,"
          f"tile={cols}x3:padding=4:margin=4", "-frames:v", "1", str(out)])
     return out
 
@@ -231,6 +233,19 @@ def open_review(proj: Path) -> list[str] | None:
             if i.get("sev") == "P0" and i.get("status", "open") == "open"]
 
 
+def listen_plan(tl: dict) -> str:
+    """The seconds a person must hear before the file is called done: the hook, each key line and the ending."""
+    beats = tl.get("beats") or []
+    if not beats:
+        return "PENDING LISTEN"
+    at = [f"{beats[0]['start']:.1f}–{beats[0]['end']:.1f}s hook"]
+    at += [f"{b.get('vo_start') if b.get('vo_start') is not None else b['start']:.1f}–{b['end']:.1f}s key {b['id']}" for b in beats if b.get("key")]
+    body = [b for b in beats if b.get("role") not in ("cta", "end")]
+    if body and body[-1] is not beats[0]:
+        at.append(f"{body[-1]['start']:.1f}–{tl.get('duration', body[-1]['end']):.1f}s ending {body[-1]['id']}")
+    return "PENDING LISTEN: " + "; ".join(at)
+
+
 def export(campaign_dir: Path, proj: Path, platforms: list[str], draft: bool = False, skip_render: bool = False) -> Report:
     meta, tl = load(proj / "mvf.json"), load(proj / "timeline.json")
     script = load(campaign_dir / meta["script"])
@@ -259,6 +274,20 @@ def export(campaign_dir: Path, proj: Path, platforms: list[str], draft: bool = F
     wh = (canvas["width"], canvas["height"])
     out_root = campaign_dir / "08-delivery" / script["id"] / meta["canvas"]
     rep = Report()
+    from . import viewer
+    from .scaffold import geometry
+    try:
+        from . import picture
+    except ImportError as e:  # numpy is optional for export: the picture checks need it, the cut does not
+        rep.warn("PX0", proj.name, f"picture checks skipped ({e}); `pip install numpy` to run them")
+    else:
+        geo = geometry(meta["canvas"], platforms)
+        rep.extend(picture.check(master, tl, ((geo["cap_top"] - 12) / geo["H"], (geo["cap_top"] + 2 * geo["cap_size"] + 40) / geo["H"])))
+    if not draft:
+        viewer.check(proj, rep)
+        viewer.score_check(proj, rep)
+    listen = listen_plan(tl)
+    rep.info("LISTEN", proj.name, f"{listen}. Hear these with your own ears (phone speaker and earbuds) before it is done")
     if review is None and not draft:
         rep.warn("RV1", proj.name, "no review.json: export --draft, look at its contact sheet and stills, record what "
                  "you saw (references/07-review.md)")
@@ -288,7 +317,7 @@ def export(campaign_dir: Path, proj: Path, platforms: list[str], draft: bool = F
         for k, t in enumerate([0.0, hook_end - 0.1, tl["duration"] / 2, cta["start"] + 0.6, tl["duration"] - 0.2]):
             spot(f, t, d / f"spot-{k}.jpg")
         summary["files"][p] = {"video": str(f.relative_to(campaign_dir)), "fails": r.fails, "warns": r.warns, "qa": r.items}
-        dump(d / "qa.json", {"platform": p, "file": f.name, "items": r.items, "listen": "PENDING LISTEN"})
+        dump(d / "qa.json", {"platform": p, "file": f.name, "items": r.items, "listen": listen})
     cut = art.rmbg_shown(campaign_dir, proj, script)
     lic = config(campaign_dir).get("rmbg_license")
     if cut and lic != "bria-agreement":

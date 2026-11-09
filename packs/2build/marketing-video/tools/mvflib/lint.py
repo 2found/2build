@@ -6,7 +6,7 @@ import json
 import math
 import re
 
-from . import timing
+from . import craft, timing
 from .checks import trend_age, STALE_DAYS
 from .common import APPLY_BENEFITS, CAMPAIGN_PLATFORMS, ID_RE, LIB, PLATFORMS, Report, copy_kind, family, hashtags, words, x_weight
 from .material import RIGHTS, SHOWABLE, SHOWN, SIGNAL_DAYS, signal_age
@@ -164,11 +164,14 @@ def lint(script: dict, campaign: dict, refs: dict, manifest: dict | None = None,
     _story(script, tl, sid, angle, refs, r)
     _layers(script, tl, sid, _ring(refs, angle), refs, campaign, r)
     _benefit(script, tl, sid, angle, refs, campaign, r)
+    if not str(sid).startswith("ctl-"):  # a control is a rejected script on purpose, often an old one
+        _repeat(script, sid, refs, r)
     for p in platforms:
         _copy(script, p, sid, angle, refs, r)
     if "youtube-long" in platforms:
         _chapters(script["platforms"]["youtube-long"] or {}, tl, f"{sid}.youtube-long", r)
     _material(script, sid, refs, r)
+    craft.check(script, tl, sid, refs, r, control=str(sid).startswith("ctl-"))
     r.info("T0", sid, f"{tl['timing']} runtime {tl['duration']:.1f}s over {len(beats)} beats")
     _answered(script, r)
     return r
@@ -364,6 +367,29 @@ def _benefit(script, tl, sid, angle, refs, campaign, r: Report):
                "may still be about the subject, not about them")
 
 
+REPEAT_FAIL, REPEAT_WARN = 0.5, 0.3  # share of this script's word triples heard in one earlier script
+
+
+def _triples(text: str) -> set:
+    w = re.findall(r"\w+", (text or "").lower())
+    return {tuple(w[i:i + 3]) for i in range(len(w) - 2)}
+
+
+def _repeat(script, sid, refs, r: Report):
+    """The owner has already shipped what an earlier campaign said. Unrelated scripts share under a fifth of their
+    word triples; a remake shares over half."""
+    mine = _triples(" ".join(b.get("vo") or "" for b in script.get("beats") or []))
+    if not mine:
+        return
+    for where, vo in refs.get("past") or []:
+        share = len(mine & _triples(vo)) / len(mine)
+        if share >= REPEAT_FAIL:
+            r.fail("RP1", sid, f"{share:.0%} of its lines are already in {where}: that video was made; "
+                   "find what it never said")
+        elif share >= REPEAT_WARN:
+            r.warn("RP1", sid, f"{share:.0%} of its lines are already in {where}: say what this one adds")
+
+
 def _retell(script, sid, sp, r: Report):
     """The retell is what a stranger says after one hearing, so the vo has to say it. Word overlap is only a
     proxy for meaning: a paraphrase can trip it, and a script can pass it and still be unclear to a listener."""
@@ -510,7 +536,7 @@ def _body(script, tl, sid, brand, refs, campaign, r: Report):
     for b, t in zip(beats, tl["beats"]):
         where = f"{sid}.{b['id']}"
         text = " ".join(str(b.get(k) or "") for k in ("vo", "onscreen"))
-        claim = CLAIM.search(brand.sub("", text) if brand else text)  # "2Novel" is a name, not a number
+        claim = CLAIM.search(brand.sub("", text) if brand else text)  # "Acme2" is a name, not a number
         if claim and not b.get("facts") and not _signals(b, refs, where, r):
             r.fail("C1", where, f"claim {claim.group(0)!r} needs a fact id (facts: [F…]) or a measured item (material: […])")
         for fid in b.get("facts") or []:
@@ -595,6 +621,10 @@ def _copy(script, p, sid, angle, refs, r: Report):
     claim = CLAIM.search(brand.sub("", copy) if brand else copy)
     if claim and not c.get("facts") and not _signals(c, refs, where, r):
         r.fail("C3", where, f"claim {claim.group(0)!r} in the post copy needs facts: [F…] or material: […] on platforms.{p}")
+    if brand and not sid.startswith("ctl") and not brand.search(copy):
+        r.warn("AD1", where, f"the post copy never names {refs['brand_names'][0]}: a post that sells says who made it "
+               "before it asks anything (open the caption with it, and turn on the platform's branded-content label); "
+               "a viewer who finds out later reads it as seeding")
     for fid in c.get("facts") or []:
         if fid not in refs.get("facts", set()):
             r.fail("C3", where, f"unknown fact {fid}")

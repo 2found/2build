@@ -3,7 +3,8 @@
 campaign dir; every artifact has a check; every video is measured against the
 platform it ships to. Run from anywhere inside a campaign (or pass --campaign).
 
-  init <slug> --product NAME        new campaign from templates (default <repo>/marketing/campaigns/<slug>)
+  init <slug> --product NAME [--format F]   new campaign from templates (default <repo>/marketing/campaigns/<slug>)
+  format save <name> --from <sid> | ls      keep a series' look, captions, ambience, rigs, props and voice by name
   status                            stage by stage: present, FAIL/WARN counts, what is next
   next [--json]                     the one next action, and whether the agent or the owner takes it
   sheet <sid>                       the script as the owner reads it; approve <sid> --verdict … records their word
@@ -11,6 +12,7 @@ platform it ships to. Run from anywhere inside a campaign (or pass --campaign).
   sources                           every data source: what it yields, its params
   gather <source> [k=v …]           pull items from a source into 00-material/index.json
   material [ls|show ID…] [--kind K] [-q TEXT]   read the pack as short cards, strongest first
+  predict | overlap                 briefs for fresh helpers: the obvious videos, then each angle against them
   check [stage]                     validate brief|material|product|audience|trends|research|strategy|art|pretest|all
   new-script <sid>                  05-scripts/<sid>.json from the template
   lint <script> [--hook H2]         hook timing, first value, length, claims→facts, brand, on-screen load, platform copy
@@ -26,6 +28,7 @@ platform it ships to. Run from anywhere inside a campaign (or pass --campaign).
   scaffold <script> [--hook H2]     one HyperFrames project per canvas, on the chosen hook and measured timing
   score <proj> --bed FILE|auto:MOOD|--none  SFX from the direction + a bed (yours or procedural), ducked, mix-checked
   export <proj> [--platforms …]     render, master −14 LUFS, encode per platform, QA, copy, AI-label notes
+  viewer <proj>                     brief for a fresh helper who sees only the cut: frames at 1 fps + the voice
   thumbnail <sid> [--canvas 16x9]  custom thumbnail/cover still: approved art + the thumbnail line, ≤ 2 MB JPEG
   qa <video> --platform P --proj D  measure one file against a platform
   doctor [--json]                   is this machine ready (HyperFrames, OmniVoice, Qwen+RMBG, Micro Fish)
@@ -50,9 +53,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mvflib import checks, extensions, material, timing  # noqa: E402
+from mvflib import checks, extensions, flow, material, timing  # noqa: E402
 from mvflib.common import (PLATFORMS, STAGES, TOOLS, Report, config, dump, find_campaign,  # noqa: E402
-                           heavy_prefix, load, local_dir, project_root, say_map, today)
+                           heavy_prefix, load, local_dir, project_root, say_map, today, user_dir)
 
 TEMPLATES = TOOLS / "templates/campaign"
 
@@ -88,7 +91,23 @@ def refs(cd: Path) -> dict:
             "lore_terms": (load(cd / "03-research/research.json").get("lore_terms") or []
                            if (cd / "03-research/research.json").is_file() else []),
             "material": material.load_pack(cd)["items"], "recipes": recipes(cd),
-            "art": {j.get("id"): j for j in opt("07-video/art/art.json", "jobs")}}
+            "art": {j.get("id"): j for j in opt("07-video/art/art.json", "jobs")},
+            "thesis": flow.thesis_picks(cd), "past": past_scripts(cd)}
+
+
+def past_scripts(cd: Path) -> list[tuple[str, str]]:
+    """The voice-over of every script in the other campaigns beside this one: what the owner already made."""
+    out = []
+    for f in sorted(cd.resolve().parent.glob("*/05-scripts/*.json")):
+        if f.parents[1] == cd.resolve() or not (f.parents[1] / "campaign.json").is_file():
+            continue
+        try:
+            d = load(f)
+        except (ValueError, OSError):
+            continue
+        beats = (d.get("beats") if isinstance(d, dict) else None) or []
+        out.append((f"{f.parents[1].name}/{f.stem}", " ".join(str(b.get("vo") or "") for b in beats if isinstance(b, dict))))
+    return out
 
 
 def script_path(cd: Path, s: str) -> Path:
@@ -110,14 +129,38 @@ def proj_path(cd: Path, s: str) -> Path:
     raise SystemExit(f"no scaffolded project {s}; run `mvf scaffold` first")
 
 
+def voice_library() -> Path:
+    """This OS user's voices, for every repo and campaign: ~/.babysit/marketing-video/voices/. Never in a repo."""
+    return user_dir() / "voices"
+
+
 def voice_ref(cd: Path, name: str) -> tuple[Path, Path]:
-    """A campaign's own voice first, then this machine's project voices. Both are gitignored; no voices ship."""
-    dirs = (cd / "voices", local_dir(cd) / "voices")
+    """A campaign's own voice first, then this repo's, then the user's library. No voices ship. A voice found in a
+    campaign or repo goes into the library the first time it is used, so the user gives each voice once."""
+    lib = voice_library()
+    dirs = (cd / "voices", local_dir(cd) / "voices", lib)
     for d in dirs:
         w, t = d / f"{name}.wav", d / f"{name}.txt"
         if w.is_file() and t.is_file():
+            if d != lib:
+                cache_voice(w, t)
             return w, t
-    raise SystemExit(f"reference voice {name!r} not found in {', '.join(map(str, dirs))} (.wav + .txt)")
+    raise SystemExit(f"reference voice {name!r} not found in {', '.join(map(str, dirs))} (.wav + .txt): put it in "
+                     f"{lib} once and every campaign finds it")
+
+
+def cache_voice(wav: Path, txt: Path) -> None:
+    """Copy a voice into the library unless it holds that name already; a different voice under the name is kept."""
+    lib = voice_library()
+    cw, ct = lib / wav.name, lib / txt.name
+    if cw.is_file() and ct.is_file():
+        if cw.read_bytes() != wav.read_bytes():
+            print(f"INFO voice {wav.stem}: {wav} is not the library's {cw}; this campaign uses its own")
+        return
+    lib.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(wav, cw)
+    shutil.copy2(txt, ct)
+    print(f"INFO voice {wav.stem} saved to {lib}: every campaign on this machine can use it as voice.ref")
 
 
 def cue_list(script: dict) -> list[dict]:
@@ -159,6 +202,18 @@ def take_state(script: dict, take: Path) -> tuple[set, set]:
     return ok, stale
 
 
+def current_take(cd: Path, script: dict, stored: Path | None) -> Path | None:
+    """The take a re-scaffold should use: the project's own, unless the script has moved past it."""
+    if stored is None or not take_state(script, stored)[1]:
+        return stored
+    newer = pick_take(cd, script, "latest")
+    if newer is not None and newer.resolve() != stored.resolve():
+        print(f"INFO take {stored.name} no longer voices the script as written: using {newer.name}")
+        return newer
+    print(f"WARN take {stored.name} no longer voices the script as written: run `mvf voice`, then `mvf scaffold`")
+    return stored
+
+
 def pick_take(cd: Path, script: dict, want: str | None) -> Path | None:
     if want == "none":
         return None
@@ -186,6 +241,12 @@ def cmd_init(a):
     cd = root / a.slug
     if (cd / "campaign.json").exists():
         raise SystemExit(f"{cd} already has a campaign")
+    if a.format:
+        from mvflib import formats
+        formats.plain(a.format)
+    if a.format and not (root / "_formats" / a.format / "format.json").is_file():
+        have = ", ".join(r["name"] for r in formats.listing(root)) or "none"
+        raise SystemExit(f"no format {a.format!r} in {root / '_formats'} (have: {have})")
     for rel, tmpl in (("campaign.json", "campaign.json"), ("01-product/facts.json", "facts.json"),
                       ("02-audience/segments.json", "segments.json"), ("03-trends/trends.json", "trends.json"),
                       ("03-research/research.json", "research.json"), ("04-strategy/angles.json", "angles.json")):
@@ -195,7 +256,32 @@ def cmd_init(a):
     for d in ("01-product/screens", "05-scripts", "06-pretest", "07-video", "08-delivery", "brand", "voices", "extensions"):
         (cd / d).mkdir(parents=True, exist_ok=True)
     (cd / ".gitignore").write_text(CAMPAIGN_GITIGNORE, encoding="utf-8")
+    if a.format:
+        from mvflib import formats
+        f = formats.apply(cd, a.format)
+        v = (f.get("voice") or {}).get("ref")
+        print(f"format {a.format} (from {f.get('from')}): style {f.get('style') or 'none'}, look/captions/ambience in "
+              f"{formats.APPLIED}" + (f"; set each script's voice.ref = \"{v}\"" if v else ""))
     print(f"campaign {cd}\nnext: `mvf next` (it walks the stages and says who acts)")
+
+
+def cmd_format(a):
+    from mvflib import formats
+    if a.action == "save":
+        if not a.name or not a.sid:
+            raise SystemExit("mvf format save <name> --from <sid>")
+        cd = campaign_dir(a)
+        out = formats.save(cd, a.name, a.sid, force=a.force)
+        print(f"format {a.name} → {out}\nstart the next episode with `mvf init <slug> --product … --format {a.name}`")
+        return
+    camps = campaign_dir(a).parent if maybe_campaign(a) else (Path(a.root) if a.root else project_root() / "marketing/campaigns")
+    rows = formats.listing(camps)
+    for r in rows:
+        print(f"{r['name']}: broken format.json" if r.get("broken") else
+              f"{r['name']}: from {r['from']} ({r['saved']}), style {r['style'] or 'none'}, voice {r['voice'] or 'none'}"
+              + (f", {' '.join(r['sheets'])}" if r["sheets"] else ""))
+    if not rows:
+        print(f"no formats in {formats.root(camps)}: `mvf format save <name> --from <sid>` inside a campaign")
 
 
 def _stage_report(cd: Path, stage: str, c: dict) -> Report | None:
@@ -219,8 +305,12 @@ def _stage_report(cd: Path, stage: str, c: dict) -> Report | None:
         return research.check(load(p), c.get("benefit"), int((c.get("budget") or {}).get("scripts") or 3),
                               r["facts"])
     if stage == "strategy":
-        return checks.check_angles(load(p), r["facts"], set(r["segments"]), set(r["trends"]), plats, r.get("ideas"),
-                                   c.get("benefit"), r.get("lore_terms"))
+        from mvflib import fresh
+        a = load(p)
+        rep = checks.check_angles(a, r["facts"], set(r["segments"]), set(r["trends"]), plats, r.get("ideas"),
+                                  c.get("benefit"), r.get("lore_terms"), c.get("goal"))
+        rep.extend(fresh.check(cd, [g for g in a.get("angles") or [] if isinstance(g, dict)]))
+        return rep
     if stage == "art":
         from mvflib import art
         return art.check(cd, persons(cd)) if (cd / art.ART / "art.json").is_file() else None
@@ -378,8 +468,9 @@ def cmd_approve(a):
     from mvflib import flow
     cd = campaign_dir(a)
     sid = load(script_path(cd, a.sid))["id"]
-    rec = flow.approve(cd, sid, a.verdict, a.note or "", a.hook)
-    print(f"owner {rec['verdict']} {sid}/{rec['hook']} on {rec['at']} → {cd / flow.OWNER}")
+    rec = flow.approve(cd, sid, a.verdict, a.note or "", a.hook, a.thesis)
+    print(f"owner {rec['verdict']} {sid}/{rec['hook']} on {rec['at']}"
+          + (f", thesis {rec['thesis']!r}" if rec.get("thesis") else "") + f" → {cd / flow.OWNER}")
 
 
 def cmd_new_script(a):
@@ -455,6 +546,26 @@ def cmd_pretest_brief(a):
                    "objections": [], "changes": [], "decided_at": None})
     print(f"{out}\nhand it to a simulated panel (any persona-simulation tool) or read it to real people;\n"
           f"then fill {dec} (method, run id, winner, evidence, changes)")
+
+
+def cmd_predict(a):
+    from mvflib import fresh
+    cd = campaign_dir(a)
+    out = cd / "04-strategy" / "predict-brief.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(fresh.predict_brief(load(cd / "campaign.json")), encoding="utf-8")
+    print(f"{out}\ngive it to a fresh helper (no other context); it writes {cd / fresh.PREDICT}. Then `mvf overlap`.")
+
+
+def cmd_overlap(a):
+    from mvflib import fresh
+    cd = campaign_dir(a)
+    if not (cd / "04-strategy/angles.json").is_file():
+        raise SystemExit("no 04-strategy/angles.json: write the angles first")
+    out = cd / "04-strategy" / "overlap-brief.md"
+    out.write_text(fresh.overlap_brief(cd), encoding="utf-8")
+    print(f"{out}\ngive it to a fresh helper (no other context); it writes {cd / fresh.OVERLAP}. "
+          "Then `mvf check strategy`.")
 
 
 def cmd_coldread(a):
@@ -682,6 +793,7 @@ def cmd_voice_pick(a):
         raise SystemExit(f"no candidate {w}")
     shutil.copy2(w, cd / "voices" / f"{a.as_}.wav")
     shutil.copy2(t, cd / "voices" / f"{a.as_}.txt")
+    cache_voice(cd / "voices" / f"{a.as_}.wav", cd / "voices" / f"{a.as_}.txt")
     print(f"voices/{a.as_}.wav is the reference; set script voice.ref = \"{a.as_}\" (mode clone or design)")
 
 
@@ -719,6 +831,7 @@ def cmd_score(a):
                          f"({'|'.join(sound.MOODS)}, procedural) or --none")
     m = load(proj / "mvf.json")
     take = Path(cd / m["take"]) if m.get("take") else None
+    take = current_take(cd, load(cd / m["script"]), take) if take else None
     # sfx.json and timeline.json come from direction.json: refresh them first, or an edited
     # direction is mixed against the previous cues
     scaffold(cd, cd / m["script"], m["canvas"], m["hook"], take, m["platforms"])
@@ -782,6 +895,7 @@ LOCAL_README = """# .babysit/marketing-video — machine-local, never committed
 
 extensions/  <name>.py or <name>/extension.py: data sources, voice engines, kinds, recipes
 voices/      <name>.wav + <name>.txt clone references for every campaign in this repo
+             (~/.babysit/marketing-video/voices/ holds them for every repo; a voice used once lands there)
 config.json  {"voice_engine": "omnivoice", "heavy": ["path/to/lock.sh"]}  (both optional)
 
 A source extension:
@@ -824,6 +938,16 @@ def cmd_export(a):
         print(f"delivered → {cd / '08-delivery'}  (listen and watch every file before it is called done; nothing was uploaded)")
         if rep.fails:
             sys.exit(1)
+
+
+def cmd_viewer(a):
+    from mvflib import viewer
+    cd = campaign_dir(a)
+    proj = proj_path(cd, a.proj)
+    out = viewer.brief(cd, proj)
+    n = out.stem.rsplit("-v", 1)[1]
+    print(f"{out}\ngive it to a fresh helper (no other context: not the script, not the plan); it writes "
+          f"{proj / 'review' / f'viewer-v{n}.md'}. Record each red item in review.json, fix, re-export.")
 
 
 def persons(cd: Path) -> list[str]:
@@ -933,7 +1057,15 @@ def main():
     p.add_argument("slug")
     p.add_argument("--product", required=True)
     p.add_argument("--root")
+    p.add_argument("--format", help="start from a saved format (`mvf format ls`)")
     p.set_defaults(fn=cmd_init)
+    p = sub.add_parser("format", help="save a series' look by name, or list saved formats")
+    p.add_argument("action", choices=["save", "ls"])
+    p.add_argument("name", nargs="?")
+    p.add_argument("--from", dest="sid", help="the script whose direction to keep")
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--root", help="campaigns folder for `ls` outside a campaign")
+    p.set_defaults(fn=cmd_format)
     sub.add_parser("status").set_defaults(fn=cmd_status)
     p = sub.add_parser("next", help="the one next action and who takes it (agent or owner)")
     p.add_argument("--json", action="store_true")
@@ -946,6 +1078,7 @@ def main():
     p.add_argument("--verdict", required=True, choices=["approved", "rejected", "delegated"])
     p.add_argument("--note", help="the owner's words (required for rejected)")
     p.add_argument("--hook", help="the hook they approved (default: the script's hook)")
+    p.add_argument("--thesis", type=int, help="the thesis wording they picked (1-based, as numbered on the sheet)")
     p.set_defaults(fn=cmd_approve)
     sub.add_parser("sources").set_defaults(fn=cmd_sources)
     p = sub.add_parser("extensions")
@@ -998,6 +1131,10 @@ def main():
     p.add_argument("--hooks", nargs="*", help="limit to sid/H1 sid/H2 …")
     p.add_argument("--question")
     p.set_defaults(fn=cmd_pretest_brief)
+    sub.add_parser("predict", help="brief for a fresh helper: the 5 videos anyone would make from this brief"
+                   ).set_defaults(fn=cmd_predict)
+    sub.add_parser("overlap", help="brief for a fresh helper: mark each angle CLEAR/SHARES/OVERLAP"
+                   ).set_defaults(fn=cmd_overlap)
     p = sub.add_parser("coldread")
     p.add_argument("script")
     p.add_argument("--hooks", nargs="*", help="H1 H2 … (default: all)")
@@ -1070,6 +1207,9 @@ def main():
     p.add_argument("--draft", action="store_true", help="rough cut: allows placeholders and estimated timing")
     p.add_argument("--skip-render", action="store_true", help="reuse renders/master.mp4")
     p.set_defaults(fn=cmd_export)
+    p = sub.add_parser("viewer", help="brief for a fresh helper who sees only the cut (1 fps frames + the voice)")
+    p.add_argument("proj")
+    p.set_defaults(fn=cmd_viewer)
     p = sub.add_parser("doctor", help="is this machine ready: HyperFrames, OmniVoice, Qwen+RMBG, Micro Fish")
     p.add_argument("--json", action="store_true")
     p.add_argument("--quick", action="store_true", help="skip verifying the image weights")

@@ -92,6 +92,7 @@ def build(script: dict, manifest: dict | None = None) -> dict:
             "start": round(start, 3), "end": round(end, 3),
             "vo_start": round(t, 3) if vo else None, "vo_end": round(t + vo_dur, 3) if vo else None,
             "vo_trim": round(sp0, 3), "cue": cue_id(b) if vo else None, "timing": source, "words": ws,
+            "key": bool(b.get("key_moment")),
         })
         gap = b.get("gap")
         t = end + (GAP if gap is None else float(gap))

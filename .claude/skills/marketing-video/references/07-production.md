@@ -83,6 +83,8 @@ What the checks refuse:
   mood under the voice and never competes with it.
 - Match the look to the product and audience; brand colours and fonts are a
   default, not a cage.
+- Motion, devices, cut rhythm, key moments and the cliché test are in
+  [07-craft](07-craft.md).
 
 ## Art
 `07-video/art/art.json` is `{preset?, style, cutout_style?, engine, cast, jobs: [{id, use, prompt |
@@ -239,9 +241,14 @@ timing is measured.
   - `omnivoice` (shipped extension, no voices included) clones `voice.ref` or
     designs a voice (`mvf voice-design`, `mvf voice-pick`), and Whisper times
     each word. `--rehear --engine omnivoice` re-times any take.
-  - Reference voices live in `<campaign>/voices/` or
-    `.babysit/marketing-video/voices/` (`<name>.wav` with a `.txt` of its
-    words).
+  - Reference voices (`<name>.wav` with a `.txt` of its words) are found in
+    `<campaign>/voices/`, then the repo's `.babysit/marketing-video/voices/`,
+    then the user's library `~/.babysit/marketing-video/voices/`. A voice
+    found in a campaign or repo is copied into the library the first time it
+    is used (and `mvf voice-pick` saves there too), so the user gives each
+    voice once. A different voice under a library name stays in its campaign.
+  - OmniVoice has no stock voices: `mode: preset` fails on it. Use `clone`
+    with `voice.ref`.
   - Spoken spellings go in `brand.say`; captions keep the display spelling.
     Listen to every line.
 - **Scaffold.** `mvf scaffold <sid> [--hook H2] [--canvas 9x16] [--from DIR]`

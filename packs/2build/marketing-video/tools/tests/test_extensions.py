@@ -19,7 +19,8 @@ from mvflib.lint import lint  # noqa: E402
 from test_mvf import CAMPAIGN, REFS, codes, script  # noqa: E402
 
 FFMPEG = shutil.which("ffmpeg") and shutil.which("ffprobe")
-ENV = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "MVF_EXTENSIONS": "", "MVF_HEAVY": ""}
+ENV = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "MVF_EXTENSIONS": "", "MVF_HEAVY": "",
+       "BABYSIT_HOME": tempfile.mkdtemp(prefix="mvf-home-")}  # the voice library never lands in the real home
 
 
 def mvf(cwd: Path, *args, ok=True, env=None) -> subprocess.CompletedProcess:
@@ -153,6 +154,32 @@ class CommandEngine(unittest.TestCase):
             self.assertEqual(m["extra"], ["--style", "calm"])
             self.assertEqual(m["mvf_voice"]["engine"], "fake")
             self.assertIn("already voices every line", mvf(cd, "voice", "s01-test").stdout)
+
+    def test_a_voice_used_once_is_found_by_every_later_campaign(self):
+        d, root = repo()
+        with d:
+            home = root / "home"
+            eng = ("import sys\nfrom pathlib import Path\nfrom mvflib.extensions import Voice\n"
+                   "VOICES = {'fake': Voice('test', command=[sys.executable, str(Path(__file__).with_name('fake_engine.py'))])}\n")
+            cd = campaign(root, voice={"mode": "clone", "ref": "me", "engine": "fake"})
+            (cd / "extensions/fake").mkdir()
+            (cd / "extensions/fake/fake_engine.py").write_text(FAKE_ENGINE)
+            (cd / "extensions/fake/extension.py").write_text(eng)
+            (cd / "voices/me.wav").write_bytes(b"RIFF me")
+            (cd / "voices/me.txt").write_text("the words")
+            r = mvf(cd, "voice", "s01-test", env={"BABYSIT_HOME": str(home)})
+            lib = home / "marketing-video/voices"
+            self.assertIn(f"saved to {lib}", r.stdout)
+            self.assertEqual((lib / "me.wav").read_bytes(), b"RIFF me")
+            (cd / "voices/me.wav").write_bytes(b"RIFF another me")  # a different voice under the name stays local
+            mvf(cd, "voice", "s01-test", "--all", env={"BABYSIT_HOME": str(home)})
+            self.assertEqual((lib / "me.wav").read_bytes(), b"RIFF me")
+            for f in ("me.wav", "me.txt"):
+                (cd / "voices" / f).unlink()  # a campaign without the file finds the library's
+            r = mvf(cd, "voice", "s01-test", "--all", env={"BABYSIT_HOME": str(home)})
+            self.assertIn("3 line(s) to voice with fake", r.stdout)
+            m = json.loads(sorted((cd / "07-video/s01-test/takes").glob("t0?/manifest.json"))[-1].read_text())
+            self.assertEqual(m["voice"]["ref_wav"], str(lib / "me.wav"))
 
     def test_clone_without_engine_or_voice_names_the_way(self):
         d, root = repo()

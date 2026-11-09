@@ -2,8 +2,9 @@
 voice or design a new one, voiced locally; Whisper times each word for the captions.
 
 No voices ship with it. A clone reference is yours: <campaign>/voices/<name>.wav + .txt
-(the words it says), or .babysit/marketing-video/voices/ for every campaign on this
-machine — or design one with `mvf voice-design` and pick a candidate.
+(the words it says), the repo's .babysit/marketing-video/voices/, or ~/.babysit/marketing-video/voices/
+for every campaign on this machine (a voice used once is saved there) — or design one with
+`mvf voice-design` and pick a candidate.
 
 The worker needs torch, OmniVoice and Whisper. By default it runs in an ephemeral uv
 environment (first run downloads ~2 GB of wheels and the model weights from Hugging

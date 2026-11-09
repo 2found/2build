@@ -197,6 +197,13 @@ class Judge(unittest.TestCase):
         self.assertEqual([i for i in rep.items if i["level"] == "FAIL"], [])
         self.assertIn("decision draft", r.stdout)
 
+    def test_a_candidate_the_analyst_calls_the_control_is_named(self):
+        key = {"a": {"id": "ctl-x/H1", "kind": "control"}, "b": {"id": "s02/H1", "kind": "candidate"},
+               "d": {"id": "s03/H1", "kind": "candidate"}}
+        answer = "Nói thẳng: đối chứng d xem hết ngang b.\n| 3 | d (đối chứng, đã loại) |\na thua cả đối chứng."
+        self.assertEqual(judge.mislabelled_controls(answer, key), ["d"])
+        self.assertEqual(judge.mislabelled_controls("a (control) loses to b", key), [])
+
     def test_a_control_that_wins_means_no_winner(self):
         self.run_scripts({"s01-a/H1": 30, "s02-b/H1": 20, "s00-old/H1": 50})
         j = json.loads((self.cd / "06-pretest/r1/microfish/judge.json").read_text())

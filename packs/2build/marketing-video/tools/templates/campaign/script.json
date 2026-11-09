@@ -12,10 +12,11 @@
   "spine": {
     "question": "the one question the viewer stays to answer (opened by the hook)",
     "stakes": "why it matters to this viewer: what is lost, won or wrong",
-    "turn": "what deepens or corrects the expected answer (optional; it never replaces the answer)",
+    "turn": "Before: what the viewer believed. After: what they believe now (it deepens or corrects the answer, never replaces it)",
     "payoff": "the answer to the hook's question, in the form it asked (a verdict, a mapping, the cause, the steps)",
     "takeaway": "the retell: the one or two sentences a stranger says after one viewing; the vo lines must say it",
     "use": "answer: the answer they can now repeat, in the topic's words; lesson/decide/match/how-to: what they do or think differently in their own life, with no lore word",
+    "thesis": ["the payoff line, worded one way", "the same point with another verb or stance"],
     "loops": [
       {
         "id": "L1",

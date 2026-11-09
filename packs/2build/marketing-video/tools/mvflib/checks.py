@@ -74,8 +74,8 @@ def check_campaign(c: dict) -> Report:
         r.warn("BRF", "campaign.kpi", "no KPI: name the number this campaign should move")
     b = c.get("benefit")
     if not b:
-        r.warn("BRF", "campaign.benefit", f"benefit: what a viewer can use after the video, one of {sorted(BENEFITS)}. "
-               "It is the owner's call: ask once and write it down (references/05-script.md#the-benefit)")
+        r.info("BRF", "campaign.benefit", f"no campaign benefit: each angle picks its own ({sorted(BENEFITS)}); set one "
+               "only when the owner asks for it (references/04-strategy.md#benefit)")
     elif b not in BENEFITS:
         r.fail("BRF", "campaign.benefit", f"{b!r} not in {sorted(BENEFITS)}")
     return r
@@ -219,7 +219,8 @@ def check_trends(t: dict, platforms: list[str], segment_ids: set) -> Report:
 
 
 def check_angles(a: dict, fact_ids: set, segment_ids: set, trend_ids: set, platforms: list[str],
-                 ideas: dict | None = None, benefit: str | None = None, lore: list | None = None) -> Report:
+                 ideas: dict | None = None, benefit: str | None = None, lore: list | None = None,
+                 goal: str | None = None) -> Report:
     r = Report()
     template_left(a, "angles", r)
     angles = a.get("angles") or []
@@ -234,6 +235,10 @@ def check_angles(a: dict, fact_ids: set, segment_ids: set, trend_ids: set, platf
             if not str(x.get(k, "")).strip():
                 r.fail("STR", where, f"{k} is empty")
         _benefit(x.get("benefit"), where, benefit, lore or [], r)
+        if goal == "awareness" and (x.get("benefit") or {}).get("type") == "decide":
+            r.warn("STR3", where, "a `decide` angle on an awareness campaign: if the decision is about the product "
+                   "itself (start it, which version, where), only viewers already weighing it care, and a stranger "
+                   "gets nothing to retell; give the stranger something from inside it and let the decision follow")
         if not x.get("facts"):
             r.fail("STR", where, "facts: the promise must stand on at least one fact")
         for fid in x.get("facts") or []:
@@ -265,7 +270,7 @@ def _benefit(b, where: str, wanted: str | None, lore: list, r: Report) -> None:
     if b.get("type") not in BENEFITS:
         r.fail("STR3", where, f"benefit.type {b.get('type')!r} not in {sorted(BENEFITS)}")
     elif wanted and b["type"] != wanted:
-        r.warn("STR3", where, f"benefit.type {b['type']!r}, but the campaign asks for {wanted!r}")
+        r.warn("STR3", where, f"benefit.type {b['type']!r}, but the owner asked for {wanted!r}")
     for k, what in (("takeaway", "the sentence the viewer keeps, about their life"),
                     ("use_when", "the situation in the viewer's own life where they use it")):
         if len(str(b.get(k, "")).strip()) < 10:

@@ -39,18 +39,6 @@ class Rings(unittest.TestCase):
         self.assertIn("AUD2", codes(checks.check_segments({"segments": [s]}, ["tiktok"]), "WARN"))
 
 
-class ReachScore(unittest.TestCase):
-    def test_reach_is_scored_and_a_low_reach_pick_warns(self):
-        d = good_research()
-        d["lore_terms"] = ["bản mệnh sứ"]
-        self.assertEqual(codes(research.check(d), "FAIL"), [])
-        pick = next(x for x in d["ideas"] if x["pick"])
-        pick["scores"]["reach"] = 3
-        self.assertIn("RS6", codes(research.check(d), "WARN"))
-        del pick["scores"]["reach"]
-        self.assertIn("RS5", codes(research.check(d), "WARN"))
-
-
 class OutsiderHook(unittest.TestCase):
     def test_names_skip_sentence_starts_and_group_runs(self):
         # one capital at a sentence start is the sentence; a run of capitals there is still a name

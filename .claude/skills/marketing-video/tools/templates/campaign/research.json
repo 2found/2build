@@ -27,8 +27,8 @@
   "ideas": [
     {"id": "I1", "premise": "the video in one sentence", "question": "the question it opens in the first 2 s",
      "payoff": "the answer, which makes the viewer see the question differently",
+     "inside": "the scene, twist, line or rule from inside the subject a stranger would tell a friend tomorrow",
      "benefit": "lesson", "use_when": "the moment in the viewer's own life it is for", "pattern": "P1",
-     "nuggets": ["N1"], "new": "what this adds that `covered` does not",
-     "scores": {"curiosity": 1, "use": 1, "emotion": 1, "share": 1, "novelty": 1, "proof": 1, "reach": 1}, "pick": false}
+     "nuggets": ["N1"], "new": "what this adds that `covered` and past campaigns do not", "pick": false}
   ]
 }

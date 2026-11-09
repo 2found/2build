@@ -12,7 +12,10 @@ PATH = "03-research/research.json"
 COMMUNITY = {"forum", "reddit", "comments", "review", "group", "qa"}
 SOURCE_KINDS = COMMUNITY | {"wiki", "news", "official", "book", "video", "interview", "article", "data"}
 NUGGET_TYPES = {"fact", "scene", "quote", "number", "controversy", "theory", "behind-the-scenes", "connection", "mistake"}
-SCORES = ("curiosity", "use", "emotion", "share", "novelty", "proof", "reach")
+# nugget types that come from inside the subject (what happens in it, what is said in it, what it means); a pick
+# standing only on numbers and facts about it is about the packaging: length, price, where to get it
+INSIDE = {"scene", "quote", "theory", "connection", "mistake", "controversy"}
+STRONGER = 4  # a pick rides a pattern whose best video has at least 1/STRONGER of the strongest same-scope pattern's
 MIN = {"sources": 8, "domains": 3, "community": 2, "competitors": 3, "questions": 5, "nuggets": 8, "ideas": 6,
        "top_videos": 5, "benefit_videos": 2, "patterns": 2}
 FILLER = {"x", "?", "-", "...", "…", "tbd", "todo", "n/a", "na", "none", "same", "idem"}
@@ -22,7 +25,6 @@ def _filler(v) -> bool:
     """A field written to pass the count, not to say something."""
     t = str(v or "").strip().lower()
     return len(t) < 8 or t in FILLER
-PICK_TOTAL, PICK_FLOOR, PICK_USE = 26, 3, 4
 
 
 def _domain(url: str) -> str:
@@ -80,6 +82,7 @@ def check(d: dict, benefit: str | None = None, scripts: int = 3, facts: set | No
         r.warn("RS2", "research.covered", "covered: what the existing videos already said, so ours adds something")
 
     pats = _top_videos(d, r)
+    pat_views = _pattern_views(d)
 
     qs = d.get("questions") or []
     for i, q in enumerate(qs):
@@ -112,10 +115,12 @@ def check(d: dict, benefit: str | None = None, scripts: int = 3, facts: set | No
     picked, padded = [], []
     for i, x in enumerate(ideas):
         w = f"ideas[{i}] {x.get('id', '?')}"
-        for k in ("premise", "question", "payoff", "new", "use_when"):
+        for k in ("premise", "question", "payoff", "inside", "new", "use_when"):
             if not str(x.get(k, "")).strip():
-                (r.fail if x.get("pick") and k in ("premise", "use_when") else r.warn)("RS5", w, f"{k} is empty" + (": the situation in the viewer's own life where the idea helps"
-                                                     if k == "use_when" else ""))
+                (r.fail if x.get("pick") and k in ("premise", "inside", "use_when") else r.warn)("RS5", w, f"{k} is empty" + (": the situation in the viewer's own life where the idea helps"
+                                                     if k == "use_when" else ": the scene, twist, line or rule from inside "
+                                                     "the subject that a stranger would tell a friend tomorrow"
+                                                     if k == "inside" else ""))
             elif _filler(x.get(k)):
                 if x.get("pick"):
                     r.fail("RS5", w, f"{k} {x.get(k)!r} is filler: a picked idea says its {k} in a real sentence")
@@ -127,36 +132,28 @@ def check(d: dict, benefit: str | None = None, scripts: int = 3, facts: set | No
         for nid in x.get("nuggets") or []:
             if nid not in nids:
                 r.fail("RS5", w, f"unknown nugget {nid}")
-        sc = x.get("scores") or {}
-        if "value" in sc and "use" not in sc:
-            r.warn("RS5", w, "scores.value is now scores.use: score what the viewer can use in their own life, not "
-                   "what they learn about the topic")
-        bad = [k for k in SCORES if not (isinstance(sc.get(k), int) and 1 <= sc[k] <= 5)]
-        if bad:
-            r.warn("RS5", w, f"scores 1-5 missing for {bad}: scoring is how ideas are compared; without it say why "
-                   "this one was picked")
         if x.get("pick"):
             picked.append(x)
             if not x.get("nuggets"):
                 r.fail("RS6", w, "a picked idea stands on nuggets")
             if benefit and x.get("benefit") != benefit:
-                r.warn("RS6", w, f"benefit {x.get('benefit')!r}, but the campaign asks for {benefit!r}")
+                r.warn("RS6", w, f"benefit {x.get('benefit')!r}, but the owner asked for {benefit!r}")
+            kinds = {n.get("type") for n in nugs if n.get("id") in set(x.get("nuggets") or [])}
+            if kinds and not kinds & INSIDE:
+                r.warn("RS6", w, f"stands only on {sorted(kinds)} nuggets: numbers and facts about the subject "
+                       "(its length, its price, where to get it) are its packaging, and nobody retells them; build it "
+                       f"on something from inside it ({sorted(INSIDE)})")
+            mine = pat_views.get(x.get("pattern"))
+            if mine:
+                rivals = {k: v for k, v in pat_views.items() if v[1] == mine[1]}  # topic vs topic, benefit vs benefit
+                top = max(rivals, key=lambda k: rivals[k][0])
+                if mine[0] * STRONGER < rivals[top][0]:
+                    r.warn("RS6", w, f"rides {x.get('pattern')} (best {mine[1]} video {mine[0]:,} views) while {top} "
+                           f"reaches {rivals[top][0]:,}: the audience already voted for {top}; ride it, or keep this "
+                           "one knowing it was watched far less")
             if pats and x.get("pattern") not in pats:
                 r.warn("RS8", w, f"pattern {x.get('pattern')!r}: name the top-video pattern this idea rides on "
                        f"({sorted(pats)}), or say in `new` why the audience wants something none of them gave")
-        if x.get("pick") and not bad:
-            tot = sum(sc[k] for k in SCORES)
-            if tot < PICK_TOTAL or min(sc.values()) < PICK_FLOOR:
-                r.warn("RS6", w, f"picked at {tot}/{5 * len(SCORES)} (lowest {min(sc[k] for k in SCORES)}): a pick scores "
-                       f"≥ {PICK_TOTAL} with nothing under {PICK_FLOOR}; find a better idea")
-            if sc["use"] < PICK_USE:
-                r.warn("RS6", w, f"use {sc['use']}: a pick gives the viewer something they can use (≥ {PICK_USE}); "
-                       "knowing more about the topic is a 2")
-            if sc["curiosity"] < 4:
-                r.warn("RS6", w, "curiosity under 4: the question does not pull; sharpen it or drop the idea")
-            if sc["reach"] < 4:
-                r.warn("RS6", w, "reach under 4: a stranger who never heard of the topic needs it explained first; "
-                       "find the everyday situation inside it (references/03b-research.md#reach)")
     ad = d.get("adaptations")
     if ad is None:
         r.info("RS9", "research.adaptations", "adaptations: if the topic already has a look viewers know (an "
@@ -223,6 +220,22 @@ def _top_videos(d: dict, r: Report) -> set:
         r.warn("RS8", "research.patterns", f"{len(pats)} patterns; write at least {MIN['patterns']}: what the "
                "most-viewed videos are about and how they give it, ranked by views")
     return ids
+
+
+def _pattern_views(d: dict) -> dict:
+    """Each pattern's best measured views and that video's scope, from the top videos it names (by id or url)."""
+    views = {}
+    for v in d.get("top_videos") or []:
+        if isinstance(v.get("views"), int):
+            for k in (v.get("id"), v.get("url")):
+                if k:
+                    views[k] = (v["views"], v.get("scope"))
+    out = {}
+    for p in d.get("patterns") or []:
+        seen = [views[k] for k in p.get("videos") or [] if k in views]
+        if p.get("id") and seen:
+            out[p["id"]] = max(seen)
+    return out
 
 
 def ideas(d: dict) -> dict:

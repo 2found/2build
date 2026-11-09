@@ -16,12 +16,40 @@ segment, made believable by facts. It is built on a picked idea from
 - the `benefit` is missing or malformed ([Benefit](#benefit)).
 
 It WARNs when every angle has the same format, when the benefit differs from
-the campaign's, and when the takeaway needs insider words.
+the campaign's, when the takeaway needs insider words, and on freshness
+([Is it fresh?](#is-it-fresh)): no overlap verdict (OV1), an `OVERLAP` angle
+with no `overlap_note` (OV2), an empty `swap` (SW1).
+
+## Is it fresh?
+An angle the viewer has already seen loses them at the hook, however good the
+benefit. Two fresh helpers answer it, each with only its brief, so neither has
+seen the angles you are proud of.
+1. `mvf predict` writes `04-strategy/predict-brief.md` with the brief's words
+   only. The helper lists the five videos anyone in the niche would make first
+   (P1–P5) into `04-strategy/predict.md`.
+2. `mvf overlap` writes `04-strategy/overlap-brief.md` with the angles, that
+   list and this owner's past videos (sibling campaigns' angles and payoffs,
+   plus `campaign.past`). The helper writes `04-strategy/overlap.json`, one
+   verdict per angle: `CLEAR` (nothing makes this point this way), `SHARES`
+   (same topic or format, another point) or `OVERLAP` (the same point the same
+   way).
+- An `OVERLAP` is changed (another angle or format) or kept with an
+  `overlap_note` saying why it is still worth making (the owner asked for the
+  sequel; this one answers what that one left open).
+- Freshness is about the angle and the format. A known benefit is fine; the
+  benefit is the owner's call.
+- **The swap test.** In `swap`, put the closest competitor in place of the
+  product and write what is left. If the video still works unchanged, the angle
+  is about the category; move the product to where the value happens.
 
 ## Benefit
 Every angle says what the viewer can use:
 `benefit: {type, takeaway, use_when}`.
-- `type` is the campaign's benefit: lesson, decide, answer, match or how-to.
+- `type` is this angle's benefit: lesson, decide, answer, match or how-to.
+  Angles may differ. If the owner named a campaign `benefit`, the angles
+  follow it. On an awareness campaign, a `decide` about the product itself
+  (start it, which version, where) only serves viewers already weighing it,
+  and the check WARNs on it.
 - `takeaway` is the principle, answer or skill in plain words.
 - `use_when` is the moment in the viewer's own life it is for. Examples: "when
   your invoices pile up at month end", "when you pick a gift for a gamer", "when
@@ -70,7 +98,8 @@ asked, never a general moral drawn from it.
 ```json
 {"angles": [{"id": "G1", "segment": "A1", "idea": "I1", "insight": "", "promise": "", "why_watch": "",
              "why_share": "", "benefit": {"type": "lesson", "takeaway": "", "use_when": ""},
-             "format": "demo", "facts": ["F1"], "trends": ["T1"], "platforms": ["tiktok"]}],
+             "format": "demo", "facts": ["F1"], "trends": ["T1"], "platforms": ["tiktok"],
+             "swap": "with <competitor> in its place: what still works", "overlap_note": ""}],
  "plan": [{"script": "s01-name", "angle": "G1", "why": "what this video tests"}]}
 ```
 `hooks` (draft openers) and `plan` are notes for the writer; the check does not

@@ -1,7 +1,7 @@
 """Vietnamese written forms → the words a speaker says: numbers, dates, times, currency,
 percent, ranges, `thứ N`, a few abbreviations. Stdlib only.
 
-A digit glued to a letter (`2novel`, `abc17`) is not a number, and `1.2.3` is read
+A digit glued to a letter (`2go`, `abc17`) is not a number, and `1.2.3` is read
 "một chấm hai chấm ba".
 """
 from __future__ import annotations
@@ -102,7 +102,7 @@ _CURRENCY_RE = re.compile(r"(\d[\d.,]*)\s*(?:vnđ|vnd|đồng|đ|₫)\b", re.IGN
 _DOLLAR_RE = re.compile(r"\$\s*(\d(?:[\d.,]*\d)?)")
 _PERCENT_RE = re.compile(r"(\d[\d.,]*)\s*%")
 _RANGE_RE = re.compile(r"\b(\d+)\s*-\s*(\d+)\b")
-# A digit glued to a letter is part of a name, not a number: `lamlamyu17`, `2novel`.
+# A digit glued to a letter is part of a name, not a number: `lamlamyu17`, `2go`.
 # (loa/frontend.py reads those digits; it sees them as separate spans already.)
 _NUMBER_RE = re.compile(r"(?<!\w)(?:\d[\d.,]*\d|\d)(?!\w)")
 _UNIT_ONLY_RE = re.compile(r"(?<!\w)(?:vnđ|vnd|đ|₫)(?!\w)", re.IGNORECASE)
@@ -138,7 +138,7 @@ def normalize_vi(text: str) -> str:
 
 # One written form as a single span, so a caller can map it onto the display words it
 # covers (`28/10/2026` is three display words, `49.000đ` two). Longest forms first; the
-# whole span stands alone, so the `2` of `2novel` is not a number.
+# whole span stands alone, so the `2` of `2go` is not a number.
 SPAN = (r"(?<!\w)(?:"
         r"\d{1,2}[/.-]\d{1,2}[/.-]\d{4}"                          # date
         r"|(?:[01]?\d|2[0-3]):[0-5]\d"                            # clock
