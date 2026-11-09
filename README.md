@@ -8,7 +8,7 @@ English | [Tiếng Việt](README.vi.md) | [中文](README.zh.md) | [日本語](
 
 **Review the prototype. Let Autopilot do the rest.**
 
-**[Start with Autopilot](#install) · [Read the docs](docs/install.md)**
+**[Start with Autopilot](#install) · [Read the docs](https://2found.dev/docs/2build/) · [Blog](https://2found.dev/blog/)**
 
 2build helps your coding agent finish a feature. Give it a requirement, review the UI prototype, then let **Autopilot** write code, check it and fix issues.
 
@@ -168,7 +168,7 @@ for config paths, defaults, project limits and human-review behavior.
 
 ## Documentation
 
-[Install and troubleshoot](docs/install.md) · [Choose a skill](docs/skills.md) · [Inspect progress](docs/companion-cli.md) · [Coordinate a project](docs/team.md)
+[Install and troubleshoot](docs/install.md) · [Choose a skill](docs/skills.md) · [Inspect progress](docs/companion-cli.md) · [Coordinate a project](docs/team.md) · [Check performance](docs/performance-and-architecture.md) · [Docs and blog on 2found.dev](https://2found.dev/tools/2build/)
 
 For coding agents, [llms.txt](llms.txt) links directly to the Markdown guides and runtime contracts.
 

@@ -8,7 +8,7 @@
 
 **프로토타입을 확인하세요. 나머지는 Autopilot에 맡기세요.**
 
-**[Autopilot으로 시작](#설치) · [문서 읽기(영어)](docs/install.md)**
+**[Autopilot으로 시작](#설치) · [문서 읽기(영어)](https://2found.dev/docs/2build/) · [블로그](https://2found.dev/blog/)**
 
 2build는 coding agent가 기능 하나를 완성하도록 돕습니다. 요구사항을 전달하고 화면 프로토타입을 확인한 뒤, **Autopilot**에 코드 작성, 검증, 수정을 맡기세요.
 
@@ -159,7 +159,7 @@ bbs config set semantic_decision_model clef-flash  # or clef
 
 ## 문서(영어)
 
-[설치 및 문제 해결](docs/install.md) · [Skill 선택](docs/skills.md) · [진행 확인](docs/companion-cli.md) · [프로젝트 조정](docs/team.md)
+[설치 및 문제 해결](docs/install.md) · [Skill 선택](docs/skills.md) · [진행 확인](docs/companion-cli.md) · [프로젝트 조정](docs/team.md) · [성능 측정](docs/performance-and-architecture.md) · [2found.dev 문서와 블로그](https://2found.dev/tools/2build/)
 
 Coding agent는 [llms.txt](llms.txt)에서 Markdown 안내와 runtime 규약을 바로 참조할 수 있습니다.
 

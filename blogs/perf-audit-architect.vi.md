@@ -110,10 +110,10 @@ kèm điều kiện tiên quyết, chi phí, cách rollback và cách kiểm ch�
 liệu luôn có mục "Chưa làm" để Redis, read replica hay microservice có chỗ đứng
 rõ ràng: chưa, vì sao chưa, và trigger nào sẽ đổi ý.
 
-## Thử thật trên 2Novel
+## Thử thật trên 2novel
 
 Viết skill xong, tụi mình cho chạy ngay trên
-[2Novel](https://2novel.app), app dịch truyện cũng của 2found: một tiến trình
+[2novel](https://2novel.app), app dịch truyện cũng của 2found: một tiến trình
 API Bun gộp cả HTTP lẫn worker, một web Next.js, chạy chung một VM 2 nhân và
 một cụm Postgres với các sản phẩm khác. Owner cho phép đọc DB một lần, trong
 transaction chỉ-đọc.
@@ -137,12 +137,12 @@ sau không ai restart nhầm.
 
 **Thứ skill khuyên không làm cũng quan trọng không kém.** Phản xạ tự nhiên
 sau một sự cố như vậy là "tách worker ra máy riêng" hoặc "nâng máy". Báo cáo
-đặt chúng vào mục "Không đáng làm lúc này", với số liệu: API 2Novel dùng
+đặt chúng vào mục "Không đáng làm lúc này", với số liệu: API 2novel dùng
 khoảng 1 % một nhân CPU, Postgres mới dùng 53/100 kết nối. Nghẽn hôm đó là
 lãng phí trong code, sửa ở bậc 1, chi phí 0 đồng.
 
 Máy chủ dùng chung thì đúng là thiếu CPU thật (PSI trung bình 26,8 %, ngưỡng
-20 %), nhưng 2Novel chỉ chiếm khoảng 2 % tải. Dời 2Novel sang máy khác gần như
+20 %), nhưng 2novel chỉ chiếm khoảng 2 % tải. Dời 2novel sang máy khác gần như
 không giúp được gì. Quyết định đúng nằm ở tầng nền tảng, và `architect` đưa
 nó vào mục "Bạn cần quyết" với mặc định, thiệt hại nếu mặc định sai và hạn
 chót.
@@ -213,3 +213,6 @@ và skill nói thẳng như vậy thay vì đoán.
 
 Lần tới có ai bảo "nâng server đi", hãy chạy `perf-audit` trước. Có khi câu
 trả lời là một `Promise.all`.
+
+Hướng dẫn đầy đủ (tiếng Anh): [Performance and architecture](../docs/performance-and-architecture.md).
+Bản viết cho người không phải kỹ sư nằm trên [blog 2found.dev](https://2found.dev/vi/blog/); tài liệu 2build đọc tại [2found.dev/docs/2build](https://2found.dev/vi/docs/2build/).

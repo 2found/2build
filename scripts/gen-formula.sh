@@ -50,7 +50,7 @@ cat <<RUBY
 # real checksums on each tag. Do not hand-edit the sha256 values.
 class Bbs < Formula
   desc "2build CLI — Go multicall for config, env, slug, ticket, and more"
-  homepage "https://github.com/2found/2build"
+  homepage "https://2found.dev/tools/2build/"
   version "${VERSION}"
   license "MIT"
 

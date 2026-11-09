@@ -8,7 +8,7 @@
 
 **Xem prototype. Để Autopilot làm phần còn lại.**
 
-**[Bắt đầu với Autopilot](#cài-đặt) · [Đọc tài liệu (tiếng Anh)](docs/install.md)**
+**[Bắt đầu với Autopilot](#cài-đặt) · [Đọc tài liệu](https://2found.dev/vi/docs/2build/) · [Blog](https://2found.dev/vi/blog/)**
 
 2build giúp coding agent làm trọn một tính năng. Bạn đưa yêu cầu, xem prototype giao diện, rồi để **Autopilot** tự viết code, kiểm tra và sửa lỗi.
 
@@ -160,7 +160,7 @@ bbs config set semantic_decision_model clef-flash  # or clef
 
 ## Tài liệu (tiếng Anh)
 
-[Cài đặt và xử lý lỗi](docs/install.md) · [Chọn skill](docs/skills.md) · [Xem tiến độ](docs/companion-cli.md) · [Điều phối dự án](docs/team.md)
+[Cài đặt và xử lý lỗi](docs/install.md) · [Chọn skill](docs/skills.md) · [Xem tiến độ](docs/companion-cli.md) · [Điều phối dự án](docs/team.md) · [Đo hiệu năng](docs/performance-and-architecture.md) · [Tài liệu và blog trên 2found.dev](https://2found.dev/vi/tools/2build/)
 
 Với coding agent, [llms.txt](llms.txt) dẫn thẳng đến hướng dẫn Markdown và các quy ước runtime.
 

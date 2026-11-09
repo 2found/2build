@@ -1,12 +1,12 @@
 {
   "name": "bbs",
-  "version": "1.127.0",
+  "version": "1.127.1",
   "description": "Give your coding agent a goal. 2build plans, builds, reviews and verifies, with progress saved on disk.",
   "author": {
     "name": "2found",
-    "url": "https://github.com/2found"
+    "url": "https://2found.dev"
   },
-  "homepage": "https://github.com/2found/2build",
+  "homepage": "https://2found.dev/tools/2build/",
   "repository": "https://github.com/2found/2build",
   "license": "MIT",
   "keywords": [

@@ -8,7 +8,7 @@
 
 **先看原型，剩下的交给 Autopilot。**
 
-**[从 Autopilot 开始](#安装) · [阅读文档（英文）](docs/install.md)**
+**[从 Autopilot 开始](#安装) · [阅读文档（英文）](https://2found.dev/docs/2build/) · [博客](https://2found.dev/blog/)**
 
 2build 帮助 coding agent 完成一个功能。你提出需求、预览界面，再让 **Autopilot** 编写代码、检查并修复问题。
 
@@ -159,7 +159,7 @@ bbs config set semantic_decision_model clef-flash  # or clef
 
 ## 文档（英文）
 
-[安装与排错](docs/install.md) · [选择 skill](docs/skills.md) · [查看进度](docs/companion-cli.md) · [协调项目](docs/team.md)
+[安装与排错](docs/install.md) · [选择 skill](docs/skills.md) · [查看进度](docs/companion-cli.md) · [协调项目](docs/team.md) · [测量性能](docs/performance-and-architecture.md) · [2found.dev 上的文档和博客](https://2found.dev/tools/2build/)
 
 对于 coding agent，[llms.txt](llms.txt) 直接链接到 Markdown 指南和 runtime 约定。
 

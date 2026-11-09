@@ -1,4 +1,20 @@
 # Changelog
+## 1.127.1 — 2026-11-09
+
+### Added
+
+- New guide `docs/performance-and-architecture.md` covering `perf-audit`
+  and `architect`, linked from `docs/skills.md` and the READMEs.
+
+### Changed
+
+- Plugin manifests, `package.json`, the Homebrew formula and the READMEs
+  now point at `2found.dev` for homepage/docs/blog instead of the GitHub
+  repo; release `DOWNLOADS.md` adds a "Guides on 2found.dev" link.
+- `RELEASE.md` spells out the post-release website refresh commands
+  (`docs:sync:build` revision pin, `downloads:sync`, build + check) and
+  the catalog/facts requirements for new docs pages and skills.
+
 ## 1.127.0 — 2026-11-09
 
 ### Added

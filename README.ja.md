@@ -8,7 +8,7 @@
 
 **プロトタイプを確認。あとは Autopilot に任せる。**
 
-**[Autopilot で始める](#インストール) · [ドキュメントを読む（英語）](docs/install.md)**
+**[Autopilot で始める](#インストール) · [ドキュメントを読む（英語）](https://2found.dev/docs/2build/) · [ブログ](https://2found.dev/blog/)**
 
 2build は coding agent が機能を完成させるためのツールです。要件を伝え、プロトタイプを確認したら、**Autopilot** にコードの作成、検証、修正を任せられます。
 
@@ -158,7 +158,7 @@ bbs config set semantic_decision_model clef-flash  # or clef
 
 ## ドキュメント（英語）
 
-[導入とトラブル対処](docs/install.md) · [Skill を選ぶ](docs/skills.md) · [進捗を確認する](docs/companion-cli.md) · [プロジェクトを調整する](docs/team.md)
+[導入とトラブル対処](docs/install.md) · [Skill を選ぶ](docs/skills.md) · [進捗を確認する](docs/companion-cli.md) · [プロジェクトを調整する](docs/team.md) · [性能を測る](docs/performance-and-architecture.md) · [2found.dev のドキュメントとブログ](https://2found.dev/tools/2build/)
 
 Coding agent 向けには、[llms.txt](llms.txt) から Markdown ガイドと runtime の規約を直接参照できます。
 

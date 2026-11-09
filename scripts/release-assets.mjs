@@ -15,6 +15,13 @@ export function downloadManifest(repository, version, commit, files) {
   return {schemaVersion: 1, repository, version, tag, commit, docs: `${base}/tree/${tag}`, artifacts};
 }
 
+const websiteDocs = {"2found/2build": "https://2found.dev/docs/2build/", "2found/2server": "https://2found.dev/docs/2server/"};
+
+export function downloadsMarkdown({repository, version, commit, docs, artifacts}) {
+  const links = [`[Documentation for this version](${docs})`, ...(websiteDocs[repository] ? [`[Guides on 2found.dev](${websiteDocs[repository]})`] : []), `[Release history](https://github.com/${repository}/releases)`];
+  return `# ${repository.split("/")[1]} ${version}\n\nSource commit: \`${commit}\`.\n\n${links.join(" · ")}\n\n| Download | Bytes | SHA-256 |\n| --- | ---: | --- |\n${artifacts.map(a => `| [${a.name}](${a.url}) | ${a.size} | \`${a.sha256}\` |`).join("\n")}\n`;
+}
+
 function main() {
   const [version, directory] = process.argv.slice(2), repository = process.env.GITHUB_REPOSITORY;
   if (!directory) throw new Error("Usage: release-assets.mjs <version> <artifact-directory>");
@@ -30,7 +37,7 @@ function main() {
     .sort().map(name => ({name, bytes: readFileSync(join(directory, name))}));
   if (!files.length || (repository !== "2found/2ai" && files.length < 2)) throw new Error("Missing distribution artifacts");
   const manifest = downloadManifest(repository, version, commit, files);
-  const downloads = `# ${repository.split("/")[1]} ${version}\n\nSource commit: \`${commit}\`.\n\n[Documentation for this version](${manifest.docs}) · [Release history](https://github.com/${repository}/releases)\n\n| Download | Bytes | SHA-256 |\n| --- | ---: | --- |\n${manifest.artifacts.map(a => `| [${a.name}](${a.url}) | ${a.size} | \`${a.sha256}\` |`).join("\n")}\n`;
+  const downloads = downloadsMarkdown(manifest);
   writeFileSync(join(directory, "release.json"), JSON.stringify(manifest, null, 2) + "\n");
   writeFileSync(join(directory, "DOWNLOADS.md"), downloads);
   const checksumFiles = [...files, ...["release.json", "DOWNLOADS.md"].map(name => ({name, bytes: readFileSync(join(directory, name))}))];

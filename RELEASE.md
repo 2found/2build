@@ -102,5 +102,16 @@ startup failure blocks completion. A public artifact error needs a new version;
 restore the local CLI to its recorded previous artifact if necessary.
 Releases never update the 2found website. Deploy it only when that sibling
 target is explicitly selected: sync docs/downloads and run `scripts/deploy.sh`
-from a local `2found.dev` checkout per its README; otherwise record the pending
-website refresh as a concern.
+from a local `2found.dev` checkout per its README. Otherwise the release report
+ends with the refresh as its next step, pinned to this tag:
+
+```sh
+cd ../2found.dev
+TWOBUILD_DOCS_REVISION=v<version> pnpm docs:sync:build
+pnpm downloads:sync
+SITE_URL=https://2found.dev SITE_INDEXABLE=true pnpm build && SITE_INDEXABLE=true pnpm check
+```
+
+A new `docs/*.md` page also needs its entry in `2found.dev/content/2build/catalog.json`
+(the sync refuses an unlisted page), and a release that adds or renames a
+skill updates `2found.dev/content/facts/2build.md` in the same refresh.
