@@ -31,6 +31,35 @@ beat asks for it and say why.
 - **Eyes lead.** A character looks where the next thing happens 0.2–0.3 s
   before it happens, and the viewer's eye goes with them.
 
+### A blow, a dash, an impact
+An effect alone looks like a sticker; the body around it sells the hit.
+- **Wind up the opposite way** to the blow, then **snap** to the release
+  pose on the key frame (`snap: true`) instead of tweening into it.
+- **Freeze on contact** for 0.08–0.2 s (`freeze`), the frame shaking, the
+  target thrown back (`hits`), then recover slower than you struck.
+- **Fast in, slow out.** A strike that eases in reads as floaty: power3/expo
+  out, a total of well under a second, and a 1–2 frame `flash` at contact.
+- **A dash leaves after-images** (`ghosts`, or `speedlines` linear) when it
+  crosses the frame. On a short or vertical move the copies overlap the body
+  and read as a smear: leave them off.
+- **Frame the contact.** A hit drawn at a tenth of the frame reads as nothing
+  at phone size, whatever the effects: punch in (`keys`) to the fist and the
+  head on the blow, and make the target react on the contact frame (a head
+  snap, a squash, a knockback). Freeze and flash sell a reaction; they are
+  not one.
+- **Poses on steps** (`steps: 12`) read as drawn; smooth tweens read as
+  puppets. Particles and the camera stay smooth.
+
+| You see | Usual fix |
+| --- | --- |
+| floaty, no punch | faster in, longer hold after, a white frame on contact, shorter total |
+| the hit lands out of sync | anchor the freeze, flash and recoil to the one word of the blow |
+| weightless | a bigger wind-up the other way, a longer freeze (to 0.2 s), more shake |
+| a great effect on a still figure | give the figure a wind-up, a release pose and a recovery |
+| mush at phone size | one focal point, bigger shapes, fewer colours |
+| washed out glow on paper | glow belongs on dark plates; on paper use ink: lines, solid shapes |
+| it pops off | let it shrink, fade or fall away before it ends |
+
 ## Devices
 A number or a comparison is a relation, and a relation can be shown. The line
 "one in thirty passes" is heard once; 30 dots with one lit is seen and kept.

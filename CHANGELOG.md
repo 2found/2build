@@ -1,4 +1,15 @@
 # Changelog
+## 1.127.2 — 2026-11-10
+
+### Added
+
+- `marketing-video` hit-stop and impact vocabulary: a new `freeze` effect
+  holds the frame on contact (shaking in real time, catching up to the
+  voice), `ghosts` trails after-images on a dash, `poses` gain
+  `snap: true` (hold the last pose, jump on the key), and rigs get
+  `steps` for hand-drawn stepped poses; `07-craft.md` documents the blow/
+  dash/impact lessons. Adapted from pixelfx (MIT); no code copied.
+
 ## 1.127.1 — 2026-11-09
 
 ### Added

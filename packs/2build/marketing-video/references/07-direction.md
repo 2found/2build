@@ -123,6 +123,7 @@ arrives, is struck or crosses the frame. A held talking head gains little.
 | `moves` | `[{at, x?, y?, s?, rot?, dur, ease, antic?}]`: to a frame point, scale or angle; each starts where the last ended. A far move (≥ 3% of the width, Δs ≥ 0.06 or ≥ 6°) of ≥ 0.35 s with no `ease` leans back first and settles past the mark (`antic`, default 0.08 of the travel); `antic: false` or any `ease` turns it off |
 | `idle` | `breathe`, `bob` or `sway`, or `{type, amt, period}`: a loop over the whole shot |
 | `hits` | `[{at, from: left|right|front, amt, sfx?}]`: a recoil away from the blow, silent unless `sfx` names a sound |
+| `ghosts` | `[{at, until, count (1–6, default 3), gap (s, 0.05), opacity (0.45), style?}]`: after-images on a dash, copies of the layer drawn behind it, each `gap` later and fainter; `style` is raw CSS on the copies (`filter:brightness(0)` makes ink silhouettes) |
 | `tweens` | `[{at, part | sel, from?, to, dur, ease}]`: raw GSAP vars on one `part` (`layer`, `move`, `hit`, `idle`, `img`, `rig`) or any CSS selector `sel` inside the layer; `repeat: -1` becomes a finite loop over the shot |
 
 The named moves are shortcuts, not the limit of the cut. Write `tweens` for
@@ -143,7 +144,7 @@ their bone. The hips sink by themselves so the lower foot stays on the ground.
 | Key | Values |
 | --- | --- |
 | `pose` | the first pose: `stand`, `wave`, `cheer`, `point`, `shrug`, `think`, `hands-up`, `crouch`, `bow`, `slump`, `sit` (side view), a `rig.poses` name, or a joint dict |
-| `poses` | `[{at, pose?, set?, face?, dur, ease, antic?}]`: `pose` names one, `set` changes the joints it names over the last pose, `face` changes the face. A swing of ≥ 15° over ≥ 0.25 s with no `ease` gets the same lean-back and settle (`antic: false` opts out) |
+| `poses` | `[{at, pose?, set?, face?, dur, ease, antic?, snap?}]`: `pose` names one, `set` changes the joints it names over the last pose, `face` changes the face. A swing of ≥ 15° over ≥ 0.25 s with no `ease` gets the same lean-back and settle (`antic: false` opts out). `snap: true` holds the last pose and jumps to this one on the key: the release frame of a blow |
 | `walk` | `[{at, until, speed, amt}]`: a stride cycle (side view; pair it with a `moves` across), back to the pose before it |
 | `face` | `calm`, `happy`, `sad`, `angry`, `surprised`, `blank`; the `chibi` body adds `laugh`, `shout`, `shocked`, `cry`, `smug`, `disgust`, `think`, `worried`, `focus`. Or one of `rig.faces` (`{name: [eyes svg, mouth svg]}` in head coordinates, centre `(0, -13)`, radius 9; on chibi `{b}` is a brow's line width and `{t}` a thin one, and eyes inside `<g class="rig-ey">` blink) |
 | `talk` | `true` or `[{at, until}]`: the mouth opens on each spoken word of the beat (the character is the voice) |
@@ -171,6 +172,7 @@ sheet's (a knife in the hand for one shot).
 | `skin`, `shirt`, `pants`, `sleeves`, `hands`, `shoes`, `arms`, `blush` | fill and line colours; `arms` colours a sleeved arm's line, `blush` draws cheeks in that colour |
 | `parts` | `[{on, svg, back?, view?}]`: raw SVG riding a bone (`hip`, `torso`, `chest`, `head`, `armL`, `handL`, `armR`, `handR`, `legL`, `footL`, `legR`, `footR`); `back` draws it behind the bone; `view` keeps it to one view |
 | `cast` | the `art.json` cast id it plays |
+| `steps` | drawings a second for its pose tweens (12 is "on twos" at 24 fps): each pose holds, then steps, the way hand-drawn frames do; 0 (default) tweens smoothly |
 
 Coordinates: `head` is centred with a radius of 10 at any `head_r` (`x`
 right, `y` down); `torso` has the hip at the origin and the neck at
@@ -196,6 +198,7 @@ An effect is `{type, at, until | dur, …}`, at beat level or on a shot:
 | `counter` | `from`, `to`, `suffix`, `locale` |
 | `flash` / `black` | — |
 | `shake` / `punch` | `amp` |
+| `freeze` (hit-stop on contact) | `dur` (default 0.12 s), `amp` (the frame shakes in real time while the scene holds). It holds the frame two frames after contact, where the release pose and the recoil have landed, and a `flash` or `speedlines` in the beat plays in real time over the hold; the scene then plays faster for 0.3 s and is back on the voice, so later word anchors stay on their words. Give the shake here, not as a `shake` at the same moment |
 | `dim` | `shot`, `amt` |
 | `weather` (`rain`, `snow`, `embers`, `petals`) | `count`, `seed` |
 | `speedlines` (manga lines on an impact or a dash) | `kind` (`radial` toward `x`, `y`, stopping at `inner`; `linear` along `angle`), `count`, `width`, `color` (a look role or a colour), `opacity`, `fps`, `variants`, `seed` |

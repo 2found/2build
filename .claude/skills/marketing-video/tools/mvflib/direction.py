@@ -49,7 +49,9 @@ FX_DUR = {"slam": 1.2, "title": 1.8, "type": 2.0, "stamp": 1.1, "label": 2.2, "c
           # devices that tell a number: a grid of dots (lit of total), two ladders whose rungs do not line up
           "dots": None, "ladder": None,
           # raw: any markup the agent writes (HTML or inline SVG), timed and faded like the rest
-          "html": 2.0}
+          "html": 2.0,
+          # hit-stop: the scene holds still on contact for dur, then catches up with the voice
+          "freeze": 0.12}
 BLOCK_FX = {"steps", "compare", "bars", "quote", "dots", "ladder"}  # read blocks: on a wide canvas they keep a readable measure
 POS_KEYS = ("rect", "x", "y", "size")  # any of these may be {canvas: value} when one number cannot fit every frame
 TEXT_FX = {"slam", "title", "type", "stamp", "label", "counter", "endtag", "steps", "compare", "bars", "quote", "lower",
@@ -81,7 +83,7 @@ SFX_FOR_FX = {"slam": ("hit", -17, -0.02), "stamp": ("stamp", -18, 0.0), "counte
               "flash": ("hit", -18, 0.0), "callout": ("swish", -26, -0.05), "tap": ("click", -20, 0.0),
               "steps": ("pop", -24, 0.0), "compare": ("swish", -26, -0.05), "bars": ("swish", -27, 0.0),
               "quote": ("air", -27, -0.05), "lower": ("swish", -27, -0.05), "speedlines": ("whoosh-short", -24, -0.04),
-              "dots": ("ticks", -27, 0.0), "ladder": ("pop", -25, 0.0)}
+              "dots": ("ticks", -27, 0.0), "ladder": ("pop", -25, 0.0), "freeze": ("impact", -18, 0.0)}
 PER_ITEM_SFX = {"steps", "compare"}  # one sound per item that lands, not one for the block
 
 # 2.5D layers: cut-outs over a shot's plate, each with its own depth and motion
@@ -92,6 +94,7 @@ STEADY_CAMS = {"drift", "hold", "custom", "none"}  # repeating these is the abse
 ANTIC = 0.08  # a move first leans back this share of its travel, then overshoots and settles (opt out: antic: false)
 KEY_SFX = ("hit", -19)  # a key line's impact, at its last word, unless a cue is already there
 KEY_SFX_NEAR = 0.3
+GHOSTS_MAX = 6  # after-images per span; more reads as a smear of copies, not a dash
 HIT_FROM = {"left": (1, 0, 2.5), "right": (-1, 0, -2.5), "front": (0, -1, 0.0)}  # recoil away: x sign, y sign, lean deg
 LAYER_PARTS = {"layer": ".mvk-ly", "move": ".mvk-lym", "hit": ".mvk-lyh", "idle": ".mvk-lyi", "img": ".mvk-lyi > .mvk-lyart",
                "rig": ".mvk-rig"}
@@ -681,7 +684,7 @@ def _layers(sh, sid, start, end, cam, at, w, art, W, H, rep, sounds, out, origin
                                     f"({cap0}–{cap1}px): move the layer, or set the beat's captions_y")
         r = {"id": lid, "src": srcs[0] if srcs else None, "srcs": srcs, "swaps": swaps, "x": x, "y": y, "h": h, "z": z,
              "ov": ov, "anchor": anchor, "blend": blend, "flip": bool(L.get("flip")), "shadow": bool(L.get("shadow")),
-             "cam": lcam, "enter": None, "moves": [], "idle": None, "hits": [], "rig": rg, "vec": vec}
+             "cam": lcam, "enter": None, "moves": [], "idle": None, "hits": [], "ghosts": [], "rig": rg, "vec": vec}
         busy = start
         if L.get("enter"):
             e = L["enter"] if isinstance(L["enter"], dict) else {"type": L["enter"]}
@@ -750,6 +753,19 @@ def _layers(sh, sid, start, end, cam, at, w, art, W, H, rep, sounds, out, origin
             out["events"].append(round(origin + ha, 3))
             if hit.get("sfx"):
                 sounds.append({"t": ha, "kind": hit["sfx"], "db": float(hit.get("db", -22)), "src": f"{lid}.hit{h_i}"})
+        for g_i, g in enumerate(L.get("ghosts") or []):  # after-images: copies of the layer that trail it on a dash
+            gw = f"{lw}.ghosts{g_i}"
+            ga, gu = at(g.get("at"), gw), at(g.get("until"), gw, "end")
+            if ga is None or gu is None:
+                continue
+            n_g = int(g.get("count", 3))
+            if not start <= ga < gu <= end or not 1 <= n_g <= GHOSTS_MAX:
+                rep.fail("D12", gw, f"ghosts are {{at, until (after at, inside the shot {start:.2f}–{end:.2f}s), count: "
+                                    f"1–{GHOSTS_MAX}, gap, opacity, style}}")
+                continue
+            r["ghosts"].append({"at": ga, "until": gu, "n": n_g, "gap": float(g.get("gap", 0.05)),
+                                "op": float(g.get("opacity", 0.45)), "style": str(g.get("style") or "")})
+            out["events"].append(round(origin + ga, 3))
         r["tweens"] = []
         for t_i, tw in enumerate(L.get("tweens") or []):  # raw GSAP: anything the shortcuts above do not cover
             tw_w = f"{lw}.tweens{t_i}"
@@ -869,7 +885,7 @@ def _rig(L, lw, start, end, at, rep, out, origin, ctx) -> dict | None:
             except rig.RigError as err:
                 rep.fail("D12", ew, str(err))
                 continue
-            d = float(e.get("dur", 0.3))
+            d = 0.0 if e.get("snap") else float(e.get("dur", 0.3))  # snap: hold the last pose, jump on the key
             tw = {"at": ta, "dur": d, "ease": e.get("ease", "power2.inOut"), "from": cur, "to": to}
             swing = max([abs(float(to[k]) - float(cur[k])) for k in to if k in cur and isinstance(to[k], (int, float))
                          and isinstance(cur[k], (int, float)) and k != "drop"] or [0])
@@ -920,6 +936,7 @@ def _rig(L, lw, start, end, at, rep, out, origin, ctx) -> dict | None:
     return {"pose0": p0, "face0": face0, "faces_used": sorted(used), "faces": custom_faces, "tweens": tweens,
             "facesets": facesets, "flaps": flaps, "emotes": emotes, "blinks": blinks,
             "boil": float(R.get("boil", pre.get("boil", 0))), "boil_fps": float(R.get("boil_fps", 8)),
+            "steps": float(R.get("steps", 0)),  # poses held on this many drawings a second (0: smooth)
             "ink": R.get("ink", pre.get("ink", "var(--mv-ink)")),
             "width": float(R.get("width", pre.get("width", dm["width"]) if R.get("body", "stick") == pre.get("body", "stick")
                                  else dm["width"])),
@@ -1433,7 +1450,7 @@ def _title_words(line: str) -> list[str]:
 
 def _fx_html(f: dict) -> str:
     ty, el = f["type"], f["el"]
-    if ty in {"flash", "black", "shake", "punch", "dim"}:
+    if ty in {"flash", "black", "shake", "punch", "dim", "freeze"}:
         return ""
     if ty == "html":
         return (f'      <div id="{el}" class="mvk-fx mvk-raw" style="{html.escape(f["style"])}" '
@@ -1561,8 +1578,14 @@ def _layer_html(L: dict, W: int, H: int) -> str:
         cls = "mvk-ly" if L["anchor"] == "bottom" else "mvk-ly mvk-lyc-center"  # a flying prop turns about its middle
         place = (f'class="{cls}" style="{ly_style}left:{round(L["x"] * W)}px;top:{round(L["y"] * H)}px;'
                  f'transform:translate(-50%,{shift})"')
-    return (f'<div id="{L["id"]}" class="mvk-lyc"{blend}><div {place}><div class="mvk-lym" style="{lym}">{shadow}'
+    body = (f'<div {place}><div class="mvk-lym" style="{lym}">{shadow}'
             f'<div class="mvk-lyh"><div class="mvk-lyi">{inner}</div></div></div></div></div>')
+    n = max([g["n"] for g in L.get("ghosts") or []] or [0])
+    style = next((g["style"] for g in L.get("ghosts") or [] if g["style"]), "")
+    # the furthest behind paints first; each copy scopes its ids, or the layer's url(#boil) would point at a copy's filter
+    ghosts = "".join(f'<div id="{L["id"]}-g{k}" class="mvk-lyc mvk-ghost" style="opacity:0;{html.escape(style)}">'
+                     + rig.scope_ids(body, L["id"] + f"-g{k}") for k in range(n, 0, -1))
+    return f'{ghosts}<div id="{L["id"]}" class="mvk-lyc"{blend}>{body}'
 
 
 def _spec_for_js(sp: dict) -> dict:

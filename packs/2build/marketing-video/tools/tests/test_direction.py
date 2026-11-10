@@ -2,6 +2,7 @@
 import json
 import sys
 import math
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -488,6 +489,57 @@ class Speedlines(unittest.TestCase):
         self.assertEqual(c["color"], "#000")
         _, rep = self.fx(kind="spiral")
         self.assertTrue(codes(rep, "D8"))
+
+
+class GameFeel(unittest.TestCase):
+    """Hit-stop, snapped and stepped poses, after-images: the motion that sells a blow (after pixelfx's acts)."""
+
+    def plan(self, layer=None, fx=None):
+        sh = {"color": "ground", "cam": "hold", **({"layers": [layer]} if layer else {})}
+        d = {"beats": {"B01": {"shots": [sh], **({"fx": fx} if fx else {})}}}
+        return dirn.plan(d, timeline(), GEO, Layers.ART, {})
+
+    def test_a_freeze_holds_on_its_word_with_an_impact_and_no_markup(self):
+        p, rep = self.plan(fx=[{"type": "freeze", "at": "word:vỡ", "amp": 10}])
+        self.assertEqual([i for i in rep.items if i["level"] == "FAIL"], [])
+        (f,) = p["beats"]["B01"]["spec"]["fx"]
+        self.assertEqual((f["at"], f["dur"], f["amp"]), (0.8, 0.12, 10))
+        self.assertEqual(dirn._fx_html(f), "")
+        self.assertTrue(any(s["kind"] == "impact" and s["src"].endswith(":freeze") for s in p["sfx"]))
+
+    def test_a_snapped_pose_jumps_on_its_key_and_steps_reach_the_runtime(self):
+        p, rep = self.plan({"rig": {"type": "stick", "steps": 12}, "pose": "stand",
+                            "poses": [{"at": "word:đập", "pose": "point", "snap": True}, {"at": "word:vỡ", "pose": "cheer"}]})
+        self.assertEqual([i for i in rep.items if i["level"] == "FAIL"], [])
+        R = Rig().L(p)["rig"]
+        snap, smooth = R["tweens"]
+        self.assertEqual(snap["dur"], 0.0)
+        self.assertNotIn("antic", snap)  # a snap has no lean-back: it is the release frame
+        self.assertGreater(smooth["dur"], 0)
+        self.assertEqual(R["steps"], 12.0)
+        self.assertEqual(dirn._spec_for_js({"fx": [], "shots": [{"layers": [Rig().L(p)]}]})["shots"][0]["layers"][0]["rig"]["steps"], 12.0)
+
+    def test_ghosts_write_fading_copies_behind_the_layer(self):
+        p, rep = self.plan({"art": "HERO", "moves": [{"at": "word:đập", "x": 0.8, "dur": 0.3}],
+                            "ghosts": [{"at": "word:đập", "until": "word:vỡ", "count": 3, "style": "filter:grayscale(1)"}]})
+        self.assertEqual([i for i in rep.items if i["level"] == "FAIL"], [])
+        L = Rig().L(p)
+        self.assertEqual(L["ghosts"], [{"at": 0.4, "until": 0.8, "n": 3, "gap": 0.05, "op": 0.45, "style": "filter:grayscale(1)"}])
+        h = dirn._layer_html(L, GEO["W"], GEO["H"])
+        ids = [f'id="{L["id"]}-g{k}"' for k in (3, 2, 1)] + [f'id="{L["id"]}"']
+        self.assertEqual(sorted(ids, key=h.index), ids)  # furthest behind first, the layer itself on top
+        self.assertEqual(h.count('class="mvk-lyh"'), 4)
+        self.assertIn("opacity:0;filter:grayscale(1)", h)
+        p, _ = self.plan({"rig": {"type": "stick", "boil": 1}, "ghosts": [{"at": "word:đập", "until": "word:vỡ", "count": 1}]})
+        h = dirn._layer_html(Rig().L(p), GEO["W"], GEO["H"])
+        ids = re.findall(r'<filter id="([^"]+)"', h)
+        self.assertEqual(len(ids), len(set(ids)), ids)  # the layer's boil is its own filter, not the copy's
+        self.assertEqual(sorted(re.findall(r'url\(#([^)]+)\)', h)), sorted(ids))
+
+    def test_bad_ghosts_fail(self):
+        for g in ({"at": "word:vỡ", "until": "word:đập"}, {"at": "word:đập", "count": 9}):
+            _, rep = self.plan({"art": "HERO", "ghosts": [g]})
+            self.assertTrue(codes(rep, "D12"), g)
 
 
 class SetPieces(unittest.TestCase):

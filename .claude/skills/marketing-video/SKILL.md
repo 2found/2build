@@ -221,7 +221,9 @@ inside a campaign.
 
 The cold viewer, the prediction and overlap tests, the writing tells and the
 motion numbers adapt ideas from [cinecode](https://github.com/sarpstar/cinecode)
-(MIT); no code was copied.
+(MIT); no code was copied. Hit-stop, snapped and stepped poses, after-images
+and the blow lessons in [craft](references/07-craft.md) adapt ideas from
+[pixelfx](https://github.com/patch-gg/pixelfx) (MIT); no code was copied.
 
 ## Boundary
 Never log in to, upload to or post on any platform, and never spend money (ads,

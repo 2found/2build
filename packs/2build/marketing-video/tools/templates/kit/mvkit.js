@@ -368,6 +368,7 @@
     }
     if (L.rig) rig(tl, s, L);
     boil(tl, s, L);
+    ghosts(tl, s, L, W, H);
     const i = L.idle;
     if (i) {  // a finite yoyo over the shot's window (never repeat: -1): the frame stays a pure function of time
       const half = i.period / 2, reps = Math.max(0, Math.ceil(span / half) - 1);
@@ -378,18 +379,44 @@
     }
   }
 
+  // after-images: copy k (#<layer>-g<k>, written behind the layer) plays the layer's own timeline k * gap late,
+  // shown only over each span, fainter the further behind
+  function ghosts(tl, s, L, W, H) {
+    const n = Math.max(0, ...(L.ghosts || []).map((g) => g.n));
+    for (let k = 1; k <= n; k++) {
+      const id = L.id + "-g" + k, sub = gsap.timeline({ paused: true });
+      layer(sub, s, { ...L, id, ghosts: null }, W, H);
+      sub.set({}, {}, s.end);
+      for (const g of L.ghosts) {
+        if (k > g.n) continue;
+        const lag = k * g.gap, d = g.until - g.at, out = Math.min(0.15, d / 2);
+        tl.fromTo(sub, { time: Math.max(0, g.at - lag) }, { time: Math.max(0, g.until - lag), duration: d, ease: "none", immediateRender: false }, at(g.at));
+        tl.fromTo($(id), { opacity: 0 }, { opacity: g.op * (1 - (k - 1) / g.n), duration: 0.02, ease: "none", immediateRender: false }, at(g.at));
+        tl.to($(id), { opacity: 0, duration: out, ease: "power1.in" }, at(g.until - out));
+      }
+    }
+  }
+
   // ---------- stick rig: a figure drawn in code; each joint is a CSS variable on its <svg> ----------
   // A pose tween moves every joint at once (fromTo on --lean, --armR, … and --drop, the hips' sink).
   function rig(tl, s, L) {
     const R = L.rig, root = $(L.id) + " .mvk-rig";
     const vars = (p) => Object.fromEntries(Object.entries(p).map(([k, v]) => ["--" + k, v]));
+    // steps: each pose tween holds on R.steps drawings a second, the way hand-drawn frames do
+    const ease = (name, d) => {
+      if (!(R.steps > 0)) return name;
+      const e = gsap.parseEase(name), n = Math.max(1, Math.round(d * R.steps));
+      return (p) => e(Math.floor(p * n + 1e-9) / n);
+    };
     for (const p of R.tweens || []) {
-      if (p.antic) {
+      if (p.dur <= 0) {  // snap: the last pose holds until the key, then jumps
+        tl.set(root, vars(p.to), at(p.at));
+      } else if (p.antic) {
         const pre = lerp(p.from, p.to, -p.antic), d1 = p.dur * 0.25;
-        tl.fromTo(root, vars(p.from), { ...vars(pre), duration: d1, ease: "power1.out", immediateRender: false }, at(p.at));
-        tl.fromTo(root, vars(pre), { ...vars(p.to), duration: p.dur - d1, ease: "back.out(1.3)", immediateRender: false }, at(p.at + d1));
+        tl.fromTo(root, vars(p.from), { ...vars(pre), duration: d1, ease: ease("power1.out", d1), immediateRender: false }, at(p.at));
+        tl.fromTo(root, vars(pre), { ...vars(p.to), duration: p.dur - d1, ease: ease("back.out(1.3)", p.dur - d1), immediateRender: false }, at(p.at + d1));
       } else {
-        tl.fromTo(root, vars(p.from), { ...vars(p.to), duration: p.dur, ease: p.ease || "power2.inOut", immediateRender: false }, at(p.at));
+        tl.fromTo(root, vars(p.from), { ...vars(p.to), duration: p.dur, ease: ease(p.ease || "power2.inOut", p.dur), immediateRender: false }, at(p.at));
       }
     }
     const faces = document.querySelectorAll(root + " .rig-f");
@@ -419,7 +446,40 @@
     for (let t = t0 + step, k = 2; t < s.end; t += step, k++) tl.set(turb, { attr: { seed: 1 + (k % 9) } }, at(t));
   }
 
+  // hit-stop: real time r -> scene time. Each freeze holds the scene IMPACT seconds after its `at` (the frame where the
+  // release pose and the recoil have already landed, not the one before contact) for its dur, then the scene plays
+  // faster over CATCH seconds until it is back with the voice, so every later word-anchored moment stays on its word.
+  const CATCH = 0.3, IMPACT = 2 / 30;
+  const REALTIME = new Set(["flash", "speedlines"]);
+  function remap(fz, dur) {
+    return (p) => {
+      const r = p * dur;
+      let lag = 0;
+      for (const f of fz) {
+        const t = Math.min(f.at + IMPACT, dur), c = Math.max(0.05, Math.min(CATCH, dur - t - f.dur));
+        if (r <= t) continue;
+        lag += r < t + f.dur ? r - t : Math.max(0, f.dur * (1 - (r - t - f.dur) / c));
+      }
+      return Math.max(0, r - lag) / dur;
+    };
+  }
+
   function build(tl, sp) {
+    const fz = (sp.fx || []).filter((f) => f.type === "freeze");
+    if (!fz.length) return play(tl, sp);
+    const inner = play(gsap.timeline({ paused: true }), sp);
+    tl.fromTo(inner, { time: 0 }, { time: sp.dur, duration: sp.dur, ease: remap(fz, sp.dur), immediateRender: false }, 0);
+    for (const f of fz) {  // the frame still shakes while the scene holds: the hit lands in real time
+      if (f.amp) FX.shake(tl, { ...f, dur: Math.max(f.dur, 0.18) }, sp);
+    }
+    // the light and lines of the hit are not part of the held picture: held with the scene, a flash washes the hit
+    // out and speedlines wait out the hold unseen, so both play in real time
+    for (const f of sp.fx || []) if (REALTIME.has(f.type)) FX[f.type](tl, f, sp);
+    tl.set({}, {}, sp.dur);
+    return tl;
+  }
+
+  function play(tl, sp) {
     const W = sp.W, H = sp.H;
     sp.shots.forEach((s) => {
       (IN[s.in?.type] || IN.cut)(tl, s, sp);
@@ -443,6 +503,8 @@
         tl.to($(f.el), { opacity: 0, duration: 0.18, ease: "power2.in" }, at(f.at + f.dur - 0.18));
         continue;
       }
+      if (f.type === "freeze") continue;  // build() plays it on the outer timeline
+      if (REALTIME.has(f.type) && (sp.fx || []).some((g) => g.type === "freeze")) continue;  // and the hit's light and lines
       if (FX[f.type]) FX[f.type](tl, f, sp);
       else console.warn("mvkit: unknown fx", f.type);
     }
