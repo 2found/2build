@@ -18,6 +18,12 @@ Team run the other skills for you as steps of their work.
 `builder` is autopilot's only built-in workflow; a project may add its own under
 `.claude/workflows/`.
 
+`humanizer-vi` edits Vietnamese prose (scripts, captions, docs, EN → VI
+translations) for AI and translationese tells; it is the Vietnamese edition of
+[blader/humanizer](https://github.com/blader/humanizer) and needs no `bbs`.
+The agent picks it up when it writes or reviews Vietnamese, or type
+`/bbs:humanizer-vi`.
+
 `marketing-video` and `agent-first-docs` belong to the marketing step of the
 loop, not to product engineering. When 2market ships they move to its namespace
 and keep a `bbs:` alias.

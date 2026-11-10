@@ -6,7 +6,7 @@
 fixes issues. For UI work, it creates a prototype first. You can
 follow progress without reminding the agent to do each step.
 
-The pack contains 24 skills for product engineering and growth.
+The pack contains 25 skills for product engineering and growth.
 The companion `bbs` CLI keeps progress and evidence on disk.
 
 A 2found product. With [Soot](https://trysoot.com), powered by 2agent,
@@ -72,7 +72,7 @@ for that workflow.
 ## Full skill inventory
 
 <details>
-<summary>Browse all 24 skills and their packaged sizes</summary>
+<summary>Browse all 25 skills and their packaged sizes</summary>
 
 | Skill | Bytes | When to use |
 | --- | --- | --- |
@@ -83,6 +83,7 @@ for that workflow.
 | `create-pr` | 3056 | Prepare and create a pull request from the current branch. Use when a human requests a PR; 2build workflows never open one. |
 | `design-ui` | 3388 | Design and iterate a reviewable UI using the project's design authority and existing screens. Use for UI design requests or a workflow's design/prototype handoff; a direct build request can use the working UI as its prototype. |
 | `harness-audit` | 12143 | Audit AGENTS.md, CLAUDE.md and linked project instructions against repository code, scripts, CI and agent configuration. Use to find stale commands, broken references, conflicting rules or missing verification paths; setup-project owns initial 2build configuration. |
+| `humanizer-vi` | 31941 | Rewrite AI-sounding or machine-translated Vietnamese so it reads like a Vietnamese writer without changing what it says. Use when editing, reviewing or translating Vietnamese prose, scripts or docs for AI tells such as "không chỉ... mà còn", staged openers ("Hãy cùng khám phá"), calques of English idioms, "việc/sự/một cách" nominalization, "được... bởi" passives, inflated words (đột phá, nâng tầm, hành trình), sales language, dashes, bold labels or filler. |
 | `image-gen` | 4961 | Generate raster images locally with Qwen Image 2.1 Turbo (Metal, no account, no network at generation time) and cut subjects out of their background with RMBG-1.4. Use for draft plates, backgrounds, covers, stickers and reference-guided edits; not pixel-exact edits, UI mock-ups or likenesses of real people. |
 | `implement` | 6125 | Implement a scoped code change from the user's request, an accepted plan.md, or ticket context. Use for feature work, bug fixes, endpoints, UI changes, integrations, and contained refactors. |
 | `investigate` | 1709 | Debug a failure before fixing it. Use when the user asks why something is broken, wants root cause analysis, or reports an error, regression, flaky test, crash, or unexpected behavior. |

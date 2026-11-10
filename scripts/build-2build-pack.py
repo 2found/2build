@@ -59,6 +59,10 @@ PREREQUISITE = (
     "\n"
 )
 
+# Prose-only skills that never shell out to `bbs`: the prerequisite would tell
+# them to stop when the CLI is missing.
+NO_BBS = {"humanizer-vi"}
+
 FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 
 
@@ -77,6 +81,8 @@ def with_prerequisite(text):
     """Insert the bbs-CLI prerequisite after the frontmatter block."""
     m = FRONTMATTER.match(text)
     at = m.end() if m else 0
+    if frontmatter_field(text, "name") in NO_BBS:
+        return text
     prerequisite = PREREQUISITE
     if frontmatter_field(text, "name") == "semantic-decision":
         prerequisite = prerequisite.replace(

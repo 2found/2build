@@ -1,4 +1,16 @@
 # Changelog
+## 1.128.0 — 2026-11-10
+
+### Added
+
+- New `humanizer-vi` skill: the Vietnamese edition of blader/humanizer
+  (MIT, adapted). It keeps the staging, inflation, formatting and leftover
+  patterns, adds a translationese group (English idiom calques,
+  `việc`/`sự`/`một cách` nominalization, `là` before adjectives, `được ...
+  bởi` passives, `của bạn`/`hãy`), Vietnamese watch lists and examples, a
+  register guide and EN → VI translation rules. Packed without the `bbs`
+  prerequisite, since it never calls the CLI.
+
 ## 1.127.2 — 2026-11-10
 
 ### Added

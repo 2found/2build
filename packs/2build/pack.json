@@ -38,6 +38,11 @@
       "description": "Audit AGENTS.md, CLAUDE.md and linked project instructions against repository code, scripts, CI and agent configuration. Use to find stale commands, broken references, conflicting rules or missing verification paths; setup-project owns initial 2build configuration."
     },
     {
+      "name": "2build_humanizer-vi",
+      "file": "humanizer-vi/skill.md",
+      "description": "Rewrite AI-sounding or machine-translated Vietnamese so it reads like a Vietnamese writer without changing what it says. Use when editing, reviewing or translating Vietnamese prose, scripts or docs for AI tells such as \"không chỉ... mà còn\", staged openers (\"Hãy cùng khám phá\"), calques of English idioms, \"việc/sự/một cách\" nominalization, \"được... bởi\" passives, inflated words (đột phá, nâng tầm, hành trình), sales language, dashes, bold labels or filler."
+    },
+    {
       "name": "2build_image-gen",
       "file": "image-gen/skill.md",
       "description": "Generate raster images locally with Qwen Image 2.1 Turbo (Metal, no account, no network at generation time) and cut subjects out of their background with RMBG-1.4. Use for draft plates, backgrounds, covers, stickers and reference-guided edits; not pixel-exact edits, UI mock-ups or likenesses of real people."

@@ -202,6 +202,12 @@ the script). Control scripts (`ctl-…`) skip the key, thesis and turn checks.
   inflated words (siêu phẩm, kiệt tác, game-changer, unlock), three abstract
   nouns in a row, stacked "!" (WT1). Lint reads every `vo`, `onscreen` and
   hook variant. Say the plain thing instead.
+- **Vietnamese scripts go through [humanizer-vi](../humanizer-vi/skill.md)**
+  in embedded mode before lint and the pre-test, and again after any rewrite
+  the pre-test asks for: `vo`, `onscreen`, hook variants and platform copy.
+  It catches what lint cannot hear (calques of English idioms, "việc/sự/một
+  cách", bookish words in a spoken line). It changes wording only: every
+  fact, number, name and quoted line stays, and a beat keeps its step.
 - **Tempo.** An optional beat `tempo` (`fast`, `breath`, `hold`) says how the
   beat should feel; three alike in a row reads as one long beat (TP1).
 - **Devices.** A line with a number or a comparison names a relation the
