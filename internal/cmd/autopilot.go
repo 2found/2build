@@ -20,6 +20,7 @@ func newAutopilotCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "autopilot {checkpoint|clear|recover|snapshot|attempt|verification|base-branch|lint-workflow} ...",
 		Short:              "autopilot checkpoints, snapshots, recovery and verification",
+		Long:               autopilotHelp,
 		DisableFlagParsing: true,
 		RunE: func(_ *cobra.Command, args []string) error {
 			runAutopilot(args)
@@ -29,6 +30,29 @@ func newAutopilotCmd() *cobra.Command {
 }
 
 const autopilotUsage = "usage: bbs-autopilot {checkpoint|clear|recover|snapshot|attempt|verification|base-branch|lint-workflow} ..."
+
+const autopilotHelp = `Usage:
+  bbs autopilot checkpoint --ticket T --workflow W --step S --status in_progress|done_step|done|blocked
+                    [--note TEXT] [--depth D] [--stop-after X] [--expect-revision N] [--force]
+  bbs autopilot checkpoint --refresh [--ticket T]
+                    seed, migrate or re-stamp the checkpoint with the branch and HEAD
+  bbs autopilot recover [--json] [--ticket T]
+                    print what a fresh session needs to resume
+  bbs autopilot snapshot [--ticket T]
+                    current run, state revision and subject as JSON
+  bbs autopilot verification begin --gate review-pr|qa --owner NAME --handle SESSION --transport ID [--harness NAME]
+                    open a gate attempt on the current tree; prints its id
+  bbs autopilot verification record --attempt ID --file results.json
+                    results.json: {"checks":[{"argv":[...],"cwd":"/abs/path","exit_code":0,"log_path":"/abs/log"}],
+                    "unresolved_findings":[],"limitations":[]}; at least one executed check with its log
+  bbs autopilot attempt start [--ticket T] (--json OBJ | --json-file FILE)
+  bbs autopilot attempt update --id ID --expect-revision N [--ticket T] (--json OBJ | --json-file FILE)
+  bbs autopilot attempt show --id ID [--ticket T]
+  bbs autopilot base-branch
+  bbs autopilot lint-workflow <workflow.md>
+  bbs autopilot clear <ticket>
+                    delete the ticket's autopilot state
+`
 
 // apState is the identity + state-root resolved once per invocation, mirroring
 // the top-of-script derivation in the retired bbs-autopilot.
@@ -46,6 +70,12 @@ func runAutopilot(args []string) {
 	}
 	sub := args[0]
 	rest := args[1:]
+	// Flags are hand-parsed, so --help reached the verb: verification begin
+	// answered with a JSON error, or opened an attempt when a gate was given.
+	if wantsHelp(rest) {
+		fmt.Print(usageFor(autopilotHelp, "bbs autopilot ", sub))
+		return
+	}
 
 	// Explicit tickets need project scope only; inferred tickets use the full
 	// identity ladder. Resolve only for the selected command.

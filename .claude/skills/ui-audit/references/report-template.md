@@ -17,7 +17,7 @@ Persona, goal, done-when, ideal path. (Journey mode: the journey list.)
 | # | journey | verdict PASS/FRICTION/BLOCKED | exact clicks | what was missing (next step absent?) |
 
 ## Scorecard (persona-flow mode)
-Every metric from SKILL.md: value vs pass, grade.
+Every metric from SKILL.md: value vs pass, grade. Density: visible text lines / words per screen at desktop and ~390px (re-audit: before → after).
 
 ## Step log (persona-flow mode)
 | # | expectation | observed | PURE (you/2nd) | wait s | result | shot |

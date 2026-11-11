@@ -11,7 +11,7 @@ Output: `campaign.json` and `00-material/index.json`.
   ([04](04-strategy.md#benefit)); write `benefit` into the brief only when the
   owner names one, and do not ask for it. Handles and any paid spend are the user's call
   too; ask, and never guess them.
-- **The material pack** is not empty. Every item has a kind, a title, a source
+- **The material pack** is not empty (or `material_skip` says why). Every item has a kind, a title, a source
   with a read date, and rights. Anything from outside has a URL, and
   `official-promo` carries a credit.
 
@@ -22,7 +22,8 @@ or invalid.
 - Material is what already has an audience: an app's best store review, a
   clip players share, a book's most-quoted line, a ranking, an official asset.
   Without it, angles drift into what the product wants to say. A pure feature
-  demo may skip it; say so.
+  demo may skip it; say so in `campaign.json` `material_skip: "<why>"`, and an
+  empty pack then passes `mvf check material`.
 - Some of it should measure what people like (reviews, rankings, metrics). A
   signal older than 30 days is re-read before a script cites it.
 - Fill `brand` from the product's own branding rules.
@@ -37,7 +38,8 @@ in official pictures from the rights holder.
   the templates, plus the campaign `.gitignore`.
 - `campaign.json` holds `slug`, `product`, `goal` (awareness, follow, signup,
   install, purchase, retention or launch), `benefit`, `kpi`, `markets`,
-  `languages`, `platforms` (tiktok, x, youtube, youtube-long),
+  `languages`, `platforms` (tiktok, x, youtube, youtube-long, instagram, facebook,
+  linkedin),
   `brand.{names, say, handle, url, logo, colors, fonts}`, `constraints`,
   `budget` (`scripts`: candidates to write, default 3; `videos`;
   `hook_variants_per_video`), and optionally `voice_engine` and `known_words`

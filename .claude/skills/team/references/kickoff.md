@@ -25,10 +25,8 @@ protocol. Confirm Orca is reachable, adopt the current lead session,
 initialize or recover the parent ticket, and claim it. Use the supported `bbs ticket ensure` / `bbs ticket init` commands; there
 is no top-level `bbs init`. Persist identifiers and checkpoints as work advances.
 
-Git has one flow and no policy to resolve ([git flow](../references/git-flow.md)):
-workers never commit, the lead lands **one commit per phase** on local base,
-and only a release pushes. Committing a single ticket is an unfinished job,
-never a delivery. Find the release profile the `release` skill would use (`RELEASE.md`, `.babysit/release.md` or the one
+Git has one flow and no policy to resolve: the skill's first invariant
+([git flow](../references/git-flow.md)). Find the release profile the `release` skill would use (`RELEASE.md`, `.babysit/release.md` or the one
 linked from `AGENTS.md`/`CLAUDE.md`); without one every phase is `release:
 none`. Rebuild the task list from durable state. On resume, continue the first
 unmet gate — `bbs team next "$PARENT"` names it (`snapshot --json` has the
@@ -80,6 +78,9 @@ handover does not leave "docs not synced" to the human.
 Where tickets or teams will build against each other in parallel, the
 design names those seams as **interface contracts** — repo files indexed in
 `.babysit/contracts.yaml`, delivered first ([contracts](../references/contracts.md)).
+`design.md` also states, per [agent-operable](../references/agent-operable.md)
+row the product touches, how it is met or that it is a named gap, so no
+ticket re-decides it.
 The confirmed spec and the approved basic design together are the SPEC
 between the human and the team.
 

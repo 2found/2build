@@ -63,7 +63,8 @@ ticket/requirement, stop with `NEEDS_CONTEXT`.
    check). Bracket it with `bbs autopilot verification begin --gate qa` and
    `record`.
 6. Apply autopilot's **Repair until the final change passes** loop: a QA fix
-   returns to review, and both gates must cover the final tree.
+   is proven by QA's own checks and never re-opens review (SKILL.md §
+   Current-session gates, **Review once**).
    Reconcile every acceptance criterion with executed evidence and require
    `bbs ticket readiness --action review --json` to report ready. Autopilot
    stops here, work uncommitted: never commit, push, or open a PR — the human

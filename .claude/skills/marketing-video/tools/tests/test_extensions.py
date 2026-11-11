@@ -44,6 +44,8 @@ def campaign(root: Path, voice=None, **script_over) -> Path:
     s = script(voice=voice or {"mode": "recorded"}, **script_over)
     (cd / "05-scripts/s01-test.json").write_text(json.dumps(s))
     mvf(cd, "approve", "s01-test", "--verdict", "approved")  # the owner read it: production may start
+    (cd / "06-pretest/r1").mkdir(parents=True)  # and the pre-test picked it
+    (cd / "06-pretest/r1/decision.json").write_text(json.dumps({"method": "skipped", "skipped_reason": "test", "winner": "s01-test/H1"}))
     return cd
 
 

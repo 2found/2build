@@ -51,7 +51,9 @@ guardrails.
   name the missing verification. Do not claim visual conformance from a build
   alone or rewrite the accepted prototype to conceal implementation drift.
 - API surfaces follow best practice by default, even when the plan is silent
-  — an unpaginated list endpoint is a bug, not a simplification.
+  — an unpaginated list endpoint is a bug, not a simplification. A new or
+  changed write also meets `../shared/agent-operable.md` (retry-safe,
+  previewable, machine-readable errors) unless the plan names it a gap.
 - Same at the DB layer: every new or changed query needs a bounded access
   path — check the declared indexes; cost should grow with rows returned,
   not table size. A query the schema can't serve is a bug — add the index,

@@ -291,7 +291,7 @@ def _stage_report(cd: Path, stage: str, c: dict) -> Report | None:
         return checks.check_campaign(c)
     p = cd / dict(STAGES)[stage]
     if stage == "material":
-        return material.check_pack(material.load_pack(cd), material.kinds(cd)) if p.is_file() else None
+        return material.check_pack(material.load_pack(cd), material.kinds(cd), c.get("material_skip")) if p.is_file() else None
     if stage in {"product", "audience", "trends", "research", "strategy"} and not p.is_file():
         return None
     if stage == "product":
@@ -699,6 +699,11 @@ def cmd_voice(a):
         gate = flow.owner_gate(cd, s["id"], a.owner_skip)
         if gate:
             raise SystemExit(f"BLOCKED owner: {gate}")
+        gate = flow.pretest_gate(cd, s["id"]) if not (a.owner_skip and a.owner_skip.strip()) else None
+        if gate:
+            raise SystemExit(f"BLOCKED pretest: {gate}")
+        if a.owner_skip and a.owner_skip.strip():
+            flow.record_skip(cd, s["id"], a.owner_skip)
         drift = flow.owner_drift(cd, s["id"])
         if drift:
             print(f"WARN {drift}")
@@ -1076,7 +1081,7 @@ def main():
     p = sub.add_parser("approve", help="record the owner's word on a script")
     p.add_argument("sid")
     p.add_argument("--verdict", required=True, choices=["approved", "rejected", "delegated"])
-    p.add_argument("--note", help="the owner's words (required for rejected)")
+    p.add_argument("--note", help="the owner's words (required for rejected and delegated)")
     p.add_argument("--hook", help="the hook they approved (default: the script's hook)")
     p.add_argument("--thesis", type=int, help="the thesis wording they picked (1-based, as numbered on the sheet)")
     p.set_defaults(fn=cmd_approve)
@@ -1154,7 +1159,7 @@ def main():
     p.add_argument("--opt", action="append", help="engine option key=value (repeatable; `mvf extensions` lists them)")
     p.add_argument("--all", action="store_true", help="re-voice every line, not only changed ones")
     p.add_argument("--rehear", action="store_true", help="re-time the words of the latest take from its audio (same audio)")
-    p.add_argument("--owner-skip", metavar="REASON", help="voice before the owner read the script (a test take, a demo)")
+    p.add_argument("--owner-skip", metavar="REASON", help="voice before the owner read the script or the pre-test picked it (a test take, a demo); the reason is recorded in 06-pretest/owner.json")
     p.set_defaults(fn=cmd_voice)
     p = sub.add_parser("voice-design")
     p.add_argument("--name", required=True)

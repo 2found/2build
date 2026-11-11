@@ -21,6 +21,7 @@ Never copy deploy settings or secrets out of their maintained owners.
 | Deploy | App/environment/origin, command + cwd, exact artifact, migrations/rollback reference, or N/A |
 | Hypercare | Window, cadence, metrics/log source, baseline, thresholds and rollback/stop behavior |
 | Local follow-up | CLI installation owner, pinned update, PATH/version/smoke check; consumer/catalog scope |
+| Operating handover | The Soot that operates the product: its pack (Soot Forge path), its workspace `evals/`, the `/llms.txt` URL, a runtime you may sync; or N/A with the reason (skill Flow step 8) |
 
 A field reading `TODO(2build): …` is unresolved: resolve it from evidence or
 the user before the stage that needs it, never treat it as a default or as

@@ -32,14 +32,16 @@ by path, not as `skill://`.
    Derive implied cases: shared state/routes, permissions, empty/error states,
    concurrency, existing-data migration and query access paths at production
    volume. An aggregate/filter the indexes cannot bound needs a plan-level
-   index/denormalization/cache decision. Actively look for evidence that
+   index/denormalization/cache decision. A change that adds or reshapes an
+   action, a reported status, a public fact or an API is checked against
+   `../references/agent-operable.md`: **Approach** names the rows it meets
+   and each one it leaves as a gap. Actively look for evidence that
    challenges the requirement's assumptions, not just answers to listed questions.
    Cite material discoveries and derived scope/risks in **Unknowns**: what was
    learned, why it matters, and resolved/open status. Resolve derivable choices
    through `../references/auto-decision-framework.md` into **Approach**, retaining
    a short discovery note when it changes the human's understanding even if
    already resolved; do not repeat the decision detail.
-   Shared refs are filesystem paths beside this skill, not `skill://` resources.
 2. Survey existing patterns before proposing new ones. For UI/frontend work,
    read the declared design doc, component/token source and nearest similar
    flow; for backend work, routes, data access and errors. When adding or reshaping a user-facing surface, inspect the design
@@ -78,7 +80,10 @@ by path, not as `skill://`.
 6. Before handoff, check coverage and review cost (below), then re-check size.
    If ≥40% of in-scope items were deferred to follow-up tickets, downgrade one
    tier using the hook in `../references/ticket-size-rubric.md`. Required child
-   tickets in this plan are decomposition, not deferred scope.
+   tickets in this plan are decomposition, not deferred scope. With a ticket,
+   write the plan to `bbs ticket path plan --write` and register it
+   ([write recipe](../references/ticket-layout.md#typical-skill-usage));
+   without one, return it in the response.
 
 ## Review budget and format
 Aim for roughly 20–30 readable rendered lines in the main plan; a large

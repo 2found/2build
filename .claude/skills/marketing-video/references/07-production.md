@@ -232,7 +232,8 @@ timing is measured.
 
 - **Voice.** `mvf voice <sid>` makes a take in `07-video/<sid>/takes/tNN/`: one
   WAV per line and `manifest.json` (speech spans and word times). It voices
-  only changed lines, plus the script's `hook` variant.
+  only changed lines, plus the script's `hook` variant; `--all` voices every
+  line again.
   - The engine comes from `--engine`, then `voice.engine`, then the campaign's
     `voice_engine`, then `.babysit/marketing-video/config.json`.
   - `files` (built in) uses the user's recordings in
@@ -273,7 +274,7 @@ timing is measured.
     ducked under speech;
   - it writes `assets/music/mixcheck.json`, which names any beat under the
     8 dB margin.
-- **Thumbnail.** `mvf thumbnail <sid> [--canvas 16x9] [--art T1]` writes
+- **Thumbnail.** `mvf thumbnail <sid> [--canvas 16x9] [--art T1] [--text LINE]` writes
   `07-video/<sid>/thumb-<canvas>/index.html` once, then snapshots it to
   `thumbnail-<canvas>.jpg`. Edit the page and re-run. YouTube long-form needs
   one; a TikTok or Shorts cover is frame 0.

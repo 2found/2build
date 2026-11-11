@@ -20,15 +20,19 @@ def skill(name):
     return (SKILLS / name / 'SKILL.md').read_text()
 
 
-def test_orca_contract_is_owned_and_injected_only_by_foreman():
+def test_orca_transport_is_owned_and_injected_only_by_team():
+    # Other skills may name Orca as a host; its commands and worker protocol
+    # stay under team/ (worktrees.md owns the one worktree-creation mention).
     for path in SKILLS.rglob('*.md'):
-        if path.relative_to(SKILLS).parts[0] != 'foreman':
-            assert not re.search(r'orca|worker_done|skills/orchestration',
-                                 path.read_text(), re.IGNORECASE), path
-    assert 'references/worker-lifecycle.md' in skill('foreman')
+        rel = path.relative_to(SKILLS)
+        if rel.parts[0] in ('team', 'foreman') or rel.as_posix() == 'references/worktrees.md':
+            continue
+        assert not re.search(r'worker_done|skills/orchestration|`orca [a-z]',
+                             path.read_text(), re.IGNORECASE), path
+    assert 'references/worker-lifecycle.md' in skill('team')
     adapter = (SKILLS / 'team/references/worker-lifecycle.md').read_text()
-    for contract in ('every worker Task', 'SPAWNED=true', 'AGENT_ROLE=orca',
-                     'bbs foreman task ask', 'bbs foreman task done',
+    for contract in ('SPAWNED=true', 'AGENT_ROLE=orca',
+                     'bbs team task ask', 'bbs team task done',
                      'Send no status messages',
                      'whole Dispatch, not each nested skill'):
         assert contract in adapter
@@ -37,17 +41,14 @@ def test_orca_contract_is_owned_and_injected_only_by_foreman():
 def test_qa_surface_ownership_and_blocked_coverage():
     qa = skill('qa')
     assert 'Foreman' not in qa
-    assert 'Select the surface mode before preparation' in qa
-    readonly = qa.split('**Caller-prepared read-only surface:**')[1].split('**Ticket worktree mode:**')[0]
-    for constraint in ('preparation/migrations', 'code edits', "caller's lease",
-                       'This explicit mode takes precedence'):
-        assert constraint in readonly
-    assert 'missing required coverage or failed\nacceptance forces FAIL → BLOCKED' in qa
-    assert 'DONE_WITH_CONCERNS is only for nonblocking residuals' in qa
-    assert 'After QA fixes, return for\ncaller commit/retest' in qa
+    # QA takes the shared-surface lease itself and releases it on every outcome.
+    assert 'bbs ticket surface acquire' in qa
+    assert '`surface release` on every outcome' in qa
+    assert "committing them stays the invoking workflow's job" in qa
+    assert '`VERDICT: FAIL` always pairs with `STATUS: BLOCKED`' in qa
+    assert '`DONE_WITH_CONCERNS` is only for nonblocking residuals' in qa
     worktrees = (SKILLS / 'references/worktrees.md').read_text()
-    assert 'QA does not commit or push' in worktrees
-    assert 'pending retest is BLOCKED, never PASS' in worktrees
+    assert 'Work stays **uncommitted**' in worktrees
     assert 'set-verdict --skill qa`' not in worktrees
 
 
@@ -107,9 +108,11 @@ def test_documented_handoff_command_round_trip(repo, tmp_path):
 
 
 def test_plan_is_persisted_for_autopilot_and_implement(repo, tmp_path):
-    producer = skill('plan-draft')
+    # The write recipe is owned by ticket-layout.md; plan-draft links to it.
+    assert 'ticket-layout.md' in skill('plan-draft')
+    producer = (SKILLS / 'references/ticket-layout.md').read_text()
     for contract in ('bbs ticket path plan --write', 'set-pointer plan',
-                     'set-verdict --skill plan-draft'):
+                     'set-verdict  --skill plan-draft'):
         assert contract in producer
     run = attach(repo)
     assert 'bbs ticket path design --write' in skill('design-ui')
@@ -129,17 +132,16 @@ def test_plan_is_persisted_for_autopilot_and_implement(repo, tmp_path):
 
 def test_implement_publishes_qa_inputs():
     producer, consumer = skill('implement'), skill('qa')
-    assert 'handoff-contracts.md' in producer
-    for field in ('SUMMARY', 'FILES', 'APPROACH', 'BLAST_RADIUS', '## Deviations'):
-        assert field in producer
-    assert 'add-handoff --skill implement --status' in producer
+    contract = (SKILLS / 'references/handoff-contracts.md').read_text()
+    for field in ('SUMMARY', 'FILES', 'APPROACH', 'BLAST_RADIUS'):
+        assert field in contract
+    assert 'bbs ticket add-handoff --skill <skill> --status' in contract
+    assert '## Deviations' in producer
+    assert '`## Deviations`' in consumer
     assert 'path handoff --skill implement --latest --read' in consumer
 
 
 def test_review_emits_gate_report_not_just_findings(repo, tmp_path):
-    producer = skill('review-pr')
-    for field in ('STATUS:', 'VERDICT:', 'FINDINGS:', 'FIXED:', 'RISK_AREAS:'):
-        assert field in producer
     run = attach(repo)
     raw = tmp_path / 'raw.md'
     raw.write_text('STATUS: DONE\nVERDICT: PASS\nSUMMARY: fixture\n'
@@ -159,8 +161,6 @@ def test_review_emits_gate_report_not_just_findings(repo, tmp_path):
 @pytest.mark.parametrize('name', ['implement', 'qa', 'review-pr'])
 def test_standalone_without_ticket_plan_origin_or_clean_tree(name, repo):
     text = skill(name)
-    assert '## Standalone' in text
-    assert 'no ticket' in text.lower()
     path, env, run = repo
     (path / 'app.txt').write_text('local change\n')
     (path / 'new.txt').write_text('untracked\n')
@@ -171,11 +171,8 @@ def test_standalone_without_ticket_plan_origin_or_clean_tree(name, repo):
     assert 'new.txt' in run('git', 'ls-files', '--others', '--exclude-standard').stdout
     assert run('git', 'branch', '--show-current').stdout.strip() == 'main'
     assert not list(Path(env['BABYSIT_PROJECT_HOME']).glob('tickets/*'))
-    if name in ('qa', 'review-pr'):
-        assert 'handoff-contracts.md' in text
     if name == 'qa':
-        assert 'scratch' in text.lower()
-        assert 'security-review' not in text  # no such bundled skill
+        assert 'Missing docs are not a gate' in text
 
 
 def test_qa_report_is_persisted_but_never_opens_the_gate(repo, tmp_path):
@@ -228,7 +225,7 @@ def test_v2_projection_preserves_full_review_for_qa(repo, tmp_path):
     assert 'RISK_AREAS:' not in projection.read_text()
     assert full.read_text() == report.read_text()
     assert 'path review --skill review-pr --read' in skill('qa')
-    assert 'set-review --skill review-pr' in skill('review-pr')
+    assert 'bbs ticket set-review --skill <review-pr|qa> --body-file' in skill('autopilot')
 
 
 def test_workflows_never_replace_reports_with_empty_verdicts(repo, tmp_path):

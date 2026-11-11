@@ -42,6 +42,54 @@ run (is it surfaced, can it be retried, does retry cost?) · crash and recovery
 (error boundary, retry, reload) · long names (80 chars) · narrow width ·
 stale state after another action completes.
 
+## Information density
+Users came to do a task, not to read. Count on each primary screen, desktop and
+~390px; each hit is a finding (usually sev 2; sev 3 when text pushes the work
+surface below the fold). Measure, do not eyeball:
+- Helper paragraph under a row or group (> 1 sentence); title > ~6 words.
+- Row with > 2 text lines (title + one meta line is the ceiling).
+- Count or fact written as a sentence ("Read 10 of 10 · 4 notes · 2 to review
+  · 1 applied") where icon + number scans faster.
+- Same fact in two places on one screen (rail and body, header and card).
+- Reassurance/footnote repeated per card ("undoable", "nothing is written until
+  you confirm").
+- "Select all" / "Select none" text pair where one tri-state checkbox with an
+  n/total count does the job.
+- Chrome (banners, headers, legends, rails) taking space from the work surface,
+  i.e. the content the user is editing or deciding on.
+Record visible text lines and words per screen as the baseline.
+
+Fix, in order of preference: cut the text; merge it into the row's one meta
+line; turn a count/fact into a muted 16px icon + number whose full sentence is
+its tooltip and accessible name (focusable); move the explanation (what a group
+does, what it costs, what the icons mean) into ONE ⓘ popover beside the group
+title, or a guide link. Give status dots and row icons one shared leading
+column so they align (misaligned leading icons are a real defect).
+
+Never cut: an error with its recovery action; blockers; destructive-confirm
+wording; form labels and validation; legal/consent copy; the status word beside
+a colour dot (colour is never the only cue); served prices/costs the user
+decides on; the only text telling the user what a write or charge will do
+(shorten it, keep it). Over-cutting is a finding too.
+
+Icon facts must pass: accessible name present (aria-label = the full
+sentence); tooltip opens on keyboard focus; target >= 44px on narrow screens.
+Hover tooltips do not open on touch, so on mobile the ⓘ popover/legend carries
+the meaning. Check no horizontal scroll at 390px. Re-audit with before/after
+screenshots at both widths and the line/word counts.
+
+## Agent path
+The product is also run by agents (`../shared/agent-operable.md`). For each
+action and each "needs attention" fact the walk used, check read-only:
+- The action exists outside the UI (API or CLI) behind the same permission. A
+  UI-only operator action is a finding (sev 2; sev 3 when it is a recurring job).
+- The fact is served by a read endpoint, with the same number the screen shows.
+- An API error is a status code plus `code` and recovery, not an HTML page or a
+  `200`.
+- Public facts the UI shows (prices, plans, limits) match `/llms.txt` and its
+  pages.
+Owner layer is backend or content; never propose a UI patch for these.
+
 ## Embedded pages and iframes
 - Frame is sized to its content or the pane (no fixed min-height box with
   blank space; wheel and keyboard both scroll).

@@ -33,28 +33,27 @@ beat asks for it and say why.
 
 ### A blow, a dash, an impact
 An effect alone looks like a sticker; the body around it sells the hit.
-- **Wind up the opposite way** to the blow, then **snap** to the release
-  pose on the key frame (`snap: true`) instead of tweening into it.
-- **Freeze on contact** for 0.08–0.2 s (`freeze`), the frame shaking, the
-  target thrown back (`hits`), then recover slower than you struck.
+- **Frame the contact first.** A hit drawn at a tenth of the frame reads as
+  nothing at phone size, whatever the effects: punch in (`keys`) to the fist
+  and the head on the blow, and make the target react on the contact frame (a
+  head snap, a squash, a knockback). Do this before adding anything below.
+- **Wind up the opposite way** to the blow, release, then recover slower than
+  you struck, the target thrown back (`hits`).
 - **Fast in, slow out.** A strike that eases in reads as floaty: power3/expo
   out, a total of well under a second, and a 1–2 frame `flash` at contact.
-- **A dash leaves after-images** (`ghosts`, or `speedlines` linear) when it
-  crosses the frame. On a short or vertical move the copies overlap the body
-  and read as a smear: leave them off.
-- **Frame the contact.** A hit drawn at a tenth of the frame reads as nothing
-  at phone size, whatever the effects: punch in (`keys`) to the fist and the
-  head on the blow, and make the target react on the contact frame (a head
-  snap, a squash, a knockback). Freeze and flash sell a reaction; they are
-  not one.
-- **Poses on steps** (`steps: 12`) read as drawn; smooth tweens read as
-  puppets. Particles and the camera stay smooth.
+- **Optional, and unproven:** a `snap` to the release pose, a `freeze` on
+  contact (0.08–0.2 s), stepped poses (`steps: 12`) and dash after-images
+  (`ghosts`, or `speedlines` linear). In a blind A/B on framed-small fights
+  (2026-11-10) none of them gave a visible gain, a freeze delayed the payoff
+  and ghosts on a short or vertical move read as a smear. They sell a
+  reaction that is already framed; they are not one. Add one only when a
+  with/without frame strip shows it helps.
 
 | You see | Usual fix |
 | --- | --- |
 | floaty, no punch | faster in, longer hold after, a white frame on contact, shorter total |
 | the hit lands out of sync | anchor the freeze, flash and recoil to the one word of the blow |
-| weightless | a bigger wind-up the other way, a longer freeze (to 0.2 s), more shake |
+| weightless | a tighter punch-in on the contact, a bigger target reaction, a bigger wind-up the other way |
 | a great effect on a still figure | give the figure a wind-up, a release pose and a recovery |
 | mush at phone size | one focal point, bigger shapes, fewer colours |
 | washed out glow on paper | glow belongs on dark plates; on paper use ink: lines, solid shapes |

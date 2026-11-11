@@ -216,8 +216,8 @@ terminal or wrap them in an orchestrator that can relay `NEEDS_CONTEXT`.
 
 | Compatibility | Skills |
 |---------------|--------|
-| **`INVOKER`-agnostic** (safe to chain unattended) | `agent-first-docs`, `architect`, `autopilot`, `browse`, `create-pr`, `design-ui`, `harness-audit`, `implement`, `investigate`, `perf-audit`, `phased-build`, `plan-draft`, `qa`, `recon`, `release`, `review-pr`, `semantic-decision`, `setup-project`, `team`, `telemetry-review`, `test`, `token-audit`, `triage`, `ui-audit` |
-| **`developer`-only** (require a human at the keyboard) | None; unresolved setup policy uses the caller's `NEEDS_CONTEXT` channel. |
+| **`INVOKER`-agnostic** (safe to chain unattended) | `agent-first-docs`, `architect`, `autopilot`, `browse`, `create-pr`, `design-ui`, `harness-audit`, `humanizer-vi`, `image-gen`, `implement`, `investigate`, `perf-audit`, `plan-draft`, `qa`, `recon`, `release`, `review-pr`, `semantic-decision`, `setup-project`, `team`, `telemetry-review`, `test`, `token-audit`, `triage`, `ui-audit` |
+| **`developer`-only** (require a human at the keyboard) | `marketing-video`: the owner reads the first script before anything is voiced (`mvf approve`) and signs in to a provider for the judge (`! soot login`). Unresolved setup policy uses the caller's `NEEDS_CONTEXT` channel. |
 
 Team reaches its parent human design checkpoint by default; unattended callers
 must explicitly pass `--auto` to delegate routine project design reviews. Child

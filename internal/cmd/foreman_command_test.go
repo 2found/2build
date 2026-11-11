@@ -201,7 +201,7 @@ func TestTicketSubcommandHelpIsReadOnly(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ticket %s --help exited non-zero: %v: %s", sub, err, out)
 		}
-		if !strings.Contains(string(out), "Subcommands:") {
+		if !strings.Contains(string(out), "Usage:\n  "+sub) || strings.Contains(string(out), "set-pointer") {
 			t.Fatalf("ticket %s --help printed no usage: %s", sub, out)
 		}
 		if strings.Contains(string(out), "TICKET=") || strings.Contains(string(out), "published") {

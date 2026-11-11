@@ -72,7 +72,7 @@ panel.
 
 ```json
 {"reviewed_at": "YYYY-MM-DD", "looked_at": ["contact.jpg", "spot-0.jpg", "12.4s still"], "score": 7,
- "seen": [{"at": 0.0, "what": "the potter's hands lift a white paperweight; 'đập vỡ vận mệnh con' over his chest"}],
+ "seen": [{"at": 0.0, "what": "a hand sets a phone on the desk; '3 HOURS' over the screen"}],
  "issues": [{"sev": "P0", "at": 3.1, "what": "caption covers the product screen", "status": "open|fixed|accepted",
              "fix": "captions y up 80 px on B02"}]}
 ```

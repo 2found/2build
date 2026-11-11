@@ -54,7 +54,10 @@ reference, Meta's Reels publishing guide, LinkedIn Help a548372 and a1311816.
   2.5 s, silence inside the voice, and a canvas the player letterboxes.
 - **Thumbnail** (long-form). It FAILs if it is not the canvas, smaller than
   1280x720, over 2 MB, or black.
-- **Captions** come from the measured word times. The cover is frame 0.
+- **Captions** come from the measured word times. With the `files` voice
+  engine those times are spread by length, not measured: re-time them from
+  the audio (`mvf voice --rehear --engine …`) before delivery. The cover is
+  frame 0.
 - **Watched and heard.** Watch each file once with sound and once muted. Check
   that:
   - the hook reads at 0 s;
@@ -100,7 +103,9 @@ Never hide a required label.
 ## Tool
 - `mvf export <proj>` renders, masters, encodes and QAs for the script's
   platforms on that project's canvas (`--platforms` narrows it, `--draft`
-  makes a rough cut). It writes the folder above and `delivery.json`.
+  makes a rough cut, `--skip-render` reuses `renders/master.mp4`). It writes the
+  folder above and `delivery.json`; a `--draft` one marks it `draft`, and is not
+  a delivery.
 - `mvf qa <video> --platform P --proj D` re-measures one file.
 - Outside HyperFrames, do the same steps by hand and write `qa.md`.
 

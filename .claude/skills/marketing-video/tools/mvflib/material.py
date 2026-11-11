@@ -144,10 +144,13 @@ def merge(cd: Path, items: list[dict], run: dict) -> tuple[int, int, Report]:
     return added, updated, rep
 
 
-def check_pack(pack: dict, known: dict | None = None) -> Report:
+def check_pack(pack: dict, known: dict | None = None, skip: str | None = None) -> Report:
+    """`skip` is campaign.json `material_skip`: why a pure feature demo has no pack (references/00-brief-material.md)."""
     r = Report()
     items = pack.get("items") or {}
-    if not items:
+    if not items and str(skip or "").strip():
+        r.info("MAT", INDEX, f"empty on purpose: {str(skip).strip()}")
+    elif not items:
         r.fail("MAT", INDEX, "empty: run `mvf gather <source> …` (see `mvf sources`)")
     for iid, it in items.items():
         r.extend(validate(it, iid, known))

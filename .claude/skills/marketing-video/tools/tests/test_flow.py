@@ -10,7 +10,9 @@ TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS))
 os.environ["MVF_TODAY"] = "2026-10-27"
 
-from mvflib import flow  # noqa: E402
+from unittest import mock  # noqa: E402
+
+from mvflib import flow, judge  # noqa: E402
 from mvflib.common import Report  # noqa: E402
 from test_extensions import mvf, repo  # noqa: E402
 from test_mvf import script  # noqa: E402
@@ -49,8 +51,33 @@ class Owner(unittest.TestCase):
         # an explicit skip passes the gate (it then needs recordings: the files engine lists them)
         r = mvf(self.cd, "voice", "s01-test", "--owner-skip", "test take", ok=False)
         self.assertNotIn("BLOCKED owner", r.stderr + r.stdout)
-        mvf(self.cd, "approve", "s01-test", "--verdict", "delegated")
+        self.assertEqual(json.loads((self.cd / flow.OWNER).read_text())["skips"][0]["reason"], "test take")  # recorded
+        r = mvf(self.cd, "approve", "s01-test", "--verdict", "delegated", ok=False)
+        self.assertIn("--note", r.stderr)  # a delegation names where the owner said it
+        mvf(self.cd, "approve", "s01-test", "--verdict", "delegated", "--note", "owner, in chat: you decide")
         self.assertNotIn("BLOCKED owner", (lambda r: r.stderr + r.stdout)(mvf(self.cd, "voice", "s01-test", ok=False)))
+
+    def test_voice_starts_from_the_pretest_winner(self):
+        flow.approve(self.cd, "s01-test", "approved", "", None)
+        self.assertIn("no pre-test decision", flow.pretest_gate(self.cd, "s01-test"))
+        self.assertIn("BLOCKED pretest", mvf(self.cd, "voice", "s01-test", ok=False).stderr)
+        (self.cd / "06-pretest/r1").mkdir(parents=True)
+        dec = {"method": "simulated-panel", "winner": "s02-b/H1", "evidence": "x", "decided_at": "2026-10-27"}
+        (self.cd / "06-pretest/r1/decision.json").write_text(json.dumps(dec))
+        self.assertIn("picked s02-b/H1", flow.pretest_gate(self.cd, "s01-test"))
+        dec["winner"] = "s01-test/H1"
+        (self.cd / "06-pretest/r1/decision.json").write_text(json.dumps(dec))
+        self.assertIsNone(flow.pretest_gate(self.cd, "s01-test"))
+        self.assertNotIn("BLOCKED", mvf(self.cd, "voice", "s01-test", ok=False).stderr)
+
+    def test_a_draft_export_is_not_a_delivery(self):
+        out = self.cd / "08-delivery/s01-test/9x16"
+        out.mkdir(parents=True)
+        (out / "delivery.json").write_text(json.dumps({"draft": True}))
+        self.write("s02-b")
+        self.assertIsNotNone(flow.owner_gate(self.cd, "s02-b", None))  # the owner has not seen a finished video
+        (out / "delivery.json").write_text(json.dumps({"draft": False}))
+        self.assertIsNone(flow.owner_gate(self.cd, "s02-b", None))
 
     def test_an_edit_after_approval_is_flagged(self):
         flow.approve(self.cd, "s01-test", "approved", "", None)
@@ -61,7 +88,8 @@ class Owner(unittest.TestCase):
     def test_the_owner_reads_the_campaigns_first_script_only(self):
         self.write("s02-b")
         self.assertIsNotNone(flow.owner_gate(self.cd, "s02-b", None))
-        (self.cd / "08-delivery/s01-test").mkdir(parents=True)  # one video shipped: the owner has read the campaign
+        (self.cd / "08-delivery/s01-test/9x16").mkdir(parents=True)  # one video shipped
+        (self.cd / "08-delivery/s01-test/9x16/delivery.json").write_text(json.dumps({"draft": False}))  # (a draft is not one): the owner has read the campaign
         self.assertIsNone(flow.owner_gate(self.cd, "s01-test", None))
         self.assertIsNone(flow.owner_gate(self.cd, "s02-b", None))
         flow.approve(self.cd, "s02-b", "rejected", "off brand", None)  # a rejection still holds
@@ -73,9 +101,18 @@ class Owner(unittest.TestCase):
         self.write("s02-b", voice={"mode": "recorded"})
         self.write("s03-c")
         self.write("ctl-old")
-        x = self.nxt()
-        self.assertEqual(x["who"], "owner")  # first use: the owner picks the evaluator model
+        os.environ["MVF_SOOT"] = "/bin/echo"
+        os.environ["MVF_MICRO_FISH"] = "/bin/echo"
+        self.addCleanup(lambda: [os.environ.pop(k, None) for k in ("MVF_SOOT", "MVF_MICRO_FISH")])
+        with mock.patch.object(judge, "providers", return_value=[{"id": "p", "credential": "available"}]):
+            x = self.nxt()
+        self.assertEqual(x["who"], "owner")  # signed in, first use: the owner picks the evaluator model
         self.assertIn("evaluator", x["what"])
+        with mock.patch.object(judge, "soot_bin", return_value=None):
+            x = self.nxt()  # no Soot: the docs allow an agent panel, so the agent goes on alone
+        self.assertEqual(x["who"], "agent")
+        self.assertIn("agent-panel", x["what"])
+        os.environ["MVF_SOOT"] = "/bin/echo"
         (self.home / "marketing-video").mkdir(parents=True)
         (self.home / "marketing-video/config.json").write_text(json.dumps({"judge": {"provider": "p", "model": "m"}}))
         x = self.nxt()
@@ -90,6 +127,36 @@ class Owner(unittest.TestCase):
         flow.approve(self.cd, "s02-b", "approved", "", None)
         x = self.nxt()
         self.assertEqual((x["who"], x["run"]), ("agent", "mvf voice s02-b"))
+
+    def test_next_sends_a_reviewed_cut_to_the_cold_viewer_and_a_draft_to_export(self):
+        self.write("s01-test", voice={"mode": "recorded"})
+        (self.cd / "06-pretest/r1").mkdir(parents=True)
+        (self.cd / "06-pretest/r1/decision.json").write_text(json.dumps(
+            {"method": "agent-panel", "winner": "s01-test/H1", "evidence": "x", "retell": "q", "decided_at": "2026-10-27"}))
+        flow.approve(self.cd, "s01-test", "approved", "", None)
+        vdir = self.cd / "07-video/s01-test"
+        (vdir / "takes/t01").mkdir(parents=True)
+        (vdir / "takes/t01/manifest.json").write_text("{}")
+        proj = vdir / "9x16"
+        (proj / "assets/music").mkdir(parents=True)
+        (proj / "assets/music/bed.mp3").write_text("x")
+        (proj / "mvf.json").write_text("{}")
+        (proj / "review.json").write_text(json.dumps({"issues": []}))
+        c = json.loads((self.cd / "campaign.json").read_text())
+        c["budget"] = {"scripts": 1}
+        (self.cd / "campaign.json").write_text(json.dumps(c))
+        with mock.patch.object(judge, "choice", return_value=None):
+            x = self.nxt()
+            self.assertEqual(x["run"], "mvf viewer s01-test/9x16")
+            (proj / "review").mkdir()
+            (proj / "review/viewer-v1.md").write_text("Verdict: APPROVE\n")
+            self.assertEqual(self.nxt()["run"], "mvf export s01-test/9x16")
+            out = self.cd / "08-delivery/s01-test/9x16"
+            out.mkdir(parents=True)
+            (out / "delivery.json").write_text(json.dumps({"draft": True}))
+            self.assertEqual(self.nxt()["run"], "mvf export s01-test/9x16")  # a draft is not the delivery
+            (out / "delivery.json").write_text(json.dumps({"draft": False}))
+            self.assertEqual(self.nxt()["who"], "owner")
 
     def test_template_brief_comes_first_and_asks_the_owner_only_for_gaps(self):
         c = json.loads((self.cd / "campaign.json").read_text())

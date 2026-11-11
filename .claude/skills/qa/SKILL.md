@@ -18,7 +18,7 @@ Exercise the application like a user and leave reproducible evidence.
      `## Deviations`: each deviation is where the plan diverged from reality,
      the likeliest home of a wrong guess; also read findings/unknown outcomes
      and prototype-comparison evidence, checking their relevance and freshness
-   - `bbs ticket path verdict --skill review-pr --read` — unresolved
+   - `bbs ticket path review --skill review-pr --read` — unresolved
      `FINDINGS` go into the case matrix; `RISK_AREAS`/`FIXED` seed security
      and regression cases
    Missing docs are not a gate — fall back to conversation. Change surface:
@@ -59,7 +59,7 @@ Exercise the application like a user and leave reproducible evidence.
    **Team integration mode:** a Task explicitly assigned a phase's
    integration worktree (detached at the phase commit `bbs team integrate`
    built) plus the cumulative acceptance (every criterion of this phase, and
-   the earlier ones its diff touches; the lead carries the rest) tests that exact commit read-only, and runs
+   the earlier ones its diff touches; the rest stands on earlier phases' evidence) tests that exact commit read-only, and runs
    `bbs contract check <id>` there for each contract the phase changed
    (`contracts_changed` in the integrate output). Verify the worktree is
    clean at that commit before and after testing. Do not edit the
@@ -107,7 +107,11 @@ Exercise the application like a user and leave reproducible evidence.
      deferred to hypercare goes into `SUMMARY` as a release-checklist item.
    - **Actor** — changed UI runs signed-out and as a lower-privilege user;
      where session/credential state is shared, add one wrong-credential or
-     expired-session case.
+     expired-session case. A new or changed action, status or API also runs
+     once as an agent would: through its non-UI path with a scoped
+     credential — the write repeated with the same key, its preview, one
+     invalid input (`../references/agent-operable.md`); a row the plan named
+     a gap is reported, not failed.
    - **Hard-to-reach states** — every dialog, confirm or dirty-state guard
      gets cancel and Escape; background/hidden-window, offline and timing
      states are probed. A state the fixture cannot reach is forced by
@@ -220,7 +224,7 @@ reproduction steps.
 adjacent-regression cases. When the diff touches auth, money or data paths,
 `security`, `a11y` and `compat` must carry a real grade — an `N/A` there needs
 a reason that would survive review — off-script exploration is mandatory, and
-`security-review` runs too.
+the harness's `security-review` runs too when it has one.
 
 Do not leave a process running solely for human review. The screenshots and
 evidence are the handoff: stop a target this QA attempt started, but preserve
@@ -236,7 +240,7 @@ change can't touch is `N/A` **with a one-line reason** — never a silent skip.
 - **data**: A = state correct across reload/nav/concurrent edits · B = persists across reload · C = not checked · D = loss/corruption seen
 - **compat**: A = target browsers + responsive breakpoints · B = one extra viewport · C = default viewport only · D = broken layout seen
 - **security**: A = permission gates + input safety (authz, injection) probed · B = auth-required paths checked · C = noted, not tested · D = access-control gap seen
-- **a11y**: A = keyboard path, labels/roles, contrast, clear error copy · B = keyboard + visible focus · C = not checked · D = blocking defect
+- **a11y**: A = keyboard path, labels/roles, contrast, clear error copy · B = keyboard + visible focus · C = not checked · D = blocking defect — A or B cites an `agent-browser a11y` run on each changed screen, its violations fixed or listed
 - **perf**: A = responsive under realistic data volume · B = no obvious lag on happy path · C = not observed · D = timeout/jank seen
 - **freshness** (always applies): A = final full e2e pass on the *final* code state · B = e2e passed but code changed after · C = partial/stale e2e · D = unit/curl/code-read only
 Grades are letters `A`–`D` or `N/A: <reason>`; anything else ("ok",

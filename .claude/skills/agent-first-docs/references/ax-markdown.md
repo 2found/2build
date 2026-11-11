@@ -20,6 +20,12 @@ framework/server capabilities before implementation.
   HTML or HTTP `Link`, including on Markdown responses. Choose the index that
   covers that URL; localized paths need discovery within their own scope.
 
+The same pages are what an operating agent answers from
+([agent-operable](../references/agent-operable.md)): keep one topic per page,
+generate prices, plans and limits from the product's own data, and list every
+page as a link entry in the index — a Soot mirror follows the index one level,
+same host, 40 pages at most, and skips links in prose.
+
 ## Serving and framework boundaries
 
 Return HTTP 200 and `Content-Type: text/markdown; charset=utf-8` for Markdown.

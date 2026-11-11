@@ -57,8 +57,8 @@ recap, and one was a good story that "gave the listener nothing".
   nothing to retell, however useful the decision is.
 - `spine.use` is the sentence a viewer could say afterwards, in plain words.
   For a lesson, a decision, a match or a how-to it is about their own life:
-  "next time the build breaks I check the cache first", "I'll start this
-  series at book 2", "I'll put the chopping board under a damp towel".
+  "next time the build breaks I check the cache first", "I'll ask
+  what it costs them before I say yes", "I'll put the chopping board under a damp towel".
 - **For an `answer` the use is the answer itself**, said so the viewer can
   repeat it to whoever asked: "a level-3 warrior beats any mage below level
   6", "the fee is waived after 12 months", "the gap is the sleeve, not the

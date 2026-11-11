@@ -88,6 +88,11 @@ Mirror the steps into the task list.
    - **Scaling cliffs**: in-process state, local disk, singleton jobs without
      a lock, unbounded tables or queries, fan-out per request.
    - **Cost**: spend per component against what it serves.
+   - **Operability**: rows of
+     [agent-operable](../references/agent-operable.md) the system does not
+     meet (UI-only operator actions, writes with no preview or retry safety,
+     no health or needs-attention read path), `high` when an agent is due to
+     run the product within the horizon.
 4. **Horizon**: name it and its drivers, each new feature's load shape
    (read-heavy, write-heavy, CPU-bound jobs, real time, large files) and
    multiplier; project the headroom table and order the limits crossed.

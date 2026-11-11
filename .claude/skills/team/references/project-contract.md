@@ -200,15 +200,15 @@ diff touches, earlier phases' passing evidence for the rest; the last phase's ru
 passes before the lead's `done` heartbeat. Per-ticket QA never substitutes for
 it. Wholly evidence-only projects may record N/A with acceptance evidence.
 The lead owns the evidence checks; one integration worker session on the normal
-route reviews the phase diff and tests through the `qa` skill, and fixes small
+route reviews the phase diff and tests through the `qa` skill, and fixes its
 findings in their owning ticket's worktree
 ([phases](phases.md#4-cumulative-qa-and-product-review)). The lead never tests
 inline.
 
-1. `bbs team integrate "$PARENT" --phase <k>` builds the phase commit and
-   prints its detached integration worktree. A conflict names the ticket and
-   files: `repair` that ticket, then integrate again. `bbs team land
-   "$PARENT" --phase <k>` puts it on local base right away.
+1. `bbs team integrate` builds the phase commit in its detached integration
+   worktree and `bbs team land` puts it on local base right away
+   ([phases §2–3](phases.md#2-integrate-the-phase); conflicts per
+   [git flow](../references/git-flow.md) step 6).
 2. Begin evidence with `"phase"` (execution.md), then run the `qa` skill in
    that worktree with parent identity, the phase commit, the approved artifact
    revision and the ticket list, in its Team integration mode: no commits,
@@ -220,10 +220,9 @@ inline.
 3. Persist `integration-qa.md` with commands, results, runtime identity,
    evidence links and the tested commit; set `pointers.integration_qa` and the
    parent `qa` verdict.
-4. On FAIL, the session fixes every failure itself in the owning ticket's
-   worktree, runs `integrate` (it takes the fixes) and `land`, and re-checks
-   what it fixed; no `repair` goes through the lead. PASS unlocks the release
-   and removes the phase's worktrees ([delivery](delivery.md)).
+4. On FAIL, the session fixes every failure itself, forward on base
+   ([phases §4](phases.md#4-cumulative-qa-and-product-review)). PASS unlocks
+   the release and removes the phase's worktrees ([delivery](delivery.md)).
 
 ## Executable completion
 

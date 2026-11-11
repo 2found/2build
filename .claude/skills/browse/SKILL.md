@@ -13,6 +13,16 @@ renders. Do not turn this into a product review unless asked.
   change.
 ## Engine
 Browsing runs on [`agent-browser`](https://github.com/vercel-labs/agent-browser) — `agent-browser open <url>`, then `snapshot -i` for refs, `click @e<n>` / `type @e<n> <text>` / `fill` / `select` to interact (the `@ref` is an argument to a verb, never a bare command), plus `eval`, `screenshot`, `errors`, `vitals`. One-time: `npm install -g agent-browser cloakbrowser`.
+Verbs worth knowing before reaching for `--help`:
+`batch "<cmd>" "<cmd>" …` runs a whole sequence in one call (`--bail` stops at
+the first error) — prefer it to one call per click, every call re-reads the
+whole context; `wait <sel|ms>`, `wait --text <t>`, `wait --url <pat>`,
+`wait --load networkidle`; `get text|value|url|count <sel>`;
+`find role|text|label <value> <action>`; `press <key>`;
+`screenshot [sel] [path]` (`--full`, `--if-changed`); `set viewport <w> <h>`,
+`set media dark|light`, `set offline on|off`; `console`, `network requests
+--filter <pat>`; `a11y [--selector <css>]` (axe-core WCAG audit);
+`diff screenshot --baseline <png>`.
 **One agent session = one browser.** The session name is the browser identity:
 the same name reattaches to that browser's daemon (cookies, tabs, window); a
 different name — or *no* name, which silently falls through to the shared

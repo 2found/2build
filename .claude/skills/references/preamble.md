@@ -76,6 +76,10 @@ sessions, initializes ticket state, recovers context and logs skill start.
 The snapshot supplies facts, never release permission. `--json` retains the
 telemetry-only API for callers that own bootstrap.
 
+The flags a skill states for a `bbs` command are the ones it needs: run it as
+written. For anything else, `bbs <group> <verb> --help` prints that verb's
+flags alone and never runs it.
+
 If `bbs` is missing from PATH, try its installed absolute path (usually
 `~/.local/bin/bbs`, or the plugin's `bbs` at the plugin root). If absent or
 too old, report `BBS_DEGRADED` with `bbs setup` (`go run ./cmd/bbs setup`

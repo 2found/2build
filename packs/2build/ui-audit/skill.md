@@ -1,6 +1,6 @@
 ---
 name: ui-audit
-description: Audit a running app's UI/UX by walking real user or founder journeys end to end (PASS/FRICTION/BLOCKED), checking every screen against backend ground truth, dead ends, discoverability and non-happy paths; scored with PURE step ratings, Nielsen severities and measured thresholds. Also builds the flow inventory and re-audits after a fix. Use before planning UI improvements, when users report getting stuck, or to audit a live app safely.
+description: Audit a running app's UI/UX by walking real user or founder journeys end to end (PASS/FRICTION/BLOCKED), checking every screen against backend ground truth, dead ends, discoverability, information density (too much text; icons and layout over prose) and non-happy paths; scored with PURE step ratings, Nielsen severities and measured thresholds. Also builds the flow inventory and re-audits after a fix. Use before planning UI improvements, when users report getting stuck, or to audit a live app safely.
 disable-model-invocation: true
 ---
 
@@ -77,8 +77,8 @@ screenshots `shots/NN-<what>.png`.
    step (PURE), record waits and the exact clicks. Journey verdict: PASS
    (reaches its end) · FRICTION (reaches it with detours or missing next step) ·
    BLOCKED (cannot finish, or not testable here, say why).
-4. **Sweeps**: dead ends, discoverability of user needs, iframes/embedded
-   pages ([checklists](references/checklists.md)). Count clicks from where the
+4. **Sweeps**: dead ends, discoverability of user needs, information density,
+   iframes/embedded pages, agent path ([checklists](references/checklists.md)). Count clicks from where the
    user thinks the feature lives; try search/command palette.
 5. **Non-happy passes** (all that are reachable; at least one before any
    PASS): missing credential, over budget, unreachable dependency, empty data,
@@ -107,7 +107,8 @@ screenshots `shots/NN-<what>.png`.
 | Completion | unaided · with workaround (n) · failed | unaided |
 | Recovery | each non-happy pass: unaided · with help · not | all unaided |
 | Jargon | distinct on-screen terms the persona can't decode (ids, paths, English in a localized UI, template leaks) | 0 |
-| WCAG 2.2 AA | text contrast ≥ 4.5:1 (large/UI ≥ 3:1, SC 1.4.3/1.4.11), targets ≥ 24×24 CSS px (2.5.8), focus visible (2.4.7) — measured from pixels/frames, not eyeballed | 0 failures |
+| Density | per screen: helper paragraphs, rows > 2 lines, repeated facts, counts written as sentences ([checklists](references/checklists.md) § Information density) | 0 / 0 / 0 / 0 |
+| WCAG 2.2 AA | text contrast ≥ 4.5:1 (large/UI ≥ 3:1, SC 1.4.3/1.4.11), targets ≥ 24×24 CSS px (2.5.8), focus visible (2.4.7) — `agent-browser a11y` per screen for the rule set, then pixels/frames for what axe cannot see; never eyeballed | 0 failures |
 
 Finding severity (Nielsen 0–4, judged on frequency × impact × persistence):
 4 catastrophe (blocks, loses data, misleads into harm) · 3 major (needs a

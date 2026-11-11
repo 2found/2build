@@ -64,7 +64,7 @@ means the read succeeded. Reads never reconcile or mutate ticket status.
 
 ## Worker packet and verification
 
-Use the worker packet in SKILL.md and the Orca envelope in topology.md.
+Use the Task spec in [tickets](tickets.md) and the worker envelope in [topology](topology.md#worker-envelope).
 Autopilot honors its **Team ticket assignment** contract on the assigned checkout.
 
 Every ticket is created with a `schema_version: 2` checkpoint; an older one is
@@ -73,10 +73,8 @@ says, and its gates then run again. Autopilot's
 [verification producer](../autopilot/references/verification.md) records
 subjects for audit and archives logs.
 
-A ticket's succeeded `task done` records its uncommitted tree on
-`refs/bbs/tickets/<id>`; `integrate` records any edit made after it, so a
-repair or QA fix needs no step of its own. Once its phase landed and the
-worktree is gone, the snapshot is the record.
+What a succeeded `task done` records and how later edits reach the phase:
+[delivery](delivery.md#ticket-close-out-and-phase-landing).
 
 Evidence-only projects explicitly approve `artifacts_only: true`. Their children
 keep the workflow verdict and durable outputs under the ticket directory and
@@ -118,7 +116,8 @@ bbs team evidence "$PARENT" --attempt <id> --file /absolute/results.json
 
 Record every required criterion/check pair and real exit code. Also record the phase review as `{"criterion":"<phase id>","kind":"review",...}`
 with the review report as its log ([phases](phases.md#4-cumulative-qa-and-product-review));
-it never carries: a rebuild after land is a fix delta, reviewed afresh. The producer
+a passing one stands on every later commit of the phase, and a fix delta is
+never reviewed ([review effort](phases.md#review-effort)). The producer
 archives logs and hashes them; changed inputs reject results. Failures remain
 durable; repairs get a fresh attempt. A preview requires `preview` HTTP(S) URL,
 `runtime` full tested SHA, and a passing `runtime` check whose probe log contains
@@ -165,9 +164,8 @@ ongoing waits, never a timer. Expiry is not failure or a reason to inspect a
 worker; Orca owns runtime state and runtime.md defines reconciliation triggers.
 
 A ticket session repairs its own failures: autopilot's repair loop inside
-the session. One that ends without success gets one `repair` on a fresh
-worker in the same worktree, carrying the failure evidence; still `BLOCKED`
-after it, the ticket is parked and escalated — no diagnosis worker. Preserve failure counts and work; never restart a live
+the session. One that ends without success follows the wake loop's
+follow-up rule (SKILL.md step 2) — no diagnosis worker. Preserve failure counts and work; never restart a live
 writer, expire its lease, blindly resend assignments or silently upgrade its
 model. Missing intent/authority
 escalates one User Challenge; unaffected work continues. Record telemetry and

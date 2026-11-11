@@ -276,9 +276,8 @@ bbs team release "$PARENT" --phase "$K" --file receipt.json
 The CLI checks the record exists and that each released SHA contains every
 phase commit of phases 1..k. `ROLLED_BACK` or `PARTIAL` **stops the line**: no
 later phase opens, integrates or releases until this phase releases. The
-release session fixes forward itself, the way phase QA does: it edits the
-owning ticket's worktree, runs `integrate` + `land`, re-tests what it fixed
-and releases again — no `repair` through the lead. An `auto` phase retries once under the design's go; an `ask` phase needs
+release session fixes forward itself, the way phase QA does (§4), and
+releases again — no `repair` through the lead. An `auto` phase retries once under the design's go; an `ask` phase needs
 a fresh `--request` go for every attempt, and from the second failure every
 phase does, so a human sees a repeatedly failing release.
 
@@ -287,8 +286,9 @@ next release, whose QA already covers it cumulatively.
 
 ## Finish
 
-The last phase's integration QA is the project's final QA: it covers every
-criterion, and the verified, landed base is what the team hands over
+The last phase's integration QA is the project's final QA: with it every
+criterion has passing evidence — on this commit, or on the earlier phase
+commit that last touched it — and the verified, landed base is what the team hands over
 ([delivery](delivery.md#hand-over)). `readiness --action finish` reports each unresolved phase with its
 state (`pending`, `building`, `built`, `landed` (QA pending), `delivered`
 (landed and verified), `released`, `release_failed`); only when all are resolved does `bbs team complete`

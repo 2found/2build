@@ -28,7 +28,7 @@ ticket worker follows autopilot's **Team ticket assignment** contract:
 | Report | Readiness, handoff and exactly one `bbs team task done`, which refuses success until readiness passes; no commit, push or PR |
 
 The route is chosen once per ticket (phase class `critical`, because the session
-owns its own planning and review) and reused by every follow-up; see
+owns its own planning and plan approval) and reused by every follow-up; see
 [model routing](model-routing.md#assignment-routing). Create its Task with
 `--kind ticket` (`repair` or `redirect` for a follow-up) so `task
 done` holds the session to its gates. Each assignment includes the ticket's
@@ -50,17 +50,9 @@ Dispatch. Missing inputs come through `bbs team task ask`, answered with
 
 ### Plan approval
 
-The plan step flows into implementation inside the same session; `XS` and
-`S` tickets have no plan step (an `S` touching money, auth or irreversible
-data plans as `M`), and every `M`/`L` plan is self-approved by its worker as
-the lead's delegate. A plan reaches the lead only on the floor (`self-resolve`
-exit 3/5), a third refusal, or a material deviation from the brief or a
-shared contract; the lead then reads `plan.md` against the brief, acceptance
-IDs and contracts — not the code — and answers `approved` or the exact
-change. After two redirects the lead approves with named conditions; a
-disagreement is never a reason to wait on the human. The exact commands and
-refusal handling are in
-[project contract](project-contract.md#project-design-checkpoint).
+Every `M`/`L` plan is self-approved by its worker as the lead's delegate
+inside the ticket session; sizes, escalation and how the lead answers are owned
+by [project contract](project-contract.md#project-design-checkpoint) step 5.
 
 ### Ticket session ownership
 
@@ -71,31 +63,17 @@ down at once — the watcher closes its terminal when the Dispatch settles
 almost never happens and an idle agent costs memory and tokens. Opt out with
 config `foreman_keep_settled_workers: true` (debugging only). Land closes any terminal still left in the phase's worktrees.
 
-After every accepted report, the next owner is therefore always a **fresh
-session**:
+After every accepted report the next owner is therefore a **fresh session**,
+and only in the two follow-up cases of the wake loop (SKILL.md step 2), on the
+ticket's recorded route.
 
-1. **Nothing** when its `task done` succeeded: the ticket is built and
-   closes with its phase. Review, QA, conflicts and later fixes belong to
-   the phase, never back to the ticket.
-2. **Follow-up** only when its session ended without success (failed,
-   `BLOCKED`, exited, lost) — one `repair` with the failure evidence — or a
-   parked plan approval was answered — a `redirect`. Create the Task
-   (`--kind repair|redirect`) and start a fresh worker in the ticket worktree
-   on the ticket's recorded route; the spec points at the ticket's handoffs
-   (`plan.md`, the last report) so it recovers from durable state. A ticket
-   still `BLOCKED` after that one repair is parked and escalated.
-
-Release the Dispatch's resource lease on every settlement; a reused session
-reserves a fresh one. A follow-up for a ticket whose session is gone or not
-provably live starts a fresh worker in the ticket worktree on the ticket's
-recorded route, recovering from durable state. Never reuse one ticket's session
-for another ticket, and never send a follow-up to a session whose Dispatch is
-still open.
+Release the Dispatch's resource lease on every settlement.
+Never reuse one ticket's session for another ticket, and never send a
+follow-up to a session whose Dispatch is still open.
 
 ### Batch dispatch: one wake per phase
 
-Every coordinator wake re-reads the whole lead context, so wakes, not worker
-count, dominate cost. A phase's ready tickets all launch at once; a dependent
+A phase's ready tickets all launch at once (SKILL.md hard rule 1); a dependent
 launches with the batch after its prerequisite reports. The bbs watcher waits and supervises:
 
 1. A batch is every ticket of the open phases not yet launched, up to
@@ -178,8 +156,8 @@ inputs change later.
 | Phase QA, heavy QA, release or handover failure | the session that found it fixes it itself in the owning ticket's worktree, `integrate` + `land` |
 | `integrate` lays out a conflict | You resolve it in the phase worktree, `integrate` again ([git flow](../references/git-flow.md) step 6); never a ticket follow-up |
 | `BASE_DRIFT=`, a pinned contract changed (`contract:<id>:changed`) | Nothing: `integrate` composes on the current base and phase QA catches what breaks |
-| `integrate` refuses: the phase changes a contract another team owns | ask the owner — a ticket assigned to it ([contracts](../references/contracts.md)) — and repair the ticket to build against the version on base |
-| A parked plan approval was resolved | `redirect` on the parked session |
+| `integrate` refuses: the phase changes a contract another team owns | You ask the owning team for the change ([contracts](../references/contracts.md)) and adapt the phase to the version on base yourself, like any other integrate conflict — edit the ticket worktree whose snapshot changed it (`integrate` takes the edit), `integrate` again; never a ticket follow-up. Needing a change beyond the approved design parks the phase `BLOCKED` |
+| A parked plan approval was resolved | `redirect` on a fresh worker in the ticket worktree |
 
 A `repair` or `redirect` spec ends with "re-run the focused checks of what
 changed and report": like any ticket, its `review-pr` and `qa` stay with the
@@ -187,10 +165,8 @@ phase, and `task done` applies the same deferral. A member whose line shows
 `GATE="deferred to phase review: …"`, `GATE="skipped: …"` or
 `GATE="unverified: …"` is built; never launch a worker only to stamp gates.
 
-A succeeded `task done` records the ticket's uncommitted tree as the snapshot
-its phase is built from — there is no seal step. Nothing about a ticket is
-committed, pushed or PR'd on its own; a ticket reaches base only inside its
-phase commit ([delivery](delivery.md)).
+A ticket reaches base only inside its phase commit, from the snapshot its
+succeeded `task done` recorded ([delivery](delivery.md#ticket-close-out-and-phase-landing)).
 
 Once a ticket's phase has landed, archive worker output, release the ticket
 session and resource leases, and close the ticket's Orca terminals/worktree

@@ -63,7 +63,7 @@ Every `at` and `until` is an anchor, local to its beat:
   and punctuation are folded, and a phrase matches a run of words. `#2` picks
   the second match and `±0.1` shifts it. `wordend:` is the word's end, and
   `w:3` / `wend:3` are the fourth word's start and end. Offsets chain
-  (`word:nhặt đá+0.4-0.1`).
+  (`word:mở app+0.4-0.1`).
 - **Shot:** inside a shot after the first, `start` and `end` are that shot's
   own bounds, so its layers and keys can say `start+0.3`.
 - **Global:** in `sound` and `chip`, use `B03@word:rain`; plain seconds there
@@ -101,9 +101,9 @@ arrives, is struck or crosses the frame. A held talking head gains little.
 ```json
 {"art": "P04-BG", "cam": "push:1.2", "layers": [
   {"art": "HERO-SIT", "x": 0.5, "y": 0.93, "h": 0.55, "z": 0.3, "shadow": true, "idle": "breathe",
-   "hits": [{"at": "word:ngực", "from": "left"}, {"at": "word:trán", "from": "left", "amt": 0.6}]},
-  {"art": "PEBBLE", "x": -0.1, "y": 0.45, "h": 0.05, "z": 0.6, "anchor": "center",
-   "moves": [{"at": "word:ném", "x": 0.47, "y": 0.62, "dur": 0.35, "ease": "power2.in"}]}]}
+   "hits": [{"at": "word:first", "from": "left"}, {"at": "word:again", "from": "left", "amt": 0.6}]},
+  {"art": "BALL", "x": -0.1, "y": 0.45, "h": 0.05, "z": 0.6, "anchor": "center",
+   "moves": [{"at": "word:throw", "x": 0.47, "y": 0.62, "dur": 0.35, "ease": "power2.in"}]}]}
 ```
 
 | Key | Values |
@@ -159,8 +159,8 @@ rig.
 
 **A character.** The rig object (or a name in `07-video/rigs.json`
 `{"rigs": {NAME: {...}}}`, the campaign's character sheet, under the
-direction's own `rigs`) carries the look; a layer names it (`"rig": "AN"`) or
-overrides it (`"rig": {"use": "AN", "view": "side"}`). With `use`, the
+direction's own `rigs`) carries the look; a layer names it (`"rig": "HERO"`) or
+overrides it (`"rig": {"use": "HERO", "view": "side"}`). With `use`, the
 layer's `faces` and `poses` add to the sheet's and its `parts` append to the
 sheet's (a knife in the hand for one shot).
 
@@ -182,8 +182,8 @@ the face. A costume detail (collar, stripes, belt) is a `torso` part, a
 carried prop a `handR` part. A side view with a front-view fringe looks wrong:
 give the hair a `view: side` variant.
 
-The plate under the layers is drawn without them: the empty lane, not the lane
-with the boy in it (07 Art). Entrances, moves and hits count as something new
+The plate under the layers is drawn without them: the empty room, not the room
+with the character in it (07 Art). Entrances, moves and hits count as something new
 on screen for V3; an idle loop does not.
 
 ## Effects

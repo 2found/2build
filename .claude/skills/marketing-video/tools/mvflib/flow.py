@@ -57,6 +57,9 @@ def approve(cd: Path, sid: str, verdict: str, note: str, hook: str | None, thesi
         raise SystemExit(f"no script {sid}")
     if verdict == "rejected" and not note.strip():
         raise SystemExit("a rejection carries the owner's reason (--note): it is what the rewrite works from")
+    if verdict == "delegated" and not note.strip():
+        raise SystemExit("a delegation carries the owner's words and where they said them (--note): it is the record "
+                         "that the agent may decide")
     s = load(sp)
     rec = {"script": sid, "hook": hook or s.get("hook") or "H1", "verdict": verdict, "note": note,
            "sha": sha(sp), "at": today().isoformat()}
@@ -76,14 +79,38 @@ def thesis_picks(cd: Path) -> dict:
     return {a["script"]: a["thesis"] for a in owner(cd).get("approvals") or [] if a.get("thesis")}
 
 
+def record_skip(cd: Path, sid: str, reason: str) -> None:
+    """`mvf voice --owner-skip REASON` goes round the owner and pre-test gates: the reason stays in owner.json."""
+    o = owner(cd)
+    o.setdefault("skips", []).append({"script": sid, "reason": reason.strip(), "at": today().isoformat()})
+    dump(cd / OWNER, o)
+
+
+def delivered(cd: Path) -> bool:
+    """A video was delivered: some 08-delivery/<sid>/<canvas>/delivery.json is not a draft export."""
+    return any(not load(p).get("draft") for p in (cd / "08-delivery").glob("*/*/delivery.json"))
+
+
+def pretest_gate(cd: Path, sid: str) -> str | None:
+    """None when `sid` may be voiced; else why not. Production starts from the pre-test's winner (a skipped round,
+    which records its reason, lets any script through)."""
+    dec = decision(cd)
+    if dec is None:
+        return (f"no pre-test decision names {sid}: `mvf judge scripts …` or the cold read and feed "
+                f"(references/06-pretest.md), or `--owner-skip REASON`")
+    win = str(dec[1].get("winner") or "")
+    if win and not win.startswith(sid + "/"):
+        return f"the pre-test ({dec[0].parent.name}) picked {win}, not {sid}"
+    return None
+
+
 def owner_gate(cd: Path, sid: str, skip: str | None) -> str | None:
     """None when production may start; else why not. The owner reads a campaign's first script; once one video
     is delivered they have seen the voice of the campaign, and later scripts wait only on a rejection."""
     if skip and skip.strip():
         return None
     v = owner_verdict(cd, sid)
-    delivered = (cd / "08-delivery").is_dir() and any(p.is_dir() for p in (cd / "08-delivery").iterdir())
-    if v is None and delivered:
+    if v is None and delivered(cd):
         return None
     if v is None:
         return (f"the owner has not read {sid}: `mvf sheet {sid}` is the page they read; record their word with "
@@ -153,9 +180,9 @@ def sheet(cd: Path, sid: str) -> str:
                 out.append(f"\n**{L('Chuyên gia lưu ý', 'Experts flagged')}:**")
                 out += [f"- {e}" for e in x["expert_blocking"]]
     out.append("\n" + L(f"Duyệt: `mvf approve {sid} --verdict approved` · không được: `--verdict rejected --note \"lý do\"` · "
-                        f"giao cho agent tự quyết: `--verdict delegated`" + (" · chọn câu chốt: `--thesis N`" if th else ""),
+                        f"giao cho agent tự quyết: `--verdict delegated --note \"họ nói ở đâu\"`" + (" · chọn câu chốt: `--thesis N`" if th else ""),
                         f"Approve: `mvf approve {sid} --verdict approved` · no: `--verdict rejected --note \"why\"` · "
-                        f"let the agent decide: `--verdict delegated`" + (" · pick the payoff line: `--thesis N`" if th else "")))
+                        f"let the agent decide: `--verdict delegated --note \"where they said so\"`" + (" · pick the payoff line: `--thesis N`" if th else "")))
     return "\n".join(out) + "\n"
 
 
@@ -187,7 +214,7 @@ def _act(who, what, run=None, ref=None, why=None):
 def next_action(cd: Path, stage_report, lint_fails) -> dict:
     """The first thing not done, in order. `stage_report(stage)` is mvf's checker (None = not started);
     `lint_fails(sid)` counts a script's lint FAILs."""
-    from . import judge
+    from . import judge, viewer
     from .export import open_review
     from .scaffold import placeholders
     c = load(cd / "campaign.json")
@@ -213,9 +240,16 @@ def next_action(cd: Path, stage_report, lint_fails) -> dict:
     pre = stage_report("pretest")
     if dec is None:
         if judge.choice() is None:
-            return _act("owner", "choose the evaluator: which Soot AI provider and model Micro Fish runs on (once)",
-                        run="mvf judge status", ref="references/06-pretest.md#micro-fish",
-                        why="first use: the owner signs in (`soot login <provider>`) and names the model")
+            st = judge.status()
+            if st["soot"] and st["micro_fish"] and st["signed_in"]:
+                return _act("owner", "choose the evaluator: which Soot AI provider and model Micro Fish runs on (once)",
+                            run="mvf judge status", ref="references/06-pretest.md#micro-fish",
+                            why="first use: the owner names the model")
+            ctl = f" --control {ctls[0]}" if ctls else " --control <a rejected script>"
+            return _act("agent", "pre-test the scripts with an agent panel, labelled `agent-panel` in decision.json: "
+                        "cold read and a feed of fresh readers, then write the decision",
+                        run=f"mvf feed {' '.join(cands[:3])}{ctl}", ref="references/06-pretest.md#cold-read",
+                        why="no Micro Fish evaluator is ready (" + "; ".join(p[1] for p in st["problems"]) + ")")
         ctl = f" --control {ctls[0]}" if ctls else " --control <a rejected script>"
         return _act("agent", "pre-test the scripts on Micro Fish (10-30 min: run it in the background)",
                     run=f"mvf judge scripts {' '.join(cands[:3])}{ctl}", ref="references/06-pretest.md")
@@ -252,12 +286,16 @@ def next_action(cd: Path, stage_report, lint_fails) -> dict:
                         run=f"mvf export {rel} --draft", ref="references/07-review.md")
         if open_review(proj):
             return _act("agent", f"fix the open P0 in {rel}/review.json", ref="references/07-review.md")
-        if judge.video_judged(proj) is None:
+        if judge.video_judged(proj) is None and judge.choice() is not None:
             return _act("agent", f"judge the cut {rel} on Micro Fish (background)", run=f"mvf judge video {rel}",
                         ref="references/06-pretest.md#micro-fish")
+        if viewer._latest(proj) is None:
+            return _act("agent", f"cold viewer for {rel}: write the brief, give it to a fresh helper, record its red items "
+                        "in review.json", run=f"mvf viewer {rel}", ref="references/07-review.md#cold-viewer")
     for proj in projs:
         rel = proj.relative_to(cd / "07-video")
-        if not (cd / "08-delivery" / sid / proj.name / "delivery.json").is_file():
+        dj = cd / "08-delivery" / sid / proj.name / "delivery.json"
+        if not dj.is_file() or load(dj).get("draft"):
             return _act("agent", f"export {rel} for its platforms", run=f"mvf export {rel}", ref="references/08-delivery.md")
     return _act("owner", f"watch and listen to every file in 08-delivery/{sid}/, then post it yourself (mvf never "
                 "uploads)", ref="references/08-delivery.md")

@@ -3,7 +3,7 @@
 Input: accepted parent outcome, audience, criterion IDs, design/prototype, exact
 integrated revisions, runtime URL/probe, and existing QA evidence. The phase
 integration session runs it right after its integration attempt, on the same
-runtime ([phases](phases.md#3-cumulative-qa-and-product-review)). Start a
+runtime ([phases](phases.md#4-cumulative-qa-and-product-review)). Start a
 separate read-only worker (`bbs team task create --kind product-review` +
 `task launch`, lifecycle per [worker-lifecycle.md](worker-lifecycle.md)) only
 when that session cannot: its harness lacks the browser or runtime the review
@@ -33,7 +33,8 @@ approval authority and never replaces exercising the journey.
 Return checks for every assigned criterion and unresolved findings. `material`
 blocks acceptance; `minor` and `nit` are nonblocking only when the criterion still
 works. Unavailable runtime or missing evidence is a gap, never PASS. Submit via
-the parent's evidence attempt; the lead dispatches fixes to the owning child —
-one repair per child carrying all its findings — and re-checks only the
-criteria they touch. Stop within the project's work budget and report remaining
+the parent's evidence attempt; the integration session then fixes each finding
+in the owning ticket's worktree and re-tests only the criteria it touched
+([phases](phases.md#4-cumulative-qa-and-product-review)), with no `repair`
+through the lead. Stop within the project's work budget and report remaining
 gaps explicitly.

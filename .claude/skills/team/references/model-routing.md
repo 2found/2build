@@ -7,7 +7,8 @@ The CLI owns defaults and settings merging; never copy model tables into skills.
 
 The lead splits each release phase into tickets and selects one route per ticket from
 its task complexity plus the assignment class; that one supervised session runs
-the ticket's whole loop (plan, build, review, QA) and every follow-up on it.
+the ticket's whole loop (plan, build, focused checks; review and QA belong to
+its phase) and its route carries to every follow-up on it.
 Single-purpose assignments (basic design, phase integration, heavy QA,
 release, handover fix, delivery in a fresh session) get their own routes.
 `autopilot` does not select models: every step in one invocation runs in the
@@ -99,7 +100,7 @@ importance signal, the built-in policy falls back to `pro`.
 | Handover fix: every in-scope feedback item, integrate, land, re-test               | `normal`    |
 | Finish audits, restoration and cleanup in a fresh session                          | `normal`    |
 
-A ticket worker is `critical` because it owns its ticket plan and landing review;
+A ticket worker is `critical` because it owns its ticket plan and its approval;
 implementation rides the same session instead of buying a cold start. Built in,
 `simple` and `normal` tickets run on `pro` (Claude `opus` at medium effort): a
 stronger model that lands the ticket in one session is cheaper than a
@@ -217,8 +218,8 @@ task/phase/tier evidence must be resolved through the CLI policy before the next
 launch. A changed task scope or routing policy is reclassified at a settled
 boundary and the previous route remains in the handoff.
 
-Follow-ups on a ticket reuse its live session, whose route is the ticket route
-by construction. A ticket whose route must change (reclassified scope, explicit
+A follow-up on a ticket starts a fresh session (the settled one is closed) on
+the ticket's route. A ticket whose route must change (reclassified scope, explicit
 override) releases its settled session and starts a fresh worker on the same
 checkout; never reuse a session for an assignment with a different agent,
 provider, model, effort or resource profile. Persist requested

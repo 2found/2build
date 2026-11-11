@@ -170,11 +170,20 @@ func dispatchForeman(args []string) error {
 	// A verb's flags are hand-parsed, so `--help` reached the flag loop and
 	// answered "--help needs a value". Asking a command how it works must never
 	// look like an error — and must never run the verb either.
-	for _, arg := range rest {
-		if arg == "--help" || arg == "-h" {
-			fmt.Print(foremanUsage)
-			return nil
+	if wantsHelp(rest) {
+		switch {
+		case sub == "task" && rest[0] != "--help" && rest[0] != "-h":
+			fmt.Print(usageFor(foremanTaskUsage, "bbs team task ", rest[0]))
+		case sub == "resource" && rest[0] != "--help" && rest[0] != "-h":
+			fmt.Print(usageFor(foremanResourceUsage, "bbs team resource ", rest[0]))
+		case sub == "task":
+			fmt.Print(foremanTaskUsage)
+		case sub == "resource":
+			fmt.Print(foremanResourceUsage)
+		default:
+			fmt.Print(usageFor(foremanUsage, "bbs team ", sub))
 		}
+		return nil
 	}
 	switch sub {
 	case "list":

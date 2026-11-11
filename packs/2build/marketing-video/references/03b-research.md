@@ -85,7 +85,8 @@ insider words in `lore_terms`; the lint flags them in hooks and early beats.
     proof;
   - an answer to a question the audience already argues about, with
     evidence;
-  - help choosing (who it is for, who should skip it);
+  - help choosing, argued from a scene, twist or rule inside the subject,
+    never from its packaging;
   - a misread corrected;
   - one specific detail nobody retells.
 - **Shapes that tend to bore:**

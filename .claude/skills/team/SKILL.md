@@ -246,7 +246,8 @@ Dispatch did, so write no resume spec) — re-run
 Plans are self-approved by their workers; one reaches you only when the
 worker escalates it (floor, repeated refusal, material deviation) — review
 the plan (not the code) against the goal, acceptance IDs and contracts, then
-approve or redirect with the exact change.
+approve or redirect with the exact change
+([project contract](references/project-contract.md#project-design-checkpoint) step 5).
 
 Details for each step: [tickets](references/tickets.md) (plan approval,
 session ownership, batch dispatch, heavy checks, verification),
@@ -256,31 +257,14 @@ session ownership, batch dispatch, heavy checks, verification),
 
 ## Handover
 
-When the last phase has landed and passed QA, the product is done but not released: hand
-it over ([delivery](references/delivery.md#hand-over)). Write the parent
-`report.md` for a client who did not watch the run — what they can now do,
-how to see it running, evidence per criterion, decisions taken for them,
-known limitations — render it with `bbs team recap "$PARENT"`, and request
-the last phase's release go with the recap as its note. End the turn; the
-human reviews the product, not the code.
-
-- **Go** — release the last phase (`release`, hypercare), record it, then
-  `bbs team complete "$PARENT" --team "$FOREMAN_ID"`.
-- **Feedback** (`bbs team next` names a `repair` step) — read the comments.
-  Everything within the approved spec and design (a defect, a missed
-  criterion, a flow that does not match the prototype) is a fix round the
-  team runs alone in **one** fix session — the same shape as phase QA: it
-  fixes every item in the owning tickets' worktrees, `integrate` + `land`,
-  re-tests what it touched; you re-render the recap and request again. Anything beyond it is a
-  change request: revise the contract and publish it for basic-design review
-  — the brief touchpoint again — then build it as a new phase.
-- **Declined** — stop and report; nothing ships.
-
-A repository with no release profile has no release go: the handover is the
-recap and `complete` follows the last phase's QA.
-
-Your terminal is **not** closed after `complete`: stay idle in it so the human
-can ask follow-ups. Report per phase — commit, release tag and verdict, QA
-evidence — with `STATUS: DONE | IN_PROGRESS | NEEDS_CONTEXT | BLOCKED` and a
-`Next:` line naming the human's action (review the handover, or none).
-Distinguish landed-on-local-base from released.
+When the last phase has landed and passed QA, the product is done but not
+released: hand it over per [delivery](references/delivery.md#hand-over) —
+the parent `report.md` for a client who did not watch the run, `bbs team
+recap "$PARENT"`, the last phase's release request — and end the turn; the
+human reviews the product, not the code. Their answer is a go (release, then
+`bbs team complete "$PARENT" --team "$FOREMAN_ID"`), feedback (in scope: one
+fix session — the same shape as phase QA; beyond it: a change request back
+at the brief touchpoint) or a decline (nothing ships). Finishing, the final
+report (`STATUS: DONE | IN_PROGRESS | NEEDS_CONTEXT | BLOCKED`, `Next:`) and
+your terminal staying open after `complete`:
+[delivery](references/delivery.md#finish-the-project).

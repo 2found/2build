@@ -188,19 +188,46 @@ than undoing a package publication or declaring the whole release complete.
    instructions to new agents; record it as a concern. Finish only after
    required post-release work.
 
+8. **Operating handover to Soot (never blocks).** Run it only when the release
+   changed an agent-operable surface: an action, a status, a public fact or an
+   API ([agent-operable](../references/agent-operable.md) owns that trigger
+   and the bar). Otherwise, or when no Soot operates the product (the
+   profile's operating row says so, or no Soot Forge pack forwards to its
+   service and no Soot source mirrors its `/llms.txt`), record
+   `N/A: <reason>`. Soot's current docs (`2found/2agent` `docs/`) are the
+   authority for every format below; read them rather than this list. Check,
+   against the released revision:
+   - **Tools**: every new or changed action has its tool entry in the pack
+     that forwards to this product (`docs/authoring-packs.md`,
+     `docs/runtime-packs.md`), a write declares its mode and a preflight, and
+     `soot check --strict --json` passes in a workspace that selects it.
+   - **Knowledge**: production `/llms.txt` lists the page that states each
+     changed fact, and the page serves the released value
+     (`docs/knowledge.md`). Where the profile names a Soot runtime you may
+     operate, queue its sync and search the fact in a customer's words
+     (`docs/knowledge.md`, "Is the new page found?").
+   - **Eval**: a case in the operating Soot's `soots/<id>/evals/` calls each
+     new action and passes under `soot eval <id>` (`docs/evals.md`).
+
+   Fix what this repo owns as a follow-up change, never an edit of the
+   released SHA; propose the rest to its owner (a Soot Forge PR for a pack).
+   A gap never blocks, fails or rolls back the release: record it in the
+   release record as a concern, with the exact missing entry under `NEXT`.
+
 ## Output
 
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: RELEASED | PREPARED | DRY_RUN | PARTIAL | ROLLED_BACK
 RELEASE: <repo + component + version/tag + source SHA + mode>
-STAGES: <version/changelog; main; GitHub; distribution; deploy; hypercare; local update>
+STAGES: <version/changelog; main; GitHub; distribution; deploy; hypercare; local update; operating handover>
 EVIDENCE: <record path + release URL + artifact/deployed identity + checks>
 WORKFLOWS: <unchanged or restored IDs; outstanding restoration if any>
 NEXT: <none or exact incomplete action>
 ```
 
-`RELEASED` requires every applicable stage verified. `PREPARED` and `DRY_RUN`
+`RELEASED` requires every applicable stage verified, except the operating
+handover, whose gaps are concerns only. `PREPARED` and `DRY_RUN`
 mean their requested scope completed, never a production release. Required
 publication/deploy/observation/update failures are `BLOCKED` + `PARTIAL`;
 `DONE_WITH_CONCERNS` is for nonblocking concerns only.

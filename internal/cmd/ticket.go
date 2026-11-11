@@ -43,11 +43,9 @@ func newTicketCmd() *cobra.Command {
 			switch args[0] {
 			case "dag", "lint":
 			default:
-				for _, arg := range args[1:] {
-					if arg == "-h" || arg == "--help" {
-						ticketUsage()
-						os.Exit(0)
-					}
+				if wantsHelp(args[1:]) {
+					fmt.Fprint(os.Stderr, usageFor(ticketUsageText, "", args[0]))
+					os.Exit(0)
 				}
 			}
 			switch args[0] {
@@ -180,7 +178,10 @@ func ticketUsage() {
 const ticketUsageText = `usage: bbs-ticket <subcommand> [args...]
 
 Subcommands:
-  ensure            idempotent: no-op when a ticket resolves, else create + init
+  ensure [--from-input TEXT | --from-input-file FILE] [--slug-hint S]
+         [--type feat|fix|chore|bug|refactor] [--mode trunk|worktree]
+         [--from-ref REF] [--no-branch] [--reason TEXT]
+                    idempotent: no-op when a ticket resolves, else create + init
                     mode trunk|worktree (default trunk): trunk = no cut;
                     worktree = cut <ticket>_<slug> from local base (--from-ref
                     REF) via Orca in an Orca terminal, else under
@@ -205,7 +206,9 @@ Subcommands:
                     remove blocks|blocked_by|related (and its inverse) or matching duplicate_of
   repair-relations [--all] [--dry-run] [--json]
                     add missing relation inverses; parent conflicts are reported, never rewritten
-  set-title <text>              set-kind milestone|phase|work      set-product <slug>|--none
+  set-title <text>
+  set-kind milestone|phase|work
+  set-product <slug>|--none
   assign-to swe|human|marketing|ops [--person P] | --none
                     who does the work (assignee stays the Team lead claim)
   label add|remove <label>...
@@ -227,13 +230,18 @@ Subcommands:
   claim <foreman-id>             atomically claim an unowned project; same owner is idempotent
   pause [--note M]  human override: stop dispatch, keep status (reversible)
   cancel [--note M] human override: drop from dispatch, keep status (reversible)
-  resume            clear a pause      restore   clear a cancel
+  resume            clear a pause
+  restore           clear a cancel
   approval publish [--kind K] [--note M]   open a plan/prototype decision on the dashboard
   approval status                          print {none|pending|approved|redirected|dropped}
   approval resolve --action approve|redirect|drop [--note M]
   approval await [--interval S] [--reminder-min M]
                     block until the human decides; prints the outcome. No timeout —
                     it reminds once, it never guesses.
+  approval comment --body TEXT [--target T] [--anchor A] [--excerpt E]
+  approval comments                        list the comments on the open decision
+  approval self-resolve --team ID (--rubric JSON | --rubric-file FILE)
+                    a team lead records the approval verdict with its evidence
   set-sibling --role R --repo REPO --ticket T
   set-pointer <key> <value>
   ensure-size                   resolve ticket_size (XS|S|M|L); estimate from diff if unset

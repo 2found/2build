@@ -30,7 +30,10 @@ An honest test establishes, for the winner:
   the page they read (picture, text and voice per second, the panel's table,
   the retell and the expert flags), and `mvf approve <sid> --verdict
   approved|rejected|delegated [--note]` records their word. `mvf voice` waits
-  for it. A rejection carries the reason, which the rewrite starts from.
+  for it, and for a decision that names the script (a `skipped` round counts).
+  A rejection carries the reason, which the rewrite starts from; a delegation
+  carries the owner's words (`--note`). `mvf voice --owner-skip REASON` goes
+  round both for a test take and records the reason in `06-pretest/owner.json`.
 
 `decision.json` records the true method:
 - `simulated-panel`, a persona-simulation tool such as Micro Fish, with its `run` id;
@@ -94,7 +97,8 @@ Later runs reuse the choice. Set it again only when the user asks.
 4. Apply the changes to the script before the owner reads it. A change that
    was not tested goes in `untested`.
 
-A stopped run resumes with `mvf judge resume --round rN`. When the control leads or
+A stopped run resumes with `mvf judge resume --round rN`; `mvf judge collect
+<microfish dir>` reads back a run that finished without it. When the control leads or
 ties, the panel could not tell the scripts apart: rewrite from the research,
 not the hook.
 
@@ -133,7 +137,7 @@ Without Soot, use the feed and cold read below as an `agent-panel`, and say so.
   ([07](07-production.md)).
 
 ## Cold read
-`mvf coldread <sid> [--hooks H1 H2] [--round rN]` writes
+`mvf coldread <sid> [--hooks H1 H2] [--round rN] [--readers N]` writes
 `06-pretest/<round>/coldread/<sid>-<hook>.md`: only what a stranger gets,
 second by second. One way to run it is to give each file to a few fresh
 subagents, one per ring plus one impatient viewer, each with a one-line

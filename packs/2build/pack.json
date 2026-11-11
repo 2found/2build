@@ -125,7 +125,7 @@
     {
       "name": "2build_ui-audit",
       "file": "ui-audit/skill.md",
-      "description": "Audit a running app's UI/UX by walking real user or founder journeys end to end (PASS/FRICTION/BLOCKED), checking every screen against backend ground truth, dead ends, discoverability and non-happy paths; scored with PURE step ratings, Nielsen severities and measured thresholds. Also builds the flow inventory and re-audits after a fix. Use before planning UI improvements, when users report getting stuck, or to audit a live app safely."
+      "description": "Audit a running app's UI/UX by walking real user or founder journeys end to end (PASS/FRICTION/BLOCKED), checking every screen against backend ground truth, dead ends, discoverability, information density (too much text; icons and layout over prose) and non-happy paths; scored with PURE step ratings, Nielsen severities and measured thresholds. Also builds the flow inventory and re-audits after a fix. Use before planning UI improvements, when users report getting stuck, or to audit a live app safely."
     }
   ]
 }

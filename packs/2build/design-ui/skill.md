@@ -42,7 +42,11 @@ app, without a duplicate throwaway UI. Show existing-page changes in context.
 
 Use `browse` or the caller's browser tooling: render, inspect screenshots at
 relevant widths, exercise the main journey and a relevant failure/empty state,
-fix what falls short, and recheck. Honor requested build/verification commands.
+fix what falls short, and recheck. Check the narrowest supported width, the
+other color scheme and `agent-browser a11y` on each screen; `ui-audit`'s
+[checklists](../ui-audit/references/checklists.md) (dead ends, discoverability,
+information density) are what the built UI is later audited against, so
+design to pass them. Honor requested build/verification commands.
 A build is not visual evidence; report blocked inspection. Keep previews local
 unless publishing is requested.
 

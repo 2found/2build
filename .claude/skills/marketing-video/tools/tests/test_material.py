@@ -38,6 +38,13 @@ def with_material(beat_material, **over):
 
 
 class Items(unittest.TestCase):
+    def test_an_empty_pack_fails_unless_the_campaign_says_why(self):
+        self.assertEqual(material.check_pack({"items": {}}).fails, 1)
+        self.assertEqual(material.check_pack({"items": {}}, None, "  ").fails, 1)
+        r = material.check_pack({"items": {}}, None, "a pure feature demo")
+        self.assertEqual(r.fails, 0)
+        self.assertIn("a pure feature demo", str(r.items))
+
     def test_valid_item(self):
         self.assertEqual(material.validate(REVIEW).fails, 0)
 
