@@ -37,7 +37,7 @@ báo rõ, không kết luận thành công. Cho tôi biết có cần khởi đ�
 lời gọi Autopilot cho agent của tôi để chạy tác vụ nhỏ đầu tiên.
 ```
 
-Bạn cần coding agent được hỗ trợ và quyền dùng model sẵn có của nó. Claude Code và Codex cần CLI trên PATH. 2build không yêu cầu tài khoản model riêng; chi phí sử dụng agent vẫn áp dụng. **Chỉ Team cần Orca.** Xem [cài đặt và xử lý lỗi](docs/install.md) (tiếng Anh).
+Bạn cần một coding agent nằm trong danh sách hỗ trợ và quyền dùng model của nó. Claude Code và Codex cần CLI trên PATH. 2build không đòi tài khoản model riêng, nhưng bạn vẫn trả phí dùng agent như thường. **Chỉ Team cần Orca.** Xem [cài đặt và xử lý lỗi](docs/install.md) (tiếng Anh).
 
 <details>
 <summary>Muốn tự chạy lệnh? Homebrew trên macOS hoặc Linux</summary>
@@ -77,7 +77,7 @@ các lệnh và điều kiện cần thiết.
    | Grok | `/bbs:autopilot "Thêm màn hình tìm kiếm đã lưu. Cho xem prototype trước, rồi triển khai, review và QA."` |
    | Antigravity / agent tương thích khác | Yêu cầu dùng skill `autopilot` đã cài cho tác vụ của bạn. |
 
-3. Đọc kế hoạch và, với tác vụ UI, mở prototype. Chỉnh bố cục, luồng tương tác hoặc phạm vi ngay tại đây. Khi Autopilot trả block `/goal`, dán vào cùng agent để bắt đầu thực hiện. Với agent không có goal mode, thêm `--stop-after=plan` vào yêu cầu đầu tiên để dừng ở bước duyệt này, rồi làm theo lời gọi tiếp tục trong handoff. Để chạy không cần giám sát, thêm `--auto` (ví dụ `/bbs:autopilot --auto "…"`): Autopilot tự duyệt kế hoạch của mình, không in block `/goal`, tự đặt goal khi agent cho phép, và nếu không thì tiếp tục làm việc trong cùng session cho đến khi ticket hoàn tất hoặc bị chặn.
+3. Đọc kế hoạch và, với tác vụ UI, mở prototype. Chỉnh bố cục, luồng tương tác hoặc phạm vi ngay tại đây. Khi Autopilot trả block `/goal`, dán vào cùng agent để bắt đầu làm. Với agent không có goal mode, thêm `--stop-after=plan` vào yêu cầu đầu tiên để dừng ở bước duyệt này, rồi làm theo lời gọi tiếp tục trong handoff. Để chạy không cần giám sát, thêm `--auto` (ví dụ `/bbs:autopilot --auto "…"`): Autopilot tự duyệt kế hoạch của mình, không in block `/goal`, tự đặt goal khi agent cho phép, và nếu không thì tiếp tục làm việc trong cùng session cho đến khi ticket hoàn tất hoặc bị chặn.
 4. Để Autopilot triển khai, review, sửa lỗi, kiểm thử và QA. Khi đạt các gate hoàn tất, nó để thay đổi đã xác minh ở trạng thái chưa commit trong checkout của bạn, kèm bằng chứng, để bạn commit hoặc chuyển cho `create-pr`; nếu bị chặn, báo cáo nêu phần còn thiếu. Sau khi khởi động lại, đưa ticket ID từ handoff để tiếp tục.
 
 Ticket đầu không cần Orca, session worker mới hay cấu hình dự án. Chọn model của session trước khi chạy. [Xem tiến độ và khôi phục session](docs/companion-cli.md).
@@ -88,15 +88,15 @@ Khi sản phẩm cần thêm, chọn công cụ theo bước tiếp theo:
 
 | Bạn muốn | Khám phá |
 |----------|----------|
-| Giao việc lặp lại cho một đội agent nhỏ | [**Soot**](https://trysoot.com), powered by **2agent** — trả lời khách, theo dõi nguồn tin, viết bài, xử lý phản hồi theo lịch và chỉ hỏi bạn khi thật sự cần người. |
-| Deploy sản phẩm đã build | [**2server**](https://github.com/2found/2server) — triển khai và vận hành ứng dụng trên hạ tầng bạn sở hữu. |
-| Giúp khách hàng tìm thấy sản phẩm | [**2market**](https://2found.dev/#2market) — không gian marketing đang phát triển, kết nối bối cảnh sản phẩm, nội dung và các kênh trong một quy trình. |
+| Giao việc lặp lại cho một đội agent nhỏ | [**Soot**](https://trysoot.com), powered by **2agent**: trả lời khách, theo dõi nguồn tin, viết bài, xử lý phản hồi theo lịch và chỉ hỏi bạn khi thật sự cần người. |
+| Deploy sản phẩm đã build | [**2server**](https://github.com/2found/2server): triển khai và vận hành ứng dụng trên hạ tầng bạn sở hữu. |
+| Giúp khách hàng tìm thấy sản phẩm | [**2market**](https://2found.dev/#2market): không gian marketing đang phát triển, kết nối bối cảnh sản phẩm, nội dung và các kênh trong một quy trình. |
 
 Bắt đầu với 2build cho công việc engineering; tìm hiểu các sản phẩm này khi nhu cầu xuất hiện.
 
 ## Chọn theo công việc
 
-`/bbs:autopilot` đưa một phần việc — sửa bug, tính năng, hay một thay đổi dài cả ngày — qua plan, review và QA trong một session. Hãy bắt đầu từ đây: một session dài giữ ngữ cảnh luôn nóng và tốn ít token nhất. Chỉ giao cả dự án cho `/bbs:team` khi bạn cần điều mà một session không làm được ([bên dưới](#team)). Việc nhỏ, chuyên biệt thì gọi skill trực tiếp.
+`/bbs:autopilot` đưa một phần việc (sửa bug, tính năng, hay một thay đổi dài cả ngày) qua plan, review và QA trong một session. Bắt đầu từ đây: một session dài giữ context nóng và tốn ít token nhất. Chỉ giao cả dự án cho `/bbs:team` khi một session không làm nổi việc bạn cần ([bên dưới](#team)). Việc nhỏ, chuyên biệt thì gọi skill trực tiếp.
 
 Bạn chỉ cần gõ vài lệnh, mỗi bước một lệnh: `setup-project`, `design-ui`, `autopilot` hoặc `team`, `release` và `marketing-video`. Autopilot và Team tự chạy các skill còn lại. [Danh mục skill](docs/skills.md) liệt kê chúng theo từng bước.
 
@@ -109,17 +109,17 @@ Bạn chỉ cần gõ vài lệnh, mỗi bước một lệnh: `setup-project`, 
 
 [Team](docs/team.md) làm việc như một team product bạn thuê. Bạn chỉ gặp team hai lần:
 
-1. **Giao việc** — bạn đưa yêu cầu, xác nhận spec team viết lại (một lượt câu hỏi, sau đó không hỏi nữa) và duyệt basic design: kiến trúc, prototype của cả sản phẩm và các phase release.
-2. **Bàn giao** — bạn review sản phẩm đã hoàn thành cùng bằng chứng, rồi chốt release hoặc gửi góp ý. Góp ý trong phạm vi spec được team tự sửa rồi bàn giao lại, không cần họp thêm; yêu cầu vượt spec quay về thành thay đổi design.
+1. **Giao việc**: bạn đưa yêu cầu, xác nhận spec team viết lại (một lượt câu hỏi, sau đó không hỏi nữa) và duyệt basic design: kiến trúc, prototype của cả sản phẩm và các phase release.
+2. **Bàn giao**: bạn review sản phẩm đã hoàn thành cùng bằng chứng, rồi chốt release hoặc gửi góp ý. Góp ý trong phạm vi spec thì team tự sửa rồi bàn giao lại, không cần họp thêm; yêu cầu vượt spec quay về thành thay đổi design.
 
-Giữa hai lần đó, team tự design, build, review, QA và integrate — mỗi phase là một commit trên base local — và không hỏi bạn gì. Worker không bao giờ commit, và Team cần [Orca](https://www.onorca.dev). `/bbs:foreman` vẫn chạy như alias.
+Giữa hai lần đó, team tự design, build, review, QA và integrate (mỗi phase là một commit trên base local) và không hỏi bạn gì. Worker không bao giờ commit, và Team cần [Orca](https://www.onorca.dev). `/bbs:foreman` vẫn chạy như alias.
 
-Team tốn hơn Autopilot — thêm một session lead, một session design và một session integration cho mỗi phase — nên chỉ dùng khi có lý do:
+Team tốn hơn Autopilot (thêm một session lead, một session design và một session integration cho mỗi phase) nên chỉ dùng khi có lý do:
 
-- **Bạn muốn rời bàn phím** — hai lần chạm thay vì lái một session, và cuối cùng nhận một sản phẩm đã review, release được.
-- **Release theo phase** — các bản production tăng dần mà bạn cho phép ngay lúc duyệt design, thay vì một thay đổi lớn ở cuối.
-- **Kiểm tra độc lập** — một session mới review và QA từng phase; Autopilot review ngay trong session đã viết code.
-- **Làm song song các phần tách rời** — các service hoặc repo riêng nối nhau bằng một contract đã chốt, khi thời gian chờ là quan trọng.
+- **Bạn muốn rời bàn phím**: hai lần chạm thay vì lái một session, và cuối cùng nhận một sản phẩm đã review, release được.
+- **Release theo phase**: các bản production tăng dần mà bạn cho phép ngay lúc duyệt design, thay vì một thay đổi lớn ở cuối.
+- **Kiểm tra độc lập**: một session mới review và QA từng phase; Autopilot review ngay trong session đã viết code.
+- **Làm song song các phần tách rời**: các service hoặc repo riêng nối nhau bằng một contract đã chốt, khi bạn cần rút ngắn thời gian chờ.
 
 Không có lý do nào ở trên thì một lần chạy Autopilot, kể cả dài cả ngày, nhanh và rẻ hơn.
 
@@ -147,14 +147,14 @@ Chạy `bbs <subcommand> --help` để xem cách dùng. Chi tiết: [CLI hỗ tr
 
 ## Quyết định ngữ nghĩa
 
-`semantic-decision` biến việc đánh giá kích thước tác vụ, độ phức tạp, định tuyến, tác động lên kiểm thử và review thành một bước skill rõ ràng, có thể tái sử dụng. Provider mặc định là LLM hiện tại; không cần cấu hình hay tiến trình model bổ sung. Để dùng Cloudflare:
+`semantic-decision` đưa các phép đánh giá kích thước tác vụ, độ phức tạp, định tuyến, tác động lên kiểm thử và review vào một bước skill rõ ràng, dùng lại được. Provider mặc định là LLM hiện tại; không cần cấu hình hay tiến trình model bổ sung. Để dùng Cloudflare:
 
 ```bash
 bbs config set semantic_decision_provider cloudflare
 bbs config set semantic_decision_model clef-flash  # or clef
 ```
 
-Đặt `CLOUDFLARE_ACCOUNT_ID` và `CLOUDFLARE_API_TOKEN` trong môi trường hoặc `~/.babysit/.env`. Chỉ cấu hình của người dùng chọn provider; chính sách dự án có thể hạn chế suy luận bên ngoài. Khi Cloudflare lỗi hoặc câu trả lời không chắc chắn, hệ thống quay về LLM hiện tại. Xem [skill](.claude/skills/semantic-decision/SKILL.md) và [hợp đồng](.claude/skills/references/semantic-decision.md). Xem thêm [các thiết lập không có điều khiển trên dashboard](docs/operations.md#settings-without-a-dashboard-control) để biết đường dẫn config, giá trị mặc định, giới hạn của dự án và hành vi duyệt bởi con người.
+Đặt `CLOUDFLARE_ACCOUNT_ID` và `CLOUDFLARE_API_TOKEN` trong môi trường hoặc `~/.babysit/.env`. Chỉ cấu hình của người dùng chọn provider; chính sách dự án có thể hạn chế suy luận bên ngoài. Khi Cloudflare lỗi hoặc câu trả lời không chắc chắn, hệ thống quay về LLM hiện tại. Xem [skill](.claude/skills/semantic-decision/SKILL.md) và [contract](.claude/skills/references/semantic-decision.md). Đường dẫn config, giá trị mặc định, giới hạn của dự án và bước người duyệt nằm ở [các thiết lập không có điều khiển trên dashboard](docs/operations.md#settings-without-a-dashboard-control).
 
 </details>
 
@@ -166,15 +166,15 @@ Với coding agent, [llms.txt](llms.txt) dẫn thẳng đến hướng dẫn Mar
 
 ## Cấu trúc repo
 
-- `bbs` — binary đa lệnh (kết quả build được gitignore; `go build -o bbs ./cmd/bbs`). Hook là lệnh con đã biên dịch, `bbs hooks <name>`.
-- `.claude/skills/` — skill cho agent và tài liệu quy trình.
-- `internal/` — CLI Go và các dịch vụ.
-- `web/` — dashboard SPA, được nhúng trong bản phát hành.
-- `tests/`, `docs/` — bộ kiểm chứng và tài liệu người dùng.
+- `bbs`: binary đa lệnh (kết quả build bị gitignore; `go build -o bbs ./cmd/bbs`). Hook là lệnh con đã biên dịch, `bbs hooks <name>`.
+- `.claude/skills/`: skill cho agent và tài liệu quy trình.
+- `internal/`: CLI Go và các dịch vụ.
+- `web/`: dashboard SPA, nhúng trong bản phát hành.
+- `tests/`, `docs/`: bộ kiểm chứng và tài liệu người dùng.
 
 ## Telemetry
 
-Việc sử dụng skill được ghi cục bộ dưới dạng JSONL trong `~/.babysit/analytics/`; telemetry là kênh phản hồi chính cho các lần chạy không có người giám sát.
+Mỗi lần dùng skill đều được ghi cục bộ dạng JSONL trong `~/.babysit/analytics/`; telemetry là kênh phản hồi chính cho các lần chạy không có người giám sát.
 
 ## Giấy phép
 
