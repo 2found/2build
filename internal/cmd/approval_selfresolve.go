@@ -389,6 +389,11 @@ func selfResolveGate(st *ticket.Store, env identity.Env, rec foreman.Record, rub
 	if ticket.ReadDoc(st.IndexPath()).Get("approval.kind") == "release" {
 		return exitGrant, nil, "a production release go/no-go is a human decision; relay it, never self-resolve it"
 	}
+	// The spec of a requirement an agent drafted is confirmed by the person
+	// it was drafted for; --auto delegates design and plan reviews, not this.
+	if ticket.ReadDoc(st.IndexPath()).Get("approval.kind") == "spec" {
+		return exitGrant, nil, "a spec confirmation is the requester's decision; relay it, never self-resolve it"
+	}
 	if ticket.ReadDoc(st.IndexPath()).Get("approval.kind") == "project-plan" && !rec.Auto {
 		return exitGrant, nil, "project design review requires a human; explicit --auto delegates this checkpoint"
 	}

@@ -10,8 +10,16 @@ from pathlib import Path
 from .common import dump, load, tile_width, today
 
 
+def ytdlp(args: list[str], limit: float = 120) -> subprocess.CompletedProcess:
+    """yt-dlp, given up on after `limit` seconds: a throttled site holds the connection open and never answers."""
+    try:
+        return subprocess.run(["yt-dlp", *args], capture_output=True, text=True, timeout=limit)
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(args, 124, "", f"no answer after {limit:g} s")
+
+
 def meta(url: str) -> dict:
-    r = subprocess.run(["yt-dlp", "-J", "--no-warnings", "--skip-download", url], capture_output=True, text=True)
+    r = ytdlp(["-J", "--no-warnings", "--skip-download", url])
     if r.returncode:
         raise SystemExit(f"yt-dlp could not read {url}: {r.stderr.strip()[-400:]}")
     d = json.loads(r.stdout)
@@ -42,7 +50,7 @@ def frames(url: str, out: Path, seconds: float = 3.0) -> list[str]:
     out.mkdir(parents=True, exist_ok=True)
     vid = out / "video.mp4"
     if not vid.exists():
-        r = subprocess.run(["yt-dlp", "-q", "--no-warnings", "-f", "mp4/best", "-o", str(vid), url], capture_output=True, text=True)
+        r = ytdlp(["-q", "--no-warnings", "-f", "mp4/best", "-o", str(vid), url], 600)
         if r.returncode or not vid.exists():
             raise SystemExit(f"yt-dlp download failed for {url}: {r.stderr.strip()[-400:]}")
     pr = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of",

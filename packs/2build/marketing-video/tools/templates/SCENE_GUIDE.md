@@ -21,6 +21,9 @@ second is advice to overrule when the scene calls for it.
   - No `Date.now()`, unseeded `Math.random()`, timers, network or
     `repeat: -1`.
   - Everything visible is a function of timeline time.
+  - A transform or filter the timeline animates is set by GSAP
+    (`tl.set(sel, {rotation, scaleX}, 0)`), not in an inline `style`: GSAP
+    reads the inline one as 0 and the render keeps it.
   - Styles and scripts go inside `<template>`, and the root is styled as
     `#root`.
   - Prefix ids with the beat (`#B03-card`), and keep asset paths
@@ -60,6 +63,8 @@ second is advice to overrule when the scene calls for it.
 - **{{BRAND}}** is seen as the product itself where the value happens. A
   recipe that keeps the brand to the end (`"brand": "end"`) shows it once, at
   the CTA.
+- **Build to the key frame** (`review/keyframe.jpg`, once it exists): the same
+  place, light, figure size and lettering.
 - **Something visibly changes every few seconds.** The picture tells the beat
   with the sound off.
 
@@ -68,6 +73,8 @@ second is advice to overrule when the scene calls for it.
 npx hyperframes lint
 npx hyperframes snapshot --at <t1>,<t2>,<t3>     # absolute times inside your slot (STORYBOARD.md)
 ```
+Lint reports `gsap_timeline_not_registered` once in `index.html`, at the
+kit's `ghosts` helper. That timeline is driven by its layer's; leave it.
 Look at the PNGs (`.hyperframes/artifacts/snapshots/`): the first and last
 frames, each landing word, and the caption band. Report what you built, the
 times you looked at, and anything you could not do.

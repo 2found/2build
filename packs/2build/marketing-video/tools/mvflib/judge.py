@@ -188,15 +188,22 @@ def _rows(beats: list[dict], tl_beats: list[dict]) -> list[tuple]:
 
 
 def stimulus(rows: list[tuple], duration: float, timing_kind: str, caption: str, platform: str, vi: bool,
-             chars: int = STIMULUS_CHARS) -> str:
+             chars: int = STIMULUS_CHARS, part: tuple[int, int] | None = None) -> str:
     """One video as a viewer meets it, second by second, inside Micro Fish's 3000-character stimulus.
-    Pictures are shortened first; the voice is never cut, because understanding is what is tested."""
+    Pictures are shortened first; the voice is never cut, because understanding is what is tested.
+    `part` (i, n) marks the rows as the i-th of n consecutive parts of one longer video (see split)."""
     lab = PLATFORMS[platform]["label"]
     head = (f"Video {lab}, {duration:.0f} giây ({'đo từ giọng thật' if timing_kind == 'measured' else 'thời lượng ước tính'}). "
             "Đọc như video đang chạy: HÌNH là thứ thấy, CHỮ là chữ trên màn hình, GIỌNG là lời nghe MỘT lần, đúng tốc độ nói."
             if vi else
             f"{lab} video, {duration:.0f} s ({'measured voice' if timing_kind == 'measured' else 'estimated length'}). Read it as "
             "it plays: PICTURE is what you see, TEXT is on screen, VOICE is heard ONCE at speaking pace.")
+    if part and rows:
+        i, n = part
+        head += (f" PHẦN {i}/{n} của CÙNG MỘT video (giây {rows[0][0]:.0f}–{rows[-1][1]:.0f})"
+                 + (", nối tiếp ngay sau phần trước." if i > 1 else ".") if vi else
+                 f" PART {i}/{n} of ONE video (seconds {rows[0][0]:.0f}–{rows[-1][1]:.0f})"
+                 + (", continuing straight from the part before." if i > 1 else "."))
     P, T, V = ("HÌNH", "CHỮ", "GIỌNG") if vi else ("PICTURE", "TEXT", "VOICE")
     cap = (("Caption: " if vi else "Caption: ") + f"\"{caption.strip()}\"") if caption.strip() else ""
     for limit in (240, 140, 90, 50, 0):
@@ -215,6 +222,29 @@ def stimulus(rows: list[tuple], duration: float, timing_kind: str, caption: str,
                      "stimulus. Shorten the on-screen text or split the test")
 
 
+def split(rows: list[tuple], duration: float, timing_kind: str, caption: str, platform: str, vi: bool,
+          chars: int = STIMULUS_CHARS) -> list[tuple[str, tuple]]:
+    """A cut too long for one stimulus (about 90 s of Vietnamese voice) as the fewest consecutive parts that each
+    fit, cut between beats at even shares of the spoken text: [(stimulus, (start, end))]. The caption rides on
+    part 1, where a viewer meets it."""
+    weight = [len(r[3]) + len(r[4]) + 30 for r in rows]
+    for n in range(1, min(len(LABELS), max(1, len(rows))) + 1):
+        groups, acc, total = [[] for _ in range(n)], 0, sum(weight)
+        for r, w in zip(rows, weight):
+            groups[min(n - 1, int((acc + w / 2) * n / total))].append(r)
+            acc += w
+        if n > 1 and not all(groups):
+            continue
+        try:
+            return [(stimulus(g, duration, timing_kind, caption if i == 0 else "", platform, vi, chars,
+                              (i + 1, n) if n > 1 else None), (g[0][0], g[-1][1]) if g else (0.0, duration))
+                    for i, g in enumerate(groups)]
+        except SystemExit:
+            pass
+    raise SystemExit(f"this cut does not fit {len(LABELS)} stimuli of {chars} characters even without pictures "
+                     f"({sum(len(r[4]) for r in rows)} characters of voice): judge it in two runs, or shorten it")
+
+
 def script_stimulus(script: dict, hook: str, manifest: dict | None, platform: str, vi: bool,
                     chars: int = STIMULUS_CHARS) -> tuple[str, dict]:
     sv = timing.variant(script, hook)
@@ -231,9 +261,10 @@ def bench_stimulus(d: dict, platform: str, vi: bool, chars: int = STIMULUS_CHARS
     return stimulus(rows, rows[-1][1] if rows else 0.0, "measured", d.get("caption", ""), platform, vi, chars)
 
 
-def video_stimulus(proj: Path, script: dict, platform: str, vi: bool, chars: int = STIMULUS_CHARS) -> str:
+def video_stimuli(proj: Path, script: dict, platform: str, vi: bool,
+                  chars: int = STIMULUS_CHARS) -> list[tuple[str, tuple]]:
     """The cut as rendered: the measured timeline, what each beat's scene shows (from the storyboard and the
-    direction), and what the reviewer saw on its frames."""
+    direction), and what the reviewer saw on its frames. One stimulus, or consecutive parts of a long cut."""
     tl = load(proj / "timeline.json")
     pics = {}
     rv = proj / "review.json"
@@ -251,7 +282,7 @@ def video_stimulus(proj: Path, script: dict, platform: str, vi: bool, chars: int
         seen = [v for k, v in notes.items() if t["start"] <= k < t["end"]]
         pic = "; ".join([x for x in [pics.get(t["id"], "")] + seen if x])
         rows.append((t["start"], t["end"], pic, (b.get("onscreen") or "").strip(), (b.get("vo") or "").strip()))
-    return stimulus(rows, tl["duration"], tl.get("timing", "measured"), caption_of(script), platform, vi, chars)
+    return split(rows, tl["duration"], tl.get("timing", "measured"), caption_of(script), platform, vi, chars)
 
 
 # ---------- the brief ----------
@@ -291,7 +322,7 @@ def _questions(vi: bool, kind: str) -> list[str]:
 
 
 def brief(cd: Path, sim: str, kind: str, stimuli: list[tuple[str, str]], size: str, platform: str,
-          decision: str, experts: list[str]) -> str:
+          decision: str, experts: list[str], parts: bool = False) -> str:
     c = load(cd / "campaign.json")
     vi = _vi(c)
     facts = cd / "01-product/facts.json"
@@ -301,6 +332,41 @@ def brief(cd: Path, sim: str, kind: str, stimuli: list[tuple[str, str]], size: s
     ids = ", ".join(f"`{s}`" for s, _ in stimuli)
     exp = "\n".join(f"- {e}" for e in experts)
     seg = _segments(cd)
+    n = len(stimuli)
+    if parts and vi:
+        variants = (f"**MỘT video, chia {n} phần liên tiếp** — dùng đúng stimulus id {ids}, theo đúng thứ tự đó. Đây KHÔNG "
+                    "phải các phương án để so sánh: không xếp hạng, không hỏi thích phần nào. Mỗi persona gặp video như "
+                    "trong feed (chưa từng nghe về người làm, nghe mỗi câu một lần), xem phần sau với những gì đã nghe ở "
+                    "phần trước. Ai đã lướt đi ở một phần thì các phần sau ghi watch_through 0 và không trả lời thêm. "
+                    "watch_through của mỗi phần là % của riêng phần đó. Câu kể lại (quote) ở phần cuối là kể lại CẢ video.")
+        report = ("**Báo cáo:** coi các phần là một video: phần và giây người xem bỏ đi, câu làm họ bỏ; bao nhiêu người "
+                  "xem tới hết phần cuối; người xem kể lại được gì về cả video (trích quote); điều họ dùng được; câu nào "
+                  "nghe như quảng cáo hoặc khó tin; sửa cụ thể bằng lời thoại. Trích số từ tally, giữ nguyên warnings và caveat.")
+    elif parts:
+        variants = (f"**ONE video in {n} consecutive parts** — use exactly the stimulus ids {ids}, in that order. These "
+                    "are NOT variants to compare: no ranking, no preference between parts. Each persona meets the video "
+                    "in a feed (they know nothing about who made it and hear each line once) and watches a later part "
+                    "knowing what the earlier parts said. Whoever swiped away in one part records watch_through 0 for "
+                    "the later parts and answers nothing more. Each part's watch_through is the % of that part alone. "
+                    "The retell (quote) on the last part retells the WHOLE video.")
+        report = ("**Report:** treat the parts as one video: the part and second viewers leave and the line that lost "
+                  "them; how many reach the end of the last part; what viewers retold of the whole video (quote it); "
+                  "what they could use; which lines read as an ad or are hard to believe; concrete wording fixes. Cite "
+                  "tally numbers only, keep the warnings and the caveat.")
+    elif vi:
+        variants = (f"**Các phương án** — dùng đúng stimulus id {ids}, nhãn trung lập, không gợi ý phương án nào là ưu "
+                    "tiên. Mỗi persona gặp video như trong feed: chưa từng nghe về người làm, nghe mỗi câu một lần.")
+        report = ("**Báo cáo:** xếp hạng theo preference và watch_through, nói rõ khoảng cách có `clear` không; với từng "
+                  "phương án: giây người xem bỏ đi và câu làm họ bỏ; người xem kể lại được gì (trích quote); điều họ dùng "
+                  "được; câu nào nghe như quảng cáo hoặc khó tin; sửa cụ thể bằng lời thoại. Trích số từ tally, giữ "
+                  "nguyên warnings và caveat.")
+    else:
+        variants = (f"**Variants** — use exactly the stimulus ids {ids}, neutral labels, no hint of a favourite. Each "
+                    "persona meets each video in a feed: they know nothing about who made it and hear each line once.")
+        report = ("**Report:** rank by preference and watch_through and say whether the gap is `clear`; per variant: the "
+                  "second viewers leave and the line that lost them; what viewers retold (quote it); what they could "
+                  "use; which lines read as an ad or are hard to believe; concrete wording fixes. Cite tally numbers "
+                  "only, keep the warnings and the caveat.")
     if vi:
         return f"""Chạy mô phỏng {size} ({SIZES[size]} persona), sim id `{sim}`, kind `video`.
 
@@ -313,7 +379,7 @@ def brief(cd: Path, sim: str, kind: str, stimuli: list[tuple[str, str]], size: s
 {seg}
 Trộn cả người chưa từng nghe về chủ đề, người thích thể loại này, fan cứng, và người lướt nhanh thiếu kiên nhẫn; có người sẽ nói không.
 
-**Các phương án** — dùng đúng stimulus id {ids}, nhãn trung lập, không gợi ý phương án nào là ưu tiên. Mỗi persona gặp video như trong feed: chưa từng nghe về người làm, nghe mỗi câu một lần.
+{variants}
 
 {stim}
 
@@ -323,7 +389,7 @@ Trộn cả người chưa từng nghe về chủ đề, người thích thể l
 **Chuyên gia (độc lập, song song vòng 0):**
 {exp}
 
-**Báo cáo:** xếp hạng theo preference và watch_through, nói rõ khoảng cách có `clear` không; với từng phương án: giây người xem bỏ đi và câu làm họ bỏ; người xem kể lại được gì (trích quote); điều họ dùng được; câu nào nghe như quảng cáo hoặc khó tin; sửa cụ thể bằng lời thoại. Trích số từ tally, giữ nguyên warnings và caveat.
+{report}
 """
     return f"""Run a {size} simulation ({SIZES[size]} personas), sim id `{sim}`, kind `video`.
 
@@ -336,7 +402,7 @@ Trộn cả người chưa từng nghe về chủ đề, người thích thể l
 {seg}
 Mix people who have never heard of the topic, fans of the kind of thing, core fans and impatient scrollers; include people who will say no.
 
-**Variants** — use exactly the stimulus ids {ids}, neutral labels, no hint of a favourite. Each persona meets each video in a feed: they know nothing about who made it and hear each line once.
+{variants}
 
 {stim}
 
@@ -346,7 +412,7 @@ Mix people who have never heard of the topic, fans of the kind of thing, core fa
 **Experts (independent, in parallel with round 0):**
 {exp}
 
-**Report:** rank by preference and watch_through and say whether the gap is `clear`; per variant: the second viewers leave and the line that lost them; what viewers retold (quote it); what they could use; which lines read as an ad or are hard to believe; concrete wording fixes. Cite tally numbers only, keep the warnings and the caveat.
+{report}
 """
 
 
@@ -645,7 +711,8 @@ def resume(cd: Path, out: Path) -> Path:
 
 def judge_video(cd: Path, proj: Path, round_: str, size: str, platform: str, dry: bool) -> Path:
     """The cut, judged like the scripts were: does the picture carry the hook muted, where do people leave, can they
-    retell it. One stimulus; experts look for what the edit broke."""
+    retell it. One stimulus, or consecutive parts when the cut is longer than one holds; experts look for what the edit
+    broke."""
     meta = load(proj / "mvf.json")
     script = load(cd / meta["script"])
     c = load(cd / "campaign.json")
@@ -653,7 +720,6 @@ def judge_video(cd: Path, proj: Path, round_: str, size: str, platform: str, dry
     out = proj / "judge" / round_
     out.mkdir(parents=True, exist_ok=True)
     sim = _sim_id(cd, f"{script['id'][:12]}-{round_}")
-    key = {"a": {"id": f"{script['id']}/{meta.get('hook') or 'H1'}", "kind": "candidate"}}
     decision = (("Video đã dựng xong: đăng được chưa, hay sửa gì trước? Người lạ nghe một lần có kể lại đúng không, bỏ đi ở "
                  "giây nào, hình có kể được câu chuyện khi tắt tiếng không.") if vi else
                 ("The video is cut: post it, or fix what first? Can a stranger who hears it once retell it, where do people "
@@ -661,12 +727,20 @@ def judge_video(cd: Path, proj: Path, round_: str, size: str, platform: str, dry
     ex = experts(c, platform, vi)
     ex[0] = (f"Biên tập viên video ngắn trên {PLATFORMS[platform]['label']}: cắt cảnh, nhịp, chữ trên màn hình, khung hình 0"
              if vi else f"Short-video editor on {PLATFORMS[platform]['label']}: cuts, pacing, on-screen text, frame 0")
-    text = fit(lambda chars: brief(cd, sim, "video", [("a", video_stimulus(proj, script, platform, vi, chars))], size,
-                                   platform, decision, ex))
+    built = []
+
+    def build(chars: int) -> str:
+        built[:] = video_stimuli(proj, script, platform, vi, chars)
+        return brief(cd, sim, "video", [(lab, s) for lab, (s, _) in zip(LABELS, built)], size, platform, decision, ex,
+                     parts=len(built) > 1)
+    text = fit(build)
+    sid = f"{script['id']}/{meta.get('hook') or 'H1'}"
+    key = {lab: {"id": sid, "kind": "candidate", **({"part": i + 1, "span": list(span)} if len(built) > 1 else {})}
+           for i, (lab, (_, span)) in enumerate(zip(LABELS, built))}
     (out / "brief.txt").write_text(text, encoding="utf-8")
     dump(out / "key.json", {"sim": sim, "platform": platform, "size": size, "stimuli": key})
     if dry:
-        print(f"{out / 'brief.txt'} ({len(text)} chars)")
+        print(f"{out / 'brief.txt'} ({len(text)} chars" + (f", {len(key)} consecutive parts" if len(key) > 1 else "") + ")")
         return out
     require_ready()
     print(f"Micro Fish {size}: judging the cut {proj.name} (sim {sim}); 10-30 minutes…", flush=True)
@@ -676,15 +750,43 @@ def judge_video(cd: Path, proj: Path, round_: str, size: str, platform: str, dry
     if not t:
         raise SystemExit(f"no tally for sim {sim} (state {res.get('state')}); see {out / 'progress.log'}")
     dump(out / "tally.json", t)
-    s = summarize(t, key)["a"]
+    per = summarize(t, key)
+    s = whole(per, key)
     dump(out / "judge.json", {"sim": sim, "conversation": res.get("conversation"), "size": size, "complete": t.get("complete"),
-                              "summary": s, "experts": t.get("experts"), "warnings": t.get("warnings"),
+                              "summary": s, **({"parts": [{"span": key[lab]["span"], **per[lab]} for lab in key]}
+                                               if len(key) > 1 else {}),
+                              "experts": t.get("experts"), "warnings": t.get("warnings"),
                               "caveat": t.get("caveat"), "judged_at": today().isoformat()})
     (out / "retell.md").write_text(retell_sheet(cd, t, key), encoding="utf-8")
+    if len(key) > 1:
+        print("parts (one video): " + " | ".join(f"{key[lab]['span'][0]:.0f}–{key[lab]['span'][1]:.0f}s watch "
+                                                 f"{per[lab]['watch_through']}%" for lab in key))
     print(f"judge video: watch {s['watch_through']}% · attention {s['attention']} · clarity top2 {s['clarity_top2']}% · "
           f"intent top2 {s['intent_top2']}% · ad-feel {s['ad_feel']} · expert P0/P1 {len(s['expert_blocking'])} → "
           f"{out / 'judge.json'}; read {out / 'answer.md'} and {out / 'retell.md'}, fix once, then export without judging again")
     return out
+
+
+def whole(per: dict, key: dict) -> dict:
+    """One cut's numbers from its parts: the open's attention, the share of the whole length watched (each part's
+    watch_through weighted by its seconds; whoever left earlier recorded 0 later), the weakest clarity, what the
+    last part's viewers intend, and every objection and expert finding."""
+    labs = list(key)
+    if len(labs) == 1:
+        return per[labs[0]]
+    first, last = per[labs[0]], per[labs[-1]]
+    secs = [key[lab]["span"][1] - key[lab]["span"][0] for lab in labs]
+    watch = [per[lab]["watch_through"] for lab in labs]
+    clar = [per[lab]["clarity_top2"] for lab in labs if per[lab]["clarity_top2"] is not None]
+    return {**last, "attention": first["attention"], "n": first["n"],
+            "watch_through": None if None in watch or not sum(secs) else
+            round(sum(w * d for w, d in zip(watch, secs)) / sum(secs), 1),
+            "clarity_top2": min(clar) if clar else None,
+            "ad_feel": sum(per[lab]["ad_feel"] for lab in labs),
+            "unclear": sorted({u for lab in labs for u in per[lab]["unclear"]}),
+            "objections": [o for lab in labs for o in per[lab]["objections"][:3]],
+            "expert_blocking": [f"{key[lab]['span'][0]:.0f}–{key[lab]['span'][1]:.0f}s {b}"
+                                for lab in labs for b in per[lab]["expert_blocking"]]}
 
 
 def video_judged(proj: Path) -> dict | None:

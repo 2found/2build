@@ -302,6 +302,20 @@ class Rig(unittest.TestCase):
     def L(self, p):
         return p["beats"]["B01"]["shots_resolved"][0]["layers"][0]
 
+    def test_small_figures_in_every_shot_warn_until_some_are_framed_close(self):
+        def run(hs, keys=None):
+            shots = [{"color": "ground", "cam": "hold", "in": "cut", "at": f"w:{i}", "layers": [{"rig": "stick", "h": h}],
+                      **({"keys": keys} if keys and i == 0 else {})} for i, h in enumerate(hs)]
+            p, rep = dirn.plan({"beats": {"B01": {"shots": shots}}}, timeline(), GEO, Layers.ART, {})
+            self.assertFalse(rep.fails, rep.items)
+            dirn.variety(p, timeline(), rep)
+            return codes(rep, "D16")
+        self.assertTrue(run([0.3, 0.28, 0.32]))
+        self.assertIn("32%", run([0.3, 0.28, 0.32])[0]["msg"])
+        self.assertFalse(run([0.3, 0.7, 0.32]))
+        self.assertFalse(run([0.3, 0.28, 0.32], keys=[{"at": "w:0+0.1", "s": 1.6}]))  # a punch-in is a close shot
+        self.assertFalse(run([0.3, 0.3]))  # too few shots to call a pattern
+
     def test_poses_keep_the_feet_on_the_ground(self):
         self.assertAlmostEqual(rig.pose("stand")["drop"], 0.0, delta=0.3)
         self.assertGreater(rig.pose("crouch")["drop"], 5)

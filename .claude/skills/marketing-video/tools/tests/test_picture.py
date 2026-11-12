@@ -50,6 +50,8 @@ class Picture(unittest.TestCase):
         mk("pop", still, vf="drawbox=x=0:y=0:w=iw:h=ih:color=white:t=fill:enable='eq(n,95)'")
         mk("push", still, vf="scale=360:640,zoompan=z='1+0.0015*on':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=180x320:fps=30")
         mk("moving", ["-f", "lavfi", "-i", f"testsrc2=s=180x320:r=30:d={D}"])
+        mk("empty", ["-f", "lavfi", "-i", f"color=c=0x2b3050:s=180x320:r=30:d={D}"],
+           vf="drawbox=x=70:y=200:w=40:h=60:color=white:t=fill")
         mk("loud", ["-f", "lavfi", "-i", f"testsrc2=s=180x320:r=30:d={D}"], af="volume='if(between(t,1.2,4.3),4,1)':eval=frame")
 
     @classmethod
@@ -87,6 +89,10 @@ class Picture(unittest.TestCase):
         px5 = [i for i in self.check("loud").items if i["code"] == "PX5"]
         self.assertEqual({i["where"] for i in px5}, {"loud.mp4.B02"})
         self.assertTrue([i for i in px5 if "against the other beats" in i["msg"]])
+
+    def test_a_small_subject_in_an_empty_frame(self):
+        self.assertIn("PX6", codes(self.check("empty")))
+        self.assertNotIn("PX6", codes(self.check("moving")))
 
     def test_an_unreadable_file_is_a_warn(self):
         (self.d / "junk.mp4").write_text("not a video")
@@ -189,8 +195,15 @@ class Viewer(unittest.TestCase):
     def test_read_parses_the_three_lines(self):
         p = self.proj / "review/viewer-v1.md"
         p.write_text("Verdict: fix\nRed items: 1.5s a; no second\nRetell: two lines")
-        self.assertEqual(viewer.read(p), {"verdict": "FIX", "retell": "two lines",
+        self.assertEqual(viewer.read(p), {"verdict": "FIX", "retell": "two lines", "score": None,
                                           "red": [{"at": 1.5, "what": "a"}, {"at": None, "what": "no second"}]})
+        p.write_text("Verdict: FIX\nRed items: none\nScore: 5\nRetell: r")
+        self.assertEqual(viewer.read(p)["score"], 5.0)
+
+    def test_the_makers_score_is_not_above_the_strangers(self):
+        seen = "Verdict: FIX\nRed items: none\nScore: 5\nRetell: r"
+        self.assertIn("RV2", codes(self.run_check(seen, score=7)))
+        self.assertEqual(codes(self.run_check(seen, score=5)), [])
 
 
 @unittest.skipUnless(FF, "needs ffmpeg")
@@ -205,8 +218,18 @@ class ViewerBrief(unittest.TestCase):
             text = out.read_text()
             self.assertEqual(out.name, "viewer-brief-v1.md")
             for x in ("why the third fold holds", "awareness", "review/viewer-v1-strip-1.jpg", "wB02",
-                      "another video", "15 tool calls", "Verdict: APPROVE | FIX | UNVERIFIABLE"):
+                      "another video", "15 tool calls", "Verdict: APPROVE | FIX | UNVERIFIABLE",
+                      "review/viewer-v1-open.jpg", "small in an empty frame", "Score: <1-10>", "no reference videos", "weakest five seconds"):
                 self.assertIn(x, text)
+            self.assertTrue((proj / "review/viewer-v1-open.jpg").is_file())
+            top = cd / "03-research/top"
+            (top / "abc").mkdir(parents=True)
+            shutil.copy2(clip, top / "abc/video.mp4")
+            (top / "abc.json").write_text(json.dumps({"views": 120000}))
+            text = viewer.brief(cd, proj).read_text()
+            self.assertIn("120,000 views", text)
+            self.assertIn("review/viewer-v2-refs.jpg", text)
+            self.assertTrue((proj / "review/viewer-v2-refs.jpg").is_file())
             for x in ("05-scripts", "direction", "plan.md"):
                 self.assertNotIn(f"`{x}", text)
             sheet = proj / "review/viewer-v1-strip-1.jpg"
@@ -214,7 +237,32 @@ class ViewerBrief(unittest.TestCase):
                                capture_output=True, text=True, check=True)
             w, h = map(int, r.stdout.strip().split(","))
             self.assertLessEqual(w * h, SHEET_PX)
-            self.assertEqual(viewer.brief(cd, proj).name, "viewer-brief-v2.md")
+            self.assertEqual(viewer.brief(cd, proj).name, "viewer-brief-v3.md")
+
+    def test_a_key_frame_is_laid_beside_the_most_viewed_references(self):
+        with tempfile.TemporaryDirectory() as t:
+            clip = Path(t) / "c.mp4"
+            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", f"testsrc2=s=180x320:r=30:d={D}",
+                            "-pix_fmt", "yuv420p", str(clip)], check=True)
+            cd, proj = project(Path(t), clip)
+            frame = Path(t) / "f.png"
+            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(clip), "-frames:v", "1", str(frame)], check=True)
+
+            def width(p):
+                r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=width", "-of", "csv=p=0", str(p)],
+                                   capture_output=True, text=True, check=True)
+                return int(r.stdout.strip())
+            out, notes = viewer.beside(frame, cd, proj / viewer.KEYFRAME)
+            self.assertEqual(notes, [])  # no research video: the frame stands alone
+            self.assertLess(width(out), viewer.KEY_W)
+            top = cd / "03-research/top"
+            (top / "abc").mkdir(parents=True)
+            shutil.copy2(clip, top / "abc/video.mp4")
+            (top / "abc.json").write_text(json.dumps({"views": 120000}))
+            out, notes = viewer.beside(frame, cd, proj / viewer.KEYFRAME)
+            self.assertEqual(notes, ["120,000 views"])
+            self.assertEqual(width(out), viewer.KEY_W)
+            self.assertEqual([p.name for p in (proj / "review").iterdir()], ["keyframe.jpg"])
 
     def test_no_render_is_a_clear_stop(self):
         with tempfile.TemporaryDirectory() as t:

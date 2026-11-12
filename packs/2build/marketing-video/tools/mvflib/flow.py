@@ -217,6 +217,7 @@ def next_action(cd: Path, stage_report, lint_fails) -> dict:
     from . import judge, viewer
     from .export import open_review
     from .scaffold import placeholders
+    from .viewer import KEYFRAME
     c = load(cd / "campaign.json")
     if c.get("_template"):
         return _act("agent", "write the brief into campaign.json from the owner's request (product, goal, benefit, "
@@ -278,7 +279,12 @@ def next_action(cd: Path, stage_report, lint_fails) -> dict:
         rel = proj.relative_to(cd / "07-video")
         holes = placeholders(proj)
         if holes:
-            return _act("agent", f"direct and author the scenes {holes} of {rel}", ref="references/07-direction.md")
+            if not (proj / KEYFRAME).is_file():
+                return _act("agent", f"author the turning beat of {rel} by hand, finished, on the face of whoever reacts when "
+                            "the video has people, and lay one frame of it beside the most-viewed references", run=f"mvf keyframe {rel} --at <second>",
+                            ref="references/07-production.md#the-key-frame")
+            return _act("agent", f"author the scenes {holes} of {rel} to the key frame's level",
+                        ref="references/07-production.md#the-key-frame")
         if not (proj / "assets/music").is_dir() or not any((proj / "assets/music").iterdir()):
             return _act("agent", f"score {rel}", run=f"mvf score {rel} --bed auto:<mood>", ref="references/07-production.md#tool")
         if open_review(proj) is None:

@@ -45,9 +45,9 @@ in official pictures from the rights holder.
   `hook_variants_per_video`), and optionally `voice_engine` and `known_words`
   (words this audience already knows, such as a country or the title they
   search for, which the stranger checks then skip).
-  `style` is the default look preset for every video: `stickman` (the comic
-  default), `ink`, `anime` or `none`. A direction or art.json that names its own
-  preset wins.
+  `style` is `none` for a new campaign: each video designs its own look. Set
+  it to a preset (`stickman`, `ink`, `anime`) only for a series that keeps
+  one. A direction or art.json that names its own preset wins.
 - `mvf gather <source> [k=v …]` validates and merges items. Use
   `mvf gather manual file=items.json` for hand research. `mvf sources` lists
   the sources; a recurring one becomes a source extension (`mvf extensions`).

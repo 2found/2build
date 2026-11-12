@@ -102,6 +102,17 @@ standards in SKILL.md).
   and no longer: cut repetition, asides and qualifiers the answer does not
   use, never a step. When the explanation cannot fit, narrow the question;
   do not thin the answer.
+- **The caption is a second hook, not a summary.** It is read beside the
+  video while the viewer decides to stay, and its first line is all that shows
+  before "more". That line makes a stranger need the video: a claim to argue
+  with, a question they cannot leave, a stake, a dare to the comments. It
+  never hands over the payoff, and it is not the hook line said again.
+  Search words, the brand and the hashtags come after it. Read the captions
+  of the most-viewed references (`03-research/top/<id>.json`) and hold yours
+  beside them. A delivered caption was rejected as flat: "A diary nobody could
+  read for 100 years turns out to be in simplified Chinese. Good mystery
+  novel: … chapters 20-21, audio on …". It gave the twist away in its first
+  sentence and then read as a catalogue entry.
 - The owner reads the first script of a campaign before any voice or art.
   Agent panels judge entertainment; the owner judges benefit.
 
@@ -186,6 +197,12 @@ the script). Control scripts (`ctl-…`) skip the key, thesis and turn checks.
   reversal (the reason flips), reveal (a hidden fact), transformation (the
   person changes), threshold (a line is crossed), mirror (the hook comes back
   meaning more), contrast (two things side by side).
+- **The turn is not saved for the end.** It is usually the line a viewer
+  would retell, and most viewers of a short leave before half-way. In a short
+  it is heard by 60% of the runtime (TN2): open on it and let the story prove
+  it, or cut what stands in front. One panel's words for a turn at 48 s of
+  70: whoever left after the fight took "a good fight", not what the story
+  was about.
 - **Chain of questions** (an informing short): each beat answers the last
   beat's question and raises the next one, so no stretch passes without an open
   question (N3, N4 time the gaps). The next question is held in the picture or

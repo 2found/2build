@@ -201,3 +201,26 @@ func TestForemanReportWorksWithoutLiveCoordinator(t *testing.T) {
 		t.Fatal("report accepted a path as a ticket id")
 	}
 }
+
+// The spec of an agent-drafted requirement is the requester's to confirm:
+// --auto delegates the design review that follows, never this.
+func TestSpecConfirmationIsNeverSelfResolved(t *testing.T) {
+	env := identity.Env{ProjectHome: t.TempDir(), Ticket: "bs-spec"}
+	st := ticket.New(env)
+	if err := ticket.WriteDoc(st.IndexPath(), ticket.Doc{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(st.Home(), "requirement.md"), []byte("Project task list and navigation"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if conflict, err := approvalPublish(st, "spec", "Confirm the spec", "developer"); err != nil || conflict != "" {
+		t.Fatal(conflict, err)
+	}
+	code, _, reason := selfResolveGate(st, env, foreman.Record{ID: "fm-project", Auto: true}, projectRubric)
+	if code != exitGrant || !strings.Contains(reason, "spec confirmation") {
+		t.Fatalf("an --auto lead confirmed a spec for the requester: code %d (%s)", code, reason)
+	}
+	if _, _, err := approvalResolve(st, "approve", "the spec is right", "human"); err != nil {
+		t.Fatal(err)
+	}
+}

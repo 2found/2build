@@ -477,8 +477,10 @@ def _resolve_beat(bid, b, slot, nxt_slot, geo, art, media, rep, out):
         s["layers"] = _layers(sh, sid, start, end, cam, at_s, where(k), art, W, H, rep, sounds, out, b["start"] - lead, cap_band, ctx)
         shots.append(s)
         cn = sh.get("cam", "drift")
+        punch = max([kk["to"]["s"] for kk in s["keys"]], default=1.0)
+        fig = max((_shown_h(L) * punch for L in s["layers"] if L.get("rig")), default=None)
         out["shotlog"].append({"at": round(b["start"] - lead + start, 3), "end": round(b["start"] - lead + end, 3),
-                               "where": sid, "cam": "custom" if isinstance(cn, dict) else
+                               "where": sid, "fig": fig, "cam": "custom" if isinstance(cn, dict) else
                                ("none" if cn in (None, False) else str(cn).split(":")[0])})
         out["events"].append(round(b["start"] - lead + start, 3))
         if k:
@@ -575,6 +577,12 @@ def _layer_cam(cam: dict | None, z: float) -> dict | None:
         return None
     f = lambda c: {"s": round(1 + (c["s"] - 1) * (1 + z), 4), "x": round(c["x"] * (1 + z), 4), "y": round(c["y"] * (1 + z), 4)}
     return {"from": f(cam["from"]), "to": f(cam["to"]), "ease": cam.get("ease", "none")}
+
+
+def _shown_h(L: dict) -> float:
+    """A resolved layer's tallest height in its shot (a frame share): its own scale moves and the camera's."""
+    cam = max(L["cam"]["from"]["s"], L["cam"]["to"]["s"]) if L.get("cam") else 1.0
+    return L["h"] * cam * max([m["to"]["s"] for m in L["moves"]], default=1.0)
 
 
 def _layers(sh, sid, start, end, cam, at, w, art, W, H, rep, sounds, out, origin, cap_band, ctx=None) -> list[dict]:
@@ -1300,6 +1308,9 @@ def _sound_globals(d, beats, rep, out):
 
 # ---------- checks over the resolved plan ----------
 
+FIG_CLOSE = 0.45  # a rig shown this tall (a share of the frame height) or more is a close shot. A chibi head is ~45% of
+                  # the figure and about as wide: at 0.3 it is a seventh of a 9:16 frame's height, at 0.65 half its width
+
 def variety(p: dict, tl: dict, rep: Report) -> None:
     """Pro-cut rules: few hard cuts, 3–6 kinds of transition, something new on screen every few seconds."""
     trs = p["transitions"]
@@ -1329,6 +1340,14 @@ def variety(p: dict, tl: dict, rep: Report) -> None:
         if a["cam"] == b["cam"] and a["cam"] not in STEADY_CAMS:
             rep.warn("V5", f"direction.{b['where']}", f"'{a['cam']}' again right after {a['where']}: two shots in a row "
                      "with the same camera move read as one; change the move, or hold one")
+    figs = [x["fig"] for x in log if x.get("fig")]
+    close = sum(1 for f in figs if f >= FIG_CLOSE)
+    if len(figs) >= 3 and close < len(figs) / 4:
+        rep.warn("D16", "direction", f"{close} of {len(figs)} shots with a character show it at {FIG_CLOSE:.0%} of the frame "
+                 f"height or more (the tallest is {max(figs):.0%}, punch-ins counted): the faces are too small to read at "
+                 "phone size. Frame whoever speaks or acts close: on 9:16 one chibi fills the width at h 0.6–0.7, two at "
+                 "about 0.5, and three do not fit side by side (stage them in depth, or cut between them). Keep the "
+                 "small full figure for a walk or a set-up")
     lens = [x["end"] - x["at"] for x in log if x["end"] > x["at"]]
     if len(lens) >= 5:
         mean = sum(lens) / len(lens)

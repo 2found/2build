@@ -40,22 +40,33 @@ caption over a face or a plate that melts at full size.
   look would fill as well: see the cliché list in
   [07-craft](07-craft.md#clichés). Replace it with something only this
   video has (its character, its object, its number).
-- **Score it** in `review.json` `score` (1–10), on this scale: 5 a student's
-  cut, 6 a template, 7 a working pro, 8 an agency, 9 an award entry. Say what
-  keeps it from the next step. Export WARNs without a score (RV2).
+- **The stranger scores it.** `review.json` `score` (1–10) is the cold
+  viewer's, on this scale: 5 a student's cut, 6 a template, 7 a working pro,
+  8 an agency, 9 an award entry, with what keeps it from the next step. Three
+  cuts their maker scored 7 had every character under a third of the frame
+  height, and none of the reviews said so. Export WARNs without a score, or
+  with one above the viewer's (RV2).
 
 ## Cold viewer
 You wrote the plan, so you see the plan in the frames. A fresh helper who never
 read it sees the video. `mvf viewer <proj>` writes `review/viewer-brief-vN.md`:
 1 fps frame sheets (each under 1 MP, the second stamped on each frame), the
-voice as heard with its times, the logline and what the video is for, and
-nothing else: no script, plan or direction path. Give it to a fresh helper with
-no other context. It retells the video, names where it would swipe, checks each
-frame against the voice and for breaks and stock looks, and writes
-`review/viewer-vN.md` ending in three lines:
+voice as heard with its times, the logline and what the video is for, the
+first two seconds at a larger size, and one frame each from the most-viewed
+videos research downloaded (`03-research/top/<id>/video.mp4`), as a yardstick
+for the level, not a look to copy. Nothing else: no script, plan or direction
+path. Give it to a fresh helper with no other context. It retells the video,
+names where it would swipe, checks each frame against the voice, for breaks
+and stock looks, and for framing (a subject small in an empty frame, a face
+too small to read, a crop, a subject under the captions, a decorative band
+that never changes), scores the cut,
+names the best moment and the weakest five seconds, proposes at most three
+fixes (one of them to make the best moment stronger, not to repair), and
+writes `review/viewer-vN.md` ending in four lines:
 ```
 Verdict: APPROVE | FIX | UNVERIFIABLE
 Red items: 3s caption over the face; 6.5s frozen hand   (or none)
+Score: 6
 Retell: one or two sentences
 ```
 Each red item goes into `review.json` as an issue, fixed or accepted with a

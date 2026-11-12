@@ -86,6 +86,70 @@ What the checks refuse:
 - Motion, devices, cut rhythm, key moments and the cliché test are in
   [07-craft](07-craft.md).
 
+## The key frame
+Settle the look on one frame before building every scene.
+- Pick the beat the video turns on, at its hardest moment to draw. When the
+  video has people, that is the reaction: the face of whoever takes the blow,
+  close, in frame. A page, an object or a figure seen from behind is the easy
+  frame; it holds up beside the references and says nothing about the scenes
+  that will not. Author that scene by hand in
+  `compositions/<beat>.html` (SCENE_GUIDE.md, the `hyperframes` skill), in
+  free HTML, SVG, CSS and GSAP, and finish it: a place with a ground, depth
+  and light, the subject large, the lettering at phone size.
+- `mvf keyframe <proj> --at <second>` snapshots it and writes
+  `review/keyframe.jpg`: your frame on top, then one frame each from the
+  most-viewed videos research downloaded. Look at it and rework the frame
+  until it holds up beside them. They set the level, not the look.
+- With no preset, the look is a choice. Before finishing the frame, rough out
+  two or three different directions for it (a palette, a way of drawing, a
+  type) as quick stills and pick one for the whole video. Take the palette
+  and the type from this video's world (the place, the material, the era,
+  the product's own art), not from habit
+  ([07-craft](07-craft.md#clichés)).
+- Write the chosen palette and fonts into `direction.json` as `look`
+  (`colors`, `fonts`; a font that ships as a file is `{"family", "file"}`).
+  The file may hold only that: scaffold then loads the fonts in every scene
+  and sets the captions in them, and the scenes stay yours to write.
+- Every other scene is built to that frame. Write it by hand too, or generate
+  it from `direction.json` ([07-direction](07-direction.md)) where the kit
+  reaches the same level; a generated scene that looks poorer than the key
+  frame is rewritten by hand (`"custom"`). `mvf next` asks for the key frame
+  before the other scenes.
+
+The same three beats were built both ways. The kit version, written as data
+without looking, was a small rig on a flat ground. The hand-written one had a
+night dock with a moon, lamps, a ship and planks, figures filling the frame,
+a counted "1-2-3" and a sound-effect burst. It also put captions across
+bodies and a figure over the caption at the punch, which the zones and the
+review are here to catch.
+
+A later video took a manuscript page beside a figure seen from behind as its
+key frame, and it held up. The scenes built after it had round heads a few
+pixels tall and a faceless silhouette for the lead, and a cold viewer scored
+the cut 6: "faceless silhouettes where reactions are the story".
+
+## Characters drawn in code
+- Code draws realistic people and animals badly, however long it takes.
+  Stylise them (simple shapes, a few clear features), or show them through
+  what they do and touch.
+- Design each character once and reuse the same drawing in every scene: one
+  colour nobody else wears, and a silhouette (height, build, hair) that
+  differs from the others as a shape, not only in colour. Heights keep one
+  ratio between shots.
+- Put the cast on one frame before any scene: each character from the angles
+  the video uses, with the expressions it needs. Read it at phone size and
+  fix the design there, not in the scenes.
+- A face needs about 120 px of figure height on a 1080 px-wide frame before
+  its expression reads. Smaller than that, use a silhouette or a back.
+- The person the story follows has a face, shown clearly the first time the
+  voice names them. A silhouette cannot react, so it is for a stranger, a
+  crowd or a threat, never for the one whose reaction is the beat.
+- A beat about how someone takes it is shot on that face: cut in until it
+  fills most of the frame's width and change the expression on the word. A
+  wide shot of small figures tells where people stand, not what they feel.
+- One feeling per beat, changed on its word. A crowd is a few varied figures
+  in front and silhouettes behind, never one design copied in a row.
+
 ## Art
 `07-video/art/art.json` is `{preset?, style, cutout_style?, engine, cast, jobs: [{id, use, prompt |
 image, canvas?, display?, ref?, cast?, transparent?, look?, style?}]}`.
@@ -94,8 +158,7 @@ image, canvas?, display?, ref?, cast?, transparent?, look?, style?}]}`.
   `style` beats both.
 - `preset` (`stickman`, `ink`, `anime`, from `tools/mvflib/styles.json`) fills
   `style` and `cutout_style` when the file leaves them empty. Without one, it
-  takes the campaign's `style` (campaign.json, `stickman` for a new campaign),
-  and `"none"` opts out. `stickman` and `ink` draw stickers as line art on white,
+  takes the campaign's `style` (campaign.json, `none` for a new campaign). `stickman` and `ink` draw stickers as line art on white,
   shown with `blend: multiply` (07 Direction), so they do not ask for
   `transparent`. An unknown preset FAILs (A0). An unknown `look` WARNs and is
   passed through.
@@ -147,9 +210,10 @@ Draw the plate first and look at its horizon and light before prompting the
 cut-outs. A cut-out lit from the other side, or seen from another height,
 reads as pasted on.
 
-Per style. A preset is a starting point, not a requirement, and no check
-asks for one:
-- **Stickman comic** (`preset: stickman`, the default). This is the look of
+Per style. No preset is the default: the look comes from the key frame, and
+a preset is a shortcut for a video that wants that look. No check asks for
+one:
+- **Stickman comic** (`preset: stickman`). This is the look of
   Vietnamese webcomic explainers:
   - a bold, even black outline on everything;
   - big chibi heads with an angular jaw and C ears;
@@ -160,10 +224,16 @@ asks for one:
   The characters are not art jobs. They are `rig` layers with `body: chibi`
   drawn in code (07 Direction), so every limb moves, the eyes blink and the
   mouth talks. Props and places are `svg` layers in the same ink and line, or
-  line-art stickers multiplied onto the paper. A plate can be a plain
-  `color: ground`. What makes it read as a comic:
-  - **Frame close.** Bust and waist shots carry the face. A full figure is for
-    a walk or a set-up.
+  line-art stickers multiplied onto the paper. Draw the place (a floor
+  line, a wall, a window, a prop or two): a plain `color: ground` plate is
+  for a beat that is only lettering. What makes it read as a comic:
+  - **Frame close.** The face carries the comic, and a chibi head is about
+    45% of the figure and as wide as it is tall. On 9:16 one figure fills the
+    width at `h` 0.6–0.7 and two at about 0.5, feet near `y` 0.92, so the
+    captions cross the body, not the face. Three do not fit side by side:
+    stage them in depth, or cut between them. A figure at `h` 0.3 is for a
+    walk or a set-up; a cut made only of those is small people in an empty
+    frame (D16 at scaffold, PX6 on the render).
   - **One loud trait per character.** That is the hair silhouette and its
     colour, then one costume colour or prop. Two characters in one frame never
     share a hair shape.

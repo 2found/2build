@@ -79,3 +79,25 @@ func TestSkillCommandIsRegistered(t *testing.T) {
 		t.Fatalf("skill command missing: cmd=%v err=%v", cmd, err)
 	}
 }
+
+func TestSkillOutcomeIsOneVocabulary(t *testing.T) {
+	for raw, want := range map[string]string{
+		"success": "success", "DONE": "success", "done": "success", "succeeded": "success",
+		"error": "error", "failed": "error", "abort": "abort", "aborted": "abort",
+		"BLOCKED": "blocked", "blocked": "blocked", "NEEDS_CONTEXT": "needs_context",
+		"DONE_WITH_CONCERNS": "done_with_concerns", "done-with-concerns": "done_with_concerns",
+		" unknown ": "unknown", "Something New": "something_new",
+	} {
+		if got := normalizeSkillOutcome(raw); got != want {
+			t.Errorf("normalizeSkillOutcome(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}
+
+// A test that builds its Env by hand must not reach the developer's telemetry.
+func TestTelemetryDefaultsToScratchUnderTest(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	if dir := filepath.Dir(skillUsagePath()); dir == filepath.Join(home, ".babysit", "analytics") || os.Getenv("BABYSIT_ANALYTICS_DIR") == "" {
+		t.Fatalf("tests write telemetry to %s", dir)
+	}
+}

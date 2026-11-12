@@ -79,6 +79,8 @@ A number or a comparison is a relation, and a relation can be shown. The line
 - **Vary the length.** Shots of 1, 3.5, 1.2 and 4 s feel alive; four shots of
   2 s tick like a metronome (V6). Short shots build tension, a long one lets
   something land.
+- **A fresh framing at every cut.** Change at least two of size, angle,
+  direction and speed; repeat a framing only on purpose, as a motif.
 - **Vary the move.** Two pushes in a row read as one long push (V5). Answer a
   push with a hold, a pan or a cut to a close-up.
 - **Tempo from the script.** A beat's `tempo` (`fast`, `breath`, `hold`) is the
@@ -86,6 +88,20 @@ A number or a comparison is a relation, and a relation can be shown. The line
   hold beat alone.
 - **Cut on the action** when a move carries across shots, and on the word
   when the line carries it.
+
+## Empty space
+A frame with room left over is a framing problem, not a decoration problem.
+- **The subject takes the room.** Bring it closer, make it larger or move it
+  into the gap (a punch-in, the object the line names drawn big, the next
+  thing the voice needs). Scenery added to cover the gap leaves the subject
+  as small as it was.
+- **A band that never changes is empty too.** One cut filled the lower 40% of
+  every frame with the same lantern pond for three minutes after its cold
+  viewer named the gap: the frame measured full and the viewer still had
+  nothing to look at there. A place earns its area by changing with the
+  story or by being where the action happens.
+- Room kept on purpose (a breath beat, a held key moment, space the captions
+  need) is a choice: say which.
 
 ## Key moments
 The 2–4 lines marked `key_moment` ([05-script](05-script.md#craft)) are the
@@ -109,6 +125,14 @@ others. The usual ones:
 - a stock handshake, a lightbulb or a rocket for "an idea" or "growth";
 - a scrolling wall of code or numbers;
 - text that types itself in for no reason.
+
+Generated design also drifts to the same few choices, and viewers now spot
+them: a purple-to-cyan gradient, warm cream with terracotta or indigo, slate
+navy, glass cards floating on a neutral ground, neon glow or bloom on
+everything, bouncy elastic easing on a serious subject, spotless flat
+surfaces, a camera that drifts for no reason, and Inter, Roboto, Montserrat,
+Poppins or Space Grotesk as the type. Any of them can be right when this
+video's idea asks for it; then say why.
 
 **The test: could this frame belong to another video?** Look at each frame of
 the contact sheet and ask it. If it could, replace it with something only this

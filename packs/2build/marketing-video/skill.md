@@ -35,11 +35,13 @@ another tool entirely, whenever the shortcut is not what the video needs. A
 check FAILs only on a standard, or on something that would break the render,
 the platform or the timing. Taste is WARN advice that you answer in writing.
 
-**The default look is the stickman comic.** It is set by `"style": "stickman"`
-in `campaign.json`: chibi characters drawn in code, a bold ink outline,
-hand-lettered labels and boxed captions on light paper
-([07 Production](references/07-production.md#layered-art-25d)). Pick another
-preset, or `"none"`, when the product or the audience calls for it.
+**There is no default look.** Design the picture for this video: the place,
+the characters, the lettering and the motion are yours, written as free HTML,
+SVG, CSS and GSAP, or made in any other tool. A new campaign names no style
+preset (`"style": "none"` in `campaign.json`). The presets (`stickman`, `ink`,
+`anime`), the code-drawn rig and `direction.json` are still there for a video
+that wants one, and nothing asks for them
+([07 Production](references/07-production.md#the-key-frame)).
 
 One campaign is one folder, `marketing/campaigns/<slug>/` by default. Each stage
 leaves one artifact on disk, so the work survives a crash and can be audited.
@@ -181,6 +183,18 @@ stopped.
 - **Draw what the audience already pictures.** If the product, character or
   world has a known look (an adaptation, a mascot, brand art), generated art
   follows it.
+- **Whoever made the cut cannot score it.** Three cuts their maker scored 7
+  of 10 had every character under a third of the frame height and more than
+  60% of the frame empty; the most-viewed videos on the same topics fill
+  theirs. The size on screen is measured (D16, PX6), and the score is the
+  cold viewer's, given beside frames of those videos
+  ([07-review](references/07-review.md)).
+- **Design one frame before building them all.** The same three beats were
+  built from `direction.json` and by hand: the generated scenes were a small
+  rig on a flat ground, the hand-written one a lit place with figures filling
+  the frame. Finish one scene by hand, compare a frame of it with the
+  most-viewed references (`mvf keyframe`), and hold every scene to it
+  ([07-production](references/07-production.md#the-key-frame)).
 - **Agent readers judge entertainment, not benefit.** Two scripts that every
   agent panel passed were rejected by the owner because they gave the viewer
   nothing to use. Ask readers what they would use, save or send, and make
@@ -226,8 +240,9 @@ inside a campaign.
   get a brief with only what their role may see, a budget of 15 tool calls,
   and a short reply; the details go to a file.
 
-The cold viewer, the prediction and overlap tests, the writing tells and the
-motion numbers adapt ideas from [cinecode](https://github.com/sarpstar/cinecode)
+The cold viewer and its fixes, the prediction and overlap tests, the writing
+tells, the motion numbers, the cast sheet and the generated-design tells adapt
+ideas from [cinecode](https://github.com/sarpstar/cinecode)
 (MIT); no code was copied. Hit-stop, snapped and stepped poses, after-images
 and the blow lessons in [craft](references/07-craft.md) adapt ideas from
 [pixelfx](https://github.com/patch-gg/pixelfx) (MIT); no code was copied.

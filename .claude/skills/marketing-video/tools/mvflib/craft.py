@@ -11,6 +11,8 @@ CTA_HOLD = 1.5        # seconds after the payoff line before the CTA voice start
 KEY_HOLD = 1.5        # a key line holds its picture this long after the last word
 KEY_RANGE = (2, 4)
 TEMPOS = {"fast", "breath", "hold"}
+TURN_LATE = 0.6       # a short whose turn starts past this share of the runtime keeps its best idea for the few who stay
+SHORT_S = 120.0
 
 # A dash glues two clauses the way generated copy does; a numeric range (3–5, 2010-2020) is fine.
 DASH = re.compile(r"—|–|--")
@@ -54,6 +56,7 @@ def check(script: dict, tl: dict, sid: str, refs: dict, r: Report, control: bool
         _keys(beats, tl, sid, r)
         _thesis(script, sp, sid, refs, r)
         _turn(sp, sid, r)
+        _turn_at(script, sp, tl, sid, r)
     _tells(script, sid, r)
     _length(script, tl, sid, r)
     _tempo(beats, sid, r)
@@ -117,6 +120,28 @@ def _turn(sp, sid, r: Report):
         r.warn("TN1", f"{sid}.spine", "the turn has no before/after: write `{\"before\": …, \"after\": …, \"kind\": "
                "reversal|reveal|transformation|threshold|mirror|contrast}` or \"Trước: … / Sau: …\", so what changes "
                "in the viewer's head is checkable")
+
+
+def _turn_at(script, sp, tl, sid, r: Report):
+    """Where the turn is heard. Most viewers of a short leave before half-way: a turn kept for the end is the idea
+    worth retelling, heard by the few who stayed. The beat is the one with role `turn`, else the first whose vo says
+    the turn's `after`."""
+    from .lint import _grams, _says
+    if not tl.get("duration") or tl["duration"] > SHORT_S:
+        return
+    beats = script["beats"]
+    t = sp.get("turn")
+    after = str(t.get("after", "")) if isinstance(t, dict) else ""
+    i = next((k for k, b in enumerate(beats) if b.get("role") == "turn"), None)
+    if i is None and after.strip():
+        i = next((k for k, b in enumerate(beats) if _says(after, _grams(b.get("vo") or ""))), None)
+    if i is None or i >= len(tl["beats"]):
+        return
+    at = tl["beats"][i]["start"]
+    if at > TURN_LATE * tl["duration"]:
+        r.warn("TN2", f"{sid}.{beats[i]['id']}", f"the turn is heard at {at:.0f}s of {tl['duration']:.0f}s "
+               f"({at / tl['duration']:.0%}): a viewer who leaves before it takes the set-up, not the idea they would "
+               "retell. Open on the turn and let the story prove it, or cut what stands in front of it")
 
 
 def _lines(script):

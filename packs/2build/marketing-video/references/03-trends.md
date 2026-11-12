@@ -33,6 +33,10 @@ re-observed or dropped.
 - For a long-form reference, the title and the thumbnail carry the hook.
 - **Read TikTok through the `browse` skill** (`../browse/skill.md`: headed
   agent-browser on cloakbrowser, logged out, its session export and cleanup).
+  **Always the same profile:** pass `--restore mvf-research` to every `open`
+  and `close`, on every site and in every campaign, so cookies, a passed
+  captcha and any login the owner made carry over instead of each run
+  arriving as a new visitor. Never sign in yourself.
   Checked 2026-11-08:
   - These pages list `/video/` links with their caption and creator:
     - `/search?q=<words>` (the Top tab; results drift off topic);

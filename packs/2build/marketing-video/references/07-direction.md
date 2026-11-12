@@ -3,7 +3,9 @@
 Output: `07-video/<sid>/direction.json`, the shots and effects of one script as
 data. It is one way to build scenes, not a style guide: the look, the shot
 choice and the pacing are yours. Skip it and author `compositions/<beat>.html`
-by hand (SCENE_GUIDE.md), or use another editor entirely.
+by hand (SCENE_GUIDE.md), or use another editor entirely. Write it after
+[the key frame](07-production.md#the-key-frame), for the scenes it can bring
+to that level.
 
 When the file exists, `mvf scaffold` resolves every anchor against the measured
 voice and writes each directed beat as a generated scene (`data-mvf="generated"`,
@@ -22,7 +24,7 @@ you may overrule.
 ```json
 { "storyline": "the picked idea in one line",
   "look": { "colors": {"ground": "#…", "ink": "#…", "accent": "#…", "hot": "#…", "on_plate": "#…"},
-            "fonts": {"display": "…", "body": "…", "caption": "…", "files": {"…": "brand/fonts/….ttf"}},
+            "fonts": {"display": "…", "body": "…", "caption": {"family": "…", "file": "brand/fonts/….ttf"}},
             "grade": {"grain": 0.0, "vignette": 0.0}, "letterbox": false, "slam_case": "none",
             "chip": {"text": "series or product card", "sub": "", "until": "B02@end"} },
   "captions": {"style": "stroke|shadow|box|comic", "words": 3, "weight": 850, "size": null, "y": null,
@@ -46,7 +48,8 @@ write themselves:
 - its rig's body, ink, line and boil.
 
 A direction that names no preset takes the campaign's `style` (campaign.json,
-`stickman` for a new campaign). `"preset": "none"` opts out.
+`none` for a new campaign, so the look is what you write). `"preset": "none"`
+opts out of a campaign's preset.
 - `captions.css` appends your own rules to the generated captions.
 - `captions.custom: true` keeps a hand-authored `compositions/captions.html`
   instead of regenerating it, so retiming it is then yours.
@@ -166,7 +169,7 @@ sheet's (a knife in the hand for one shot).
 
 | Key | Values |
 | --- | --- |
-| `body` | `chibi` (the `stickman` default: an angular jaw head about 45% of the figure, C ears, sleeved T-shirt, single-line arms with round hands in front of the body, a lower face with thick brows and red open mouths, eyes that blink), `doodle` (square head, shirt, mitten hands) or `stick` (round head, bare lines). `dims` overrides any length (`thigh`, `shin`, `torso`, `neck`, `head_r`, `upper`, `fore`, `shoulder`, `hand`, `foot`, `shirt: [shoulder, hem]` half-widths) and any trait: `head` (`round`, `square`, `jaw` or a raw path `d` in the head frame), `ears`, `sleeve` (length), `face_y` (how low the face sits), `blink`, `arms_front`, `stand` (rest arm joints) |
+| `body` | `chibi` (the `stickman` preset's body: an angular jaw head about 45% of the figure, C ears, sleeved T-shirt, single-line arms with round hands in front of the body, a lower face with thick brows and red open mouths, eyes that blink), `doodle` (square head, shirt, mitten hands) or `stick` (round head, bare lines). `dims` overrides any length (`thigh`, `shin`, `torso`, `neck`, `head_r`, `upper`, `fore`, `shoulder`, `hand`, `foot`, `shirt: [shoulder, hem]` half-widths) and any trait: `head` (`round`, `square`, `jaw` or a raw path `d` in the head frame), `ears`, `sleeve` (length), `face_y` (how low the face sits), `blink`, `arms_front`, `stand` (rest arm joints) |
 | `view` | `front` (default) or `side` (the face turns, the shirt narrows, the near arm comes in front) |
 | `hair` | `spiky`, `crop`, `messy`, `bun`, `long`, or `{style, color}`: a hair silhouette in front and side views (`long` falls behind the shirt). Raw hair is `parts` on `head` |
 | `skin`, `shirt`, `pants`, `sleeves`, `hands`, `shoes`, `arms`, `blush` | fill and line colours; `arms` colours a sleeved arm's line, `blush` draws cheeks in that colour |
@@ -284,6 +287,9 @@ the hold after it ([07-craft](07-craft.md#key-moments)).
     a beat's `captions_y` (a frame share) moves that beat's captions.
   - D15: a rig with a `cast` that is not in `art.json`, or that has no drawn
     parts.
+  - D16: fewer than a quarter of the shots with a rig show it at 45% of the
+    frame height or more, punch-ins and scale moves counted
+    ([sizes](07-production.md#layered-art-25d)).
   - Text outside the platform safe area.
 
 The checks catch a static or broken edit, not a weak one. Look at the draft

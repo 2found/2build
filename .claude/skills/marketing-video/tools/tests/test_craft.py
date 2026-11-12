@@ -110,6 +110,19 @@ class Turn(unittest.TestCase):
             self.assertNotIn("TN1", codes(lint(script(spine={**sp, "turn": turn}), CAMPAIGN, REFS), "WARN"))
         self.assertIn("TN1", codes(lint(script(spine={**sp, "turn": {"before": "x"}}), CAMPAIGN, REFS), "WARN"))
 
+    def test_a_turn_kept_for_the_end_warns(self):
+        bs = beats4()
+        bs[2]["role"] = "turn"
+        bs[1]["vo"] = "Watch this filter sort it, slowly, one sender and one folder after another, for a long while."
+        self.assertEqual(where(lint(script(beats=bs), CAMPAIGN, REFS), "TN2"), ["s01-test.B03"])
+        bs = beats4()
+        bs[1]["role"] = "turn"
+        self.assertEqual(where(lint(script(beats=bs), CAMPAIGN, REFS), "TN2"), [])
+        sp = {**script()["spine"], "turn": {"before": "the inbox is honest", "after": "one filter shows the mail it hides"}}
+        bs = beats4()
+        bs[1]["vo"] = "Watch this filter sort it, slowly, one sender and one folder after another, for a long while."
+        self.assertEqual(where(lint(script(beats=bs, spine=sp), CAMPAIGN, REFS), "TN2"), ["s01-test.B03"])
+
 
 class Tells(unittest.TestCase):
     def lint_vo(self, vo, k="vo"):

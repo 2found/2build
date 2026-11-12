@@ -10,7 +10,7 @@
   "languages": ["en"],
   "platforms": ["tiktok", "x"],
   "voice_engine": null,
-  "style": "stickman",
+  "style": "none",
   "brand": {
     "names": ["{{PRODUCT}}"],
     "say": {},

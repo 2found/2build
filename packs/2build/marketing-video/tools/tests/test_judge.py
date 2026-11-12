@@ -149,6 +149,38 @@ class Judge(unittest.TestCase):
         for i in range(12):
             self.assertIn(f'"{(f"line {i} " * 8).strip()}"', text)
 
+    def test_a_long_cut_is_split_into_consecutive_parts_with_every_voice_line(self):
+        # a 3-minute Vietnamese cut measured 5268 characters: one stimulus refused it and nothing was judged
+        rows = [(i * 4.0, i * 4.0 + 4, "một hình " * 6, "", (f"câu {i} " * 22).strip()) for i in range(45)]
+        self.assertEqual(len(judge.split(rows[:5], 20.0, "measured", "cap", "tiktok", True)), 1)  # a short cut: as before
+        parts = judge.split(rows, 180.0, "measured", "cap", "tiktok", True)
+        self.assertGreater(len(parts), 1)
+        self.assertEqual((parts[0][1][0], parts[-1][1][1]), (0.0, 180.0))
+        for (a, _), (b, _) in zip(parts, parts[1:]):
+            self.assertLessEqual(len(a), judge.STIMULUS_CHARS)
+        self.assertEqual([p[1][0] for p in parts[1:]], [p[1][1] for p in parts[:-1]])  # no gap, no overlap
+        joined = "\n".join(p[0] for p in parts)
+        for i in range(45):
+            self.assertEqual(joined.count(f'"{(f"câu {i} " * 22).strip()}"'), 1)
+        self.assertIn(f"PHẦN 2/{len(parts)} của CÙNG MỘT video", parts[1][0])
+        self.assertEqual(joined.count("Caption:"), 1)
+        with self.assertRaises(SystemExit):
+            judge.split(rows * 4, 720.0, "measured", "", "tiktok", True)
+
+    def test_parts_are_read_back_as_one_cut(self):
+        key = {"a": {"id": "s/H1", "kind": "candidate", "part": 1, "span": [0, 60]},
+               "b": {"id": "s/H1", "kind": "candidate", "part": 2, "span": [60, 180]}}
+        base = {"id": "s/H1", "kind": "candidate", "n": 24, "intent_top2": 40, "share_rate": 0.2, "sentiment": 0.1,
+                "preference_pct": None, "no_use": 0, "objections": [["slow", 2]]}
+        per = {"a": {**base, "attention": 4.0, "watch_through": 90, "clarity_top2": 80, "ad_feel": 1, "unclear": ["unclear-co"],
+                     "expert_blocking": []},
+               "b": {**base, "attention": 3.0, "watch_through": 30, "clarity_top2": 55, "ad_feel": 2, "unclear": [],
+                     "expert_blocking": ["P1: the CTA is buried"]}}
+        s = judge.whole(per, key)
+        self.assertEqual((s["attention"], s["watch_through"], s["clarity_top2"], s["ad_feel"]), (4.0, 50.0, 55, 3))
+        self.assertEqual(s["expert_blocking"], ["60–180s P1: the CTA is buried"])
+        self.assertEqual(s["unclear"], ["unclear-co"])
+
     def test_a_brief_over_sots_byte_limit_shortens_pictures_not_voice(self):
         # Vietnamese letters are 2-3 bytes: four 3000-character stimuli passed the character cap and Soot refused it
         build = lambda chars: "ữ" * (chars * 2) + " GIỌNG: kept"
@@ -233,6 +265,26 @@ class Judge(unittest.TestCase):
         rep = Report()
         judge.check_video_judge(proj, rep)
         self.assertNotIn("WARN", [i["level"] for i in rep.items])
+
+    def test_a_cut_longer_than_one_stimulus_is_briefed_as_parts_of_one_video(self):
+        self.setup_judge()
+        sp = self.cd / "05-scripts/s01-a.json"
+        s = json.loads(sp.read_text())
+        for i, beat in enumerate(s["beats"]):
+            beat["vo"] = " ".join(f"word{i}x{k}" for k in range(4200 // 9 // len(s["beats"]) + 1))
+        sp.write_text(json.dumps(s))
+        mvf(self.cd, "scaffold", "s01-a.json", "--take", "none")
+        proj = self.cd / "07-video/s01-a/9x16"
+        out = judge.judge_video(self.cd, proj, "v2", "quick", "tiktok", True)
+        key = json.loads((out / "key.json").read_text())["stimuli"]
+        self.assertGreater(len(key), 1)
+        self.assertEqual([m["part"] for m in key.values()], list(range(1, len(key) + 1)))
+        self.assertEqual(key["a"]["span"][1], key["b"]["span"][0])
+        text = (out / "brief.txt").read_text()
+        self.assertIn(f"ONE video in {len(key)} consecutive parts", text)
+        self.assertNotIn("**Variants**", text)
+        for beat in s["beats"]:
+            self.assertIn(beat["vo"], text)
 
     def test_more_than_four_videos_is_refused(self):
         self.setup_judge()

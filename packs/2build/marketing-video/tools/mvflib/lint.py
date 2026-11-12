@@ -623,7 +623,7 @@ def _copy(script, p, sid, angle, refs, r: Report):
         r.fail("C3", where, f"claim {claim.group(0)!r} in the post copy needs facts: [F…] or material: […] on platforms.{p}")
     if brand and not sid.startswith("ctl") and not brand.search(copy):
         r.warn("AD1", where, f"the post copy never names {refs['brand_names'][0]}: a post that sells says who made it "
-               "before it asks anything (open the caption with it, and turn on the platform's branded-content label); "
+               "before it asks anything (name it in the caption, after its first line, and turn on the platform's branded-content label); "
                "a viewer who finds out later reads it as seeding")
     for fid in c.get("facts") or []:
         if fid not in refs.get("facts", set()):

@@ -18,7 +18,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from .common import dump, load, today
-from .trendref import frames as frames_of
+from .trendref import frames as frames_of, ytdlp
 
 TOP = "03-research/top"
 
@@ -36,8 +36,7 @@ def on_topic(title: str, query: str) -> bool:
 
 
 def search(query: str, n: int, max_min: float) -> list[dict]:
-    r = subprocess.run(["yt-dlp", "--no-warnings", "--flat-playlist", "-J", f"ytsearch{max(n * 4, 20)}:{query}"],
-                       capture_output=True, text=True)
+    r = ytdlp(["--no-warnings", "--flat-playlist", "-J", f"ytsearch{max(n * 4, 20)}:{query}"])
     if r.returncode:
         raise SystemExit(f"yt-dlp search failed: {r.stderr.strip()[-400:]}")
     hits = [e for e in json.loads(r.stdout).get("entries") or [] if e.get("view_count")]
@@ -118,10 +117,10 @@ def transcribe(url: str, seconds: float, langs: list[str]) -> tuple[dict, str, s
     meta, errs = None, []
     for want in dict.fromkeys([tuple(dict.fromkeys(langs)), ("en",)]):
         with tempfile.TemporaryDirectory() as d:  # downloaded data stays in its own empty dir
-            r = subprocess.run(["yt-dlp", "-i", "--skip-download", "--write-auto-subs", "--write-subs",
-                                "--sub-langs", ",".join(x for lang in want for x in (lang, f"{lang}-orig")),
-                                "--sub-format", "vtt", "--sleep-subtitles", "1", "--retries", "3",
-                                "--write-info-json", "-o", f"{d}/v", url], capture_output=True, text=True)
+            r = ytdlp(["-i", "--skip-download", "--write-auto-subs", "--write-subs",
+                       "--sub-langs", ",".join(x for lang in want for x in (lang, f"{lang}-orig")),
+                       "--sub-format", "vtt", "--sleep-subtitles", "1", "--retries", "3",
+                       "--write-info-json", "-o", f"{d}/v", url], 180)
             info = Path(d, "v.info.json")
             if not info.is_file():
                 raise RuntimeError(f"yt-dlp could not read {url}: {r.stderr.strip()[-300:]}")

@@ -52,6 +52,13 @@ note `Confirmed: <who>, <UTC time>` at the top, and move on; a spec the human
 corrects goes round once more, not mid-run. Under `--auto` ask nothing but a
 User Challenge; the spec and its assumptions go to the design review instead.
 
+A requirement **an agent drafted** (a Soot `company-loop` draft, another
+agent's ticket) is the exception: a person confirms its spec once even under
+`--auto`, its after-release criteria are rewritten into checkable ones, and
+its effort estimate bounds the design — all three per
+[agent-drafted requirements](../references/agent-drafted-requirements.md).
+Dispatch no design worker before that confirmation.
+
 The spec is also the yardstick for touchpoint 2: handover feedback inside it
 is a fix the team owes, feedback beyond it is a change request.
 
@@ -92,6 +99,10 @@ alternatives weighed for the one-way decisions, then the architecture and
 briefs for whoever wants them. Ask them to mark any phase
 they want released mid-run as `auto`; the default is one release, at the
 handover ([phases](phases.md#the-phase-plan)).
+
+A design larger than an agent-drafted requirement's appetite goes to the
+requester even under `--auto`
+([rule 3](../references/agent-drafted-requirements.md#3-the-requesters-effort-estimate-is-the-appetite)).
 
 Only explicit `--auto` delegates this review; persist that choice across
 resumes. Under `--auto`, the lead reviews the same artifacts itself and

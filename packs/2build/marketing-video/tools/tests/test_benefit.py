@@ -148,6 +148,16 @@ class Transcript(unittest.TestCase):
         self.assertIn("comment-level-1", todo[1])
         self.assertEqual(agent_todo({"transcript": "top/x.txt"}, "https://youtu.be/x", "youtube", None), [])
 
+    def test_a_site_that_never_answers_is_skipped_not_waited_on(self):
+        import subprocess
+        from mvflib import trendref
+        hang = subprocess.TimeoutExpired(["yt-dlp"], 180)
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(trendref.subprocess, "run", side_effect=hang), \
+                redirect_stdout(io.StringIO()) as out:
+            rows = topvideos.study(Path(d), [], ["https://www.bilibili.com/video/BV1"], 6, 300, "topic")
+        self.assertEqual(rows, [])
+        self.assertIn("1 could not be read", out.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

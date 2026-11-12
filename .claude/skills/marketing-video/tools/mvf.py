@@ -955,6 +955,17 @@ def cmd_viewer(a):
           f"{proj / 'review' / f'viewer-v{n}.md'}. Record each red item in review.json, fix, re-export.")
 
 
+def cmd_keyframe(a):
+    from mvflib import viewer
+    cd = campaign_dir(a)
+    proj = proj_path(cd, a.proj)
+    out, notes = viewer.keyframe(cd, proj, a.at)
+    refs = f"this video's frame on top, the most-viewed references under it ({'; '.join(notes)})" if notes else \
+        "no reference video was downloaded (03-research/top/<id>/video.mp4), so the frame stands alone"
+    print(f"{out}\n{refs}. Look at it: is the place drawn, is the subject large, does the lettering read at phone size? "
+          "Rework the frame until it holds up beside them, then build every scene to it.")
+
+
 def persons(cd: Path) -> list[str]:
     """Names of the real people in the material pack: an art prompt never names them."""
     return [it.get("title", "") for it in material.load_pack(cd)["items"].values() if it.get("kind") == "person"]
@@ -1215,6 +1226,10 @@ def main():
     p = sub.add_parser("viewer", help="brief for a fresh helper who sees only the cut (1 fps frames + the voice)")
     p.add_argument("proj")
     p.set_defaults(fn=cmd_viewer)
+    p = sub.add_parser("keyframe", help="one finished frame beside the most-viewed references: settle the look before every scene")
+    p.add_argument("proj")
+    p.add_argument("--at", type=float, required=True, help="the second of the frame (absolute, STORYBOARD.md)")
+    p.set_defaults(fn=cmd_keyframe)
     p = sub.add_parser("doctor", help="is this machine ready: HyperFrames, OmniVoice, Qwen+RMBG, Micro Fish")
     p.add_argument("--json", action="store_true")
     p.add_argument("--quick", action="store_true", help="skip verifying the image weights")

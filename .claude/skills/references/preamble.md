@@ -115,7 +115,8 @@ prerequisites belong to workflows.
 bbs skill exit --invocation <SESSION_ID> --outcome <outcome>
 ```
 Run after success, error or abort. Outcomes: `success`, `error`, `abort`,
-`unknown`. Exit correlates the event, computes duration and removes only its
+`blocked`, `needs_context`, `done_with_concerns`, `unknown`; the CLI
+lower-cases what it gets and records `done`/`succeeded` as `success`. Exit correlates the event, computes duration and removes only its
 invocation marker. Session records remain available for recovery.
 
 ## Completion Status Protocol

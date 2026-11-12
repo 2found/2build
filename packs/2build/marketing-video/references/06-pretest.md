@@ -103,7 +103,10 @@ ties, the panel could not tell the scripts apart: rewrite from the research,
 not the hook.
 
 **Judge the cut.** `mvf judge video <proj>` (its round defaults to `v1`) gives the cut the same panel. One
-stimulus is built from the timeline and what review saw. It finds where
+stimulus is built from the timeline and what review saw. A cut longer than one
+stimulus holds (3000 characters, about 90 s of voice) is split by itself into
+up to four consecutive parts of the one video; `judge.json` `summary` is the
+whole cut and `parts` shows where in it people left. It finds where
 people leave, whether the hook carries muted, and whether they can still
 retell it. Export WARNs (JV1) when a delivered cut was never judged.
 

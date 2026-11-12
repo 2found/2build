@@ -145,10 +145,16 @@ class Owner(unittest.TestCase):
         c = json.loads((self.cd / "campaign.json").read_text())
         c["budget"] = {"scripts": 1}
         (self.cd / "campaign.json").write_text(json.dumps(c))
+        (proj / "compositions").mkdir()
+        (proj / "compositions/B01.html").write_text('<div data-mvf="placeholder"></div>')
+        self.assertEqual(self.nxt()["run"], "mvf keyframe s01-test/9x16 --at <second>")  # one finished frame first
+        (proj / "review").mkdir()
+        (proj / "review/keyframe.jpg").write_text("x")
+        self.assertIn("to the key frame's level", self.nxt()["what"])
+        (proj / "compositions/B01.html").write_text("<div></div>")
         with mock.patch.object(judge, "choice", return_value=None):
             x = self.nxt()
             self.assertEqual(x["run"], "mvf viewer s01-test/9x16")
-            (proj / "review").mkdir()
             (proj / "review/viewer-v1.md").write_text("Verdict: APPROVE\n")
             self.assertEqual(self.nxt()["run"], "mvf export s01-test/9x16")
             out = self.cd / "08-delivery/s01-test/9x16"

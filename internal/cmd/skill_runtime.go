@@ -103,6 +103,7 @@ func skillExit(args []string) {
 	}
 	name, started := findSkillStart(id)
 	rec := currentSkillRuntimeRecord(name)
+	outcome = normalizeSkillOutcome(outcome)
 	rec.Event, rec.InvocationID, rec.Session, rec.Outcome = "end", id, id, outcome
 	inputText, outputText := argValue(args, "--input-tokens"), argValue(args, "--output-tokens")
 	if inputText != "" || outputText != "" {
@@ -132,6 +133,23 @@ func skillExit(args []string) {
 		"invocation_id": id, "outcome": outcome, "duration_s": rec.DurationS,
 		"provider_usage": rec.Usage, "telemetry": telemetryMode(),
 	})
+}
+
+// normalizeSkillOutcome folds the spellings skills pass to `bbs skill exit`
+// (success, DONE, done, succeeded, BLOCKED, blocked, ...) into one lower-case
+// vocabulary, so a success rate can be computed from the log. An outcome it
+// does not know is kept, lower-cased: a telemetry row is never refused.
+func normalizeSkillOutcome(raw string) string {
+	s := strings.NewReplacer("-", "_", " ", "_").Replace(strings.ToLower(strings.TrimSpace(raw)))
+	switch s {
+	case "success", "succeeded", "done":
+		return "success"
+	case "error", "failed":
+		return "error"
+	case "abort", "aborted":
+		return "abort"
+	}
+	return s
 }
 
 func currentSkillRuntimeRecord(name string) skillRuntimeRecord {

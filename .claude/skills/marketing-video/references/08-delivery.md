@@ -81,11 +81,16 @@ reference, Meta's Reels publishing guide, LinkedIn Help a548372 and a1311816.
   - PX4: one frame differs from both neighbours: a flash frame.
   - PX5: a beat more than 3 dB louder or quieter than the median beat, or more
     than 3 dB more 2–5 kHz energy (harsh on phone speakers).
+  - PX6: 60% or more of the frame is one flat colour through most of the
+    video (the median of one frame a second), naming the beats at 75% or
+    more: the subject is small in an empty frame. 13 of the 14 most-viewed
+    references of two campaigns measured 7–49%; three cuts with every figure under a
+    third of the frame height measured 61–81%.
   The caption rows are masked: captions change on every word and are not action.
 - **The cold viewer** (WARN): VW1 when no `review/viewer-vN.md` has a verdict,
   or the latest is `UNVERIFIABLE`; VW2 when a `FIX` verdict names red items
   that `review.json` has no issue for within 1.5 s; RV2 when `review.json` has
-  no `score` ([07-review](07-review.md#cold-viewer)).
+  no `score`, or one above the viewer's ([07-review](07-review.md#cold-viewer)).
 
 ## AI labels
 `delivery.json` carries `ai_disclosure`, and export notes it per platform.

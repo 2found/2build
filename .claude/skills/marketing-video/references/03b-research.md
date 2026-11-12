@@ -56,6 +56,14 @@ to handle people who look down on you" draw millions, by using a historical or
 fictional figure as the authority while the viewer stays the subject. A budgeting app's best reference may be a money-advice creator, not
 another app demo. A campaign that reads only its own topic writes a fan recap.
 
+Look past the campaign's own market too. The most-viewed videos on a subject
+are often where it comes from or where its genre is biggest: Douyin
+(douyin.com, China's TikTok) and Bilibili for a Chinese novel, drama or game, Japan for anime and manga, the US
+and Europe for software and most global formats. Read those where the genre
+and the content call for it, note each video's market, and adapt what works
+for the campaign's viewer; a move that depends on that market's habits or
+language does not carry over. Name a market you could not reach.
+
 ### Reach
 Write each premise once in the words of someone who has never heard of the
 topic: no title, no hero's or product name, no jargon. If it still makes them

@@ -117,6 +117,11 @@ or a Team lead decides whether to open a ticket for it.
    place. When seeding `requirement.md`
    from free text, list open decisions explicitly instead of papering over
    them ([finding-unknowns](../shared/finding-unknowns.md)).
+   A requirement an agent drafted (a Soot draft, another agent's ticket) is
+   confirmed by a person once before step 4, `--auto` included, with its
+   after-release criteria rewritten and its effort estimate as the plan's
+   size bound: follow
+   [agent-drafted requirements](../shared/agent-drafted-requirements.md).
    Before edits, record the starting HEAD, integration base, and pre-existing
    working changes in the checkpoint/handoff. Preserve that baseline on resume
    so the ticket's own changes stay distinguishable from what was already
@@ -267,8 +272,10 @@ into the harness's native task list at loop entry — rebuilt from checkpoint
 add their finer tasks to the same list. The task list is the visible progress
 view, disk stays the brain. End every pass with the status block below.
 Outside a Team dispatch, mark the rung others plan by: `bbs ticket
-set-status in_progress` at loop entry and `in_review` with the `DONE`
-handoff (the human or `create-pr` closes it). Under a Team dispatch leave
+set-status in_progress` at loop entry, `in_review` with the `DONE`
+handoff (the human or `create-pr` closes it) and `blocked` with a terminal
+`BLOCKED`, so a caller that only reads the ticket (Soot's company loop) sees
+a run that stopped. Under a Team dispatch leave
 status alone — the lead owns its children's lifecycle, and a stale
 `in_progress` would read as a live worker and stop a follow-up dispatch.
 

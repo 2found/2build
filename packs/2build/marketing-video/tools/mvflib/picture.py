@@ -21,6 +21,7 @@ REPEAT_GAP_S = 6.0
 REPEAT_DIFF = 2.5        # beat middles this alike (0-255 grey, normalised) are the same picture
 POP_JUMP, POP_BACK = 25.0, 6.0
 LOUD_LU, HARSH_DB = 3.0, 3.0
+FLAT_VIDEO, FLAT_BEAT = 0.6, 0.75  # share of the frame in one flat colour: the video's median, one beat's mean
 SR = 24000
 
 
@@ -47,6 +48,18 @@ def audio(path: Path) -> np.ndarray:
     raw = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(path), "-f", "f32le", "-ac", "1",
                           "-ar", str(SR), "-"], capture_output=True, check=True).stdout
     return np.frombuffer(raw, dtype=np.float32).astype(np.float64)
+
+
+def flat_shares(path: Path, fps: float = 1.0) -> np.ndarray:
+    """Per sampled frame, the share of it that is one flat colour (the commonest of 4096 colour bins): how much
+    of the frame is empty ground. 13 of 14 most-viewed references of two campaigns measured a median of 0.07-0.49; three
+    cuts whose figures stood under a third of the frame height measured 0.61-0.81 (2026-11-11)."""
+    w, h = 54, 96
+    raw = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(path), "-vf", f"fps={fps},scale={w}:{h}",
+                          "-pix_fmt", "rgb24", "-f", "rawvideo", "-"], capture_output=True, check=True).stdout
+    q = (np.frombuffer(raw, dtype=np.uint8).reshape(-1, h * w, 3) >> 4).astype(np.int32)
+    keys = (q[..., 0] << 8) | (q[..., 1] << 4) | q[..., 2]
+    return np.array([np.bincount(k, minlength=4096).max() / k.size for k in keys])
 
 
 def _diff(a, b) -> float:
@@ -125,10 +138,11 @@ def check(path: Path, tl: dict, cap_band: tuple[float, float] | None = None) -> 
             act[b["id"]] = float(np.mean([_residual(fr[i], fr[j], mask) for i, j in pairs]))
     if len(act) >= 2:
         med = float(np.median(list(act.values())))
-        still = [f"{bid} {v:.2f}%" for bid, v in act.items() if v < max(ACTION_FLOOR, ACTION_SHARE * med)]
+        bar = max(ACTION_FLOOR, ACTION_SHARE * med)
+        still = [f"{bid} {v:.2f}%" for bid, v in act.items() if v < bar]
         if still:  # one line for the video: answer it once in warn_notes, or fix the beats it names
-            r.warn("PX2", where, f"only the camera moves in {', '.join(still)} of the frame acting (video median "
-                   f"{med:.2f}%): give the subject one action on a word (a turn, a gesture, a prop), or a device that lands")
+            r.warn("PX2", where, f"only the camera moves in {', '.join(still)} of the frame acting (under {bar:.2f}%, "
+                   f"set by the video median {med:.2f}%, so it rises as the other beats gain action): give the subject one action on a word (a turn, a gesture, a prop), or a device that lands")
 
     # PX3: a picture comes back
     mids = [(b["id"], (b["start"] + b["end"]) / 2) for b in tl.get("beats") or []]
@@ -150,6 +164,23 @@ def check(path: Path, tl: dict, cap_band: tuple[float, float] | None = None) -> 
     for i in pops[:5]:
         r.warn("PX4", where, f"one frame at {t(i):.2f}s differs from both neighbours: a flash frame from a scene edge or a "
                "missing asset; scrub it")
+
+    # PX6: how much of the frame is empty ground
+    try:
+        fl = flat_shares(path)
+    except (subprocess.CalledProcessError, OSError, ValueError):
+        fl = np.zeros(0)
+    if len(fl) >= 3 and float(np.median(fl)) >= FLAT_VIDEO:
+        worst = []
+        for b in tl.get("beats") or []:
+            seg = fl[int(b["start"]):max(int(b["start"]) + 1, int(np.ceil(b["end"])))]
+            if len(seg) and float(seg.mean()) >= FLAT_BEAT:
+                worst.append(f"{b['id']} {seg.mean():.0%}")
+        r.warn("PX6", where, f"{np.median(fl):.0%} of the frame is one flat colour through most of the video"
+               + (f" ({', '.join(worst[:8])})" if worst else "") + ": the subject is small in an empty frame, and at phone "
+               "size the faces and the action do not read. Give the room to the subject: frame closer (a bust or waist "
+               "shot, a punch-in to the thing the line names) or draw it larger. Decoration added over the gap leaves "
+               "the subject as small as it was")
 
     # PX5: per-beat loudness and 2-5 kHz harshness
     try:
@@ -177,5 +208,6 @@ def check(path: Path, tl: dict, cap_band: tuple[float, float] | None = None) -> 
                 r.warn("PX5", f"{where}.{bid}", f"{harsh - mh:+.1f} dB more 2–5 kHz than the other beats: harsh on phone "
                        "speakers; soften the cue or the sibilance")
     r.info("PX0", where, f"picture checks on {n} frames at {fps:.0f} fps"
+           + (f", flat ground {np.median(fl):.0%}" if len(fl) else "")
            + (f", action per beat {', '.join(f'{k} {v:.1f}' for k, v in act.items())}" if act else ""))
     return r
