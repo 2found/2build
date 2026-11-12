@@ -1,4 +1,36 @@
 # Changelog
+## 1.129.0 — 2026-11-12
+
+### Added
+
+- `bbs` help now scopes to the subcommand you mistyped (`usage_for`):
+  `bbs autopilot <bad>`, `bbs team task <bad>` and `bbs ticket <bad>` print
+  that command's usage instead of the top-level wall.
+- New autopilot reference `references/team-assignment.md`: the contract a
+  Team Dispatch assigns — plan → approval → implement → verification in one
+  session, `XS`/`S` sizing shortcuts, resume and follow-up recovery.
+- New shared reference `references/agent-operable.md`: defines when a
+  release changed an agent-operable surface (action, status, public fact,
+  API) and the tools/knowledge/eval handover bar for Soot.
+
+### Changed
+
+- `humanizer-vi` restructured: the skill body keeps invocation and staging;
+  pattern details moved to `references/format-leftovers-and-reader.md`,
+  `references/rhythm-and-inflation.md` and
+  `references/staging-and-translationese.md` so the prompt stays small.
+- `team` handover condensed into `references/delivery.md`; plan-approval
+  points at the project-contract design checkpoint; ticket, phases,
+  kickoff, execution, model-routing and product-review references updated
+  for the team-assignment and agent-operable contracts.
+- `autopilot` SKILL trimmed to its mode router; `release` SKILL gains the
+  operating handover stage (never blocks; gaps are concerns); `qa`,
+  `ui-audit`, `design-ui`, `implement`, `plan-draft` and `marketing-video`
+  get the agent-operable / assignment hooks and small fixes
+  (`marketing-video` flow and material handling).
+- Pack `packs/2build` mirrors all of the above (25 skills; shared
+  `agent-operable.md` added).
+
 ## 1.128.0 — 2026-11-10
 
 ### Added
