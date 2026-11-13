@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# autopilot runs every step in the session it was launched in — planning
-# included. Task/phase routing selects the lead's launches; Autopilot executes
-# in the human-opened or the lead-opened session without model selection.
+# autopilot judges both gates in the session it was launched in and hands
+# only its named subagent steps to a subagent. Task/phase routing selects the
+# lead's launches; Autopilot selects no model beyond design-ui's pinned one.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -26,9 +26,21 @@ forbid() {
   fi
 }
 
-# --- autopilot: planning and both gates are in-session ----------------------
-require '### Planning runs in this session' "$SKILL"
-require 'executes in the current autopilot session, on' "$SKILL"
+# --- autopilot: subagent steps; both gates stay in-session ------------------
+require '### Subagent steps (`design-ui`, `plan-draft`, `investigate`, `perf-audit`, `implement`)' "$SKILL"
+require '**`implement`: one subagent per plan milestone**' "$SKILL"
+require 'coded in this session. An `implement` subagent never invokes `design-ui`:' "$SKILL"
+require 'first milestone the checkpoint does not record as accepted' "$SKILL"
+require 'run in this session that needs `design-ui` dispatches it the same way' "$SKILL"
+require 'is called with the session'"'"'s own model alias' "$SKILL"
+require 'SKILL.md § Subagent steps applies in' "$TEAM_ASSIGNMENT"
+require 'plan one subagent per milestone (SKILL.md § Subagent steps)' "$WORKFLOWS/builder.md"
+require '**`design-ui` always runs in a subagent**' "$SKILL"
+require 'Claude Code: `model: "opus"`,' "$SKILL"
+require '`effort: "high"`' "$SKILL"
+require '`Make it really good, use lots of tokens and iterate till you'"'"'re proud of it.`' "$SKILL"
+require 'never from inside a `plan-draft` subagent' "$SKILL"
+require '**`plan-draft`, `investigate` and `perf-audit`: decide per run.**' "$SKILL"
 require 'There is no `--planner` flag and no per-step model' "$SKILL"
 require '### Current-session gates (`review-pr`, `qa`)' "$SKILL"
 require 'Both gates are judged in this session, on the session'"'"'s model' "$SKILL"
@@ -36,7 +48,7 @@ require 'Judge QA here; execute it in one cheaper subagent.' "$SKILL"
 require 'Executor mode' "$SKILL"
 require '## Executor mode' "$ROOT/.claude/skills/qa/SKILL.md"
 require 'Edit no code, run no git' "$ROOT/.claude/skills/qa/SKILL.md"
-require 'step is ever dispatched to a child, a second session, or an external process' "$SKILL"
+require 'gate is ever dispatched to a child, a second session, or an external process' "$SKILL"
 require 'bbs ticket verdict-status --skill plan-draft' "$SKILL"
 require 'bbs ticket ensure --no-branch' "$SKILL"
 require 'BABYSIT_TICKET="$TICKET"' "$SKILL"

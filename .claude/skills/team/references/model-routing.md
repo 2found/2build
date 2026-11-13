@@ -11,8 +11,10 @@ the ticket's whole loop (plan, build, focused checks; review and QA belong to
 its phase) and its route carries to every follow-up on it.
 Single-purpose assignments (basic design, phase integration, heavy QA,
 release, handover fix, delivery in a fresh session) get their own routes.
-`autopilot` does not select models: every step in one invocation runs in the
-session opened by the human or the lead. Neither skill switches a running worker's model.
+`autopilot` does not select models: every step in one invocation runs on the
+model of the session opened by the human or the lead, except `design-ui`, which
+always runs in an Opus-class, high-effort subagent (autopilot SKILL.md §
+Subagent steps). Neither skill switches a running worker's model.
 
 ## Route inputs
 
@@ -203,8 +205,9 @@ evidence to the lead before work. It does not classify tasks, select tiers or
 repair a route by spawning a worker. The lead recovers missing legacy routing
 evidence from the durable handoff before its next launch.
 
-Standalone Autopilot runs all steps in the human-opened session. It does not
-load this routing table, recommend a tier, or change models between steps.
+Standalone Autopilot runs all steps in the human-opened session or its
+subagents. It does not
+load this routing table, recommend a tier, or change models between steps, beyond `design-ui`'s pinned subagent.
 Record the actual session model (unknown if unobserved) as evidence; use the
 existing capability/NEEDS\_CONTEXT handling if the session cannot carry the work.
 

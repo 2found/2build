@@ -673,7 +673,7 @@ func printBaseDrift(b foremanBatch) {
 	seen := map[string]bool{}
 	for _, member := range b.Tasks {
 		t, err := foreman.LoadTask(member.Task)
-		if err != nil || !gatedTaskKinds[t.Kind] || seen[t.Ticket] {
+		if err != nil || !buildsTicket(t.Kind) || seen[t.Ticket] {
 			continue
 		}
 		seen[t.Ticket] = true

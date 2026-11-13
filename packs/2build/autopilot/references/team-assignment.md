@@ -37,7 +37,8 @@ steps and ends when the ticket is ready for its phase's integration:
    a guess. An `M`/`L` plan records only what the brief left
    open and any deviation, without restating it. Ticket-level `design-ui`
    only extends the parent prototype with a state the brief missed, linking
-   the parent id; never a new layout. Changing a brief's decision —
+   the parent id; never a new layout — its subagent assignment carries that
+   limit and the parent id. Changing a brief's decision —
    interface shape, data model, scope or a prototype flow — or needing a
    screen the prototype lacks is a material deviation for the lead (step 2).
 2. **Plan approval** — every plan (`M`, `L`, or an `S` planned as `M`) is
@@ -100,9 +101,10 @@ replacement model or start a worker to fix it.
 Keep each assigned skill in this session on its launched model; never delegate
 the whole ticket, dispatch sibling Tasks or switch models. The review skill's
 internal analysis fan-out and the QA executor subagent remain allowed under
-SKILL.md § Current-session gates.
+SKILL.md § Current-session gates, and SKILL.md § Subagent steps applies in
+full: `design-ui` on its pinned model, the others on this session's model.
 Work beyond the ticket — another ticket's files or contracts, scope one
 coherent plan cannot hold, a scope change — is a handoff to the lead with a
 proposed split or change request, never absorbed silently. This explicit envelope takes
-precedence over the workflow files' mode selection and `/goal` handoff;
+precedence over the workflow files' mode selection and the design-approval question;
 ordinary direct autopilot invocations retain the full current-session loop.

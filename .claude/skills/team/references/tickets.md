@@ -31,7 +31,9 @@ The route is chosen once per ticket (phase class `critical`, because the session
 owns its own planning and plan approval) and reused by every follow-up; see
 [model routing](model-routing.md#assignment-routing). Create its Task with
 `--kind ticket` (`repair` or `redirect` for a follow-up) so `task
-done` holds the session to its gates. Each assignment includes the ticket's
+done` holds the session to its gates; a phase of exactly one ticket takes
+`--kind phase` instead and the same session verifies the phase
+([phases](phases.md#phase-session-a-one-ticket-phase-verifies-itself)). Each assignment includes the ticket's
 **slice** of the accepted parent artifacts — its ticket brief
 (`design.md#<seed key>`) and the plan and
 manifest rows it owns, by path and heading, with the whole documents linked

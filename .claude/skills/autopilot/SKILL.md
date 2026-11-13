@@ -4,8 +4,8 @@ description: "Deliver one ticket end-to-end from a requirement or accepted plan 
 ---
 # autopilot
 A **goal proxy**: the skill owns init — durable ticket state, requirement,
-plan — and the harness's work loop owns execution (`/goal` where supported),
-with persisted `review-pr`/`qa` verdicts as the terminal condition. Gates
+plan — then works the ticket in this session until the completion condition
+holds, with persisted `review-pr`/`qa` verdicts as the terminal condition. Gates
 are proportional: under Team a ticket runs focused checks and leaves
 `review-pr` and `qa` to its phase (step 3 of Team ticket assignment); a
 gate that is not needed is named with `bbs team task done --no-gate
@@ -66,7 +66,8 @@ or a Team lead decides whether to open a ticket for it.
   the preamble's `AGENT` / `SKILL_REF`, not the terminal brand or an installed
   CLI as evidence of which harness is running.
 - Claude Code, Codex, and OMP use the same workflow and disk gates, on the
-  same rule: every step runs in this session. Adapt skill loading and task
+  same rule: every step runs in this session, except the steps § Subagent
+  steps hands to a subagent. Adapt skill loading and task
   tracking to the tools actually exposed. No Skill tool → read the resolved
   skill's `SKILL.md` in full and follow its references, preamble/telemetry,
   and output contract.
@@ -75,19 +76,9 @@ or a Team lead decides whether to open a ticket for it.
 - Plain terminal, cmux, and Orca are presentation/transport choices, not
   model selectors. Use terminal-specific transport only when requested
   or already required by the invoking workflow; absence is not a gate.
-- `/goal` instructions below apply only where that command is supported — and
-  support is verified for the harness actually running, never inferred from
-  the brand or its absence: all three supported harnesses expose it today
-  (Claude Code as `/goal`; `codex features list` for Codex's `goals` feature;
-  `omp config get goal.enabled` for OMP's built-in goal mode). Assume support
-  unless that harness's own probe or command list says otherwise: dropping the
-  handoff silently drops the design checkpoint, which is the worse error. Only
-  on a harness that genuinely lacks it, after init continue the same work loop
-  in this session, honoring `--stop-after` and any invoker-held approval
-  checkpoint. At such a checkpoint report the artifacts and a native skill
-  resume instruction, not an unsupported `/goal` command. A received `/goal`
-  block on such a harness expresses the completion condition; it does not
-  establish a Stop hook.
+- Autopilot never asks anyone to paste or type `/goal`. A run started under
+  one — the human typed `/goal … autopilot …`, or a spawn prompt carries the
+  block — takes it as the completion condition and works.
 ## Init (every fresh invocation)
 1. Resolve the invocation: inline requirement, ticket id, named workflow, or
    resume. A checkpoint with work in flight means loop re-entry (below), not
@@ -140,58 +131,108 @@ or a Team lead decides whether to open a ticket for it.
    not the container itself.
 4. Seed the plan when the routed mode needs one (build or child mode, size
    above XS) or `--stop-after=plan` explicitly requests it:
-   run `plan-draft` in this session, per the planning policy below — `plan.md` on
-   disk is what a crashed loop recovers from. User-facing work routes through
-   `design-ui` inside `plan-draft`; make sure that ran, so the spec and
-   prototype exist *before* the `/goal` handoff — design is reviewed before
+   run `plan-draft` per § Subagent steps — `plan.md` on disk is what a
+   crashed loop recovers from. Work that adds or reshapes a user-facing
+   surface runs `design-ui` first, so the spec and prototype exist before the
+   plan and *before* the design approval — design is reviewed before
    implementation, not discovered after it. Stop here on `--stop-after=plan`.
    Size relaxes *only this step*: an XS change still gets the step-2 ticket
    and the verdict gates — there is no inline path.
-5. Hand the work to the harness's work loop (below). Init never executes
-   workflow steps; under `--auto` or without `/goal`, transition directly to
-   execution.
+5. Enter the work loop (below): directly under `--auto`, otherwise after
+   § Design approval. Init never executes workflow steps.
 
-### Planning runs in this session
-`plan-draft` — including the `design-ui` it invokes when the work adds or
-reshapes a user-facing surface — executes in the current autopilot session, on
-the session's model. Never dispatch it to a native child, a second session, or
-an external process: a routed planner is a second model, a second usage bill,
-and a second context to reconcile, selected by a run that can see neither its
-cost nor its state. There is no `--planner` flag and no per-step model
-selector. The planning model is a **launch** decision: the human chooses the
-session for a direct run; the lead selects the model before opening a ticket worker.
-Autopilot does not select a model tier or reroute the session. The launched model
-executes every assigned step in this session.
+### Subagent steps (`design-ui`, `plan-draft`, `investigate`, `perf-audit`, `implement`)
+Most of these steps' tokens are exploration or code reading this session never
+needs again, so they run in **one foreground subagent at a time**, never
+alongside another editing step or a gate. This session keeps the checkpoint,
+the judgment of what comes back, and every gate; a subagent never decides
+readiness.
 
-The step owns one writer, not one child: load and execute the real `plan-draft`
-skill here, in this context, with the same bounded assignment a dispatched
-child would have received — the resolved `SKILL.md` path; ticket id and
-absolute repo/ticket paths; requirement and checkpoint paths; permission to
-write the plan, design spec, prototype artifacts, pointers, `plan-draft`
-verdict, and handoff — and no implementation, git, push, or close-out
-authority.
+- **`design-ui` always runs in a subagent** — init step 4, builder step 2, a
+  Team ticket's prototype extension. Claude Code: `model: "opus"`,
+  `effort: "high"`; elsewhere the harness's top advertised model at high
+  effort, or inherited when the subagent tool has no selector (record which).
+  Its prompt carries this line verbatim:
+  `Make it really good, use lots of tokens and iterate till you're proud of it.`
+  Dispatch it from this session
+  before `plan-draft`, never from inside a `plan-draft` subagent: nested
+  delegation is rejected on some harnesses. A `plan-draft` or `implement`
+  run in this session that needs `design-ui` dispatches it the same way,
+  never inline. If it reports S2 unchecked for want of a subagent tool,
+  dispatch that cold read from this session, to a fresh subagent that sees
+  only the screenshots.
+- **`plan-draft`, `investigate` and `perf-audit`: decide per run.** Default
+  to a subagent on the session's model (inherited, no effort override) when
+  the survey, failure or measurement spans more than a few files or signals;
+  run in session when the needed
+  context is already warm, or briefing would cost more than the work. Log
+  the choice in the checkpoint. A `plan-draft` subagent plans from the spec
+  at `pointers.design` and does not invoke `design-ui`: missing UI coverage
+  comes back as a gap, and this session dispatches `design-ui` and re-plans.
+  An `investigate` subagent runs in the repair loop with nothing else
+  editing; it may apply its fix in ticket scope, and this session re-runs
+  the reproducer before accepting it. A `perf-audit` subagent measures and
+  writes its report; it changes no code — a fix it ranks is `implement` work.
+- **`implement`: one subagent per plan milestone** when the plan is `M`/`L`
+  with two or more milestones (a manifest's rows count), in plan order, on
+  the session's model (inherited). Each gets its milestone, the earlier
+  milestones' handoffs, and the plan's acceptance checks for it; it codes
+  the milestone, runs those checks, and writes the implement handoff
+  (`## Deviations` included). Before the next milestone this session reads
+  that handoff and the diff and re-runs the checks; a failure goes to one
+  more subagent for that milestone with the evidence, then to the repair
+  loop. Record each accepted milestone in the checkpoint with its handoff
+  filename. `XS`/`S` tickets, single-milestone plans and every review/QA fix are
+  coded in this session. An `implement` subagent never invokes `design-ui`:
+  a user-facing surface without a spec comes back as a gap, and this
+  session dispatches `design-ui` first. A browser it opens uses a session
+  name this session entered in the cleanup ledger, and it returns a
+  `CLEANUP:` line.
 
-Then inspect the artifacts, confirm they belong to this attempt, and read
+Each assignment carries the resolved `SKILL.md` path; ticket id and absolute
+repo/ticket paths; requirement, checkpoint, plan and design pointers; what it
+may write (`design-ui`: spec, prototype, `pointers.design`; `plan-draft`: plan,
+pointers, `plan-draft` verdict, handoff; `investigate`: the fix; `perf-audit`:
+its report; `implement`: its milestone's code and handoff) — and no git,
+push, ticket status, gate, close-out or autopilot authority. No subagent tool
+→ run the step here and record why.
+
+There is no `--planner` flag and no per-step model flag. The session model is
+a **launch** decision: the human chooses it for a direct run; the lead selects
+it before opening a ticket worker.
+Autopilot does not select a model tier or reroute the session; `design-ui`'s
+pinned subagent is the one fixed exception. On Claude Code an inherited
+subagent is called with the session's own model alias: an omitted `model`
+resolves to `CLAUDE_CODE_SUBAGENT_MODEL` when the project sets it
+(`setup-project` seeds `sonnet`), not to the session's model.
+
+When `plan-draft` returns, from a subagent or this session, inspect the
+artifacts, confirm they belong to this attempt, and read
 `bbs ticket verdict-status --skill plan-draft`. Missing or inadequate output is
-not a plan: re-run it in-session once, naming the gap. If the plan is
-inadequate because this session's model cannot carry it, that is a launch
-problem rather than a dispatch problem — stop with `NEEDS_CONTEXT` naming the
-observed capability or artifact gap and durable resume pointers. The lead or the
+not a plan: run it once more, naming the gap. If it is still inadequate
+because the model cannot carry it, that is a launch problem — stop with
+`NEEDS_CONTEXT` naming the observed capability or artifact gap and durable
+resume pointers. The lead or the
 human chooses the replacement session; Autopilot does not select another model.
-Never silently replace an accepted plan. Record the session model, artifact
-paths, and result in the checkpoint/handoff.
-## The work loop (`/goal`)
+Never silently replace an accepted plan.
+
+Record each step's mode (subagent or session), model, effort, artifact paths
+and result in the checkpoint/handoff. A cold resume continues at the
+first milestone the checkpoint does not record as accepted: a handoff already
+on disk for it is checked as above, not re-dispatched, and a subagent sent to
+a milestone with code but no handoff is told the tree holds a partial attempt.
+## The work loop
 ### Autonomous entry (`--auto`)
-`--auto` means nobody will paste a `/goal` block or answer a prompt: not a
-human, and not an orchestrator woken just to type one. A Team ticket
+`--auto` means nobody will answer a prompt: not a human, and not an
+orchestrator woken just to approve a design. A Team ticket
 assignment, `SPAWNED=true` and an open Team Dispatch imply it.
 Record it once with `BABYSIT_TICKET="$TICKET" bbs ticket set-pointer
 autopilot_auto true` so re-entry and resume keep it. Under it:
 
-1. Never print the paste handoff or stop to wait for one.
+1. Never ask for design approval or stop to wait for one.
 2. If this agent can set its own goal — a goal/objective tool in
    **its own tool list** (for example Codex's when its `goals` feature is on, or OMP's
-   goal mode) — set it with the completion condition from the template below
+   goal mode) — set it with the completion condition below
    and keep working in the same turn. A slash command only a user can type
    (Claude Code's `/goal`) is not such a tool; never ask anyone to type it.
 3. Otherwise enter the work loop directly in this session and hold yourself
@@ -205,56 +246,53 @@ autopilot_auto true` so re-entry and resume keep it. Under it:
    still stop the run; a genuine User Challenge ends it with a
    `NEEDS_CONTEXT` block through the invocation channel rather than a wait.
 
-### Developer handoff
-On a harness that supports `/goal`, `/goal <condition>` arms a Stop hook
-that blocks stopping until the condition holds. Without `--auto`, autopilot
-cannot arm it itself — after init, print the handoff and stop (`developer`:
-the human copy-pastes it; orchestrators that still spawn with a prompt put
-the block in the spawn prompt).
-Without `/goal` support, skip this paste/stop protocol and continue execution
-as specified above; `developer` alone never requires a `/goal` handoff.
-If `SPAWNED` is already true, you are that process: follow Autonomous entry.
+### Design approval
+Without `--auto`, a run whose init produced a plan or prototype asks once
+before building — a question, never a block to paste — through the
+invocation's escalation channel
+([preamble](../references/preamble.md)): `developer` one `AskUserQuestion`,
+`dashboard` a `--kind plan` approval record. The question is the design
+checkpoint and the last thing on screen. Init may have run `plan-draft` /
+`design-ui`, which print their own reports: condense them into the pointer
+lines below, one per artifact that exists, in plain words and the user's
+language; never assume the human knows git or babysit internals.
+```
+<ticket> is ready to build. Review what will be built:
+  plan:      <plan.md path>
+  design:    <design spec path>
+  prototype: <prototype path and URL>
+Approve to build it now, or say what to change.
+```
+- **Approved** → record it (`BABYSIT_TICKET="$TICKET" bbs ticket set-pointer
+  design_approved true`, so a resume does not ask again) and enter the work
+  loop in the same turn, as Autonomous entry steps 2–3.
+- **Changes requested** → revise the design or plan from the note
+  (§ Subagent steps) and ask again.
+- **Nothing to review** — an `XS` change, a plan accepted before this
+  invocation, verify mode — → no question; enter the work loop.
+
+`--stop-after=plan` stops with the same pointer lines and a native resume
+instruction instead of asking.
+
+If `SPAWNED` is already true, you are an orchestrator's process: follow
+Autonomous entry.
 An open Team Dispatch (the launch prompt names it; `bbs team task show`
 confirms it) is equivalent evidence even when a legacy state echo says
 `SPAWNED=false`: honor the Task spec's effective `AGENT_ROLE=orca`, execute in
-this turn, and use the spec's worker lifecycle instead of producing a
-developer `/goal` handoff.
-For a `developer` handoff **on a harness supporting `/goal`**, the handoff
-**is the whole final message and must be the very last thing on screen** —
-nothing after it. The template and mandatory copy-paste rules below apply
-only to that supported handoff, not to direct execution or a native resume
-instruction on other harnesses. Init may have run `plan-draft` /
-`design-ui`, which print their own reports; do **not** let those be the last
-thing the human sees. Condense any step-skill report into the pointer lines
-below and drop the rest, so the copy-paste line is what the eye lands on. Lead
-with a fixed **Review-before-you-paste** preamble carrying the pointers init
-produced — one line each, omit a line only when that artifact does not exist —
-then the `/goal` block, fenced on its own so it is one-click copyable:
+this turn, and use the spec's worker lifecycle instead of asking for design
+approval.
+
+**Completion condition** — what a goal tool is set with and what every run
+holds itself to:
 ```
-Ready for <ticket>. Before you paste, review what will be built:
-  plan:      <plan.md path>
-  prototype: <prototype path>
-Redirect the design now if it's wrong — otherwise you're one paste from done.
-
-👉 Copy the block below and paste it into <the current agent> to build it:
-
-/goal <ticket> is done: acceptance criteria verified on the uncommitted tree,
+<ticket> is done: acceptance criteria verified on the uncommitted tree,
 current review-pr and qa gates passed, no unresolved material findings,
 release readiness checked, evidence and handoff persisted —
 or a NEEDS_CONTEXT / BLOCKED status block printed verbatim.
-Work it: <SKILL_REF>autopilot <workflow> <ticket>
 ```
-The preamble is mandatory whenever `plan-draft`/`design-ui` produced those
-artifacts — it is the design checkpoint, not decoration; keep it in plain
-words and never assume the human knows git or babysit internals.
-The preamble prints the current agent and `SKILL_REF`; substitute both values
-in this template and never print the angle-bracket placeholders. The
-`👉 Copy … paste it into <agent>` line is mandatory in every supported
-`developer` `/goal` handoff — a non-technical user must never guess that the block
-is a thing they paste. Orchestrators (non-`developer`) skip the preamble and
-the copy-paste line and put only the `/goal` block in the spawn prompt.
+
 Inside the loop (re-entry, orchestrator, `SPAWNED=true`, `--auto`), skip the
-handoff and work. Cold session: recover from checkpoint, ticket files, workflow file,
+question and work. Cold session: recover from checkpoint, ticket files, workflow file,
 git state first; warm session: keep going with what's in context. Treat the
 workflow file as mode router + gate list, not a script — pick the mode from
 durable state, honor the gates, and do everything between them the way a
@@ -308,14 +346,14 @@ ticket or a follow-up on one. Read
 [team-assignment.md](references/team-assignment.md) before any other step: it
 replaces this file's loop for that session (plan, approval, build and focused
 checks, one `task done`; review and QA belong to the phase). This explicit
-envelope takes precedence over the workflow files' mode selection and `/goal`
-handoff; ordinary direct autopilot invocations never load it and retain the
+envelope takes precedence over the workflow files' mode selection and the
+design-approval question; ordinary direct autopilot invocations never load it and retain the
 full current-session loop.
 
 ### Current-session gates (`review-pr`, `qa`)
 Applies to every workflow's `review-pr` and `qa` steps, without an opt-in
-flag. Both gates are judged in this session, on the session's model: no autopilot
-step is ever dispatched to a child, a second session, or an external process.
+flag. Both gates are judged in this session, on the session's model: neither
+gate is ever dispatched to a child, a second session, or an external process.
 The one delegation is QA's mechanical execution (item 2), which hands
 back evidence, never a verdict.
 1. **Run review in the current session.** Always load and execute the real
@@ -404,7 +442,7 @@ Apply this loop to every production workflow before its final handoff:
    verdict ladder;
    reuse a recorded decision. Fix in-scope
    defects autonomously; use
-   `investigate` when the cause is unclear. Record evidence for refuted or
+   `investigate` when the cause is unclear (§ Subagent steps). Record evidence for refuted or
    nonblocking findings. Required behavior is never deferred just to get a
    green verdict; unrelated improvements stay outside the ticket.
 2. After fixes, rerun affected checks. A fix never re-runs review: the
@@ -449,8 +487,9 @@ On every terminal path — success, `NEEDS_CONTEXT`, `BLOCKED`, or a failed step
 that can still run cleanup — close owned resources and wait for exit before
 printing the status block. `qa`/`browse` must perform their own scoped
 finalizers; autopilot reads their `CLEANUP:` evidence and then closes anything
-started by other steps. A QA executor that returns without a `CLEANUP:` line
-(crash, timeout) leaves its named browser session and target to you. Do not leave a server or browser running for review:
+started by other steps. A QA executor or `implement` subagent that returns
+without a `CLEANUP:` line (crash, timeout) leaves its named browser session
+and target to you. Do not leave a server or browser running for review:
 durable screenshots/logs are the handoff. Never use broad
 `pkill`/`killall`, `agent-browser close --all`, or simulator-wide shutdown for
 routine cleanup; preserve resources whose ownership is uncertain.

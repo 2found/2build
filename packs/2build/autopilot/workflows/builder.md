@@ -30,15 +30,17 @@ ticket/requirement, stop with `NEEDS_CONTEXT`.
    already placed you in one; work in place). Record missing QA configuration as a handoff warning and point
    at `$bbs:setup-project` when it matters.
 2. **build and child modes (skip when init already seeded `plan.md`; a child
-   plans its own ticket within the accepted parent plan, XS skips):** run
-   `plan-draft` (user-facing work routes through `design-ui`, so the plan
-   carries the UI spec + prototype). Write `plan.md` unless the task is XS.
+   plans its own ticket within the accepted parent plan, XS skips):** for
+   user-facing work run `design-ui` first, then `plan-draft`, both per
+   SKILL.md § Subagent steps, so the plan carries the UI spec + prototype.
+   Write `plan.md` unless the task is XS.
    Don't stop for plan/prototype review — the human reviews once, at the
    final handoff — unless `--stop-after=plan` was passed. A Team ticket
    approves its plan by ticket size here instead (SKILL.md § Team ticket
    assignment).
 3. **build / implement / child modes:** run `implement` against the
-   requirement, plan, and (child mode) only the child scope. `implement`
+   requirement, plan, and (child mode) only the child scope — an `M`/`L`
+   plan one subagent per milestone (SKILL.md § Subagent steps). `implement`
    leaves its output uncommitted, and so does this workflow: gates bind the
    tree's content, and committing belongs to the human or the lead.
 4. **Not child mode** — a Team ticket leaves steps 4–5 to its phase and

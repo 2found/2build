@@ -132,7 +132,8 @@ and `--file` write `release-request.json` on the phase ticket and
 When the contract requires product review, the integration session runs it
 next as the read-only product evaluator ([product-review.md](product-review.md));
 a separate evaluator Task is the exception named there. Its identity must
-differ from child gate producers. Final evidence and every
+differ from child gate producers — in a phase session, which built the
+ticket, the evaluator is a fresh subagent ([phases](phases.md#phase-session-a-one-ticket-phase-verifies-itself)). Final evidence and every
 criterion check use `kind: product`; `kind: journey` is only for an explicitly
 required preliminary check. Material findings require repair and fresh evidence;
 minor findings stay in the handoff.

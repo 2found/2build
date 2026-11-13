@@ -88,37 +88,39 @@ fi
 
 # ── review execution boundary + persisted QA verdict ────────────────
 
-if grep -q 'step is ever dispatched to a child, a second session, or an external process' "$AUTOPILOT_SKILL" \
+if grep -q 'gate is ever dispatched to a child, a second session, or an external process' "$AUTOPILOT_SKILL" \
    && grep -q 'making it a child creates nested delegation' "$AUTOPILOT_SKILL"; then
   ok "review-pr-stays-in-current-session"
 else
   fail "review-pr-stays-in-current-session"
 fi
 
-# Goal support is capability-probed, never guessed from the harness brand.
-# Reading "without `/goal` support" as OMP's or Codex's path skips the
-# copy-paste handoff and with it the human design checkpoint.
-if grep -q 'verified for the harness actually running' "$AUTOPILOT_SKILL" \
-   && grep -q 'omp config get goal.enabled' "$AUTOPILOT_SKILL" \
-   && grep -q 'codex features list' "$AUTOPILOT_SKILL" \
-   && grep -q 'silently drops the design checkpoint' "$AUTOPILOT_SKILL"; then
-  ok "goal-support-probed-not-guessed"
+# The design checkpoint is one approval question on every harness; nobody
+# is asked to paste a `/goal` block, and an approved run builds in the same turn.
+if grep -q '^### Design approval' "$AUTOPILOT_SKILL" \
+   && grep -q 'a question, never a block to paste' "$AUTOPILOT_SKILL" \
+   && grep -q 'Autopilot never asks anyone to paste or type `/goal`' "$AUTOPILOT_SKILL" \
+   && grep -q 'design_approved true' "$AUTOPILOT_SKILL" \
+   && grep -q 'loop in the same turn, as Autonomous entry steps 2–3' "$AUTOPILOT_SKILL" \
+   && grep -q 'no question; enter the work loop' "$AUTOPILOT_SKILL" \
+   && ! grep -q 'Copy the block below' "$AUTOPILOT_SKILL"; then
+  ok "design-approval-is-a-question"
 else
-  fail "goal-support-probed-not-guessed"
+  fail "design-approval-is-a-question"
 fi
 
-# --auto is the no-human entry: no paste block, the agent arms its own goal
+# --auto is the no-human entry: no approval question, the agent arms its own goal
 # only through a tool it actually has, and otherwise just keeps working.
 if grep -q '### Autonomous entry (`--auto`)' "$AUTOPILOT_SKILL" \
-   && grep -q 'Never print the paste handoff or stop to wait for one' "$AUTOPILOT_SKILL" \
+   && grep -q 'Never ask for design approval or stop to wait for one' "$AUTOPILOT_SKILL" \
    && grep -q 'its own tool list' "$AUTOPILOT_SKILL" \
    && grep -q 'never ask anyone to type it' "$AUTOPILOT_SKILL" \
    && grep -q 'enter the work loop directly in this session' "$AUTOPILOT_SKILL" \
    && grep -q 'set-pointer' "$AUTOPILOT_SKILL" \
    && grep -q 'invokes autopilot with' "$SCRIPT_DIR/.claude/skills/team/references/topology.md"; then
-  ok "auto-entry-needs-no-goal-paste"
+  ok "auto-entry-asks-nothing"
 else
-  fail "auto-entry-needs-no-goal-paste"
+  fail "auto-entry-asks-nothing"
 fi
 
 for name in builder; do

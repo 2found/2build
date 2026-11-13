@@ -76,7 +76,7 @@ bbs install
    | Grok | `/bbs:autopilot "添加已保存搜索的页面。先展示原型，再实现、审查和 QA。"` |
    | Antigravity / 其他兼容 agent | 请它为任务使用已安装的 `autopilot` skill。 |
 
-3. 审阅计划；对于 UI 任务，打开原型，在此调整布局、交互或范围。Autopilot 返回 `/goal` block 时，将其粘贴到同一 agent 以启动执行。对于没有 goal mode 的 agent，在首次请求中加入 `--stop-after=plan`，确保停在此审阅检查点，然后按 handoff 中的原生指令恢复。若要无人值守运行，加上 `--auto`（例如 `/bbs:autopilot --auto "…"`）：Autopilot 自行审阅计划，不输出 `/goal` block；agent 允许时自行设定 goal，否则在同一 session 中继续工作，直到 ticket 完成或被阻塞。
+3. 审阅计划；对于 UI 任务，打开原型。Autopilot 随后会询问是否开始构建：批准，或说明布局、交互或范围需要怎么改，它修改后会再次询问。批准后，它在同一 session 中直接开始执行。如果只想停在此审阅检查点，在首次请求中加入 `--stop-after=plan`，然后按 handoff 中的指令恢复。若要无人值守运行，加上 `--auto`（例如 `/bbs:autopilot --auto "…"`）：Autopilot 自行审阅计划，不再询问；agent 允许时自行设定 goal，否则在同一 session 中继续工作，直到 ticket 完成或被阻塞。
 4. 让 Autopilot 实现、审查、修复、测试并运行 QA。通过完成 gate 后，它把已验证的改动以未 commit 状态留在你的 checkout 中并附上证据（由你 commit 或交给 `create-pr`）；被阻塞时会指出缺少的输入。重启后，用 handoff 中的 ticket ID 恢复。
 
 第一个 ticket 无需 Orca、新 worker session 或项目配置。开始前选好 session 的 model。[查看进度和恢复 session](docs/companion-cli.md)。

@@ -93,8 +93,8 @@ production release go is never delegated: `approval self-resolve` refuses kind
 self-resolve` still enforces floor → rubric → authority → approval. A model's
 `proceed` answer is not an approval record.
 
-Autopilot `--auto` (implied for every Team worker) never prints a `/goal`
-paste block: the agent sets its own goal when it has a tool for that, otherwise
+Autopilot `--auto` (implied for every Team worker) never asks for design
+approval: the agent sets its own goal when it has a tool for that, otherwise
 it works the loop directly in the same session, so no human or Team wake is
 needed to start execution. Autopilot honors `--stop-after` and invoker-held approvals, repairs routine
 findings itself, and escalates non-derivable User Challenges. Composed Taste

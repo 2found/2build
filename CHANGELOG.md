@@ -1,4 +1,31 @@
 # Changelog
+## 1.131.0 — 2026-11-14
+
+### Added
+
+- **Phase sessions** (`bbs team task` / `team` skill): a phase that is one
+  ticket now runs as a `--kind phase` Task — one Dispatch builds the ticket,
+  records its work via the new `bbs team task built <task>` verb (the same
+  readiness gate and work snapshot `task done` applies, without settling the
+  Dispatch), then integrates, lands, reviews and QAs the phase in the same
+  warm session. `task done` for a phase session is refused until the phase is
+  landed and verified. See `team/references/phases.md` "Phase session".
+- `scripts/foreman-cache-report.py`: recognizes Team-era transcripts (worker
+  launch prompts, Orca workspace pool, `/bbs:team` invocations), groups
+  workers by Task kind including `phase`, and counts the `team watch`
+  keep-warm alongside the legacy `foreman watch`.
+
+### Changed
+
+- `autopilot`: the design approval is one in-session question — `design-ui`
+  always runs as a subagent and the plan carries the UI spec + prototype
+  before approval; no `/goal` block to paste for the design review. README
+  (all five languages) and CLAUDE.md describe the new flow.
+- `team` phases: merge a `none`-release phase into the next unless it earns
+  its own boundary (named reasons only); fix review/QA/product-review
+  findings in one batch per integrate-and-land round instead of one finding
+  at a time; phase QA runs through the skill's QA executor subagent.
+
 ## 1.130.0 — 2026-11-13
 
 ### Added

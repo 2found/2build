@@ -203,14 +203,51 @@ Changes (v1.113.0):
 Re-check: per-ticket sessions without review/QA for `XS`–`S`, at most one
 `repair` Dispatch per phase, and phase wall time from first dispatch to land.
 
+## Re-check 2026-11-13 (sessions from 2026-11-01)
+
+The report had stopped finding workers: Orca now puts worktrees under
+`orca-workspaces`, and the lead loads `/bbs:team`. With both recognized
+(`scripts/foreman-cache-report.py`, kinds read from each worker's spec):
+
+| Who | Sessions | Cost | Per session |
+|---|---|---|---|
+| Lead | 4 | 206.9M | 51.7M |
+| Phase QA (`phase-qa`) | 11 | 71.7M with subagents | 6.5M |
+| Ticket | 15 | 46.5M | 3.1M |
+| Repair | 1 | 45.0M (38.9M subagents) | 45.0M |
+| Design / release | 2 / 7 | 6.1M / 6.1M | 3.1M / 0.9M |
+
+The lead cost more than every worker together (175.5M). Its watcher wakes
+were 9.9M and keep-warms 0.4M; the rest was 207 background-notification wakes
+(106.2M) and 110 human turns (85.5M) at a median 148–228k context, from
+hands-on work in the lead session (deploys, debugging, browser checks) and
+status chat. Phase verification sessions cost about twice a ticket session,
+and phases took several fix-and-land rounds.
+
+Changes:
+
+| # | Change | Where |
+|---|---|---|
+| 16 | **Report finds Team sessions wherever Orca puts them**: workers by launch prompt or pool directory, grouped by Task kind; lead wakes split into watcher, keep-warm, notification and human. | `scripts/foreman-cache-report.py`, `tests/test_foreman_cache_report.sh` |
+| 17 | **The lead stays light**: no hands-on work, requests outside the project go to a Task or another session, status from one `batch show`, one lead per project. | `team/SKILL.md` |
+| 18 | **Batched phase fixes, QA through its executor**: review, QA and product review finish first, every finding is fixed in one round, one `integrate` + `land`, one re-test; QA runs through the `qa` skill's executor subagent. | `team/references/phases.md` §4 |
+| 19 | **A one-ticket phase verifies itself** (Task kind `phase`): `task built` records the ticket's work without settling, the same session integrates, lands, reviews and QAs the phase (product review in a fresh subagent) and fixes forward; its `task done` is refused until the phase is verified, and `bbs team next` waits on it. | `internal/cmd/foreman_phase_session.go`, `foreman_task.go`, `foreman_next.go`, `phases.md` |
+| 20 | **Merge `none` phases** that have no reason to stand alone (parallel work on the landed code, or an expand/contract migration). | `phases.md` § The phase plan, `topology.md` |
+
+Re-check: lead cost below its workers' total, notification and human wakes
+under a third of the lead's spend, phase verification at or below a ticket
+session for one-ticket phases, and one fix round per phase.
+
 ## Measurement notes
 
-- A **worker session** is a main transcript in a project directory whose name
-  contains `-babysit-worktrees-` (one directory per ticket worktree). Its
+- A **worker session** is a main transcript whose first prompt is the Team
+  launch prompt, or whose project directory contains `-babysit-worktrees-` or
+  `-orca-workspaces-`. Its kind is read from its spec (`(kind <k>)`); its
   `subagents/` transcripts are counted as its subagents.
-- A **Foreman session** is a main transcript with a user prompt invoking
-  `/bbs:foreman`. Each non-harness user prompt starts one wake, tagged
-  `watcher`, `keep_warm`, `orchestration` or `other`. The baseline includes one
+- A **lead session** is a main transcript, not a worker, with a user prompt
+  invoking `/bbs:team` (or the older `/bbs:foreman`). Each non-harness user
+  prompt starts one wake, tagged `watcher`, `keep_warm`, `orchestration`,
+  `notification` or `human` (before 2026-11-13: `other`). The baseline includes one
   development session and one probe session, which inflate `other`.
 - A **cold** request has a context over 20k with more than half of it written
   to the cache. Expiry waste counts only cold requests not explained by

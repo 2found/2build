@@ -45,6 +45,11 @@ join, and no heartbeat.
   artifact-only ticket adds `--artifacts <paths.json>`); a snapshot error
   refuses the report — fix the worktree (on its ticket branch, one repo) and
   report again.
+- A **phase session** (Task kind `phase`) reports twice: `bbs team task
+  built <task> --dispatch <id>` once its focused checks pass (the ticket gate
+  and snapshot above, the Dispatch stays open), then — after it integrated,
+  landed, reviewed, QA'd and fixed its phase — `task done`, which is refused
+  with `GATE=not-ready` until the phase is verified.
 - A `Continue Task <id>` prompt is the watcher's idle nudge: resume the
   assignment, or run its pending `task done` if it is already complete.
 - A worker is shut down when it reports (the watcher closes its terminal at

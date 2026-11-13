@@ -41,7 +41,7 @@ var taskDoneCompose = func(t foreman.Task) (map[string][]string, error) {
 	for _, other := range foreman.ListTasks(t.Foreman) {
 		sib := other.Ticket
 		d := other.Current()
-		if seen[sib] || !gatedTaskKinds[other.Kind] || d == nil || d.Status != foreman.DispatchCompleted {
+		if seen[sib] || !buildsTicket(other.Kind) || d == nil || d.Status != foreman.DispatchCompleted {
 			continue
 		}
 		seen[sib] = true

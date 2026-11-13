@@ -68,12 +68,12 @@ has_all "ticket-slice-sizing" \
 
 has_all "autopilot-worker-execution-envelope" \
   '`AGENT_ROLE=orca`' 'already spawned' \
-  'skips any developer `/goal`' 'task launch' \
+  'skips the developer design-approval question' 'task launch' \
   'exactly one `task done`'
 
 if grep -q 'An open Team Dispatch' "$A" \
    && grep -q "use the spec's worker lifecycle instead" "$A" \
-   && grep -q 'developer `/goal` handoff' "$A"; then
+   && grep -q 'worker lifecycle instead of asking for design' "$A"; then
   ok "autopilot-accepts-foreman-dispatch-envelope"
 else
   fail "autopilot-accepts-foreman-dispatch-envelope"
@@ -298,6 +298,23 @@ if grep -q '"skills": "./.claude/skills"' "$ROOT/.codex-plugin/plugin.json"; the
 else
   fail "codex-plugin-exposes-claude-skills"
 fi
+
+has_all "lead-stays-light" \
+  'You do no hands-on work.' 'Requests outside the project go elsewhere.' \
+  'A status question is one read.' 'One lead session per project.'
+
+has_all "phase-fixes-batched-qa-via-executor" \
+  'Fix in one batch, not one finding at a time' 'merges once:' \
+  'runs in its QA executor subagent while this session only judges'
+
+has_all "one-ticket-phase-session" \
+  'A one-ticket phase is one session.' 'bbs team task built' \
+  'is the independence a separate' 'answers `wait` for that phase' \
+  '`phase` for a one-ticket phase that verifies itself'
+
+has_all "merge-none-phases" \
+  'Merge a `none` phase into the next unless it earns its own boundary.' \
+  'It checks every `none` phase boundary the same way'
 
 has_all "no-coordinator-polling-timer" \
   'external missed-event/restart backup' 'The lead never schedules its own status timer' \

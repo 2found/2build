@@ -54,6 +54,7 @@ reviewer checks:
   contract refuses `ask` on any phase but the last. A repository with no
   release profile uses `none` throughout and the project ends when its last
   phase lands.
+- **Merge a `none` phase into the next unless it earns its own boundary.** Every phase pays for its own integrate, land, review, QA and evidence (in measured runs a phase verification session cost about twice a ticket session), and a `none` phase ships nothing on its own. Keep a `none` phase separate only when the next phase's tickets build in parallel on its landed code, or when a migration needs a landed expand step before its contract step; the phase plan names which reason applies. Any other `none` phase joins the phase after it.
 
 A one-release project is one phase. A new contract always declares `phases`;
 unphased contracts only resume.
@@ -157,13 +158,18 @@ from the phase commit:
 {"kind":"integration","producer":"<integration dispatch id>","phase":"p2"}
 ```
 
-then **reviews the phase diff once**: `review-pr --fix` is not used here —
+A phase that is one ticket skips this worker: its phase session verifies
+it ([below](#phase-session-a-one-ticket-phase-verifies-itself)).
+
+The session then **reviews the phase diff once**: `review-pr --fix` is not used here —
 run `review-pr` on `git diff <base_head> <phase commit>` at the effort in
 [review effort](#review-effort) and record it as
 the check `{"criterion":"<phase id>","kind":"review"}` whose log is the
 review report. Readiness requires a passing one whenever a ticket of the phase
 deferred `review-pr` (every ticket off the floor). It then runs the `qa` skill's
-Team integration mode against **every criterion of this phase**, **every
+Team integration mode — through the skill, whose browser and test execution
+runs in its QA executor subagent while this session only judges, never as
+browser or test work on the session's own thread — against **every criterion of this phase**, **every
 prototype state** in its spec's `## Prototype` section (qa § prototype
 conformance — a phase with an unchecked state does not pass), the
 cross-ticket journeys, adjacent regressions and each earlier phase's
@@ -185,24 +191,63 @@ later commit of the phase. Passing evidence removes the phase's worktrees
 **QA fixes what it finds; QA done is the phase done.** The integration
 session holds the whole phase in context, and a cold `repair` session per
 ticket measured 66–93 minutes and 2–7M tokens each, so a failure never goes
-back through the lead. For every failing criterion or material finding, from
-review, QA or product review, the session itself:
+back through the lead. **Fix in one batch, not one finding at a time:**
+finish review, QA and product review first, collect every failing criterion
+and material finding from all three, then fix them all in one round — each
+fix-and-land round is another integrate, land, runtime restart and re-test.
+For that one batch the session itself:
 
 1. edits the **owning ticket's worktree** (`bbs team snapshot` lists it; its
    Dispatch must be settled), never the integration worktree, and runs the
    focused checks of what changed;
-2. merges: `bbs team integrate "$PARENT" --phase "$K"` snapshots each ticket
-   whose worktree holds such a fix (`FIXUP=<ticket>`) and composes it as the
-   fix delta on the landed phase; then `bbs team land` it;
-3. re-tests the criteria it fixed with a normal `--begin` attempt on the fix
-   commit. The fix delta is never reviewed ([review effort](#review-effort)),
-   and everything that already passed stands.
+2. merges once: `bbs team integrate "$PARENT" --phase "$K"` snapshots each
+   ticket whose worktree holds such a fix (`FIXUP=<ticket>`) and composes
+   them as one fix delta on the landed phase; then `bbs team land` it;
+3. re-tests every criterion it fixed in one normal `--begin` attempt on the
+   fix commit. The fix delta is never reviewed ([review effort](#review-effort)),
+   and everything that already passed stands. A criterion that still fails
+   starts the next batch.
 
 That passing record is the phase done; nothing goes back to the lead for a
 `repair`. Only a fix outside the approved scope or design ends the session
 `BLOCKED` with the evidence. After three failed phase QA attempts `bbs team
 next` answers `blocked`: park the phase and escalate; independent work
 continues.
+
+### Phase session: a one-ticket phase verifies itself
+
+A phase of one ticket needs no second session: the ticket session already
+holds the phase's whole context, and a cold integration session would load it
+again. Create its Task with `--kind phase` (route and spec as a ticket's,
+plus this section by link); one Dispatch then runs:
+
+1. the ticket loop through its focused checks, then `bbs team task built
+   <task> --dispatch <id>` — the same readiness gate and work snapshot a
+   ticket's `task done` applies, without settling the Dispatch;
+2. `bbs team integrate` and `land` of its phase (`task built` prints both
+   commands);
+3. §4 on the landed commit from the integration worktree: evidence
+   `--begin`, `review-pr` on the phase diff (its finders are fresh
+   subagents), `qa` through its executor subagent, and — when the contract
+   requires it — product review in a **fresh subagent** that is given only
+   the spec, the criteria, the prototype and the running app, never this
+   session's plan or diff: the subagent is the independence a separate
+   evaluator gave;
+4. the batched fix round of §4 in its own ticket worktree (an open phase
+   Dispatch does not hide its edits from `FIXUP=`), `integrate` + `land`,
+   one re-test;
+5. for an `auto` phase, the release (§5) in the same session;
+6. `bbs team task done`, which refuses `succeeded` until the phase is
+   delivered, released or skipped (`GATE="phase-verified: …"`).
+
+While the Dispatch is open, `bbs team next` answers `wait` for that phase,
+to this session as well, so the lead never dispatches an integration worker
+beside it; once the phase is delivered only an `auto` release still waits on
+the session. A phase
+session that ends without success after `task built` leaves the phase built
+or landed: the normal loop resumes and the lead dispatches the integration
+worker. A phase of several tickets keeps the integration worker above:
+`task create --kind phase` is refused on it.
 
 ### Review effort
 

@@ -99,6 +99,7 @@ before the phase opens instead of sequencing them. The lead checks every split
 in the manifest against these rules with the brief bar
 ([project contract](project-contract.md#project-design-checkpoint)) and
 returns an unjustified one to the design worker to merge.
+It checks every `none` phase boundary the same way: a `none` phase that names neither reason in [the phase plan](phases.md#the-phase-plan) is merged into the next phase.
 
 **Every shared seam has one owner per phase.** The files parallel tickets each
 want one line in — a composition root, route or listener registration, a
@@ -199,7 +200,7 @@ worker pane. It also names the resource
 profile the lead reserved for this Task, and whether it is a ticket assignment
 or a follow-up (`repair`, `redirect`, `deliver`) on an existing
 ticket session, with the trigger evidence and the gates it invalidates. The worker invokes the installed skill
-directly in that turn, skips any developer `/goal` copy/paste handoff, uses
+directly in that turn, skips the developer design-approval question, uses
 `bbs team task ask` for a genuine User Challenge, and follows the
 [worker lifecycle](worker-lifecycle.md) through exactly one `task done`. This
 statement in the Task spec is load-bearing because `orca agent launch` does

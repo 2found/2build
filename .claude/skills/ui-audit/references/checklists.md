@@ -1,6 +1,6 @@
 # Audit checklists
 Run the ones that apply to the target. Each item is a finding when it fails.
-Row ids (J1, O1, C2 …) are the [UI bar](../../references/ui-bar.md)'s; it owns
+Row ids (J1, O1, C2 …) are the [UI bar](../references/ui-bar.md)'s; it owns
 the rules and numbers, this file owns how to check them.
 
 ## Ground truth first
@@ -178,7 +178,7 @@ the meaning. Check no horizontal scroll at 390px. Re-audit with before/after
 screenshots at both widths and the line/word counts.
 
 ## Agent path
-The product is also run by agents (`../../references/agent-operable.md`). For each
+The product is also run by agents (`../references/agent-operable.md`). For each
 action and each "needs attention" fact the walk used, check read-only:
 - The action exists outside the UI (API or CLI) behind the same permission. A
   UI-only operator action is a finding (sev 2; sev 3 when it is a recurring job).

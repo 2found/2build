@@ -39,7 +39,9 @@ bbs team route --ticket "$TICKET" --task "$TASK" \
 [worker-lifecycle.md](worker-lifecycle.md) when the worker reads it).
 `--kind` is required: `ticket` for a ticket session and `repair|redirect`
 for its follow-ups (their `task done` is refused until the ticket's readiness
-passes); any other name — `phase-qa`, `handover-fix`, `product-review`,
+passes); `phase` for a one-ticket phase that verifies itself (`task built`
+applies that gate, and its `task done` is refused until the phase is
+verified — [phases](phases.md#phase-session-a-one-ticket-phase-verifies-itself)); any other name — `phase-qa`, `handover-fix`, `product-review`,
 `release` — is ungated.
 
 The route order is explicit intent, compatible ticket pin, then the

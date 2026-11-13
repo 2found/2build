@@ -76,7 +76,7 @@ bbs install
    | Grok | `/bbs:autopilot "저장된 검색 화면을 추가해 주세요. 프로토타입을 먼저 보여 준 뒤 구현, 리뷰, QA를 진행하세요."` |
    | Antigravity / 다른 호환 agent | 설치된 `autopilot` skill로 작업하도록 요청하세요. |
 
-3. 계획을 검토하고 UI 작업은 프로토타입을 여세요. 여기서 배치, 상호작용, 범위를 조정합니다. Autopilot이 `/goal` block을 반환하면 같은 agent에 붙여 넣어 실행을 시작하세요. Goal mode가 없는 agent에서는 첫 요청에 `--stop-after=plan`을 추가해 이 검토 단계에서 멈추게 한 뒤 handoff의 재개 지시를 따르세요. 무인으로 실행하려면 `--auto`를 추가하세요(예: `/bbs:autopilot --auto "…"`). Autopilot이 스스로 계획을 검토하고 `/goal` block을 출력하지 않으며, agent가 허용하면 직접 goal을 설정하고, 그렇지 않으면 ticket이 완료되거나 막힐 때까지 같은 session에서 계속 작업합니다.
+3. 계획을 검토하고 UI 작업은 프로토타입을 여세요. Autopilot이 구현을 시작해도 되는지 묻습니다. 승인하거나, 배치, 상호작용, 범위에서 바꿀 점을 알려 주면 수정한 뒤 다시 묻습니다. 승인하면 같은 session에서 바로 구현을 시작합니다. 이 검토 단계에서 멈추려면 첫 요청에 `--stop-after=plan`을 추가한 뒤 handoff의 재개 지시를 따르세요. 무인으로 실행하려면 `--auto`를 추가하세요(예: `/bbs:autopilot --auto "…"`). Autopilot이 스스로 계획을 검토하고 아무것도 묻지 않으며, agent가 허용하면 직접 goal을 설정하고, 그렇지 않으면 ticket이 완료되거나 막힐 때까지 같은 session에서 계속 작업합니다.
 4. Autopilot이 구현, 리뷰, 수정, 테스트, QA를 수행하게 두세요. 완료 gate를 통과하면 검증된 변경을 commit하지 않은 채 checkout에 남기고 근거를 함께 제공합니다(직접 commit하거나 `create-pr`에 넘기세요). 진행이 막히면 부족한 입력을 명시합니다. 재시작 후 handoff의 ticket ID로 재개할 수 있습니다.
 
 첫 ticket에는 Orca, 새 worker session, 프로젝트 설정이 필요 없습니다. 시작 전에 session model을 선택하세요. [진행 확인과 session 복구](docs/companion-cli.md).

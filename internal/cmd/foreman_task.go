@@ -26,6 +26,7 @@ const foremanTaskUsage = `Usage:
   bbs team task done <task> --outcome succeeded|failed --summary <text>
                         [--dispatch <id>] [--report-path <path>] [--files-modified <a,b>]
                         [--no-gate <why>] [--artifacts <paths.json>]
+  bbs team task built <task> [--dispatch <id>] [--no-gate <why>] [--artifacts <paths.json>]
   bbs team task ask <task> (--body <question> | --resume <question-id>) [--timeout <sec>]
   bbs team task answer <task> --id <question-id> (--body <text> | --body-file <path>)
   bbs team task abandon <task> --reason <text>
@@ -46,6 +47,12 @@ A succeeded done for a ticket of a team project records its work for the
 phase: the worktree's uncommitted tree as the snapshot the phase composes
 (integrate takes later edits), or --artifacts {"paths":[...]} for an
 artifact-only ticket.
+
+A phase session (--kind phase) builds a one-ticket phase and verifies it in
+the same session: built records the ticket's work once its focused checks
+pass (the same gate and snapshot a ticket session's done records), so the
+session can integrate and land the phase itself; its succeeded done is
+refused until the phase is landed and verified.
 `
 
 // taskWorkerExitGrace keeps a just-launched worker whose agent Orca has not
@@ -69,6 +76,8 @@ func foremanTask(args []string) error {
 		return foremanTaskList(rest)
 	case "done":
 		return foremanTaskDone(rest)
+	case "built":
+		return foremanTaskBuilt(rest)
 	case "ask":
 		return foremanTaskAsk(rest)
 	case "answer":
@@ -105,6 +114,11 @@ func foremanTaskCreate(args []string) error {
 	}
 	if _, err := foreman.Load(id); err != nil {
 		return fmt.Errorf("foreman task create: %w", err)
+	}
+	if kv["kind"] == phaseTaskKind {
+		if err := phaseSessionFits(kv["ticket"]); err != nil {
+			return fmt.Errorf("foreman task create: %w", err)
+		}
 	}
 	spec, err := os.ReadFile(kv["spec-file"])
 	if err != nil {
@@ -436,18 +450,25 @@ func taskDoneRecordWork(id string, kv map[string]string) error {
 	if d := t.Current(); d != nil && foreman.DispatchSettled(d.Status) {
 		return nil
 	}
+	_, err = taskRecordProjectWork(t.Ticket, kv["artifacts"])
+	return err
+}
+
+// taskRecordProjectWork records a project ticket's work for its phase and
+// reports whether the ticket belongs to a team project at all.
+func taskRecordProjectWork(ticketID, artifacts string) (bool, error) {
 	env, err := ticket.ResolveProject()
 	if err != nil {
-		return err
+		return false, err
 	}
-	st := storeForTicket(env, t.Ticket)
+	st := storeForTicket(env, ticketID)
 	if ticket.ReadDoc(st.IndexPath()).Get("origin.project_seed") == "" {
-		return nil
+		return false, nil
 	}
-	if file := kv["artifacts"]; file != "" {
-		return projectSealArtifacts(st, file)
+	if artifacts != "" {
+		return true, projectSealArtifacts(st, artifacts)
 	}
-	return projectRecordChild(st)
+	return true, projectRecordChild(st)
 }
 
 // gatedTaskKinds are the Task kinds that end a ticket session: their worker
@@ -489,12 +510,29 @@ func taskDoneGateFor(id string, kv map[string]string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("foreman task done: %w", err)
 	}
+	if t.Kind == phaseTaskKind && t.Ticket != "" {
+		gate, err := taskDonePhaseGateFor(t, kv)
+		if err != nil {
+			return "", fmt.Errorf("foreman task done: %w", err)
+		}
+		return gate, nil
+	}
 	if !gatedTaskKinds[t.Kind] || t.Ticket == "" {
 		return "", nil
 	}
 	if d := t.Current(); d != nil && foreman.DispatchSettled(d.Status) {
 		return "", nil
 	}
+	gate, err := ticketGateVerdict(t, kv, "this ticket's context")
+	if err != nil {
+		return "", fmt.Errorf("foreman task done: %w", err)
+	}
+	return gate, nil
+}
+
+// ticketGateVerdict judges a ticket's readiness for the report that records
+// its work, or refuses it naming the gates the warm session still owes.
+func ticketGateVerdict(t foreman.Task, kv map[string]string, holder string) (string, error) {
 	if why := strings.TrimSpace(kv["no-gate"]); why != "" {
 		return "skipped: " + why, nil
 	}
@@ -520,8 +558,8 @@ func taskDoneGateFor(id string, kv map[string]string) (string, error) {
 	}
 	fmt.Println("GATE=not-ready")
 	fmt.Println("REASONS=" + strings.Join(reasons, ","))
-	fmt.Println("NEXT=you still hold this ticket's context: record the missing gates (review-pr, qa) on the final tree and run done again; --no-gate \"<why>\" only when a gate cannot apply, --outcome failed when the work did not land")
-	return "", fmt.Errorf("foreman task done: ticket %s is not ready: %s", t.Ticket, strings.Join(reasons, ","))
+	fmt.Println("NEXT=you still hold " + holder + ": record the missing gates (review-pr, qa) on the final tree and report again; --no-gate \"<why>\" only when a gate cannot apply, --outcome failed when the work did not land")
+	return "", fmt.Errorf("ticket %s is not ready: %s", t.Ticket, strings.Join(reasons, ","))
 }
 
 func foremanTaskAsk(args []string) error {

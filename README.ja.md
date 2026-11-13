@@ -75,7 +75,7 @@ GitHub から直接ダウンロードできます。コマンドと前提条件�
    | Grok | `/bbs:autopilot "保存した検索の画面を追加する。先にプロトタイプを見せ、その後に実装、レビュー、QAを行う。"` |
    | Antigravity / その他の対応 agent | 導入済みの `autopilot` skill を使ってタスクを進めるよう依頼します。 |
 
-3. 計画を読み、UI のタスクではプロトタイプを開きます。ここでレイアウト、操作の流れ、範囲を調整してください。Autopilot が `/goal` block を返したら、同じ agent に貼り付けて実行を始めます。Goal mode がない agent では、最初の依頼に `--stop-after=plan` を追加してこの確認段階で停止させ、handoff の再開指示に従ってください。無人で実行するには `--auto` を追加します（例：`/bbs:autopilot --auto "…"`）。Autopilot は自分で計画を確認し、`/goal` block を出力せず、agent が許す場合は自分で goal を設定し、そうでなければ同じ session で ticket が完了するか阻害されるまで作業を続けます。
+3. 計画を読み、UI のタスクではプロトタイプを開きます。Autopilot が実装を始めてよいか尋ねるので、承認するか、レイアウト、操作の流れ、範囲の直したい点を伝えてください。修正後にもう一度尋ねます。承認すると同じ session でそのまま実装に進みます。この確認段階で止めたい場合は、最初の依頼に `--stop-after=plan` を追加し、handoff の再開指示に従ってください。無人で実行するには `--auto` を追加します（例：`/bbs:autopilot --auto "…"`）。Autopilot は自分で計画を確認し、何も尋ねず、agent が許す場合は自分で goal を設定し、そうでなければ同じ session で ticket が完了するか阻害されるまで作業を続けます。
 4. 実装、レビュー、修正、テスト、QA を Autopilot に任せます。完了 gate を通過すると、検証済みの変更を未 commit のまま checkout に残し、証拠を添えます（commit するか `create-pr` に渡します）。阻害要因があれば不足を明示します。再起動後は handoff の ticket ID で再開できます。
 
 最初の ticket に Orca、新しい worker session、プロジェクト設定は不要です。開始前に session の model を選んでください。[進捗確認と session 復旧](docs/companion-cli.md)。

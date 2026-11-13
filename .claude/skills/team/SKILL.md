@@ -115,10 +115,18 @@ keep work on warm context.
      (`integrate` + `land`) and re-tests it; its passing QA is the phase
      done, with no `repair` round trip through the lead
      ([phases](references/phases.md#4-cumulative-qa-and-product-review)).
+   - **A one-ticket phase is one session.** Create its Task with `--kind phase`: the warm ticket session reports `bbs team task built` after its focused checks, then integrates, lands, reviews and QAs its own phase and fixes forward, and its `task done` is refused until the phase is verified ([phases](references/phases.md#phase-session-a-one-ticket-phase-verifies-itself)). Only a phase of several tickets gets a separate integration session.
 
 **Stay light.** Your context holds the goal, the accepted design, the
 phase plan, the DAG and durable ids — never worker transcripts, diffs or test
-logs. Judge work from readiness JSON, verdicts and handoff paths.
+logs. Judge work from readiness JSON, verdicts and handoff paths. In
+measured runs (2026-11) the lead cost more than all its workers together,
+almost all of it from turns outside the watcher's wakes, so:
+
+- **You do no hands-on work.** No code edits, test runs, browser checks or debugging in your session — even a "quick" one re-reads your whole context on every tool call. Work is a Task on a worker; the only work you do yourself is resolving an `integrate` conflict (git flow step 6).
+- **Requests outside the project go elsewhere.** A deploy, an ops check, a hotfix or a question about another repo is a `bbs team task create` on a worker, or the human's own session — never a detour in yours.
+- **A status question is one read.** Answer "how far along?" from one `bbs team batch show "$FOREMAN_ID"` (or `bbs team next`), in a few lines, then end the turn.
+- **One lead session per project.** Do not start a second lead on the same project; after the handover (or `bbs team complete`) the session has nothing left to do — say so and let the human close it.
 
 ## Invariants the CLI keeps (you do not need to re-check them)
 
@@ -148,6 +156,7 @@ logs. Judge work from readiness JSON, verdicts and handoff paths.
 | What settled? | `bbs team batch show "$FOREMAN_ID"` — batch, attention, and every owned project's next steps in one read |
 | Hand over a batch | `bbs team batch "$FOREMAN_ID" --tasks <task,...>`, then end the turn |
 | Build / test / ship a phase | `bbs team integrate`, `evidence`, `land`, `release` `"$PARENT" --phase <id>` |
+| One-ticket phase in one session | `task create --kind phase`; the worker reports `bbs team task built <task>` then `task done` |
 | Why was I refused? | `bbs team readiness "$PARENT" --action <dispatch\|integrate\|land\|release\|finish> [--phase <id>] --json` |
 | Full state | `bbs team snapshot "$PARENT" --json`, `bbs ticket dag "$PARENT" --mermaid` |
 | Seams between parallel work | `bbs contract list\|status\|check` ([contracts](../references/contracts.md)) |
@@ -228,7 +237,9 @@ On a settled batch wake:
    open the next phase while the previous one waits on its release
    (**pipeline one phase deep**; a phase cannot integrate until the earlier
    one is verified and released), integrate and land, hand phase review + QA
-   to one integration worker (it fixes what it finds itself), release.
+   to one integration worker (it fixes what it finds itself), release. A
+   phase with an open phase session is its own: `bbs team next` answers
+   `wait` for it until the session settles.
    Merging is your job: `integrate`/`land` lay a conflict out in the phase
    worktree and **you resolve every conflict there yourself** in that wake —
    focused checks, then `integrate` again ([git flow](../references/git-flow.md)

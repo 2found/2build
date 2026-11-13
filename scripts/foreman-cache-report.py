@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure Foreman and worker token cost from Claude Code transcripts.
+"""Measure Team (formerly Foreman) and worker token cost from Claude Code transcripts.
 
 Reads ~/.claude/projects/**.jsonl (or --projects) and prints the metrics that
 docs/foreman-cache-economics.md tracks, so a later run can be compared with the
@@ -14,42 +14,67 @@ read counts 0.1, a 5-minute cache write 1.25, a 1-hour write 2, uncached input
 1. Output tokens are reported separately.
 
 Session selection (Claude Code only; other agents keep no such transcripts):
-  worker   a main transcript in a project directory whose name contains
-           "-babysit-worktrees-" (one directory per ticket worktree); its
-           subagents/ transcripts are counted as that worker's subagents
-  foreman  a main transcript with a user prompt invoking /bbs:foreman; each
-           non-harness user prompt starts one wake, tagged by its source
+  worker   a main transcript whose first prompt is a bbs Team worker launch
+           ("You are a bbs Team worker for Task …"), or one in a project
+           directory under "-babysit-worktrees-" (the pre-Orca worktree pool);
+           its subagents/ transcripts are counted as that worker's subagents.
+           Workers are grouped by worktree directory and by the Task kind their
+           spec names (ticket, repair, redirect, phase, or the lead's own kinds
+           for integration and release sessions).
+  lead     a main transcript, not a worker, with a user prompt invoking
+           /bbs:team (or the legacy /bbs:foreman); each non-harness user
+           prompt starts one wake, tagged by its source
 A session is in the window when its first request is.
 """
 import argparse
 import json
 import os
+import re
 import statistics
 import sys
 from datetime import datetime, timezone
 
-KEEP_WARM = "Prompt-cache keep-warm from bbs foreman watch"
+KEEP_WARM = ("Prompt-cache keep-warm from bbs team watch", "Prompt-cache keep-warm from bbs foreman watch")
+WATCHER = ("bbs team watch (team ", "bbs foreman watch (")
+LEAD_SKILL = ("/bbs:team", "$bbs:team", "<command-message>bbs:team",
+              "/bbs:foreman", "$bbs:foreman", "<command-message>bbs:foreman")
+WORKER_PROMPT = "You are a bbs Team worker for Task "
+POOLS = ("-babysit-worktrees-", "-orca-workspaces-")
+KIND = re.compile(r"\(kind ([a-z-]+)\)")
 HARNESS = ("<local-command-stdout>", "<command-name>/compact", "<command-name>/clear",
            "<command-name>/reload-plugins", "/compact")
 
 
 def wake_source(text):
-    """Who started a Foreman turn: the bbs watcher (skill prompt), a watcher
-    keep-warm, a pre-bbs-task Orca orchestration message, or anyone else
-    (the human, a background-task notification)."""
+    """Who started a lead turn: the bbs watcher (its batch prompt, or the
+    skill prompt it typed before v1.114), a watcher keep-warm, a pre-bbs-task
+    Orca orchestration message, a background-task notification, or the
+    human."""
     t = text.lstrip()
-    if KEEP_WARM in t:
+    if any(k in t for k in KEEP_WARM):
         return "keep_warm"
-    if t.startswith(("/bbs:foreman", "$bbs:foreman", "<command-message>bbs:foreman")):
+    if t.startswith(WATCHER) or t.startswith(LEAD_SKILL):
         return "watcher"
     if t.startswith("You have ") and "orchestration message" in t[:60]:
         return "orchestration"
-    return "other"
+    if t.startswith("<task-notification>"):
+        return "notification"
+    return "human"
 
 
-def invokes_foreman(text):
-    t = text.lstrip()
-    return t.startswith(("/bbs:foreman", "$bbs:foreman", "<command-message>bbs:foreman"))
+def invokes_lead(text):
+    return text.lstrip().startswith(LEAD_SKILL)
+
+
+def worker_key(d, prompts):
+    """The worktree a worker session belongs to, or None for a non-worker."""
+    for pool in POOLS:
+        if pool in d:
+            if pool == "-babysit-worktrees-" or any(x.lstrip().startswith(WORKER_PROMPT) for _, x in prompts[:3]):
+                return d.split(pool, 1)[1]
+    if any(x.lstrip().startswith(WORKER_PROMPT) for _, x in prompts[:3]):
+        return d
+    return None
 
 
 def ts(s):
@@ -179,11 +204,13 @@ def main_transcripts(root):
 def workers(root, since, until):
     sessions, worktrees = [], {}
     for d, path in main_transcripts(root):
-        if "-babysit-worktrees-" not in d:
-            continue
         rs, prompts, compacts, results = load(path)
         if not in_window(rs, since, until):
             continue
+        key = worker_key(d, prompts)
+        if key is None:
+            continue
+        kind = next((m.group(1) for x in results for m in [KIND.search(x)] if m), "unknown")
         subs = []
         sub_dir = os.path.join(path[:-len(".jsonl")], "subagents")
         if os.path.isdir(sub_dir):
@@ -192,7 +219,7 @@ def workers(root, since, until):
                     srs = load(os.path.join(sub_dir, f))[0]
                     if srs:
                         subs.append(totals(srs))
-        s = dict(worktree=d.split("-babysit-worktrees-", 1)[1], start=rs[0]["t"], turns=len(rs),
+        s = dict(worktree=key, kind=kind, path=path, start=rs[0]["t"], turns=len(rs),
                  totals=totals(rs), base_ctx=ctx(rs[0]), ramp=sum(cost(r) for r in rs[:25]),
                  waste=expiry_waste(rs, compacts), compactions=len(compacts),
                  gate_refusals=sum(x.count("GATE=not-ready") for x in results),
@@ -202,11 +229,13 @@ def workers(root, since, until):
     return sessions, worktrees
 
 
-def foremen(root, since, until):
+def foremen(root, since, until, worker_paths):
     out = []
     for _, path in main_transcripts(root):
+        if path in worker_paths:
+            continue
         rs, prompts, compacts, results = load(path)
-        if not in_window(rs, since, until) or not any(invokes_foreman(p) for _, p in prompts):
+        if not in_window(rs, since, until) or not any(invokes_lead(p) for _, p in prompts):
             continue
         # A wake is one user prompt and the requests up to the next one.
         prompts = [(t, x) for t, x in prompts if not x.lstrip().startswith(HARNESS)]
@@ -223,7 +252,7 @@ def foremen(root, since, until):
 
 def report(root, since, until):
     sessions, worktrees = workers(root, since, until)
-    fm = foremen(root, since, until)
+    fm = foremen(root, since, until, {s["path"] for s in sessions})
     wt_sessions = [len(v) for v in worktrees.values()]
     wt_cost = [sum(s["totals"]["cost"] for s in v) for v in worktrees.values()]
     wsum = totals([])
@@ -239,8 +268,17 @@ def report(root, since, until):
     wakes = [w for f in fm for w in f["wakes"]]
     real = [w for w in wakes if w["source"] != "keep_warm"]
     kw = [w for w in wakes if w["source"] == "keep_warm"]
+    by_kind = {}
+    for s in sessions:
+        b = by_kind.setdefault(s["kind"], dict(sessions=0, cost=0.0, subagent_cost=0.0))
+        b["sessions"] += 1
+        b["cost"] += s["totals"]["cost"]
+        b["subagent_cost"] += sum(x["cost"] for x in s["subagents"])
+    for b in by_kind.values():
+        b["cost"], b["subagent_cost"] = round(b["cost"]), round(b["subagent_cost"])
+        b["cost_per_session"] = round((b["cost"] + b["subagent_cost"]) / b["sessions"])
     by_source = {}
-    for src in ("watcher", "orchestration", "other"):
+    for src in ("watcher", "orchestration", "notification", "human"):
         ws = [w for w in wakes if w["source"] == src]
         by_source[src] = dict(wakes=len(ws), cost=round(sum(w["cost"] for w in ws)),
                               turns_median=med([w["turns"] for w in ws]),
@@ -271,6 +309,7 @@ def report(root, since, until):
             "cost_per_worktree_median": round(med(wt_cost)),
             "gate_refusals": sum(s["gate_refusals"] for s in sessions),
             "sessions_with_gate_refusal": sum(1 for s in sessions if s["gate_refusals"]),
+            "by_kind": by_kind,
         },
         "subagents": {
             "count": len(subs),
@@ -311,9 +350,12 @@ def human(rep):
               w["turns"], k(w["cost_per_turn"]), k(w["base_context_median"]), m(w["ramp_first_25_turns_median"]),
               m(w["cost_per_session_median"]), m(w["cost_per_worktree_median"])))
     print("          task done gate refusals %d (in %d sessions)" % (w["gate_refusals"], w["sessions_with_gate_refusal"]))
+    for kind, b in sorted(w["by_kind"].items(), key=lambda x: -(x[1]["cost"] + x[1]["subagent_cost"])):
+        print("          kind %-12s %3d sessions, %s + %s subagents, %s per session" % (
+            kind, b["sessions"], m(b["cost"]), m(b["subagent_cost"]), m(b["cost_per_session"])))
     print("subagents %d, cost %s, %.0f%% cache creation, median %s per worktree" % (
         s["count"], m(s["cost_total"]), 100 * s["creation_share"], m(s["cost_per_worktree_median"])))
-    print("foreman   %d sessions, cost %s; %d wakes, turns/wake median %s mean %s, median %s/wake; "
+    print("lead      %d sessions, cost %s; %d wakes, turns/wake median %s mean %s, median %s/wake; "
           "cold wakes %.1f%% (%s)" % (
               f["sessions"], m(f["cost_total"]), f["wakes"], f["turns_per_wake_median"], f["turns_per_wake_mean"],
               m(f["cost_per_wake_median"]), 100 * f["cold_wake_share"], m(f["cold_wake_cost"])))

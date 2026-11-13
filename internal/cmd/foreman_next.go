@@ -87,6 +87,11 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 		return []foremanStep{step("bind", "", "bbs team bind "+parent+" --phase "+p.ID+" --child <phase-ticket>",
 			"create a phase ticket under "+parent+" and bind it; its tickets go under it")}
 	}
+	session := openPhaseSession(p)
+	if session != "" && !(p.Delivered && p.Integrated) {
+		return []foremanStep{step("wait", session, "",
+			"phase session "+session+" builds, integrates, lands and verifies phase "+p.ID+" itself; the batch wake reports it")}
+	}
 	switch {
 	case p.Delivered && p.Integrated:
 		if p.Release == "ask" && !p.ApprovalGo {
@@ -109,6 +114,10 @@ func phaseNext(st *ticket.Store, s projectSnapshot, p projectPhaseState) []forem
 		}
 		if len(p.Outside) > 0 && !p.ApprovalGo {
 			return releaseConfirmNext(st, s, p)
+		}
+		if session != "" && p.Release == "auto" {
+			return []foremanStep{step("wait", session, "",
+				"phase session "+session+" releases phase "+p.ID+" itself; the batch wake reports it")}
 		}
 		return []foremanStep{step("release", "", "bbs team release "+parent+" --phase "+p.ID+" --file receipt.json",
 			"phase "+p.ID+" is landed and verified; run /bbs:release, then record its verdict")}
