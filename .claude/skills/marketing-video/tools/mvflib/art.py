@@ -46,6 +46,8 @@ USES = {
     "reference": ("1x1", None, None),   # a character or style sheet other jobs --ref; never on screen
 }
 LOOKS = {"illustration", "photoreal", "texture"}
+# Code draws the picture; a generated full-frame picture is the exception (an establishing beat or two).
+FULL_FRAME, MAX_FULL_FRAME = {"plate", "background"}, 2
 # Where a recurring character's look comes from (a mascot, a game hero, a book's adaptation). Viewers who know that
 # look carry it in their head; a character drawn otherwise reads as "not them". `none` = no adaptation: the design is ours (a reference sheet keeps it).
 CAST_SOURCES = {"animation", "comic", "game", "official-art", "live-action", "none"}
@@ -310,6 +312,11 @@ def check(cd: Path, persons: list[str] | None = None) -> Report:
         r.fail("A0", "art.preset", f"preset {d['preset']!r} not in {sorted(STYLES)} (or drop it and write style yourself)")
     if jobs and not str(d.get("style", "")).strip():
         r.info("A7", "art", "no style: one shared style line keeps every plate in one look")
+    full = [j.get("id") for j in jobs if (j.get("use") or "plate") in FULL_FRAME and not j.get("image")]
+    if len(full) > MAX_FULL_FRAME:
+        r.warn("A12", "art", f"{len(full)} generated full-frame pictures ({', '.join(map(str, full))}): scenes built on them "
+               "play as a slideshow. Draw the place in code and keep art to textures, far layers, portraits and props the "
+               "code moves, or answer in warn_notes why this video needs them")
     return r
 
 

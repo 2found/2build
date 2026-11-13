@@ -1,6 +1,13 @@
 # Formats and channels
 
 Read this when picking a script's `format` (stage 5) and its canvases (stage 7).
+
+Every format is built in code: its picture is HTML, SVG, CSS, canvas and
+GSAP, around the real product's captures and footage. Generated art is a
+part that a coded scene moves, never the scene (SKILL.md, A12). That holds
+for a `story` or a `pov` in a painted world too: draw the place and the
+cast in code, and keep the generated pieces to textures, far layers, props
+and portraits.
 The atlas names, for each kind of video, the value a viewer gets and what
 usually breaks it. The last column lists mvf shortcuts that exist for that
 kind of picture; it is an index, not a recommendation, and it says nothing
@@ -22,7 +29,7 @@ rename it.
 | `listicle` | each item worth keeping on its own | ten thin items; the best item last when most viewers leave by half-way | `steps` as a ranked list, a `counter`; put the strongest item early |
 | `myth-buster` | the wrong belief, the right one, and why | the myth repeated louder than the correction; the correction without its reason | `stamp`/`label` ("MYTH", "FACT"), `quote` for the source |
 | `explainer` | an answer to one question, in plain words | the tease; terms kept unexplained; the question asked back as the ending | `title`, `steps`, `compare`, `quote` for the cited line |
-| `story` | a feeling they can name, or a lesson they can use | the world before a person and what they want; no turn | art plates, `cam` moves, `weather`, `quote` for the line that lands |
+| `story` | a feeling they can name, or a lesson they can use | the world before a person and what they want; no turn; a slideshow of generated plates | a place drawn in `svg` layers, `rig` characters, `cam` moves, `weather`, `quote` for the line that lands |
 | `testimonial` | someone like them, and what changed for them | a paid-sounding script; no specific detail | `quote` with the real words, `lower` for the person, their real photo cut out (an art job with `image`) |
 | `pov` / `skit` | a situation they know, made funny or sharp | an inside joke only fans get; a product plug as the punchline | fast cuts, `slam`, `punch`, a voice per character (beat `voice`) |
 | `reaction` | the reaction plus the context to share it | the clip without the context; rights the clip does not have | `official-promo` or own clips only; `lower`, `quote` |

@@ -17,8 +17,16 @@ describes the helpers.
   `licensed`, `public-domain`, `official-promo`), with the credit on screen
   while it shows. Clone only a voice whose owner consented. A cloud voice or
   image engine must allow commercial use.
-- **Generated art** fills what a camera or the product cannot give. It is never
-  the product UI, a logo, readable words or a real person.
+- **Code draws the picture.** Each scene is built in HTML, SVG, CSS, canvas
+  and GSAP around the real captures: the place, the cast, the lettering and
+  the motion. A scene made of a generated picture with a pan, a zoom or text
+  over it is a slideshow. A run of such scenes is a P0 in review
+  ([07-review](07-review.md)), and more than two generated full-frame
+  pictures in `art.json` WARN (A12).
+- **Generated art** is a part a coded scene uses: a texture, a far layer
+  behind coded parts, a portrait or a prop the code moves, a thumbnail, or a
+  reference. It is never the product UI, a logo, readable words or a real
+  person.
   - Only approved art is shown.
   - Art is gated by its upscale (the size shown over the size drawn). A
     full-frame plate or thumbnail passes at 1.5x and fails past 2x. A
@@ -53,8 +61,10 @@ What the checks refuse:
   - a `ref` that is neither a job nor a campaign file;
   - the cast errors below.
 
-  It WARNs on text or a logo in the picture, and on a sticker that is not
-  transparent.
+  It WARNs on text or a logo in the picture, on a sticker that is not
+  transparent, and on more than two generated `plate` or `background` jobs
+  (A12: draw the place in code, or answer in `warn_notes` why this video
+  needs them).
 - `mvf art approve` refuses an upscale past the fail line unless you looked at
   it and pass `--force`.
 - `mvf art draw` refuses a paid engine without `--spend`, a missing env
@@ -93,9 +103,10 @@ Settle the look on one frame before building every scene.
   close, in frame. A page, an object or a figure seen from behind is the easy
   frame; it holds up beside the references and says nothing about the scenes
   that will not. Author that scene by hand in
-  `compositions/<beat>.html` (SCENE_GUIDE.md, the `hyperframes` skill), in
-  free HTML, SVG, CSS and GSAP, and finish it: a place with a ground, depth
-  and light, the subject large, the lettering at phone size.
+  `compositions/<beat>.html` (SCENE_GUIDE.md), in free HTML, SVG, CSS and
+  GSAP, and finish it: a place with a ground, depth and light, the subject
+  large, the lettering at phone size. The place and the subject are drawn
+  in code. A generated plate under the frame does not make it a key frame.
 - `mvf keyframe <proj> --at <second>` snapshots it and writes
   `review/keyframe.jpg`: your frame on top, then one frame each from the
   most-viewed videos research downloaded. Look at it and rework the frame
@@ -151,6 +162,11 @@ the cut 6: "faceless silhouettes where reactions are the story".
   in front and silhouettes behind, never one design copied in a row.
 
 ## Art
+Art supports a coded scene and never replaces it (Bar). Reach for it only
+when code cannot give the part at the level the key frame needs, such as a
+painted texture or a portrait with a face that has to act. Even then the
+scene around it stays in code.
+
 `07-video/art/art.json` is `{preset?, style, cutout_style?, engine, cast, jobs: [{id, use, prompt |
 image, canvas?, display?, ref?, cast?, transparent?, look?, style?}]}`.
 - `style` goes on every job; `cutout_style` replaces it on a sticker or a
@@ -194,7 +210,9 @@ image, canvas?, display?, ref?, cast?, transparent?, look?, style?}]}`.
   `IMAGES` extension.
 
 ### Layered art (2.5D)
-A layered shot needs its parts drawn apart, in the same `style` and light:
+Prefer a place drawn in `svg` layers with the generated parts set into it.
+A generated plate counts toward A12. A layered shot needs its parts drawn
+apart, in the same `style` and light:
 - the plate (`use: plate`) with the place and nobody in it, the prompt naming
   the empty spot where the character will stand;
 - each character or prop as a `sticker` with `transparent: true` and the
@@ -252,7 +270,9 @@ one:
     (about 110°), clear of the head.
 - **Ink** (`preset: ink`): the plain stick figure on warm paper. It has a round
   head and bare lines (`body: stick`), for a minimal or a calligraphic tone.
-- **Anime** (`preset: anime`): painted plates and cel-shaded cut-outs. Limited
+- **Anime** (`preset: anime`): cel-shaded cut-outs over places drawn in
+  code. Its painted plates are the A12 exception, used for one or two
+  establishing beats at most. Limited
   animation sells it: hold, then a fast action on the word, `speedlines` and a
   `flash` on the hit, and a held pose `swap` instead of a tween between
   drawings.
@@ -299,10 +319,9 @@ lists it (`"cast": ["HERO"]`):
   cast WARNs.
 
 ## Tool
-The tooled route is HyperFrames (HTML to video, `npx hyperframes`, Node 22+).
-Read the `hyperframes` skill first if it is installed. Use, adapt or skip any
-step. Another editor (CapCut, DaVinci, ffmpeg) is fine if the bar is met and
-timing is measured.
+HyperFrames renders the coded scenes to video (HTML to video, `npx
+hyperframes`, Node 22+); `SCENE_GUIDE.md` holds the contract a scene must
+keep. Use, adapt or skip any step below.
 
 - **Voice.** `mvf voice <sid>` makes a take in `07-video/<sid>/takes/tNN/`: one
   WAV per line and `manifest.json` (speech spans and word times). It voices

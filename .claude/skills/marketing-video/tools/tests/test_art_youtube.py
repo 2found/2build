@@ -207,6 +207,19 @@ class ArtChecks(unittest.TestCase):
             r = art.check(cd)
             self.assertEqual([i["where"] for i in r.items if i["level"] == "FAIL"], ["art.P1"])
 
+    def test_more_than_two_generated_full_frames_is_a_slideshow(self):
+        with tempfile.TemporaryDirectory() as d:
+            cd = Path(d)
+            (cd / "cover.png").write_bytes(b"x")
+            two = [{"id": "P1", "use": "plate", "prompt": "a mountain gate at dawn"},
+                   {"prompt": "mist over a lake", "id": "P2"},  # no use: a plate
+                   {"id": "C1", "use": "plate", "image": "cover.png"},  # the campaign's own picture is not generated
+                   {"id": "S1", "use": "sticker", "display": "400x400", "transparent": True, "prompt": "a sword"}]
+            self.jobs(cd, *two)
+            self.assertNotIn("A12", [i["code"] for i in art.check(cd).items])
+            self.jobs(cd, *two, {"id": "B1", "use": "background", "prompt": "a night sky"})
+            self.assertEqual([(i["code"], i["level"]) for i in art.check(cd).items if i["code"] == "A12"], [("A12", "WARN")])
+
 
 ENGINE = textwrap.dedent("""
     import subprocess

@@ -28,9 +28,18 @@ another tool entirely, whenever the shortcut is not what the video needs. A
 check FAILs only on a standard, or on something that would break the render,
 the platform or the timing. Taste is WARN advice that you answer in writing.
 
+**Code makes the video.** Every format, a story as much as a demo, is
+built as code: the place, the characters, the lettering and the motion are
+HTML, SVG, CSS, canvas and GSAP, beside the real product's captures. Image
+generation only supports a coded scene. It can give a texture, a far layer
+behind coded parts, a portrait or a prop that the code moves, a thumbnail,
+or a reference. It never gives the scene itself. A video of generated
+pictures panned and zoomed under text is a slideshow, and slideshows have
+been the weakest cuts this skill has made, xianxia above all. A full-frame
+plate is the rare exception, and you answer it in writing (A12).
+
 **There is no default look.** Design the picture for this video: the place,
-the characters, the lettering and the motion are yours, written as free HTML,
-SVG, CSS and GSAP, or made in any other tool. A new campaign names no style
+the characters, the lettering and the motion are yours, written in code. A new campaign names no style
 preset (`"style": "none"` in `campaign.json`). The presets (`stickman`, `ink`,
 `anime`), the code-drawn rig and `direction.json` are still there for a video
 that wants one, and nothing asks for them
@@ -82,7 +91,7 @@ browser or a video it cannot read. Do it yourself before that stage's check.
 | --- | --- | --- |
 | Edit and render | HyperFrames (HTML to video, `npx hyperframes`, Node 22+) | the first scaffold downloads the pinned version |
 | Voice | OmniVoice (clone or designed voice; Whisper times the words) | uv builds its environment on the first take (about 2 GB, once) |
-| Pictures | Qwen Image 2.1 Turbo, and RMBG-1.4 cutouts (the `image-gen` skill) | `image-gen/scripts/setup` downloads the weights once; free and local |
+| Picture parts (supporting code, never the scene) | Qwen Image 2.1 Turbo, and RMBG-1.4 cutouts (the `image-gen` skill) | `image-gen/scripts/setup` downloads the weights once; free and local |
 | Judge | Micro Fish on the user's Soot: a society of persona Soots on a shared feed, and an expert panel | the user signs in to a provider and names the model, then `mvf judge setup` |
 
 Run **`mvf doctor`** before the first video. It checks each backbone and
@@ -108,7 +117,7 @@ checks expect.
 | 4 | strategy -> `04-strategy/angles.json` | 2-3 angles, each a benefit for a segment, standing on facts, checked fresh against the obvious videos and this owner's past ones | [04](references/04-strategy.md) |
 | 5 | script -> `05-scripts/<sid>.json` | 3 candidate scripts, each delivering its benefit early and in plain words, complete enough that a stranger can retell it, written from its ending, with 2-4 key moments, hook variants and platform copy; the kind of video and its channels from the [atlas](references/formats.md) | [05](references/05-script.md) |
 | 6 | pre-test -> `06-pretest/<round>/decision.json` | Micro Fish (or another honest test) picks one script and one hook, and strangers can retell what it told them; the owner reads the winner before production | [06](references/06-pretest.md) |
-| 7 | video -> `07-video/<sid>/` | one video: real product, approved art, measured audio, reviewed by looking, by a cold viewer who never read the plan, and judged by a simulated panel | [07](references/07-production.md), [craft](references/07-craft.md) |
+| 7 | video -> `07-video/<sid>/` | one video: real product, the picture drawn in code (approved art only as its parts), measured audio, reviewed by looking, by a cold viewer who never read the plan, and judged by a simulated panel | [07](references/07-production.md), [craft](references/07-craft.md) |
 | 8 | delivery -> `08-delivery/<sid>/<canvas>/<platform>/` | the platform's specs, QA, captions, copy, AI labels | [08](references/08-delivery.md) |
 
 Open only the reference for the stage you are in, and only the sections you
@@ -191,8 +200,8 @@ stopped.
   about. Before any pre-test, write the retell a stranger should give, and
   check that the body actually says it.
 - **Draw what the audience already pictures.** If the product, character or
-  world has a known look (an adaptation, a mascot, brand art), generated art
-  follows it.
+  world has a known look (an adaptation, a mascot, brand art), the cast drawn
+  in code takes its signature traits, and so does any generated part.
 - **Whoever made the cut cannot score it.** Three cuts their maker scored 7
   of 10 had every character under a third of the frame height and more than
   60% of the frame empty; the most-viewed videos on the same topics fill

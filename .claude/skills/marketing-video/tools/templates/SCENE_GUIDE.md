@@ -15,7 +15,7 @@ second is advice to overrule when the scene calls for it.
 - **Timing from the voice.** `const B = window.MV.beat("B03")` gives `B.dur` and
   `B.words[k].s/.e` in local seconds. Anchor moments to words, never to typed
   numbers. Keep the placeholder's fallback object, so the scene opens alone.
-- **The HyperFrames contract.** Full rules are in the `hyperframes` skill.
+- **The HyperFrames contract.**
   - Register a paused GSAP timeline as `window.__timelines["<beat>"]`, and use
     `fromTo`, not `from`.
   - No `Date.now()`, unseeded `Math.random()`, timers, network or
@@ -30,9 +30,13 @@ second is advice to overrule when the scene calls for it.
     root-relative (`assets/media/…`).
 - **Real product.** UI is a real capture from `assets/media/`, never drawn. A
   missing screen is a labelled placeholder and a line in your report.
-- **Approved art only.** Use `assets/art/<ID>.png` where the beat's `art` lists
-  it, at no more than the size it was approved for. Words go in HTML over it,
-  never in it.
+- **Code draws the scene.** Build the place, the cast and the motion in
+  HTML, SVG, CSS, canvas and GSAP. A generated picture with a pan or zoom
+  and text over it is a slideshow, not a scene.
+- **Approved art only, as a part.** Use `assets/art/<ID>.png` where the beat's
+  `art` lists it, at no more than the size it was approved for, as a texture,
+  a far layer, or a portrait or prop your code moves. Words go in HTML over
+  it, never in it.
 - **Claims.** A number, superlative or "free" on screen traces to a fact in
   `01-product/facts.json`.
 - **Zones limit what must be read, not the picture.** The picture is the

@@ -87,7 +87,7 @@ UNVERIFIABLE (VW1), or red items have no issue near their second (VW2).
 
 | Sev | Means | Examples |
 | --- | --- | --- |
-| P0 | a viewer would notice and leave, or the post is wrong | a black or frozen frame, a caption over a face or the subject, stray text or a mangled hand in art, an uncited claim on screen, a wrong name or number, a draft plate |
+| P0 | a viewer would notice and leave, or the post is wrong | a black or frozen frame, a caption over a face or the subject, stray text or a mangled hand in art, an uncited claim on screen, a wrong name or number, a draft plate, a run of beats that are generated pictures panned or zoomed under text (a slideshow) |
 | P1 | it costs attention | a soft or stretched plate, a shot that does not show what the line names, a dead stretch, an effect louder than a word |
 | P2 | polish | a transition that fights the beat, a colour off the look |
 

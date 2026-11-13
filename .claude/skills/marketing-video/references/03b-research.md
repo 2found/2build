@@ -108,7 +108,7 @@ insider words in `lore_terms`; the lint flags them in hooks and early beats.
   - the product's feature as the topic.
 - **Existing depictions.** If the subject already has a look viewers carry in
   their heads (an animation, a drama, a comic, a game, a mascot), list it in
-  `adaptations`; generated art follows it.
+  `adaptations`; the cast drawn in code, and any generated part, follows it.
 
 ## Tool
 - `mvf top-videos "QUERY" [--platform youtube|tiktok] [--n 6] [--seconds 300] [--max-min 30] [--scope topic|benefit]`
