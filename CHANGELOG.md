@@ -1,4 +1,41 @@
 # Changelog
+## 1.132.0 — 2026-11-14
+
+### Added
+
+- **`autopilot` new workflow**: in a checkout with no project,
+  `/bbs:autopilot "<idea>"` (or no idea) interviews the owner, writes
+  `docs/REQUIREMENT.md`, builds a prototype with one product checkpoint, runs
+  `architect new`, scaffolds services with `bbs bootstrap`, sets up local
+  infrastructure and a deploy config that provisions nothing, runs
+  `setup-project` and `harness-audit`, passes review and QA gates, writes
+  `docs/BACKLOG.md` of paste-ready autopilot lines and makes one skeleton
+  commit (the only commit autopilot makes, and only on a repository it started
+  from empty). Verdict `PROJECT_READY`.
+- `architect`: a `new` mode for a product with no code yet.
+- New shared reference `references/owner-language.md`: the standard for every
+  stop a person reads; `autopilot`, `perf-audit`, `architect`, `setup-project`
+  and `release` follow it.
+- `marketing-video`: `mvf art` WARNs on more than two generated full-frame
+  plate/background jobs (A12); a run of generated-plate scenes is a P0 in
+  review.
+
+### Changed
+
+- `marketing-video`: every format is built in code (HTML, SVG, CSS, canvas,
+  GSAP) around the real product's captures; generated art only supports a
+  coded scene (texture, far layer, portrait, prop, thumbnail, reference). The
+  story/pov formats and the anime preset draw the place and cast in code;
+  `SCENE_GUIDE` and production notes no longer defer to the hyperframes skill.
+- `perf-audit`: the report opens with a one-screen owner part (what people feel
+  in seconds, why, numbered recommendations with cost, risk and the command to
+  paste); routes, percentiles and ids move below a divider.
+- `builder` ticks the cited backlog item and names the next one.
+- `autopilot` verification: `limitations` is only for required coverage that
+  could not run.
+- README (five languages), docs, CLAUDE.md and llms.txt lead with the new
+  entry.
+
 ## 1.131.0 — 2026-11-14
 
 ### Added
