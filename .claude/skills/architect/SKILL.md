@@ -1,6 +1,6 @@
 ---
 name: architect
-description: Map a system's current architecture and design its next generation with diagrams: verified as-is design, headroom, safety gaps, and a staged scaling roadmap (edge, database, cache, jobs, replicas, services) where each stage waits for a measured trigger.
+description: Map a system's current architecture and design its next generation with diagrams: verified as-is design, headroom, safety gaps, and a staged scaling roadmap (edge, database, cache, jobs, replicas, services) where each stage waits for a measured trigger. `new` designs the smallest system for a product with no code yet.
 disable-model-invocation: true
 ---
 # architect
@@ -22,6 +22,8 @@ Detail: [roadmap](references/roadmap.md) (tracks, triggers, seams) ·
 - `next` — design the next horizon and roadmap. Runs `current` first when the
   current owners were not verified in the last 30 days.
 - No argument — both.
+- `new` — a product with no code yet: the smallest system that carries the
+  requirement's first release. § New product replaces the flow.
 
 Two levels never mix: **current** lives in the project's existing
 architecture owners ([project docs](../setup-project/references/project-docs.md)),
@@ -109,12 +111,45 @@ Mirror the steps into the task list.
    current fact has a file, command or console source; numbers carry date and
    source; facts that could not be read are in "Verify next".
 
+## New product
+Nothing runs and nothing is measured, so steps 1–6, headroom and the next-gen
+document do not apply; principles 1–4 and 6 do. Input is the requirement
+(`docs/REQUIREMENT.md` or the caller's) and its first-release subset.
+
+1. **Shape**: the fewest deployable services the first release needs. The
+   starters split a product into a web app that renders and an API that owns
+   data: a first release that keeps data on a server takes both, one that
+   keeps none takes the web app alone. Never build a data layer inside the
+   web starter. Each service takes its stack from a
+   [starter template](../../../docs/starters.md) when one fits; a part no
+   template covers (native mobile, desktop, a CLI) is named as outside the
+   starters with the generator it will use.
+2. **Data**: the entities, the one writer of each, the one store. Prefer what
+   runs on the owner's machine without an account.
+3. **Where it runs**: this machine now; one production target named with a
+   monthly price from the provider's pricing page and the date read; a
+   price that cannot be read is a `TODO(2build):` line and "not known yet" in
+   the owner summary, never an estimate. Nothing is created, bought or
+   deployed.
+4. **Write the system document** at `docs/architecture.md` from
+   [project docs](../setup-project/references/project-docs.md)'s headings,
+   with one rendered containers [diagram](references/diagrams.md). Key
+   decisions also list what was deliberately left out, at most five, each
+   with the signal that would add it. A fact decided later is a
+   `TODO(2build):` line.
+5. **Owner summary**, returned in the reply to
+   [owner language](../references/owner-language.md) and kept out of the
+   document: what the product is made of (roles, not component names), what
+   it will cost per month once live, what was left out and when it would be
+   added, and each decision that is the owner's with its default.
+
 ## Output
 The owner summary comes first, in the owner's language
-([next-gen template](references/next-gen.md) § For the owner).
+([next-gen template](references/next-gen.md) § For the owner; § New product
+step 5 in `new` mode).
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
-VERDICT: ARCHITECTED(<current|next|both>, findings=<n>, stages=<n>)
+VERDICT: ARCHITECTED(<current|next|both|new>, findings=<n>, stages=<n>)
 DOCS: <updated current owners; next-gen doc; rendered diagram paths>
 SUMMARY: <biggest risk, first limit to break and when, first stage and its trigger>
 NEXT: <owner decisions; /bbs:autopilot "<seam or critical fix>"; /bbs:team "<stage>" for a phased stage; /bbs:perf-audit when load is unmeasured>

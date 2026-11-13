@@ -215,6 +215,10 @@ than undoing a package publication or declaring the whole release complete.
    release record as a concern, with the exact missing entry under `NEXT`.
 
 ## Output
+When a person reads the result, the reply opens to
+[owner language](../references/owner-language.md): whether the product is
+live, the address to open, anything that costs money or still needs them;
+the block follows for callers.
 
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED

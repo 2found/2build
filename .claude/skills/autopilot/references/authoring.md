@@ -39,6 +39,8 @@ or exact string values.
 - Re-read files and checkpoint before every resumed step.
 - Every `##` step needs a `> produces:` directive.
 - End with `STATUS`, `VERDICT`, `SUMMARY`, and `NEXT`.
+- A stop a person reads follows
+  [owner language](../references/owner-language.md).
 - A workflow that may change production code uses autopilot's current-session
   `review-pr` then `qa` gates, persists both verdicts, runs each once, and
   requires readiness. Evidence-only outcomes do not

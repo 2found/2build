@@ -8,7 +8,7 @@ A one-shot `BBS_BASE_BRANCH=production` is how a hotfix targets another base.
 
 | Role | Does | Never |
 |---|---|---|
-| **Autopilot** (a worker) | edits files in the checkout it was started in and leaves the work **uncommitted** | commits, branches, stashes, resets, pushes, opens a PR |
+| **Autopilot** (a worker) | edits files in the checkout it was started in and leaves the work **uncommitted**; its `new` workflow makes one skeleton commit on a repository it started from empty | commits anything else, branches, stashes, resets, pushes, opens a PR |
 | **The lead** | cuts ticket worktrees, builds **one commit per phase**, lands it on local base, then QAs it there | commits a single ticket's work; releases a phase QA did not pass on |
 | **release** | pushes the landed base and deploys | runs before phase QA passed on the landed base |
 | **A human** | owns everything else: PRs, promotion branches, merges done by hand | — |

@@ -44,7 +44,10 @@ BABYSIT_TICKET="$TICKET" bbs autopilot verification record \
 }
 ```
 
-The file takes exactly these three keys; any other key is rejected. Each check
+The file takes exactly these three keys; any other key is rejected.
+`limitations` names required coverage that could not run: any entry records
+the gate as limited and readiness stays false. A note that blocks nothing
+belongs in the review or QA body. Each check
 needs an absolute `cwd` inside this checkout or the ticket directory, its real
 `exit_code`, and a non-empty log file; at least one check is required. Review's
 written analysis is not a field here: persist it with `set-review --body-file`,

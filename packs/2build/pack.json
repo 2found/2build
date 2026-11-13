@@ -10,12 +10,12 @@
     {
       "name": "2build_architect",
       "file": "architect/skill.md",
-      "description": "Map a system's current architecture and design its next generation with diagrams: verified as-is design, headroom, safety gaps, and a staged scaling roadmap (edge, database, cache, jobs, replicas, services) where each stage waits for a measured trigger."
+      "description": "Map a system's current architecture and design its next generation with diagrams: verified as-is design, headroom, safety gaps, and a staged scaling roadmap (edge, database, cache, jobs, replicas, services) where each stage waits for a measured trigger. `new` designs the smallest system for a product with no code yet."
     },
     {
       "name": "2build_autopilot",
       "file": "autopilot/skill.md",
-      "description": "Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; the default for any size of change, including a day-long one. Use team only for phased releases, independent phase verification or parallel work on disjoint parts."
+      "description": "Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; the default for any size of change, including a day-long one. In a folder with no project yet, start one from an idea (or none): requirement, prototype, scaffolded services, harness and a feature backlog. Use team only for phased releases, independent phase verification or parallel work on disjoint parts."
     },
     {
       "name": "2build_browse",

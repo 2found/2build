@@ -21,6 +21,8 @@ the catalog's CLI requirement, composes common/template files in a temporary
 directory, runs the template's verification commands, and publishes the project
 only when they pass. Commands execute directly, not through shell interpolation.
 It never initializes Git, commits, pushes, or deploys.
+Starting a whole project from an idea? `/bbs:autopilot "<idea>"` in an empty
+folder runs `bbs bootstrap` for each service for you ([skill index](skills.md)).
 
 A template may declare `scaffold` commands (catalog argv arrays; `__PROJECT_NAME__`
 is substituted). They run first, in an empty stage directory named after the

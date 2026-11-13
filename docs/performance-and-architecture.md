@@ -67,13 +67,20 @@ resource, and `unmeasured` without a live or lab number.
 
 ### Reading the report
 
-The first section is written for an owner who is not an engineer: health,
-what users feel (each a journey, a time, its target, date and source), the
-main cause in plain words, what to do first, and what needs a decision. Each
-proposal states money per month, downtime, risk, whether it can be undone and
-who approves. Business facts the skill could not read are written as
-`assumed (<source>, <date>)` with the cost of being wrong, instead of being
-asked mid-run.
+The report is two parts. Part 1, "for the owner", opens the file and is all an
+owner needs to read: the short answer, a "What people feel today" table in
+seconds, why in plain words, numbered recommendations each with cost, risk and
+the command to paste, what is not worth doing, decisions only you can make,
+what the audit assumed and what it could not measure. It has no routes,
+percentiles, ids or jargon. A divider follows, and below it Part 2 holds the
+technical detail: every number with its date and source, the paths, causes and
+evidence. Business facts the skill could not read are written as `assumed
+(<source>, <date>)` in Part 2 and as a plain sentence under "I assumed" in
+Part 1, instead of being asked mid-run. The chat reply opens with the same
+short answer and the first recommendation before the status block.
+
+Each recommendation states money per month, downtime, risk and whether it can
+be undone; one that needs your yes is also listed under the decisions.
 
 Fixes are ordered on a ladder, lowest rung first: code, query and index,
 data, flow, cache on what already exists, then infrastructure and
@@ -124,6 +131,7 @@ performance work.
 /bbs:architect            # current, then next
 /bbs:architect current    # verify the as-is architecture and its diagrams
 /bbs:architect next       # horizon, next-gen design and roadmap
+/bbs:architect new        # smallest system for a product with no code yet
 ```
 
 `current` reads code, deploy config and read-only running state, corrects the
@@ -131,6 +139,17 @@ project's architecture docs where a fact is verified wrong, renders the
 diagrams and audits safety gaps, headroom, single points of failure,
 coupling, scaling cliffs and cost. Where docs and code disagree, the code
 wins and the drift becomes a finding.
+
+`new` is for a product with no code yet, and `autopilot` runs it when it
+starts a project from an idea. Nothing runs or is measured, so the as-is steps
+and headroom do not apply: it designs the fewest deployable services the
+requirement's first release needs (one web app until a requirement needs a
+separate API), takes each stack from a [starter](starters.md) where one fits,
+names one production target with a monthly price and the date it was read, and
+writes `docs/architecture.md` with one diagram. It creates and buys nothing.
+Its reply is an owner summary: what the product is made of, the monthly cost
+once live, what was left out and when it would be added, and the decisions
+that are yours with their defaults.
 
 `next` takes a horizon from the PRD, roadmap or tickets (else ×2 and ×5 the
 current peak, labelled), projects the headroom table onto it and designs the
@@ -158,7 +177,7 @@ unmeasured.
 ```text
 VERDICT: AUDITED(<good|attention|problem|not-measured>, red=<n> yellow=<n> green=<n> unmeasured=<n>)
 VERDICT: VERIFIED(fixed=<n> still=<n> regressed=<n>)
-VERDICT: ARCHITECTED(<current|next|both>, findings=<n>, stages=<n>)
+VERDICT: ARCHITECTED(<current|next|both|new>, findings=<n>, stages=<n>)
 ```
 
 `not-measured`, or a critical path left unmeasured, ends

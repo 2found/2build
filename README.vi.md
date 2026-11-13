@@ -54,11 +54,19 @@ bbs install
 
 ## Bắt đầu project mới
 
+Chưa có gì? Mở một thư mục trống trong agent và đưa ý tưởng của bạn (không có thì nó sẽ hỏi):
+
+```text
+/bbs:autopilot "Trang đặt lịch cho phòng tập yoga của tôi"
+```
+
+Autopilot viết yêu cầu, đưa bạn một prototype bấm được và chỉ xin duyệt một lần. Sau đó nó dựng các service từ starter bên dưới, chuẩn bị môi trường chạy trên máy và cấu hình deploy, chạy review và QA, rồi viết `docs/BACKLOG.md`, trong đó mỗi tính năng là một dòng `/bbs:autopilot "…"` dán vào là chạy. Nó chỉ tạo đúng một commit khung dự án, không tạo hạ tầng nào và không deploy. Bạn dán từng dòng trong backlog để làm từng tính năng, và chạy `/bbs:release` khi muốn đưa lên chạy thật. Tài khoản, server và tên miền chỉ được thiết lập ở lần release đầu, khi bạn đồng ý.
+
 [**2build starters**](https://github.com/2found/2build-starters) cung cấp template
 project có version, kèm harness cho agent, hướng dẫn kiến trúc, tests và QA cục bộ.
 Template đầu tiên là `hono-bun`: API Bun/Hono với TypeScript và Zod.
 
-`bbs bootstrap` và `bbs starter check` có trong CLI 1.95.0+. Starter đã có stable
+Quy trình trên tự chạy `bbs bootstrap` cho từng service. `bbs bootstrap` và `bbs starter check` có trong CLI 1.95.0+. Starter đã có stable
 release, tải trực tiếp từ GitHub. Xem [hướng dẫn bắt đầu](docs/starters.md) để biết
 các lệnh và điều kiện cần thiết.
 
@@ -66,7 +74,7 @@ các lệnh và điều kiện cần thiết.
 
 ## Chạy ticket đầu tiên
 
-1. Khởi động lại agent, mở Git repo và chọn một bug hoặc tính năng nhỏ với tiêu chí kiểm tra rõ ràng. Autopilot làm việc trên checkout hiện tại và để thay đổi ở trạng thái chưa commit; tạo branch bạn muốn trước nếu cần tách công việc.
+1. Khởi động lại agent, mở một Git repo có sẵn và chọn một bug hoặc tính năng nhỏ với tiêu chí kiểm tra rõ ràng. Autopilot làm việc trên checkout hiện tại và để thay đổi ở trạng thái chưa commit (chỉ commit khung của project mới là ngoại lệ); tạo branch bạn muốn trước nếu cần tách công việc.
 2. Gọi **skill trong chat của agent**, thay ví dụ bằng tác vụ của bạn:
 
    | Agent | Ví dụ |

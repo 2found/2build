@@ -53,11 +53,19 @@ bbs install
 
 ## 새 프로젝트 시작
 
+아직 아무것도 없나요? agent에서 빈 폴더를 열고 아이디어를 알려 주세요(없으면 질문합니다).
+
+```text
+/bbs:autopilot "요가원 예약 페이지"
+```
+
+Autopilot은 요구 사항을 쓰고, 클릭해 볼 수 있는 프로토타입을 보여 주며 승인을 한 번만 받고, 아래 starter로 서비스를 구성하고, 로컬 환경과 배포 설정을 준비하고, 리뷰와 QA를 실행한 뒤 `docs/BACKLOG.md`를 씁니다. 각 기능은 붙여 넣으면 바로 실행되는 `/bbs:autopilot "…"` 한 줄입니다. commit은 뼈대 한 번만 만들고, 클라우드 리소스를 만들거나 배포하지 않습니다. 이후 backlog의 줄을 하나씩 붙여 넣어 기능을 만들고, 공개할 준비가 되면 `/bbs:release`를 실행하세요. 계정, 서버, 도메인 설정은 첫 release에서 당신의 동의를 받아 진행합니다.
+
 [**2build starters**](https://github.com/2found/2build-starters)는 agent 작업 환경,
 아키텍처 가이드, 테스트와 로컬 QA를 포함하는 버전 관리 프로젝트 템플릿입니다.
 첫 템플릿은 `hono-bun`으로, TypeScript와 Zod를 사용하는 Bun/Hono API입니다.
 
-`bbs bootstrap`과 `bbs starter check`는 CLI 1.95.0 이상에서 사용할 수 있습니다. Starter
+위 흐름은 서비스마다 `bbs bootstrap`을 실행합니다. `bbs bootstrap`과 `bbs starter check`는 CLI 1.95.0 이상에서 사용할 수 있습니다. Starter
 안정 릴리스를 GitHub에서 직접 다운로드할 수 있습니다. 명령어와 요구 사항은
 [빠른 시작 안내](docs/starters.md)를 참고하세요.
 
@@ -65,7 +73,7 @@ bbs install
 
 ## 첫 ticket 실행
 
-1. Agent를 재시작하고 Git repo를 열어 성공 조건이 명확한 작은 bug나 기능을 고르세요. Autopilot은 현재 checkout에서 작업하고 변경 사항을 commit하지 않은 채로 남겨 둡니다. 작업을 분리하려면 먼저 원하는 branch를 만드세요.
+1. Agent를 재시작하고 기존 Git repo를 열어 성공 조건이 명확한 작은 bug나 기능을 고르세요. Autopilot은 현재 checkout에서 작업하고 변경 사항을 commit하지 않은 채로 남겨 둡니다(새 프로젝트의 뼈대 commit만 예외입니다). 작업을 분리하려면 먼저 원하는 branch를 만드세요.
 2. **Agent chat에서 skill을 호출**하고 예제를 자신의 작업으로 바꾸세요:
 
    | Agent | 예제 |

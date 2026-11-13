@@ -125,6 +125,10 @@ Report a missing service, credentials or infrastructure as unverified, not a
 passing QA run. Configuration validation does not prove application journeys;
 use `browse` / `qa` when actual UI verification is requested.
 
+When a person reads the result, the reply opens to
+[owner language](../shared/owner-language.md); the block follows for
+callers.
+
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 CONFIG: <files/keys changed, or already configured; workspace registration if any>

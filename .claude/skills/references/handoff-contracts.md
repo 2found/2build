@@ -9,7 +9,7 @@ Only developer runs may also rely on conversation. Resolve identity via the
 
 | Skill | Verdict shape |
 |-------|--------------|
-| `autopilot` | `PLANNED` \| `BUILT` \| `FIXED` \| `HANDOFF` |
+| `autopilot` | `PLANNED` \| `BUILT` \| `FIXED` \| `HANDOFF` \| `PROJECT_READY` |
 | `browse` | `CHECKED` |
 | `implement` | `BUILT` \| `FIXED` \| `CHANGED` |
 | `investigate` | `FIXED` \| `INVESTIGATED` |
@@ -20,7 +20,7 @@ Only developer runs may also rely on conversation. Resolve identity via the
 | `design-ui` | `DESIGNED` |
 | `ui-audit` | `AUDITED(<grade>, sev4..sev1 counts)` \| `INVENTORIED(<n>)` |
 | `perf-audit` | `AUDITED(<good\|attention\|problem\|not-measured>, red/yellow/green/unmeasured counts)` \| `VERIFIED(fixed/still/regressed counts)` |
-| `architect` | `ARCHITECTED(<current\|next\|both>, findings=<n>, stages=<n>)` |
+| `architect` | `ARCHITECTED(<current\|next\|both\|new>, findings=<n>, stages=<n>)` |
 | `recon` | `STEAL(<approach>)` \| `PASS` |
 | `setup-project` | `CONFIGURED` |
 

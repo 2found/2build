@@ -53,11 +53,19 @@ bbs install
 
 ## 开始新项目
 
+还什么都没有？在 agent 中打开一个空文件夹，说出你的想法（没有想法它会来问你）：
+
+```text
+/bbs:autopilot "我的瑜伽馆预约页面"
+```
+
+Autopilot 会写出需求，给你一个可点击的原型并只请你批准一次，用下面的 starter 搭建各个服务，准备本地环境和部署配置，运行审查与 QA，并写出 `docs/BACKLOG.md`：每个功能都是一行可直接粘贴的 `/bbs:autopilot "…"`。它只做一次骨架 commit，不创建任何云资源，也不部署。之后按顺序粘贴 backlog 中的行，逐个构建功能；准备上线时运行 `/bbs:release`。首次 release 才会在你同意后设置账号、服务器和域名。
+
 [**2build starters**](https://github.com/2found/2build-starters) 提供版本化的项目模板，
 包含 agent 工作环境、架构指南、测试和本地 QA。首个模板是 `hono-bun`：
 使用 TypeScript 和 Zod 的 Bun/Hono API。
 
-`bbs bootstrap` 和 `bbs starter check` 已在 CLI 1.95.0 及以上版本提供。Starter
+上述流程会为每个服务运行 `bbs bootstrap`。`bbs bootstrap` 和 `bbs starter check` 已在 CLI 1.95.0 及以上版本提供。Starter
 稳定版可直接从 GitHub 下载。命令和前提条件请参阅
 [快速开始指南](docs/starters.md)。
 
@@ -65,7 +73,7 @@ bbs install
 
 ## 运行第一个 ticket
 
-1. 重启 agent，打开 Git repo，选择一个有明确成功检查的小 bug 或功能。Autopilot 在当前 checkout 上工作，并让改动保持未 commit 状态；需要隔离时先创建自己的 branch。
+1. 重启 agent，打开现有的 Git repo，选择一个有明确成功检查的小 bug 或功能。Autopilot 在当前 checkout 上工作，并让改动保持未 commit 状态（新项目的骨架 commit 是唯一例外）；需要隔离时先创建自己的 branch。
 2. 在 **agent chat 中调用 skill**，将示例换成你的任务：
 
    | Agent | 示例 |

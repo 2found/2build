@@ -54,11 +54,19 @@ bbs install
 
 ## Start a new project
 
+Nothing built yet? Open an empty folder in your agent and give it the idea (or none, and it asks):
+
+```text
+/bbs:autopilot "A booking page for my yoga studio"
+```
+
+Autopilot writes the requirement, shows a clickable prototype for your one approval, scaffolds the services from the starters below, prepares the local setup and the deploy configuration, runs review and QA, and writes `docs/BACKLOG.md`: every feature as a ready `/bbs:autopilot "…"` line. It makes one skeleton commit and provisions and deploys nothing. Then paste the backlog lines one at a time to build each feature, and run `/bbs:release` when you are ready to go live; the first release is where accounts, a server and a domain are set up, with your yes.
+
 [**2build starters**](https://github.com/2found/2build-starters) provides versioned
 project templates with an agent harness, architecture guidance, tests and local QA.
 The first template is `hono-bun`: a Bun/Hono API with TypeScript and Zod.
 
-`bbs bootstrap` and `bbs starter check` are available in CLI 1.95.0+. The stable
+The workflow above runs `bbs bootstrap` for each service. `bbs bootstrap` and `bbs starter check` are available in CLI 1.95.0+. The stable
 starter is ready to download directly from GitHub. Follow the
 [starter quick start](docs/starters.md) for commands and prerequisites.
 
@@ -66,7 +74,7 @@ starter is ready to download directly from GitHub. Follow the
 
 ## Try your first ticket
 
-1. Restart your agent, open a Git repo and choose a small bug or feature with a clear success check. Autopilot works on your current checkout and leaves its changes uncommitted; create your preferred branch first if you want isolation.
+1. Restart your agent, open an existing Git repo and choose a small bug or feature with a clear success check. Autopilot works on your current checkout and leaves its changes uncommitted (a new project's skeleton commit is the one exception); create your preferred branch first if you want isolation.
 2. Invoke the **skill in agent chat**, replacing the example with your task:
 
    | Agent | Example |

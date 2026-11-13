@@ -7,16 +7,21 @@ Team run the other skills for you as steps of their work.
 
 | Step | Command | Stops at |
 |------|---------|----------|
+| Start a project from an idea | `/bbs:autopilot "<idea>"` in an empty folder (or no idea: it asks, then offers three) | A runnable repository: requirement, a prototype you approve, services scaffolded from [starters](starters.md), local setup, release documents, the 2build harness and `docs/BACKLOG.md` of paste-ready `/bbs:autopilot` lines. One skeleton commit; nothing is provisioned or deployed |
 | Connect a project | `/bbs:setup-project`, then `/bbs:harness-audit` | 2build config, QA target and project docs; AGENTS.md checked against the code |
 | Prototype | `/bbs:design-ui "<screens>"` | A clickable prototype for you to approve |
 | Build one ticket | `/bbs:autopilot "<requirement>"` — feature or bug fix (auto-selects build/implement/child/verify) | QA-verified change, left uncommitted |
 | Build a whole project | `/bbs:team "<project>"` — an autonomous product team on Orca: you confirm the spec and approve the basic design, then review the handover | A reviewed product, one commit per phase with cumulative QA, released on your go at handover; in-scope feedback fixed by the team |
-| Check performance | `/bbs:perf-audit "<feature>"`, or no target for the whole system | A plain-language report: what users feel, the proven causes, fixes ranked easiest and safest first, each a ready `/bbs:autopilot` requirement with before/after acceptance ([guide](performance-and-architecture.md)) |
+| Check performance | `/bbs:perf-audit "<feature>"`, or no target for the whole system | A report in two parts: the owner part first (what people feel in seconds, why, numbered recommendations with cost, risk and the command to paste), technical detail below a divider ([guide](performance-and-architecture.md)) |
 | Release | `/bbs:release` (`--local`, `--dry-run`, `--prepare`, `--resume <tag>`) | Verified distribution, deploy and hypercare |
 | Market test and launch | `/bbs:marketing-video "<goal>"` | Per-platform video files (TikTok, YouTube, Reels, X, LinkedIn) from a script a simulated panel could retell; you read the script, then post them yourself |
 
-`builder` is autopilot's only built-in workflow; a project may add its own under
-`.claude/workflows/`.
+Autopilot has two built-in workflows: `builder` for one ticket and `new`, which
+autopilot picks in a folder with no project (or `/bbs:autopilot new "<idea>"`;
+there is no separate command). A project may add its own under
+`.claude/workflows/`. Every stop a person reads follows
+[owner language](../.claude/skills/references/owner-language.md): what happened,
+where to look, the command to paste.
 
 `humanizer-vi` edits Vietnamese prose (scripts, captions, docs, EN → VI
 translations) for AI and translationese tells; it is the Vietnamese edition of
@@ -75,7 +80,7 @@ listing, so the agent never picks them up on its own — type the command.
 | Turn 2build's own telemetry into ticket-ready findings | `/bbs:telemetry-review` |
 | Find where session tokens and background context go, rank savings | `/bbs:token-audit` |
 | Audit a running app's UI against the UI bar: broken or duplicated flows, complexity, text, component and loading drift, UI speed; inventory work flows | `/bbs:ui-audit` |
-| Map the current architecture and design the next generation: diagrams, headroom, a scaling roadmap with measured triggers ([guide](performance-and-architecture.md)) | `/bbs:architect` |
+| Map the current architecture and design the next generation: diagrams, headroom, a scaling roadmap with measured triggers; `new` designs the smallest system for a product with no code yet ([guide](performance-and-architecture.md)) | `/bbs:architect` |
 | Evaluate external code | `/bbs:recon` |
 | Docs, quick start or marketing page built around one agent prompt; agent-readable Markdown | `/bbs:agent-first-docs` |
 | Draw an image or cut one out locally (Qwen Image, RMBG-1.4; no account); marketing-video's `mvf art` uses it | `/bbs:image-gen` |

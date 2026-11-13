@@ -79,8 +79,11 @@ ticket/requirement, stop with `NEEDS_CONTEXT`.
    the parent Team run. Cross-repo: list every touched repo with its
    branch. Write it so a non-technical owner can act: lead with what was
    built and where to see it (URL), and give the next action as a copy-paste
-   command. Confirm first: no debug leftovers, nothing outside the ticket's
-   scope in the diff, checkpoint current.
+   command. A requirement that cites a `docs/BACKLOG.md` item: tick that
+   item as part of the change, and the next action is to save this change,
+   then paste the next unticked item's line. Confirm first: no debug
+   leftovers, nothing outside the ticket's scope in the diff, checkpoint
+   current.
 ### Team-dispatched children
 `origin.type=sub_ticket` scopes child mode; the current checkout is already the
 worktree Team prepared. Never derive or check out a branch in this

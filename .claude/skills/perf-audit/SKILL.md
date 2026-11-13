@@ -25,17 +25,23 @@ budgets, noise) · [ladder](references/ladder.md) (fix order, safety per rung)
 - `verify <report>` — re-measure an earlier audit's paths after a fix.
 
 ## Writing for the owner
-The reader decides with money and risk, not stack traces.
+The reader decides with money and risk, not stack traces, and reads only the
+report's first part. That part follows
+[owner language](../references/owner-language.md) and the
+[template](references/report.md)'s part 1: journeys and seconds a person
+feels, causes a non-engineer could repeat, numbered recommendations each with
+money, risk and the command that starts it. Routes, percentiles, ids and
+sources live in part 2.
 - Never block on a question. Infer business facts (which journeys earn money
   or keep users, complaints, budget, acceptable downtime) from product docs,
-  analytics and code; write each as `assumed (<source>, <date>)` and list it
-  under "Needs your decision" with its consequence if wrong. Budgets come
-  from the profile or the defaults, never from a question.
-- Every number carries its date and source, and reads as what a user feels
-  ("the chapter page appears after 3.1 s on a phone; the target is 2.5 s").
-  Gloss every vendor term once ("Cloudflare, the CDN in front of the site").
-- Every proposal states money per month, downtime, risk, reversibility and
-  who must approve. Technical detail sits below the owner summary.
+  analytics and code; record each as `assumed (<source>, <date>)` in part 2
+  and as a plain sentence under "I assumed" in part 1. Budgets come from the
+  profile or the defaults, never from a question.
+- Every recommendation states money per month, downtime, risk and whether it
+  can be undone; one that needs the owner's yes is under "Decisions only you
+  can make".
+- Write part 1 last, then re-read it alone: a word, number or name that only
+  part 2 explains is replaced or moved down.
 
 ## Production is read-only
 The rules in [measure](references/measure.md) § Access and safety apply to
@@ -110,6 +116,10 @@ confirmation is a later `verify` after release.
 Health: `good` every measured hot path green · `attention` any yellow ·
 `problem` any red · `not-measured` no live or lab number (owner words: Good,
 Needs attention, Problem, Not measured).
+
+When a person reads the result, the reply opens with the report's short
+answer, the first recommendation with its cost and risk, and the command that
+starts it, in the owner's language; the status block follows for callers.
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
 VERDICT: AUDITED(<good|attention|problem|not-measured>, red=<n> yellow=<n> green=<n> unmeasured=<n>) | VERIFIED(fixed=<n> still=<n> regressed=<n>)

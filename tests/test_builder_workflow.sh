@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tests/test_builder_workflow.sh — regression guards for the builder
-# workflow, autopilot's only built-in workflow.
+# and new workflows, autopilot's built-in workflows.
 #
 # The workflow is prose, so refactors can silently drop load-bearing
 # lines (this happened to the readiness gate in v1.47.0). Pin:
@@ -56,6 +56,45 @@ check_workflow() {  # $1=name $2=verdict-vocab regex (matched on the VERDICT lin
 }
 
 check_workflow builder 'BUILT'
+check_workflow new 'PROJECT_READY'
+
+# ── new: project start ──────────────────────────────────────────────
+# The promises a first-time, non-technical user relies on: an empty checkout
+# routes here, the human is asked once about the product, nothing that costs
+# money is created, and the one commit autopilot makes is bounded.
+N="$WF_DIR/new.md"
+if grep -q 'checkout holds no project' "$AUTOPILOT_SKILL" \
+   && grep -q 'never routes there on its own' "$AUTOPILOT_SKILL" \
+   && grep -q '^| `docs/REQUIREMENT.md` with requirement IDs | idea |' "$N"; then
+  ok "new-routes-from-empty-checkout"
+else
+  fail "new-routes-from-empty-checkout"
+fi
+
+if grep -q 'Production is prepared, never provisioned' "$N" \
+   && grep -q '`--no-verify` is never used' "$N" \
+   && grep -q 'Product checkpoint' "$N" \
+   && grep -q 'owner-language.md' "$N"; then
+  ok "new-asks-once-and-spends-nothing"
+else
+  fail "new-asks-once-and-spends-nothing"
+fi
+
+if grep -q 'only when this run started from a repository with no project' "$N" \
+   && grep -q 'Never push, add a remote or tag' "$N" \
+   && grep -q "the \`new\` workflow's one skeleton commit" "$AUTOPILOT_SKILL" \
+   && grep -q 'verification.md' "$N" \
+   && grep -q 'readiness --action review --json' "$N"; then
+  ok "new-skeleton-commit-is-bounded"
+else
+  fail "new-skeleton-commit-is-bounded"
+fi
+
+if grep -q 'docs/BACKLOG.md' "$N" && grep -q 'docs/BACKLOG.md' "$WF_DIR/builder.md"; then
+  ok "backlog-links-new-to-builder"
+else
+  fail "backlog-links-new-to-builder"
+fi
 
 # ── builder mode table + verbatim branch constructions ──────────────
 

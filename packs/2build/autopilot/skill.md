@@ -1,6 +1,6 @@
 ---
 name: autopilot
-description: "Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; the default for any size of change, including a day-long one. Use team only for phased releases, independent phase verification or parallel work on disjoint parts."
+description: "Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; the default for any size of change, including a day-long one. In a folder with no project yet, start one from an idea (or none): requirement, prototype, scaffolded services, harness and a feature backlog. Use team only for phased releases, independent phase verification or parallel work on disjoint parts."
 ---
 
 > **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.
@@ -128,9 +128,13 @@ or a Team lead decides whether to open a ticket for it.
    on disjoint parts would genuinely help, add at most one `Alternative:`
    line to the final handoff naming `team` — information, not a
    recommendation to stop. Run `builder`, unless the invocation names a
-   project workflow (`.claude/workflows/<name>.md`). `NEEDS_CONTEXT` only
-   when there is no ticket, requirement, plan, manifest, or branch work at
-   all. A ticket whose `bbs ticket get assigned_to.role` is set and is not
+   workflow (`new`, or a project's `.claude/workflows/<name>.md`) or the
+   checkout holds no project: no service code and no package manifest, at
+   most notes, documents or a prototype. That checkout runs
+   [`new`](workflows/new.md), the inline text as its idea, or none; a
+   checkout that already holds a project never routes there on its own.
+   `NEEDS_CONTEXT` only when a project exists and there is no ticket,
+   requirement, plan, manifest, or branch work at all. A ticket whose `bbs ticket get assigned_to.role` is set and is not
    `swe` (human, marketing, ops work) is not agent work: stop with
    `NEEDS_CONTEXT` naming the role and the fix (`bbs ticket assign-to swe`).
    A `kind` of `milestone` or `phase` is a container: work its `swe`
@@ -521,15 +525,17 @@ does not replace normal cleanup.
   so recording its gate is yours: unresolved material findings go in
   `unresolved_findings`, and `set-verdict` refuses both gate names.
 - Git scope is exactly: `git init` plus its empty initial commit on an
-  unborn repo, and reading history.
-  Never commit, push, stash, reset, rebase or open a PR, and never cut a
+  unborn repo, the `new` workflow's one skeleton commit on a repository it
+  started from empty, and reading history.
+  Otherwise never commit, and never push, stash, reset, rebase or open a PR, and never cut a
   branch for itself — the work stays uncommitted for the human (`create-pr`)
   or the dispatching Team lead (one commit per phase). Step skills edit the
   working tree and never commit either.
-- `INVOKER=developer`: lead every stop — handoff, `NEEDS_CONTEXT`, final
-  status — with one plain-language sentence saying what happened and the
-  exact next command to paste; a non-technical user must be able to keep
-  the build moving without knowing git.
+- `INVOKER=developer`: every stop — a question, a handoff, `NEEDS_CONTEXT`,
+  the final status — follows [owner language](../shared/owner-language.md):
+  what happened, where to look, the exact next command to paste. A
+  non-technical user must be able to keep the build moving without knowing
+  git.
 - Never force-push, drop data, or send external messages.
 - Always run QA before final handoff and record its gate with
   `BABYSIT_TICKET="$TICKET" bbs autopilot verification begin --gate qa` and `record`
@@ -545,7 +551,7 @@ does not replace normal cleanup.
 ## Output
 ```text
 STATUS: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
-VERDICT: PLANNED | BUILT | FIXED | HANDOFF
+VERDICT: PLANNED | BUILT | FIXED | HANDOFF | PROJECT_READY
 SUMMARY: <acceptance results, final revision, review/QA evidence, release readiness>
 CLEANUP: <owned processes stopped and verified; pre-existing/shared resources retained>
 NEXT: commit it, or /bbs:create-pr for the verified change — under a team lead,
