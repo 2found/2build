@@ -30,7 +30,7 @@
     {
       "name": "2build_design-ui",
       "file": "design-ui/skill.md",
-      "description": "Design and iterate a reviewable UI using the project's design authority and existing screens. Use for UI design requests or a workflow's design/prototype handoff; a direct build request can use the working UI as its prototype."
+      "description": "Design and iterate a reviewable UI from the user's jobs, using the project's design authority and existing screens, to the shared UI bar (jobs that finish, one owner per feature, simple, scannable, one component system, fast). Use for UI design requests or a workflow's design/prototype handoff; a direct build request can use the working UI as its prototype."
     },
     {
       "name": "2build_harness-audit",
@@ -125,7 +125,7 @@
     {
       "name": "2build_ui-audit",
       "file": "ui-audit/skill.md",
-      "description": "Audit a running app's UI/UX by walking real user or founder journeys end to end (PASS/FRICTION/BLOCKED), checking every screen against backend ground truth, dead ends, discoverability, information density (too much text; icons and layout over prose) and non-happy paths; scored with PURE step ratings, Nielsen severities and measured thresholds. Also builds the flow inventory and re-audits after a fix. Use before planning UI improvements, when users report getting stuck, or to audit a live app safely."
+      "description": "Audit a running app's UI/UX against the shared UI bar. Maps the whole product side by side (features duplicated across screens, jobs that cannot finish, complexity, text density, component and loading/spacing drift, UI speed, backend ground truth) and walks real user journeys end to end (PASS/FRICTION/BLOCKED); measured and evidenced, reported for the owner with fixes ranked cut-first. Also builds the flow inventory and re-audits after a fix. Use before planning UI improvements, when the UI feels hard to use, slow or inconsistent, when users get stuck, or to audit a live app safely."
     }
   ]
 }

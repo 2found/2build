@@ -35,17 +35,23 @@ second is advice to overrule when the scene calls for it.
   never in it.
 - **Claims.** A number, superlative or "free" on screen traces to a fact in
   `01-product/facts.json`.
-- **Zones.**
+- **Zones limit what must be read, not the picture.** The picture is the
+  whole frame, 0–{{H}}: the subject, the place and the product run through
+  every zone to the bottom edge, as they do in any filmed video under the
+  platform's buttons. Only lettering, faces and a detail the viewer has to
+  read keep to the rows below.
 
-| Zone | y (px) | Keep |
+| Zone | y (px) | What may not sit here |
 | --- | --- | --- |
-| Platform top bar | 0–{{SAFE_TOP}} | texture only |
-| Title band | {{SAFE_TOP}}–~{{CAP_TOP}} | the on-screen line, the subject, the product |
-| Caption band | {{CAP_TOP}}–{{CAP_BOTTOM}} | burned-in captions (generated): no faces or text |
-| Platform UI | {{SAFE_BOTTOM}}–{{H}} | texture only |
+| Platform top bar | 0–{{SAFE_TOP}} | text, a face |
+| Reading area | {{SAFE_TOP}}–~{{CAP_TOP}} | nothing: on-screen lines and what must be read go here |
+| Caption band | {{CAP_TOP}}–{{CAP_BOTTOM}} | your text, a face (burned-in captions land here) |
+| Platform UI | {{SAFE_BOTTOM}}–{{H}} | text, a face, the one detail the line names |
 
-  Side margins: {{SAFE_LEFT}} px on the left and {{SAFE_RIGHT}} px on the
-  right.
+  Side margins for text: {{SAFE_LEFT}} px on the left and {{SAFE_RIGHT}} px
+  on the right. A scene whose subject ends above the caption band leaves
+  half the phone empty; a wave, a band or a texture drawn into that half
+  does not fill it.
 - **Frame 0 of B01 is the cover.** It shows the subject and the hook line,
   never black, a logo or a title card.
 - **Done means real.** Delete `data-mvf="placeholder"` from your root.

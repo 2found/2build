@@ -24,6 +24,14 @@ from.
   physical product in use, the passage of a book, a service's real before and
   after. Never a mock-up. Crop test-account names, and let the script's
   examples use the sample data on the screens.
+- **Capture the product working, with its sound.** A still of a play button
+  does not show a player; a product people hear (audio, music, a voice, a
+  game) is recorded playing, screen and sound together, and the sound file is
+  kept beside the recording as `own` material. When the action sits behind a
+  login, ask the caller once, at this stage, for a test account or a
+  recording (a repo's QA login doc often names one). Never animate a still
+  into fake playback, and say in the report when a recording was edited
+  (a masked timer, sound cut from the product's own file).
 
 ## Tool
 `facts.json` keys:

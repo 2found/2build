@@ -163,7 +163,12 @@ Exercise the application like a user and leave reproducible evidence.
    left `deviates` needs an accepted reason tied to a criterion; one not
    checked, or whose reference will not load, is a conformance gap that
    blocks PASS. This is acceptance verification, not pixel equality or a new
-   design exercise.
+   design exercise. Each changed screen also meets the
+   [UI bar](../shared/ui-bar.md): shoot its loading, empty and error
+   states and lay it beside its nearest sibling screen (C1–C3), walk the
+   design note's jobs counting steps (J2), check nothing it shows already
+   lives on another screen (O1), and time its open and main action (P1, P2).
+   A failed row is a failed case unless the design note names it unmet.
    Off-script time around the changed
    surface — findings feed back as derived cases — a few minutes, more when
    § Case count makes it mandatory.

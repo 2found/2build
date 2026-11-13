@@ -190,18 +190,23 @@ def _panel_table(j: dict, sid: str, L) -> list[str]:
     """The simulated panel in one small table: this script in bold, the control named, so the owner sees the
     margin without reading the evidence string."""
     pct = lambda v: "—" if v is None else f"{v:.0f}%"
-    out = [f"\n**{L('Khán giả giả lập', 'Simulated panel')} (Micro Fish, n={next(iter(j['stimuli'].values()))['n']}):** "
+    out = [f"\n**{L('Khán giả giả lập', 'Simulated panel')} (Micro Fish, {L('mỗi kịch bản một nhóm', 'one group per script')} n≈{next(iter(j['stimuli'].values()))['n']}):** "
            + (L("dẫn rõ", "a clear lead") if j.get("clear") else L("dẫn nhưng chưa chắc (khoảng tin cậy chồng nhau)",
                                                                   "leads, not clearly (intervals overlap)"))
            + (L(", hơn bản đối chứng", ", beats the control") if j.get("beats_control")
               else L(", KHÔNG hơn bản đối chứng", ", does NOT beat the control")), "",
-           f"| {L('Kịch bản', 'Script')} | {L('Chọn', 'Preferred')} | {L('Xem hết', 'Watched')} | {L('Hiểu', 'Clear')} | "
-           f"{L('Muốn xem tiếp', 'Intent')} | {L('Thấy như quảng cáo', 'Felt like an ad')} |", "| --- | ---: | ---: | ---: | ---: | ---: |"]
-    for x in sorted(j["stimuli"].values(), key=lambda x: -(x.get("preference_pct") or 0)):
+           f"| {L('Kịch bản', 'Script')} | {L('Xem trung bình', 'Avg watched')} | {L('Thích', 'Liked')} | "
+           f"{L('Bình luận', 'Commented')} | {L('Dừng lại', 'Stopped')} | {L('Hiểu', 'Clear')} | "
+           f"{L('Sẽ lưu/gửi/làm theo', 'Intent')} | {L('Thấy như quảng cáo', 'Felt like an ad')} |",
+           "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
+    watched = lambda x: pct(x.get("watch_pct")) + (f" ({x['avg_watch_s']:.0f}/{x['duration_s']:.0f}s)"
+                                                   if x.get("avg_watch_s") is not None else "")
+    for x in sorted(j["stimuli"].values(), key=lambda x: -(x.get("watch_pct") or 0)):
         name = x["id"].split("/")[0]
         name = f"**{name}**" if name == sid else name + (L(" (đối chứng)", " (control)") if x.get("kind") == "control" else "")
-        out.append(f"| {name} | {pct(x.get('preference_pct'))} | {pct(x.get('watch_through'))} | {pct(x.get('clarity_top2'))} | "
-                   f"{pct(x.get('intent_top2'))} | {x.get('ad_feel', 0)}/{x.get('n')} |")
+        out.append(f"| {name} | {watched(x)} | {pct(x.get('like_rate'))} | {pct(x.get('comment_rate'))} | "
+                   f"{pct(x.get('stopped'))} | {pct(x.get('clarity_top2'))} | "
+                   f"{pct(x.get('intent_top2'))} | {x.get('ad_feel', 0)}/{x.get('interviewed') or x.get('n')} |")
     return out
 
 

@@ -128,6 +128,11 @@ def brief(cd: Path, proj: Path) -> Path:
     refs, ref_notes = references(cd, proj / "review" / f"viewer-v{n}-refs.jpg")
     rows = [f"| {b['vo_start']:.1f}–{b['vo_end']:.1f} | {' '.join(w['w'] for w in b.get('words') or [])} |"
             for b in tl["beats"] if b.get("vo_start") is not None]
+    heard = proj / "assets/music/product.json"
+    if heard.is_file():
+        rows += [f"| {s:.1f}–{e:.1f} | (no voice-over: the product's own recorded sound plays here; not a silence) |"
+                 for s, e in load(heard).get("windows") or []]
+        rows.sort(key=lambda r: float(r.split("|")[1].split("–")[0]))
     out = proj / "review" / f"viewer-brief-v{n}.md"
     rel = lambda p: p.relative_to(proj)  # noqa: E731
     if refs:
@@ -146,7 +151,6 @@ You get only what a viewer gets: the frames (1 per second, the second stamped on
 one line on what it is for. Do not open any other file in the project: no script, no plan, no direction.
 
 **Logline:** {script.get('value', '')}
-
 Frames, in order: {', '.join(f'`{rel(p)}`' for p in strips)}
 The first two seconds, larger: `{rel(opener)}`
 Each frame is one instant of a moving picture, so lettering or a figure caught mid-fade looks faint or doubled. Call

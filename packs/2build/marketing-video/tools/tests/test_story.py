@@ -144,7 +144,10 @@ class Research(unittest.TestCase):
         d["ideas"][0]["use_when"] = ""
         self.assertIn("RS5", codes(research.check(d), "FAIL"))
         d = good_research()
-        d["ideas"][0]["benefit"] = "story"
+        d["ideas"][0]["benefit"] = "story"  # an own type: a WARN to look twice, not a refusal
+        self.assertIn("RS5", codes(research.check(d), "WARN"))
+        self.assertNotIn("RS5", codes(research.check(d), "FAIL"))
+        d["ideas"][0]["benefit"] = ""
         self.assertIn("RS5", codes(research.check(d), "FAIL"))
 
     def test_top_videos_are_read_not_listed(self):

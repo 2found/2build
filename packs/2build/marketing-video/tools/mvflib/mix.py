@@ -59,7 +59,8 @@ def duck_expr(spans: list[tuple[float, float]], low: float) -> str:
     return f"1-{1 - low:.4f}*{m}"
 
 
-def score(proj: Path, bed: Path | None) -> dict:
+def score(proj: Path, bed: Path | None, also_duck: list | None = None) -> dict:
+    """`also_duck`: spans where something else must be heard like a spoken line (the product's own sound)."""
     tl = load(proj / "timeline.json")
     music = proj / "assets/music"
     music.mkdir(parents=True, exist_ok=True)
@@ -72,6 +73,7 @@ def score(proj: Path, bed: Path | None) -> dict:
         raise SystemExit(f"no bed file {bed}")
     dur = tl["duration"]
     vo_lufs, spans = voice_level(proj, tl)
+    spans = spans + [tuple(w) for w in also_duck or []]
     raw = music / "bed.raw.wav"
     run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-stream_loop", "-1", "-i", str(bed),
          "-t", f"{dur:.3f}", "-ac", "2", "-ar", "48000", str(raw)])

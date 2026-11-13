@@ -33,7 +33,9 @@ class Campaign(unittest.TestCase):
         base = {"slug": "s", "product": "p", "goal": "awareness", "platforms": ["tiktok"], "languages": ["vi"],
                 "markets": ["VN"], "brand": {"names": ["p"]}, "kpi": "views"}
         self.assertNotIn("BRF", codes(checks.check_campaign(base), "WARN"))  # each angle picks its own
-        self.assertIn("BRF", codes(checks.check_campaign({**base, "benefit": "story"}), "FAIL"))
+        own = checks.check_campaign({**base, "benefit": "story"})  # an own type is looked at twice, never refused
+        self.assertIn("BRF", codes(own, "WARN"))
+        self.assertNotIn("BRF", codes(own, "FAIL"))
         self.assertNotIn("BRF", codes(checks.check_campaign({**base, "benefit": "lesson"})))
 
 
@@ -50,6 +52,10 @@ class Angle(unittest.TestCase):
         self.assertNotIn("STR3", codes(self.angles(ok)))
         self.assertIn("STR3", codes(self.angles({**ok, "takeaway": "Trần Bình An never takes back a gift"}), "WARN"))
         self.assertIn("STR3", codes(self.angles({**ok, "type": "decide"}), "WARN"))
+        own = self.angles({**ok, "type": "laugh-to-share"})  # the five types are the usual ones, not a closed list
+        self.assertIn("STR3", codes(own, "WARN"))
+        self.assertNotIn("STR3", codes(own, "FAIL"))
+        self.assertIn("STR3", codes(self.angles({**ok, "type": ""}), "FAIL"))
 
     def test_an_awareness_angle_that_only_decides_about_the_product_warns(self):
         g = {"id": "G1", "segment": "A1", "insight": "i", "promise": "p", "why_watch": "w", "why_share": "s",

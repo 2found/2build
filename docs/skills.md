@@ -74,7 +74,7 @@ listing, so the agent never picks them up on its own — type the command.
 | Classify and unblock a stalled/BLOCKED run | `/bbs:triage` |
 | Turn 2build's own telemetry into ticket-ready findings | `/bbs:telemetry-review` |
 | Find where session tokens and background context go, rank savings | `/bbs:token-audit` |
-| Evaluate a running app's UX by using it as a persona; inventory work flows | `/bbs:ui-audit` |
+| Audit a running app's UI against the UI bar: broken or duplicated flows, complexity, text, component and loading drift, UI speed; inventory work flows | `/bbs:ui-audit` |
 | Map the current architecture and design the next generation: diagrams, headroom, a scaling roadmap with measured triggers ([guide](performance-and-architecture.md)) | `/bbs:architect` |
 | Evaluate external code | `/bbs:recon` |
 | Docs, quick start or marketing page built around one agent prompt; agent-readable Markdown | `/bbs:agent-first-docs` |

@@ -570,7 +570,8 @@ class Score(unittest.TestCase):
                     mock.patch.object(sound, "render_sfx", lambda *x: calls.append("sfx") or {"cues": 0, "sources": {}, "unknown": []}), \
                     mock.patch.object(mix, "score", lambda *x: {"items": []}), \
                     mock.patch.object(sound, "mixcheck", lambda *x: {"under": [], "min_db": 9, "target_db": 6}):
-                args = mvf.argparse.Namespace(campaign=str(cd), proj=str(proj), bed=None, none=True, sfx="auto", seed=1)
+                args = mvf.argparse.Namespace(campaign=str(cd), proj=str(proj), bed=None, none=True, sfx="auto", seed=1,
+                                             product_audio=None, product_at=None)
                 with contextlib.redirect_stdout(io.StringIO()):
                     mvf.cmd_score(args)
             self.assertEqual(calls[:2], ["scaffold", "sfx"])

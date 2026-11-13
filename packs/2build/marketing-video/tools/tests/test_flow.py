@@ -203,13 +203,14 @@ class Owner(unittest.TestCase):
         (self.cd / "06-pretest/r1/decision.json").write_text(json.dumps(
             {"method": "simulated-panel", "winner": "s01-test/H1", "evidence": "e", "retell": "they said X",
              "changes": ["split beat 2"], "run": "r", "decided_at": "2026-10-27"}))
-        row = lambda i, k, p: {"id": i, "kind": k, "n": 24, "preference_pct": p, "watch_through": 70, "clarity_top2": 60,
+        row = lambda i, k, p: {"id": i, "kind": k, "n": 24, "stopped": p + 20, "watch_pct": p, "avg_watch_s": p * 0.3,
+                               "duration_s": 30.0, "like_rate": 10, "comment_rate": 4, "clarity_top2": 60,
                                "intent_top2": 40, "ad_feel": 2, "expert_blocking": ["P1: beat 2 is dense"] if k == "candidate" else []}
         (self.cd / "06-pretest/r1/microfish/judge.json").write_text(json.dumps(
             {"clear": True, "beats_control": True, "stimuli": {"a": row("s01-test/H1", "candidate", 70), "b": row("ctl-x/H1", "control", 5)}}))
         out = mvf(self.cd, "sheet", "s01-test").stdout
-        self.assertIn("| **s01-test** | 70% |", out)
-        self.assertIn("ctl-x (control) | 5%", out)
+        self.assertIn("| **s01-test** | 70% (21/30s) | 10% | 4% | 90% |", out)
+        self.assertIn("ctl-x (control) | 5% (2/30s) | 10% | 4% | 25% |", out)
         self.assertIn("- split beat 2", out)
         self.assertIn("- P1: beat 2 is dense", out)
 

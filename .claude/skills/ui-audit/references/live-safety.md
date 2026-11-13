@@ -3,6 +3,12 @@ Default is read-only. Everything below overrides convenience.
 - **Allowlist.** Before the walk, write the mutating clicks you may make (each
   with its expected effect). Anything else is observe-only. Record every
   mutation actually made in the report header.
+- **Read-only proxy.** To run the real UI on real data, put a proxy you own in
+  front of the live backend that forwards reads and refuses every write.
+  Report how many writes it refused and that none reached the server; say
+  which screens could not load through it. A failure that exists only
+  because of the harness (proxy origin, URLs an edge rewrites) is a limit in
+  the report header, not a finding; confirm on the shipped origin when you can.
 - **Not your decisions.** Never answer cards, approve, raise budgets, or change
   settings, credentials or schedules for the owner. A confirm dialog may be
   opened and cancelled to prove it exists.

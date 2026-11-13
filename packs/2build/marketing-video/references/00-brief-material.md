@@ -40,7 +40,10 @@ in official pictures from the rights holder.
   install, purchase, retention or launch), `benefit`, `kpi`, `markets`,
   `languages`, `platforms` (tiktok, x, youtube, youtube-long, instagram, facebook,
   linkedin),
-  `brand.{names, say, handle, url, logo, colors, fonts}`, `constraints`,
+  `brand.{names, say, handle, url, logo, colors, fonts}`, `constraints`
+  (the owner's own requirements go here in their words, such as "the player
+  is heard in the first 3 s": fresh helpers read them, and they outrank the
+  lessons in every reference),
   `budget` (`scripts`: candidates to write, default 3; `videos`;
   `hook_variants_per_video`), and optionally `voice_engine` and `known_words`
   (words this audience already knows, such as a country or the title they

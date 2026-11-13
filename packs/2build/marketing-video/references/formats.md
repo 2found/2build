@@ -2,12 +2,17 @@
 
 Read this when picking a script's `format` (stage 5) and its canvases (stage 7).
 The atlas names, for each kind of video, the value a viewer gets and what
-usually breaks it. It also lists the helpers that tend to suit it. It never
-prescribes a structure: the standards in SKILL.md hold for every row, and the
-shape is yours. A format not listed here is fine; name it plainly.
+usually breaks it. The last column lists mvf shortcuts that exist for that
+kind of picture; it is an index, not a recommendation, and it says nothing
+about how the video should look. A `story` drawn in code, a `listicle` on
+footage or a `demo` with no `callout` is as valid as the row's shortcuts
+(SKILL.md: every shortcut has a raw form). It never prescribes a structure:
+the standards in SKILL.md hold for every row, and the shape is yours. A format
+not listed here is fine; name it as what it is, and lint does not ask you to
+rename it.
 
 ## The atlas
-| `format` | The viewer gets | What breaks it | Helpers that often fit |
+| `format` | The viewer gets | What breaks it | Shortcuts that exist |
 | --- | --- | --- | --- |
 | `demo` | the result they want, seen working on the real product | a feature tour; UI before the problem; a drawn screen | real `image`/`video` shots, `callout` and `tap` on the screen, `counter` for a measured number |
 | `tutorial` | a task they can do after one viewing | a missing step; steps faster than a viewer can follow; "it's easy" instead of the step | `steps` (one item per spoken step, `ats` on its word), `callout`, `lower` for the tool's name |

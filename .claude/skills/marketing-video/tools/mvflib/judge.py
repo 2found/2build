@@ -1,6 +1,8 @@
 """The evaluator: Micro Fish, a simulated society on the user's local Soot, judges the candidate scripts and
-the finished cut. A persona crowd reacts alone, then after reading each other; an expert panel reviews; an
-analyst reports from deterministic statistics (the tally), which mvf reads back to draft the decision.
+the finished cut. Every persona is its own Soot: it meets the video in a feed among ordinary posts, skips or
+watches part of it, reacts, and is interviewed afterwards; an expert panel records findings; mvf reads the
+deterministic statistics (the tally) back to draft the decision. Micro Fish is a general mechanism: mvf only
+writes its brief (a video as text, the questions, the lenses) and reads its tally.
 
 The user owns Soot and the AI account: they sign in to a provider once (`soot login <provider>`) and name the
 model on first use (`mvf judge setup --provider P --model M`). mvf keeps its own AI config and Micro Fish
@@ -20,9 +22,9 @@ from . import timing
 from .common import PLATFORMS, Report, config, dump, load, save_user_config, today, user_dir
 from .pretest import SIZES, caption_of
 
-STIMULUS_CHARS = 3000  # Micro Fish refuses a longer stimulus
-MESSAGE_BYTES = 16384  # Soot refuses a longer message (UTF-8 bytes: Vietnamese takes 1-3 per letter)
-LABELS = "abcd"  # Micro Fish takes up to 4 stimuli
+STIMULUS_CHARS = 12000  # Micro Fish refuses a longer subject (about six minutes of Vietnamese voice)
+LABELS = "abcd"  # Micro Fish takes up to 4 subjects, one arm of the audience each
+AUDIENCE = {"age": [18, 45]}  # who meets a short video, unless 02-audience/segments.json names a `panel` filter
 PORT = "7811"  # not the default 7801, so it never collides with the user's own Micro Fish server
 NEEDS_CONTEXT = 3  # exit code: the user must decide (sign in, pick a model)
 
@@ -87,7 +89,7 @@ def status() -> dict:
     sb, mf, ch = soot_bin(), micro_fish(), choice()
     ps = providers() if sb else []
     ready_ps = [p["id"] for p in ps if p.get("credential") == "available"]
-    deployment = home() / "sim/deployment.json"
+    deployment = home() / "society/deployment.json"
     out = {"soot": sb, "micro_fish": str(mf) if mf else None, "providers": ps, "signed_in": ready_ps,
            "choice": ch, "workspace": deployment.is_file(), "problems": []}
     if not sb:
@@ -118,11 +120,11 @@ def print_status(st: dict) -> None:
         print(f"provider    {p['id']:<14} {p.get('credential')}")
     ch = st["choice"]
     print(f"model       {ch['provider'] + '/' + ch['model'] + ' (chosen ' + str(ch.get('set_at')) + ')' if ch else 'not chosen'}")
-    print(f"workspace   {home() / 'sim'} {'ok' if st['workspace'] else 'not created'}")
+    print(f"workspace   {home() / 'society'} {'ok' if st['workspace'] else 'not created'}")
     cur = (soot_ai_config().get("tiers") or {}).get("flash") or soot_ai_config().get("model") or {}
     if not ch and cur.get("name"):
-        print(f"hint        your Soot default is {cur.get('provider')}/{cur.get('name')}; Micro Fish makes many short "
-              "calls, so a fast, cheap flash model fits best")
+        print(f"hint        your Soot default is {cur.get('provider')}/{cur.get('name')}; Micro Fish runs one short "
+              "session per persona per round, so a fast, cheap flash model with a generous rate limit fits best")
     for what, msg, fix in st["problems"]:
         print(f"NEEDS {what:<10} {msg} → {fix}")
     print("READY" if not st["problems"] else "NOT_READY")
@@ -150,14 +152,14 @@ def setup(provider: str, model: str, effort: str | None = None, soot_forge: str 
                                 "set_at": today().isoformat()}})
     mf = str(micro_fish())
     subprocess.run([mf, "stop"], env=env(), capture_output=True, text=True)  # a running server keeps the old model
-    if not (home() / "sim/deployment.json").is_file():
+    if not (home() / "society/deployment.json").is_file():
         args = [mf, "setup"] + (["--from", soot_forge] if soot_forge else [])
         r = subprocess.run(args, env=env(), text=True, capture_output=True)
         print(r.stdout.strip())
         if r.returncode:
             raise SystemExit(f"micro-fish setup failed:\n{r.stderr.strip()}\n(with a soot-forge checkout: "
                              "`mvf judge setup … --soot-forge <dir>`)")
-    chk = subprocess.run([st["soot"], "check", "--config", str(home() / "sim/deployment.json"), "--secrets", "--show"],
+    chk = subprocess.run([st["soot"], "check", "--config", str(home() / "society/deployment.json"), "--secrets", "--show"],
                          env=env(), capture_output=True, text=True)
     first = next((ln for ln in chk.stdout.splitlines() if " model=" in ln), "")
     print((chk.stdout.splitlines() or [""])[0])
@@ -165,7 +167,7 @@ def setup(provider: str, model: str, effort: str | None = None, soot_forge: str 
         print(first.strip())
     if chk.returncode:
         raise SystemExit(f"soot check failed:\n{chk.stdout[-800:]}{chk.stderr[-800:]}")
-    print(f"evaluator: Micro Fish on {provider}/{model} · config {ai_config_path()} · workspace {home() / 'sim'}")
+    print(f"evaluator: Micro Fish on {provider}/{model} · config {ai_config_path()} · workspace {home() / 'society'}")
     return ai_config_path()
 
 
@@ -176,7 +178,7 @@ def require_ready() -> None:
         raise SystemExit(NEEDS_CONTEXT)
 
 
-# ---------- stimuli ----------
+# ---------- subjects: a video as text ----------
 
 def _vi(c: dict) -> bool:
     return (c.get("languages") or ["en"])[0].lower().startswith("vi")
@@ -188,24 +190,17 @@ def _rows(beats: list[dict], tl_beats: list[dict]) -> list[tuple]:
 
 
 def stimulus(rows: list[tuple], duration: float, timing_kind: str, caption: str, platform: str, vi: bool,
-             chars: int = STIMULUS_CHARS, part: tuple[int, int] | None = None) -> str:
-    """One video as a viewer meets it, second by second, inside Micro Fish's 3000-character stimulus.
-    Pictures are shortened first; the voice is never cut, because understanding is what is tested.
-    `part` (i, n) marks the rows as the i-th of n consecutive parts of one longer video (see split)."""
+             chars: int = STIMULUS_CHARS) -> str:
+    """One video as a viewer meets it, second by second: the text a persona reads in its feed.
+    Over the limit, pictures are shortened first; the voice is never cut, because understanding is what is tested."""
     lab = PLATFORMS[platform]["label"]
     head = (f"Video {lab}, {duration:.0f} giây ({'đo từ giọng thật' if timing_kind == 'measured' else 'thời lượng ước tính'}). "
             "Đọc như video đang chạy: HÌNH là thứ thấy, CHỮ là chữ trên màn hình, GIỌNG là lời nghe MỘT lần, đúng tốc độ nói."
             if vi else
             f"{lab} video, {duration:.0f} s ({'measured voice' if timing_kind == 'measured' else 'estimated length'}). Read it as "
             "it plays: PICTURE is what you see, TEXT is on screen, VOICE is heard ONCE at speaking pace.")
-    if part and rows:
-        i, n = part
-        head += (f" PHẦN {i}/{n} của CÙNG MỘT video (giây {rows[0][0]:.0f}–{rows[-1][1]:.0f})"
-                 + (", nối tiếp ngay sau phần trước." if i > 1 else ".") if vi else
-                 f" PART {i}/{n} of ONE video (seconds {rows[0][0]:.0f}–{rows[-1][1]:.0f})"
-                 + (", continuing straight from the part before." if i > 1 else "."))
     P, T, V = ("HÌNH", "CHỮ", "GIỌNG") if vi else ("PICTURE", "TEXT", "VOICE")
-    cap = (("Caption: " if vi else "Caption: ") + f"\"{caption.strip()}\"") if caption.strip() else ""
+    cap = f"Caption: \"{caption.strip()}\"" if caption.strip() else ""
     for limit in (240, 140, 90, 50, 0):
         lines = [head]
         for a, b, pic, on, vo in rows:
@@ -219,30 +214,7 @@ def stimulus(rows: list[tuple], duration: float, timing_kind: str, caption: str,
         if len(text) <= chars:
             return text
     raise SystemExit(f"this video is {len(text)} characters even without pictures; Micro Fish takes {chars} per "
-                     "stimulus. Shorten the on-screen text or split the test")
-
-
-def split(rows: list[tuple], duration: float, timing_kind: str, caption: str, platform: str, vi: bool,
-          chars: int = STIMULUS_CHARS) -> list[tuple[str, tuple]]:
-    """A cut too long for one stimulus (about 90 s of Vietnamese voice) as the fewest consecutive parts that each
-    fit, cut between beats at even shares of the spoken text: [(stimulus, (start, end))]. The caption rides on
-    part 1, where a viewer meets it."""
-    weight = [len(r[3]) + len(r[4]) + 30 for r in rows]
-    for n in range(1, min(len(LABELS), max(1, len(rows))) + 1):
-        groups, acc, total = [[] for _ in range(n)], 0, sum(weight)
-        for r, w in zip(rows, weight):
-            groups[min(n - 1, int((acc + w / 2) * n / total))].append(r)
-            acc += w
-        if n > 1 and not all(groups):
-            continue
-        try:
-            return [(stimulus(g, duration, timing_kind, caption if i == 0 else "", platform, vi, chars,
-                              (i + 1, n) if n > 1 else None), (g[0][0], g[-1][1]) if g else (0.0, duration))
-                    for i, g in enumerate(groups)]
-        except SystemExit:
-            pass
-    raise SystemExit(f"this cut does not fit {len(LABELS)} stimuli of {chars} characters even without pictures "
-                     f"({sum(len(r[4]) for r in rows)} characters of voice): judge it in two runs, or shorten it")
+                     "subject. Judge it in two runs, or shorten it")
 
 
 def script_stimulus(script: dict, hook: str, manifest: dict | None, platform: str, vi: bool,
@@ -261,19 +233,16 @@ def bench_stimulus(d: dict, platform: str, vi: bool, chars: int = STIMULUS_CHARS
     return stimulus(rows, rows[-1][1] if rows else 0.0, "measured", d.get("caption", ""), platform, vi, chars)
 
 
-def video_stimuli(proj: Path, script: dict, platform: str, vi: bool,
-                  chars: int = STIMULUS_CHARS) -> list[tuple[str, tuple]]:
+def video_stimulus(proj: Path, script: dict, platform: str, vi: bool, chars: int = STIMULUS_CHARS) -> str:
     """The cut as rendered: the measured timeline, what each beat's scene shows (from the storyboard and the
-    direction), and what the reviewer saw on its frames. One stimulus, or consecutive parts of a long cut."""
+    direction), and what the reviewer saw on its frames."""
     tl = load(proj / "timeline.json")
-    pics = {}
-    rv = proj / "review.json"
     notes = {}
+    rv = proj / "review.json"
     if rv.is_file():
         for i in load(rv).get("seen") or []:  # optional: {"at": s, "what": "..."} lines the reviewer wrote
             notes[float(i.get("at", -1))] = i.get("what", "")
-    for b in script.get("beats") or []:
-        pics[b["id"]] = (b.get("visual") or "").strip()
+    pics = {b["id"]: (b.get("visual") or "").strip() for b in script.get("beats") or []}
     sv = timing.variant(script, (load(proj / "mvf.json") or {}).get("hook"))
     by_id = {b["id"]: b for b in sv["beats"]}
     rows = []
@@ -282,151 +251,79 @@ def video_stimuli(proj: Path, script: dict, platform: str, vi: bool,
         seen = [v for k, v in notes.items() if t["start"] <= k < t["end"]]
         pic = "; ".join([x for x in [pics.get(t["id"], "")] + seen if x])
         rows.append((t["start"], t["end"], pic, (b.get("onscreen") or "").strip(), (b.get("vo") or "").strip()))
-    return split(rows, tl["duration"], tl.get("timing", "measured"), caption_of(script), platform, vi, chars)
+    return stimulus(rows, tl["duration"], tl.get("timing", "measured"), caption_of(script), platform, vi, chars)
 
 
 # ---------- the brief ----------
 
-def _segments(cd: Path) -> str:
-    p = cd / "02-audience/segments.json"
-    if not p.is_file():
-        return ""
-    out = []
-    for x in sorted(load(p).get("segments") or [], key=lambda x: x.get("priority", 9)):
-        out.append(f"- {x.get('name')} ({x.get('ring', '?')}): {x.get('who')}. "
-                   f"{'; '.join(x.get('pains') or [])}")
-    return "\n".join(out)
-
-
-def _questions(vi: bool, kind: str) -> list[str]:
+def questions(vi: bool) -> list[dict]:
+    """What each persona is asked after the feed closes, about the one video it met. `retell` is the test of
+    understanding; the tags are how the numbers find ad-feel, no-use and the words nobody followed."""
     if vi:
-        qs = ["attention: có dừng lướt trong 2 giây đầu không; watch_through: thật sự xem được bao nhiêu % trước khi lướt",
-              "quote: mở đầu bằng 'Video nói là…' và kể lại điều video nói như kể cho bạn; không kể được thì nói thẳng",
-              "clarity: có hiểu ngay khi nghe một lần không; chữ hay bước nào chưa hiểu thì gắn tag unclear-<từ>",
-              "intent: tuần này có lưu, gửi, hoặc làm theo điều video nói không (không phải 'nghe hay')",
-              "Video cho bạn dùng được gì trong đời mình (làm, quyết, biết)? Không gì thì gắn tag no-use",
-              "Có thấy như quảng cáo không? Nếu có, gắn tag ad-feel; share: gửi cho ai, bằng câu gì",
-              ]
-        if kind == "scripts":
-            qs.append("preferred: nếu chỉ lưu hoặc gửi MỘT video trong số này, chọn video nào")
-        return qs
-    qs = ["attention: do you stop scrolling in the first 2 s; watch_through: the % you would really watch",
-          "quote: start with 'It says…' and retell what the video told you as you would to a friend; say so if you can't",
-          "clarity: did you get it hearing it once; tag unclear-<word> for each word or step you did not follow",
-          "intent: would you save, send or act on it this week (not 'sounds nice')",
-          "What can you use in your own life after it (do, decide, know)? Tag no-use if nothing",
-          "Does it feel like an ad? Tag ad-feel if so; share: who would you send it to, with what words"]
-    if kind == "scripts":
-        qs.append("preferred: if you could save or send only ONE of these videos, which one")
-    return qs
+        return [
+            {"id": "retell", "type": "text", "ask": "Mở đầu bằng 'Video nói là…' và kể lại điều video nói như kể cho bạn. Đã lướt qua hoặc không kể được thì nói thẳng."},
+            {"id": "clarity", "type": "scale", "ask": "Nghe một lần có hiểu ngay không (1 không hiểu gì, 5 hiểu hết)"},
+            {"id": "intent", "type": "scale", "ask": "Tuần này bạn có lưu, gửi, hoặc làm theo điều video nói không (1 chắc chắn không, 5 chắc chắn có; 'nghe hay' không tính)"},
+            {"id": "use", "type": "text", "ask": "Video cho bạn dùng được gì trong đời mình (làm, quyết, biết)? Không gì thì nói không"},
+            {"id": "objections", "type": "tags", "ask": "Mỗi điều vướng một nhãn: ad-feel nếu thấy như quảng cáo, no-use nếu không dùng được gì, unclear-<từ> cho mỗi chữ hay bước chưa hiểu, hard-to-believe, too-long"},
+            {"id": "send", "type": "text", "ask": "Bạn sẽ gửi cho ai, kèm câu gì? Không gửi thì nói không"},
+        ]
+    return [
+        {"id": "retell", "type": "text", "ask": "Start with 'It says…' and retell what the video told you as you would to a friend. If you scrolled past or cannot, say so."},
+        {"id": "clarity", "type": "scale", "ask": "Did you get it hearing it once (1 not at all, 5 completely)"},
+        {"id": "intent", "type": "scale", "ask": "Will you save, send or act on it this week (1 certainly not, 5 certainly; 'sounds nice' does not count)"},
+        {"id": "use", "type": "text", "ask": "What can you use in your own life after it (do, decide, know)? Say nothing if nothing"},
+        {"id": "objections", "type": "tags", "ask": "One tag per problem: ad-feel if it reads as an ad, no-use if you can use nothing, unclear-<word> for each word or step you did not follow, hard-to-believe, too-long"},
+        {"id": "send", "type": "text", "ask": "Who would you send it to, with what words? Say nobody if nobody"},
+    ]
 
 
-def brief(cd: Path, sim: str, kind: str, stimuli: list[tuple[str, str]], size: str, platform: str,
-          decision: str, experts: list[str], parts: bool = False) -> str:
-    c = load(cd / "campaign.json")
-    vi = _vi(c)
-    facts = cd / "01-product/facts.json"
-    one = load(facts).get("one_liner", "") if facts.is_file() else ""
-    qs = "\n".join(f"{i}. {q}" for i, q in enumerate(_questions(vi, kind), 1))
-    stim = "\n\n".join(f"### {sid}\n{text}" for sid, text in stimuli)
-    ids = ", ".join(f"`{s}`" for s, _ in stimuli)
-    exp = "\n".join(f"- {e}" for e in experts)
-    seg = _segments(cd)
-    n = len(stimuli)
-    if parts and vi:
-        variants = (f"**MỘT video, chia {n} phần liên tiếp** — dùng đúng stimulus id {ids}, theo đúng thứ tự đó. Đây KHÔNG "
-                    "phải các phương án để so sánh: không xếp hạng, không hỏi thích phần nào. Mỗi persona gặp video như "
-                    "trong feed (chưa từng nghe về người làm, nghe mỗi câu một lần), xem phần sau với những gì đã nghe ở "
-                    "phần trước. Ai đã lướt đi ở một phần thì các phần sau ghi watch_through 0 và không trả lời thêm. "
-                    "watch_through của mỗi phần là % của riêng phần đó. Câu kể lại (quote) ở phần cuối là kể lại CẢ video.")
-        report = ("**Báo cáo:** coi các phần là một video: phần và giây người xem bỏ đi, câu làm họ bỏ; bao nhiêu người "
-                  "xem tới hết phần cuối; người xem kể lại được gì về cả video (trích quote); điều họ dùng được; câu nào "
-                  "nghe như quảng cáo hoặc khó tin; sửa cụ thể bằng lời thoại. Trích số từ tally, giữ nguyên warnings và caveat.")
-    elif parts:
-        variants = (f"**ONE video in {n} consecutive parts** — use exactly the stimulus ids {ids}, in that order. These "
-                    "are NOT variants to compare: no ranking, no preference between parts. Each persona meets the video "
-                    "in a feed (they know nothing about who made it and hear each line once) and watches a later part "
-                    "knowing what the earlier parts said. Whoever swiped away in one part records watch_through 0 for "
-                    "the later parts and answers nothing more. Each part's watch_through is the % of that part alone. "
-                    "The retell (quote) on the last part retells the WHOLE video.")
-        report = ("**Report:** treat the parts as one video: the part and second viewers leave and the line that lost "
-                  "them; how many reach the end of the last part; what viewers retold of the whole video (quote it); "
-                  "what they could use; which lines read as an ad or are hard to believe; concrete wording fixes. Cite "
-                  "tally numbers only, keep the warnings and the caveat.")
-    elif vi:
-        variants = (f"**Các phương án** — dùng đúng stimulus id {ids}, nhãn trung lập, không gợi ý phương án nào là ưu "
-                    "tiên. Mỗi persona gặp video như trong feed: chưa từng nghe về người làm, nghe mỗi câu một lần.")
-        report = ("**Báo cáo:** xếp hạng theo preference và watch_through, nói rõ khoảng cách có `clear` không; với từng "
-                  "phương án: giây người xem bỏ đi và câu làm họ bỏ; người xem kể lại được gì (trích quote); điều họ dùng "
-                  "được; câu nào nghe như quảng cáo hoặc khó tin; sửa cụ thể bằng lời thoại. Trích số từ tally, giữ "
-                  "nguyên warnings và caveat.")
-    else:
-        variants = (f"**Variants** — use exactly the stimulus ids {ids}, neutral labels, no hint of a favourite. Each "
-                    "persona meets each video in a feed: they know nothing about who made it and hear each line once.")
-        report = ("**Report:** rank by preference and watch_through and say whether the gap is `clear`; per variant: the "
-                  "second viewers leave and the line that lost them; what viewers retold (quote it); what they could "
-                  "use; which lines read as an ad or are hard to believe; concrete wording fixes. Cite tally numbers "
-                  "only, keep the warnings and the caveat.")
-    if vi:
-        return f"""Chạy mô phỏng {size} ({SIZES[size]} persona), sim id `{sim}`, kind `video`.
-
-**Quyết định:** {decision}
-
-**Thị trường:** {', '.join(c.get('markets') or [])} · **Ngôn ngữ:** {', '.join(c.get('languages') or [])} · **Nền tảng:** {PLATFORMS[platform]['label']}
-**Sản phẩm (một câu, người xem KHÔNG được thấy):** {one}
-
-**Khán giả (từ nghiên cứu):**
-{seg}
-Trộn cả người chưa từng nghe về chủ đề, người thích thể loại này, fan cứng, và người lướt nhanh thiếu kiên nhẫn; có người sẽ nói không.
-
-{variants}
-
-{stim}
-
-**Câu hỏi cho từng persona** (ghi vào đúng trường):
-{qs}
-
-**Chuyên gia (độc lập, song song vòng 0):**
-{exp}
-
-{report}
-"""
-    return f"""Run a {size} simulation ({SIZES[size]} personas), sim id `{sim}`, kind `video`.
-
-**Decision:** {decision}
-
-**Markets:** {', '.join(c.get('markets') or [])} · **Languages:** {', '.join(c.get('languages') or [])} · **Platform:** {PLATFORMS[platform]['label']}
-**Product (one line, viewers do NOT see this):** {one}
-
-**Audience (from research):**
-{seg}
-Mix people who have never heard of the topic, fans of the kind of thing, core fans and impatient scrollers; include people who will say no.
-
-{variants}
-
-{stim}
-
-**Per-persona questions** (record each in its field):
-{qs}
-
-**Experts (independent, in parallel with round 0):**
-{exp}
-
-{report}
-"""
-
-
-def experts(c: dict, platform: str, vi: bool) -> list[str]:
+def experts(c: dict, platform: str, vi: bool) -> list[dict]:
     lab, mk = PLATFORMS[platform]["label"], ", ".join(c.get("markets") or [])
     if vi:
-        return [f"Giám đốc sáng tạo video ngắn trên {lab} ở {mk}: hook 2 giây đầu, nhịp, điểm rơi người xem",
-                "Giáo viên giỏi giải thích: người lạ nghe MỘT lần có hiểu và kể lại được không, thuật ngữ nào chưa được giải nghĩa",
-                "Người hoài nghi kiểm chứng: câu nào là quảng cáo, câu nào khó tin hoặc sai sự thật",
-                "Người thuộc nhóm khán giả ưu tiên: video này cho tôi dùng được gì"]
-    return [f"Short-video creative director on {lab} in {mk}: the 2-second hook, pacing, drop-off points",
-            "Expert explainer and teacher: can a stranger who hears it ONCE retell it; which term is never explained",
-            "Skeptical fact-checker: which line reads as an ad, which is hard to believe or untrue",
-            "A member of the priority audience: what can I actually use from this"]
+        lenses = [f"Giám đốc sáng tạo video ngắn trên {lab} ở {mk}: hook 2 giây đầu, nhịp, điểm rơi người xem",
+                  "Giáo viên giỏi giải thích: người lạ nghe MỘT lần có hiểu và kể lại được không, thuật ngữ nào chưa được giải nghĩa",
+                  "Người hoài nghi kiểm chứng: câu nào là quảng cáo, câu nào khó tin hoặc sai sự thật",
+                  "Người thuộc nhóm khán giả ưu tiên: video này cho tôi dùng được gì"]
+    else:
+        lenses = [f"Short-video creative director on {lab} in {mk}: the 2-second hook, pacing, drop-off points",
+                  "Expert explainer and teacher: can a stranger who hears it ONCE retell it; which term is never explained",
+                  "Skeptical fact-checker: which line reads as an ad, which is hard to believe or untrue",
+                  "A member of the priority audience: what can I actually use from this"]
+    return [{"id": i, "lens": x} for i, x in zip(("creative", "teacher", "skeptic", "audience"), lenses)]
+
+
+def audience(cd: Path, c: dict, n: int) -> dict:
+    """Who meets the video: a filter over Micro Fish's persona library. The campaign may name it as `panel` in
+    02-audience/segments.json ({"age": [18, 35], "zone": …, "match": "regex"}); a campaign in a language Micro Fish
+    ships no library for names its own library and feed in the user config (`judge.library`, `judge.context`)."""
+    p = cd / "02-audience/segments.json"
+    panel = (load(p).get("panel") if p.is_file() else None) or AUDIENCE
+    j = config().get("judge") or {}
+    if not _vi(c) and not (j.get("library") and j.get("context")):
+        raise SystemExit("Micro Fish ships a Vietnamese persona library and feed only. For this campaign's language, set "
+                         "`judge.library` (a persona .jsonl) and `judge.context` (a JSON list of {account, content} posts "
+                         "of the platform) in ~/.babysit/marketing-video/config.json, or use another honest pre-test")
+    return {**panel, "n": n, "cap": True, **({"library": j["library"]} if j.get("library") else {})}
+
+
+def brief(cd: Path, sim: str, subjects: list[tuple[str, str]], size: str, platform: str, goal: str,
+          lenses: list[dict]) -> dict:
+    """The Micro Fish brief. Every subject is posted by the same account under a neutral label, so nothing but the
+    video tells the arms apart; the product one-liner and the key never enter it."""
+    c = load(cd / "campaign.json")
+    vi = _vi(c)
+    j = config().get("judge") or {}
+    account = str(c.get("product") or c.get("slug") or "channel")
+    out = {"sim": sim, "goal": goal, "platform": PLATFORMS[platform]["label"], "language": "vi" if vi else "en",
+           "subjects": [{"id": lab, "label": f"Video {lab.upper()}", "account": account, "content": text}
+                        for lab, text in subjects],
+           "audience": audience(cd, c, SIZES[size] * len(subjects)), "rounds": 3, "feed_size": 4,
+           "metric": "depth",  # few people finish a short video: decide on how far they watched, not on who finished
+           "questions": questions(vi), "experts": lenses}
+    if j.get("context"):
+        out["context"] = load(Path(j["context"]).expanduser())
+    return out
 
 
 # ---------- running ----------
@@ -436,31 +333,29 @@ def _sim_id(cd: Path, tag: str) -> str:
     return f"{slug[:28]}-{tag}"[:40]
 
 
-def run(out: Path, text: str, conversation: str | None = None, keep: bool = False) -> dict:
-    """Start the server, send one message and wait (10-30 min for a simulation), save the answer beside the brief."""
+def run(out: Path, keep: bool = False) -> dict:
+    """Play out/brief.json: add its personas, the feed rounds, the interviews, the experts, the report. A run the
+    provider stopped (rate limit) keeps what it recorded; the same call continues it."""
     mf = micro_fish()
     e = env()
-    r = subprocess.run([str(mf), "start"], env=e, capture_output=True, text=True)
-    if r.returncode:
-        raise SystemExit(f"micro-fish start failed:\n{r.stdout}{r.stderr}")
-    msg = out / (f"followup-{today().isoformat()}.txt" if conversation else "message.txt")
-    msg.write_text(text, encoding="utf-8")
     try:
-        r = subprocess.run([str(mf), "ask", str(msg), *([conversation] if conversation else [])], env=e,
-                           capture_output=True, text=True)
+        r = subprocess.run([str(mf), "run", str(out / "brief.json")], env=e, capture_output=True, text=True)
     finally:
         if not keep:
             subprocess.run([str(mf), "stop"], env=e, capture_output=True, text=True)
-    info = dict(re.findall(r"(\w+)=(\S*)", r.stdout))
-    ans = Path(info.get("answer", ""))
-    res = {"state": info.get("state", "failed"), "conversation": info.get("conversation") or conversation,
-           "answer": None, "progress": info.get("progress"), "at": today().isoformat()}
-    if ans.is_file():
-        name = "answer.md" if not conversation else f"answer-{len(list(out.glob('answer*.md')))}.md"
-        shutil.copy2(ans, out / name)
-        res["answer"] = name
-    if info.get("progress") and Path(info["progress"]).is_file():
-        shutil.copy2(info["progress"], out / "progress.log")
+    (out / "progress.log").write_text(r.stderr, encoding="utf-8")
+    try:
+        res = json.loads((r.stdout.strip().splitlines() or ["{}"])[-1])
+    except json.JSONDecodeError:
+        res = {}
+    res = {"state": "failed", **res, "at": today().isoformat()}
+    if res.get("report") and Path(res["report"]).is_file():
+        shutil.copy2(res["report"], out / "answer.md")
+    if res["state"] not in ("completed", "completed_with_failures"):
+        dump(out / "run.json", res)
+        raise SystemExit(f"Micro Fish {res['state']}: {res.get('reason') or r.stderr.strip()[-600:]}\n"
+                         f"What it recorded is kept. Continue with `mvf judge resume {out}`; read {out / 'progress.log'} "
+                         f"and {home() / 'serve.log'} (failure_kind) first if it stops again")
     return res
 
 
@@ -475,118 +370,112 @@ def tally(sim: str) -> dict | None:
 # ---------- reading the tally ----------
 
 def summarize(t: dict, key: dict) -> dict:
-    """Per stimulus, from the last recorded round: the numbers the decision rests on, keyed back to script ids."""
-    rounds = t.get("by_round") or {}
-    last = rounds[max(rounds, key=int)] if rounds else {}
-    pref = t.get("preference") or {}
-    shares = pref.get("shares") or {}
-    obj = t.get("objections") or {}
+    """Per subject, the numbers the decision rests on, keyed back to script ids. Behaviour first: `watch_pct` is
+    the average share of the video its personas watched (`avg_watch_s` of `duration_s`), `like_rate` and
+    `comment_rate` who reacted, `stopped` who did not scroll past, `rank_in_feed` where its watch share puts it
+    among the ordinary posts the same people saw. `finished` is kept for reading only: few people finish a short
+    video, so nothing is decided on it."""
+    subjects = t.get("subjects") or {}
     blocking = (t.get("experts") or {}).get("blocking") or []
     out = {}
     for lab, meta in key.items():
-        m = last.get(lab) or {}
-        tags = (obj.get(lab) or {}).get("last") or (obj.get(lab) or {}).get("first") or []
-        out[lab] = {"id": meta["id"], "kind": meta["kind"], "n": m.get("n"),
-                    "attention": m.get("attention_mean"), "watch_through": m.get("watch_through_mean"),
-                    "clarity_top2": m.get("clarity_top2"), "intent_top2": m.get("intent_top2"),
-                    "share_rate": m.get("share_rate"), "sentiment": m.get("sentiment_mean"),
-                    "preference_pct": (shares.get(lab) or {}).get("pct"),
+        x = subjects.get(lab) or {}
+        iv = x.get("interview") or {}
+        tags = (iv.get("objections") or {}).get("tags") or []
+        pct = lambda k: (x.get(k) or {}).get("pct")
+        watch, dur = pct("depth"), meta.get("duration")
+        top2 = lambda k: ((iv.get(k) or {}).get("top2") or {}).get("pct")
+        out[lab] = {"id": meta["id"], "kind": meta["kind"], "n": x.get("reached"), "assigned": x.get("assigned"),
+                    "watch_pct": watch, "watch_ci95": (x.get("depth") or {}).get("ci95"), "duration_s": dur,
+                    "avg_watch_s": round(watch * dur / 100, 1) if watch is not None and dur else None,
+                    "stopped": pct("stopped"), "finished": pct("full"),
+                    "rank_in_feed": f"{x.get('rank_in_feed')}/{x.get('of')}" if x.get("rank_in_feed") else None,
+                    "like_rate": pct("like"), "share_rate": pct("share"), "comment_rate": pct("comment"),
+                    "interviewed": iv.get("answered"), "clarity_top2": top2("clarity"), "intent_top2": top2("intent"),
                     "ad_feel": sum(n for tg, n in tags if "ad-feel" in tg or "quang-cao" in tg),
-                    "no_use": sum(n for tg, n in tags if "no-use" in tg or "unclear-value" in tg),
-                    "unclear": [tg for tg, _ in tags if tg.startswith("unclear-") and tg != "unclear-value"],
-                    "objections": tags[:5],
-                    "expert_blocking": [f"{b.get('severity')}: {b.get('issue')}" for b in blocking if b.get("stimulus") == lab]}
+                    "no_use": sum(n for tg, n in tags if "no-use" in tg),
+                    "unclear": [tg for tg, _ in tags if tg.startswith("unclear-")],
+                    "objections": tags[:5], "comments": [c.get("text") for c in (x.get("comments") or [])[:5]],
+                    "expert_blocking": [f"{b.get('severity')}: {b.get('issue')} → {b.get('fix')}" for b in blocking
+                                        if b.get("subject") in (lab, None)]}
     return out
 
 
 def verdict(t: dict, key: dict) -> dict:
-    """The leader, whether the gap is clear, and whether it beat the control. A control (a script the team already
-    rejected) that ties or wins means the panel cannot tell good from rejected: then nothing wins."""
+    """The leader, whether the gap is clear, and whether it beat the control. Each arm of the audience met one
+    video, so the ranking is what people did: how much of it they watched, then who liked it, who commented.
+    A control (a script the team already rejected) that ties or wins means the society cannot tell good from
+    rejected: then nothing wins."""
     s = summarize(t, key)
-    pref = t.get("preference") or {}
+    cmp_ = t.get("comparison") or {}
 
     def score(lab):
         x = s[lab]
-        return ((x["preference_pct"] or 0), (x["watch_through"] or 0), (x["intent_top2"] or 0))
+        return ((x["watch_pct"] or 0), (x["like_rate"] or 0), (x["comment_rate"] or 0))
     cands = [lab for lab in s if s[lab]["kind"] == "candidate"]
     controls = [lab for lab in s if s[lab]["kind"] in {"control", "bench"}]
     if not cands:
         return {"winner": None, "why": "no candidate in the tally", "summary": s}
     best = max(cands, key=score)
     beaten = [c for c in controls if score(c) >= score(best)]
-    clear = bool(pref.get("clear")) and pref.get("leader") == best
+    clear = bool(cmp_.get("clear")) and cmp_.get("leader") == best
     why = []
     if beaten:
-        why.append(f"{', '.join(s[c]['id'] for c in beaten)} ranks at or above the best candidate: the panel cannot tell")
+        why.append(f"{', '.join(s[c]['id'] for c in beaten)} ranks at or above the best candidate: the society cannot tell")
     if not clear:
-        why.append("the lead is not clear (overlapping intervals): read the quotes and the expert findings before picking")
+        why.append("the lead is not clear (overlapping intervals): read the retells and the expert findings before picking")
     return {"winner": None if beaten else s[best]["id"], "leader": s[best]["id"], "clear": clear, "beats_control": not beaten,
             "why": "; ".join(why) or "clear leader above every control", "summary": s}
 
 
+def _watched(x: dict) -> str:
+    """`watched 11.2/32s (35%)`: the average watch time over the length."""
+    if x.get("avg_watch_s") is None:
+        return f"watched {x.get('watch_pct')}%"
+    return f"watched {x['avg_watch_s']}/{x['duration_s']:.0f}s ({x['watch_pct']}%)"
+
+
 def evidence_line(v: dict, size: str) -> str:
-    s = v["summary"]
     parts = []
-    for lab, x in sorted(s.items(), key=lambda kv: -(kv[1]["preference_pct"] or 0)):
-        parts.append(f"{x['id']} pref {x['preference_pct']}% · watch {x['watch_through']}% · attention {x['attention']} · "
-                     f"clarity top2 {x['clarity_top2']}% · intent top2 {x['intent_top2']}% · ad-feel {x['ad_feel']}")
-    n = next((x["n"] for x in s.values() if x.get("n")), None)
-    return f"Micro Fish {size}, n={n}: " + " | ".join(parts) + f". {v['why']}"
+    for x in sorted(v["summary"].values(), key=lambda x: -(x["watch_pct"] or 0)):
+        parts.append(f"{x['id']} n={x['n']} · {_watched(x)} · like {x['like_rate']}% · comment "
+                     f"{x['comment_rate']}% · stopped {x['stopped']}% · rank in feed "
+                     f"{x['rank_in_feed']} · clarity top2 {x['clarity_top2']}% · intent top2 {x['intent_top2']}% · "
+                     f"ad-feel {x['ad_feel']}")
+    return f"Micro Fish {size}, one arm per video: " + " | ".join(parts) + f". {v['why']}"
 
 
 def retell_sheet(cd: Path, t: dict, key: dict) -> str:
-    """Each candidate's intended retell beside what the crowd actually said: the agent judges the match."""
-    quotes = t.get("quotes") or {}
-    out = ["# Retell check — does the crowd say what the script means?\n",
-           "For each candidate, compare `spine.takeaway` (what a stranger should retell) and `spine.use` with the "
-           "recorded quotes. Write the verdict, quoting the persona lines, into decision.json `retell` for scripts, or as a "
-           "review.json issue for a cut that is retold wrong.\n"]
+    """Each candidate's intended retell beside what its personas said after the feed closed: the agent judges the match."""
+    out = ["# Retell check — does the audience say what the script means?\n",
+           "For each candidate, compare `spine.takeaway` (what a stranger should retell) and `spine.use` with what the "
+           "personas answered. Each line names what that persona did with the video in the feed (skip, some, full). "
+           "Write the verdict, quoting the persona lines, into decision.json `retell` for scripts, or as a review.json "
+           "issue for a cut that is retold wrong. To ask one of them why: `micro-fish.sh ask <sim> \"<name>\" q.txt`.\n"]
     for lab, meta in key.items():
         if meta["kind"] != "candidate":
             continue
         sid = meta["id"].split("/")[0]
         sp = cd / "05-scripts" / f"{sid}.json"
         spine = load(sp).get("spine", {}) if sp.is_file() else {}
-        out.append(f"## {meta['id']} (stimulus {lab})\n- intended retell: {spine.get('takeaway', '—')}\n"
+        x = (t.get("subjects") or {}).get(lab) or {}
+        iv = x.get("interview") or {}
+        out.append(f"## {meta['id']} (subject {lab})\n- intended retell: {spine.get('takeaway', '—')}\n"
                    f"- intended use: {spine.get('use', '—')}")
-        q = quotes.get(lab) or {}
-        for side in ("positive", "negative"):
-            for x in q.get(side) or []:
-                txt = x.get("quote") if isinstance(x, dict) else x
-                who = (x.get("persona") or x.get("id") or "") if isinstance(x, dict) else ""
-                out.append(f"  - {side} {who}: {txt}")
+        for q, title in (("retell", "retold"), ("use", "could use"), ("send", "would send")):
+            rows = (iv.get(q) or {}).get("answers") or []
+            if rows:
+                out.append(f"\n{title}:")
+                out += [f"  - [{a.get('attention')}] {a.get('who')}: {a.get('text')}" for a in rows]
+        if x.get("comments"):
+            out.append("\ncomments in the feed:")
+            out += [f"  - {c.get('who')}: {c.get('text')}" for c in x["comments"]]
         out.append("")
     return "\n".join(out)
 
 
-def interview_text(vi: bool, sim: str, ids: list[str]) -> str:
-    """Follow-up in the same conversation: the moderator interviews personas from their records."""
-    names = ", ".join(f"`{i}`" for i in ids)
-    if vi:
-        return (f"Phỏng vấn trong sim `{sim}`: với mỗi phương án {names}, chọn 4 persona đã xem (1 người chưa từng nghe "
-                "về chủ đề, 1 fan thể loại, 1 fan cứng, 1 người lướt nhanh). Mỗi người, đúng giọng của họ và chỉ từ những "
-                "gì họ đã ghi: (1) kể lại video nói gì trong 1-2 câu, (2) từ hay bước nào chưa hiểu, (3) dùng được gì "
-                "trong đời mình, (4) gửi cho ai. Nếu họ không kể lại được, nói thẳng như vậy, không bịa.")
-    return (f"Interview in sim `{sim}`: for each variant {names}, pick 4 personas who saw it (one who never heard of the "
-            "topic, one fan of the kind of thing, one core fan, one impatient scroller). For each, in their voice and "
-            "only from what they recorded: (1) retell what the video said in 1-2 sentences, (2) which word or step "
-            "they did not follow, (3) what they can use in their own life, (4) who they would send it to. If they "
-            "could not retell it, say so; do not invent.")
-
-
-def fit(build) -> str:
-    """The brief at the longest stimuli that keep the whole message inside Soot's limit: pictures shorten first,
-    the voice never (see stimulus)."""
-    for chars in (STIMULUS_CHARS, 2500, 2000, 1600, 1200):
-        text = build(chars)
-        if len(text.encode("utf-8")) <= MESSAGE_BYTES:
-            return text
-    raise SystemExit(f"the brief is {len(text.encode('utf-8'))} bytes even with short pictures; Soot takes "
-                     f"{MESSAGE_BYTES}. Compare fewer videos or shorten the segments in 02-audience")
-
-
 def judge_scripts(cd: Path, items: list[tuple[dict, str, str]], round_: str, size: str, platform: str,
-                  manifests: dict, bench: list[dict], dry: bool, interview: bool = True) -> Path:
+                  manifests: dict, bench: list[dict], dry: bool) -> Path:
     """items: (script, hook, kind) with kind candidate|control. Writes 06-pretest/<round>/microfish/."""
     c = load(cd / "campaign.json")
     vi = _vi(c)
@@ -600,119 +489,88 @@ def judge_scripts(cd: Path, items: list[tuple[dict, str, str]], round_: str, siz
     random.Random(round_).shuffle(order)
     key = {LABELS[i]: {"id": e[0], "kind": e[1]} for i, e in enumerate(order)}
     sim = _sim_id(cd, round_)
-    cands = [e[0] for e in entries if e[1] == "candidate"]
-    decision = ((f"Chọn MỘT trong {len(cands)} kịch bản (và hook của nó) để sản xuất thành video duy nhất. Tiêu chí theo thứ tự: "
-                 "người lạ nghe một lần kể lại đúng điều video nói; họ dùng được gì; họ lưu hay gửi; họ xem tới đâu. "
-                 "Một phương án là đối chứng đã bị loại, nhưng không ai biết là phương án nào: đừng đoán và đừng gọi "
-                 "phương án nào là đối chứng; xếp hạng tất cả như nhau.")
-                if vi else
-                (f"Pick ONE of {len(cands)} scripts (with its hook) to produce as the only video. In order: a stranger who "
-                 "hears it once retells what it said; what they can use; whether they save or send it; how far they "
-                 "watch. One variant is a control the team already rejected, but nobody knows which: do not guess or "
-                 "call any variant the control; rank them all alike."))
-    def stim(e: tuple, chars: int) -> str:
-        if e[1] == "bench":
-            return bench_stimulus(e[2], platform, vi, chars)
-        return script_stimulus(e[2], e[3], manifests.get(e[2]["id"]), platform, vi, chars)[0]
+    goal = ("Video nào trong số này đáng sản xuất: người lạ gặp nó trong feed có dừng lại, xem được bao lâu, có thích, "
+            "bình luận, và kể lại đúng điều video nói không" if vi else
+            "Which of these videos is worth producing: does a stranger who meets it in a feed stop, how long do they "
+            "watch, do they like or comment, and can they retell what it said")
 
-    text = fit(lambda chars: brief(cd, sim, "scripts", [(lab, stim(e, chars)) for lab, e in zip(LABELS, order)], size,
-                                   platform, decision, experts(c, platform, vi)))
-    (out / "brief.txt").write_text(text, encoding="utf-8")
+    def stim(lab: str, e: tuple) -> str:
+        if e[1] == "bench":
+            key[lab]["duration"] = max((float(str(x.get("s", "0")).rpartition("-")[2] or 0) for x in e[2].get("rows") or []),
+                                       default=0.0)
+            return bench_stimulus(e[2], platform, vi)
+        text, tl = script_stimulus(e[2], e[3], manifests.get(e[2]["id"]), platform, vi)
+        key[lab]["duration"] = tl["duration"]
+        return text
+
+    b = brief(cd, sim, [(lab, stim(lab, e)) for lab, e in zip(LABELS, order)], size, platform, goal, experts(c, platform, vi))
+    dump(out / "brief.json", b)
     dump(out / "key.json", {"sim": sim, "platform": platform, "size": size, "stimuli": key})
     if dry:
-        print(f"{out / 'brief.txt'} ({len(text)} chars, {len(text.encode('utf-8'))} bytes) · key {out / 'key.json'} (never shown to the panel)")
+        print(f"{out / 'brief.json'} ({len(order)} videos, {b['audience']['n']} personas, {SIZES[size]} per video) · "
+              f"key {out / 'key.json'} (never shown to the society)")
         return out
     require_ready()
-    print(f"Micro Fish {size} on {choice()['provider']}/{choice()['model']}: sim {sim}, {len(order)} videos; this takes "
-          "10-30 minutes…", flush=True)
-    res = run(out, text)
-    dump(out / "run.json", {**res, "sim": sim})
-    return collect(cd, out, interview)
+    print(f"Micro Fish {size} on {choice()['provider']}/{choice()['model']}: sim {sim}, {len(order)} videos, "
+          f"{SIZES[size]} personas each…", flush=True)
+    dump(out / "run.json", {**run(out), "sim": sim})
+    return collect(cd, out)
 
 
 def _winner_objections(v: dict) -> list[str]:
-    """What the rewrite must answer before voicing: the experts' blocking findings and the crowd's top tags on the
-    script that won (or leads), not on the ones that lost."""
+    """What the rewrite must answer before voicing: the experts' blocking findings and the audience's top tags on
+    the script that won (or leads), not on the ones that lost."""
     lead = next((x for x in v["summary"].values() if x["id"] == (v["winner"] or v["leader"])), None)
     if not lead:
         return []
-    return lead["expert_blocking"][:6] + [f"crowd: {tag} ×{n}" for tag, n in lead["objections"][:3]]
+    return lead["expert_blocking"][:6] + [f"audience: {tag} ×{n}" for tag, n in lead["objections"][:3]]
 
 
-def collect(cd: Path, out: Path, interview: bool = True) -> Path:
-    """Read the tally back, write judge.json and the retell sheet, interview the leaders, draft the decision."""
+def collect(cd: Path, out: Path) -> Path:
+    """Read the tally back, write judge.json and the retell sheet, draft the decision."""
     k = load(out / "key.json")
     run_ = load(out / "run.json") if (out / "run.json").is_file() else {}
     t = tally(k["sim"])
     if not t:
         raise SystemExit(f"no tally for sim {k['sim']} (state {run_.get('state')}); read {out / 'progress.log'} and "
-                         f"~/.babysit/marketing-video/micro-fish/serve.log (failure_kind). A stopped run resumes with "
-                         f"`mvf judge resume {out}`")
+                         f"{home() / 'serve.log'} (failure_kind). A stopped run continues with `mvf judge resume {out}`")
     dump(out / "tally.json", t)
     v = verdict(t, k["stimuli"])
-    dump(out / "judge.json", {"sim": k["sim"], "conversation": run_.get("conversation"), "size": k["size"],
+    dump(out / "judge.json", {"sim": k["sim"], "size": k["size"],
                               "complete": t.get("complete"), "warnings": t.get("warnings"), "caveat": t.get("caveat"),
                               **{x: v[x] for x in ("winner", "leader", "clear", "beats_control", "why")},
                               "stimuli": v["summary"]})
     (out / "retell.md").write_text(retell_sheet(cd, t, k["stimuli"]), encoding="utf-8")
-    if interview and run_.get("conversation"):
-        c = load(cd / "campaign.json")
-        top = sorted((x for x in v["summary"].items() if x[1]["kind"] == "candidate"),
-                     key=lambda kv: -(kv[1]["preference_pct"] or 0))[:2]
-        res = run(out, interview_text(_vi(c), k["sim"], [lab for lab, _ in top]), run_["conversation"])
-        if res.get("answer"):
-            (out / "interview.md").write_text((out / res["answer"]).read_text(encoding="utf-8"), encoding="utf-8")
     dec = out.parent / "decision.json"
-    draft = {"method": "simulated-panel", "run": f"micro-fish:{k['sim']}" + (f" conversation {run_['conversation']}"
-                                                                            if run_.get("conversation") else ""),
+    draft = {"method": "simulated-panel", "run": f"micro-fish:{k['sim']}",
              "winner": v["winner"], "evidence": evidence_line(v, k["size"]), "retell": "",
              "objections": _winner_objections(v),
              "changes": [], "untested": [], "decided_at": today().isoformat(),
-             "_todo": "read answer.md, retell.md and interview.md; write `retell` (what personas retold about the winner, "
-                      "quoted) and fix `winner` if the numbers and the quotes disagree; then delete _todo"}
+             "_todo": "read retell.md and answer.md; write `retell` (what personas retold about the winner, quoted) and "
+                      "fix `winner` if the numbers and the retells disagree; then delete _todo"}
     target = dec if not dec.is_file() else out / "decision.suggested.json"
     dump(target, draft)
     print(f"judge: leader {v['leader']} ({'clear' if v['clear'] else 'not clear'}; "
           f"{'beats' if v['beats_control'] else 'does NOT beat'} the control) → {out / 'judge.json'}")
-    print(f"decision draft → {target}; read {out / 'answer.md'}, {out / 'retell.md'}"
-          + (f", {out / 'interview.md'}" if (out / 'interview.md').is_file() else ""))
+    print(f"decision draft → {target}; read {out / 'retell.md'}"
+          + (f" and {out / 'answer.md'}" if (out / 'answer.md').is_file() else ""))
     for w in t.get("warnings") or []:
         print(f"WARN tally: {w}")
     print("key: " + ", ".join(f"{lab} = {s['id']} ({s['kind']})" for lab, s in k["stimuli"].items()))
-    if (out / "answer.md").is_file():
-        for lab in mislabelled_controls((out / "answer.md").read_text(encoding="utf-8"), k["stimuli"]):
-            print(f"WARN answer.md calls {lab} ({k['stimuli'][lab]['id']}) the control; the control is "
-                  + ", ".join(f"{x} ({s['id']})" for x, s in k["stimuli"].items() if s["kind"] == "control")
-                  + ": read its verdict on that letter as a candidate's")
     return out
 
 
-CONTROL_WORD = r"(?:đối chứng|control)"
-
-
-def mislabelled_controls(answer: str, stimuli: dict) -> list[str]:
-    """Letters the analyst names as the control that the hidden key says are not. The panel never sees the key,
-    so an analyst asked about 'the control' guesses one, and a guess on a candidate reads as a rejected script."""
-    labs = "".join(stimuli)
-    hits = set(re.findall(rf"{CONTROL_WORD}\s+([{labs}])\b", answer, re.I))
-    hits |= set(re.findall(rf"\b([{labs}])\s*\(\s*{CONTROL_WORD}", answer, re.I))
-    return sorted(lab for lab in hits if stimuli[lab]["kind"] != "control")
-
-
 def resume(cd: Path, out: Path) -> Path:
-    run_ = load(out / "run.json")
-    if not run_.get("conversation"):
-        raise SystemExit(f"{out / 'run.json'} has no conversation id to resume")
-    c = load(cd / "campaign.json")
-    res = run(out, "làm tiếp" if _vi(c) else "continue", run_["conversation"])
-    dump(out / "run.json", {**run_, **{k: v for k, v in res.items() if v}})
-    return collect(cd, out)
+    """Continue a stopped run from what Micro Fish recorded, then read it back."""
+    k = load(out / "key.json")
+    require_ready()
+    dump(out / "run.json", {**run(out), "sim": k["sim"]})
+    return _read_video(cd, out, k) if out.parent.name == "judge" else collect(cd, out)  # <proj>/judge/<round> is a cut
 
 
 def judge_video(cd: Path, proj: Path, round_: str, size: str, platform: str, dry: bool) -> Path:
-    """The cut, judged like the scripts were: does the picture carry the hook muted, where do people leave, can they
-    retell it. One stimulus, or consecutive parts when the cut is longer than one holds; experts look for what the edit
-    broke."""
+    """The cut, met in a feed the way the scripts were: do people stop for it, how long do they watch, retell it. One subject,
+    the whole audience; experts look for what the edit broke."""
     meta = load(proj / "mvf.json")
     script = load(cd / meta["script"])
     c = load(cd / "campaign.json")
@@ -720,73 +578,45 @@ def judge_video(cd: Path, proj: Path, round_: str, size: str, platform: str, dry
     out = proj / "judge" / round_
     out.mkdir(parents=True, exist_ok=True)
     sim = _sim_id(cd, f"{script['id'][:12]}-{round_}")
-    decision = (("Video đã dựng xong: đăng được chưa, hay sửa gì trước? Người lạ nghe một lần có kể lại đúng không, bỏ đi ở "
-                 "giây nào, hình có kể được câu chuyện khi tắt tiếng không.") if vi else
-                ("The video is cut: post it, or fix what first? Can a stranger who hears it once retell it, where do people "
-                 "leave, does the picture tell it with the sound off?"))
+    goal = (("Video đã dựng xong: đăng được chưa, hay sửa gì trước? Người lạ gặp nó trong feed có dừng lại, xem được bao "
+             "lâu, có thích, bình luận và kể lại đúng không") if vi else
+            ("The video is cut: post it, or fix what first? Does a stranger who meets it in a feed stop, how long do "
+             "they watch, do they like or comment, and do they retell it right"))
     ex = experts(c, platform, vi)
-    ex[0] = (f"Biên tập viên video ngắn trên {PLATFORMS[platform]['label']}: cắt cảnh, nhịp, chữ trên màn hình, khung hình 0"
-             if vi else f"Short-video editor on {PLATFORMS[platform]['label']}: cuts, pacing, on-screen text, frame 0")
-    built = []
-
-    def build(chars: int) -> str:
-        built[:] = video_stimuli(proj, script, platform, vi, chars)
-        return brief(cd, sim, "video", [(lab, s) for lab, (s, _) in zip(LABELS, built)], size, platform, decision, ex,
-                     parts=len(built) > 1)
-    text = fit(build)
+    ex[0] = {"id": "editor", "lens": (f"Biên tập viên video ngắn trên {PLATFORMS[platform]['label']}: cắt cảnh, nhịp, chữ trên màn hình, khung hình 0"
+                                      if vi else f"Short-video editor on {PLATFORMS[platform]['label']}: cuts, pacing, on-screen text, frame 0")}
     sid = f"{script['id']}/{meta.get('hook') or 'H1'}"
-    key = {lab: {"id": sid, "kind": "candidate", **({"part": i + 1, "span": list(span)} if len(built) > 1 else {})}
-           for i, (lab, (_, span)) in enumerate(zip(LABELS, built))}
-    (out / "brief.txt").write_text(text, encoding="utf-8")
+    key = {"a": {"id": sid, "kind": "candidate", "duration": load(proj / "timeline.json")["duration"]}}
+    dump(out / "brief.json", brief(cd, sim, [("a", video_stimulus(proj, script, platform, vi))], size, platform, goal, ex))
     dump(out / "key.json", {"sim": sim, "platform": platform, "size": size, "stimuli": key})
     if dry:
-        print(f"{out / 'brief.txt'} ({len(text)} chars" + (f", {len(key)} consecutive parts" if len(key) > 1 else "") + ")")
+        print(f"{out / 'brief.json'} ({SIZES[size]} personas)")
         return out
     require_ready()
-    print(f"Micro Fish {size}: judging the cut {proj.name} (sim {sim}); 10-30 minutes…", flush=True)
-    res = run(out, text)
-    dump(out / "run.json", {**res, "sim": sim})
-    t = tally(sim)
+    print(f"Micro Fish {size}: judging the cut {proj.name} (sim {sim}, {SIZES[size]} personas)…", flush=True)
+    dump(out / "run.json", {**run(out), "sim": sim})
+    return _read_video(cd, out, load(out / "key.json"))
+
+
+def _read_video(cd: Path, out: Path, k: dict) -> Path:
+    t = tally(k["sim"])
     if not t:
-        raise SystemExit(f"no tally for sim {sim} (state {res.get('state')}); see {out / 'progress.log'}")
+        raise SystemExit(f"no tally for sim {k['sim']}; see {out / 'progress.log'}")
     dump(out / "tally.json", t)
-    per = summarize(t, key)
-    s = whole(per, key)
-    dump(out / "judge.json", {"sim": sim, "conversation": res.get("conversation"), "size": size, "complete": t.get("complete"),
-                              "summary": s, **({"parts": [{"span": key[lab]["span"], **per[lab]} for lab in key]}
-                                               if len(key) > 1 else {}),
-                              "experts": t.get("experts"), "warnings": t.get("warnings"),
+    s = summarize(t, k["stimuli"])["a"]
+    dump(out / "judge.json", {"sim": k["sim"], "size": k["size"], "complete": t.get("complete"), "summary": s,
+                              "feed_rank": t.get("feed_rank"), "experts": t.get("experts"), "warnings": t.get("warnings"),
                               "caveat": t.get("caveat"), "judged_at": today().isoformat()})
-    (out / "retell.md").write_text(retell_sheet(cd, t, key), encoding="utf-8")
-    if len(key) > 1:
-        print("parts (one video): " + " | ".join(f"{key[lab]['span'][0]:.0f}–{key[lab]['span'][1]:.0f}s watch "
-                                                 f"{per[lab]['watch_through']}%" for lab in key))
-    print(f"judge video: watch {s['watch_through']}% · attention {s['attention']} · clarity top2 {s['clarity_top2']}% · "
-          f"intent top2 {s['intent_top2']}% · ad-feel {s['ad_feel']} · expert P0/P1 {len(s['expert_blocking'])} → "
-          f"{out / 'judge.json'}; read {out / 'answer.md'} and {out / 'retell.md'}, fix once, then export without judging again")
+    (out / "retell.md").write_text(retell_sheet(cd, t, k["stimuli"]), encoding="utf-8")
+    print(f"judge video: n={s['n']} · {_watched(s)} · like {s['like_rate']}% · comment {s['comment_rate']}% · "
+          f"stopped {s['stopped']}% · finished {s['finished']}% · rank in feed "
+          f"{s['rank_in_feed']} · clarity top2 {s['clarity_top2']}% · intent top2 {s['intent_top2']}% · ad-feel "
+          f"{s['ad_feel']} · expert P0/P1 {len(s['expert_blocking'])} → {out / 'judge.json'}; read {out / 'retell.md'}"
+          + (f" and {out / 'answer.md'}" if (out / "answer.md").is_file() else "")
+          + ", fix once, then export without judging again")
+    for w in t.get("warnings") or []:
+        print(f"WARN tally: {w}")
     return out
-
-
-def whole(per: dict, key: dict) -> dict:
-    """One cut's numbers from its parts: the open's attention, the share of the whole length watched (each part's
-    watch_through weighted by its seconds; whoever left earlier recorded 0 later), the weakest clarity, what the
-    last part's viewers intend, and every objection and expert finding."""
-    labs = list(key)
-    if len(labs) == 1:
-        return per[labs[0]]
-    first, last = per[labs[0]], per[labs[-1]]
-    secs = [key[lab]["span"][1] - key[lab]["span"][0] for lab in labs]
-    watch = [per[lab]["watch_through"] for lab in labs]
-    clar = [per[lab]["clarity_top2"] for lab in labs if per[lab]["clarity_top2"] is not None]
-    return {**last, "attention": first["attention"], "n": first["n"],
-            "watch_through": None if None in watch or not sum(secs) else
-            round(sum(w * d for w, d in zip(watch, secs)) / sum(secs), 1),
-            "clarity_top2": min(clar) if clar else None,
-            "ad_feel": sum(per[lab]["ad_feel"] for lab in labs),
-            "unclear": sorted({u for lab in labs for u in per[lab]["unclear"]}),
-            "objections": [o for lab in labs for o in per[lab]["objections"][:3]],
-            "expert_blocking": [f"{key[lab]['span'][0]:.0f}–{key[lab]['span'][1]:.0f}s {b}"
-                                for lab in labs for b in per[lab]["expert_blocking"]]}
 
 
 def video_judged(proj: Path) -> dict | None:

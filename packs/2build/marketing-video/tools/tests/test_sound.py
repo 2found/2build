@@ -60,6 +60,22 @@ class Render(unittest.TestCase):
             sound.render_sfx(p)
             self.assertEqual(sound.mixcheck(p)["under"], [])
 
+    def test_product_audio_plays_in_the_pauses_and_never_under_speech(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = project(Path(d), [])
+            t = np.arange(int(4.0 * synth.SR)) / synth.SR
+            sound.write(Path(d) / "player.wav", 0.1 * np.sin(2 * np.pi * 330 * t))
+            (p / sound.PRODUCT).write_text(json.dumps({"clip": "player.wav", "in": 0.5}))
+            rep = sound.product_track(p, Path(d))
+            self.assertEqual(rep["windows"], [[0.0, 0.5], [1.5, 3.0]])
+            x = sound.decode(p / "assets/music/product.wav")
+            sr = synth.SR
+            self.assertLess(np.max(np.abs(x[int(0.7 * sr):int(1.3 * sr)])), 1e-3)   # silent under the line
+            self.assertAlmostEqual(sound._db(x[int(1.8 * sr):int(2.8 * sr)]), sound._db(0.5 * np.sin(2 * np.pi * 220 * t)), delta=1.0)
+            mc = sound.mixcheck(p)
+            self.assertEqual(mc["under"], [])
+            self.assertEqual(mc["product_first_s"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

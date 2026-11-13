@@ -114,7 +114,7 @@ def lint(script: dict, campaign: dict, refs: dict, manifest: dict | None = None,
     if not str(script.get("value", "")).strip():
         r.fail("S2", sid, "value: what the viewer walks away with and can use")
     if script.get("format") not in FORMATS:
-        r.warn("S2", sid, f"format {script.get('format')!r} is not a listed one ({sorted(FORMATS)}); a new format is fine, name it plainly")
+        r.info("S2", sid, f"format {script.get('format')!r} is your own (not in references/formats.md): keep the name that says what it is")
     voice = script.get("voice") or {}
     if voice.get("mode") not in VOICE_MODES:
         r.fail("S2", sid, f"voice.mode must be one of {sorted(VOICE_MODES)}")

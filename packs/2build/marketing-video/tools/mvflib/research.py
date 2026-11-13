@@ -126,9 +126,11 @@ def check(d: dict, benefit: str | None = None, scripts: int = 3, facts: set | No
                     r.fail("RS5", w, f"{k} {x.get(k)!r} is filler: a picked idea says its {k} in a real sentence")
                 elif x.get("id") not in padded:
                     padded.append(x.get("id"))
-        if x.get("benefit") not in BENEFITS:
-            (r.fail if x.get("pick") else r.warn)("RS5", w, f"benefit {x.get('benefit')!r} not in {sorted(BENEFITS)}: what the viewer can use "
-                   "afterwards (a story, a feeling or a debate is how the video holds, not what it gives)")
+        if not str(x.get("benefit") or "").strip():
+            (r.fail if x.get("pick") else r.warn)("RS5", w, f"benefit is empty: what the viewer leaves with ({sorted(BENEFITS)}, or your own)")
+        elif x["benefit"] not in BENEFITS:
+            r.warn("RS5", w, f"benefit {x['benefit']!r} is your own (listed: {sorted(BENEFITS)}): fine when it is what the viewer "
+                   "leaves with, not only how the video holds them")
         for nid in x.get("nuggets") or []:
             if nid not in nids:
                 r.fail("RS5", w, f"unknown nugget {nid}")

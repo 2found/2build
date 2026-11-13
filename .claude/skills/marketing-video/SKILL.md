@@ -49,9 +49,26 @@ The owner touches a campaign three times, and the agent does everything else.
    This happens on the campaign's first video; nothing is voiced before it.
 3. **The cut.** The owner watches the delivered files and posts them.
 
-Once the owner approves the script, offer to go on in a new chat: everything
-lives on disk and `mvf next` picks up from it, while this chat carries the
-whole research in its context. Continue here if the owner prefers.
+### Contexts
+A campaign runs for hours, and a context that carries every download and
+every scene's code loses the brief. Keep the main context for reading the
+material, writing and deciding, and give the rest to fresh agents on the
+strongest model available (Opus on Claude Code), each with a brief on disk
+and a result on disk:
+- **Gathering** (stages 1-3.5): downloads, frame sheets, transcripts and
+  source pulls go into `00-material/` and the source lists. You then read
+  the pack yourself and pick the ideas: a script written from a helper's
+  summary has lost the details it needed.
+- **Each scene, after the key frame is yours:** one agent per scene, given
+  `SCENE_GUIDE.md`, the key frame, its beat and the storyboard. It returns
+  snapshots; you look at them. Renders run one at a time.
+- **Every review:** the predict, overlap, coldread and viewer helpers.
+- **Production as a whole:** once the owner approves the script, stage 7
+  starts in a fresh context that reads the disk (`mvf next`).
+
+These roles are part of their stage, so a caller's "no subagents" default
+does not cover them. With no agent tool, work in one context and re-read
+`campaign.json` and the script before each stage.
 
 Between those points the agent loops on **`mvf next`**, which names the one
 next action and says whether the agent or the owner takes it. The agent does
@@ -66,7 +83,7 @@ browser or a video it cannot read. Do it yourself before that stage's check.
 | Edit and render | HyperFrames (HTML to video, `npx hyperframes`, Node 22+) | the first scaffold downloads the pinned version |
 | Voice | OmniVoice (clone or designed voice; Whisper times the words) | uv builds its environment on the first take (about 2 GB, once) |
 | Pictures | Qwen Image 2.1 Turbo, and RMBG-1.4 cutouts (the `image-gen` skill) | `image-gen/scripts/setup` downloads the weights once; free and local |
-| Judge | Micro Fish on the user's Soot: a simulated crowd and an expert panel | the user signs in to a provider and names the model, then `mvf judge setup` |
+| Judge | Micro Fish on the user's Soot: a society of persona Soots on a shared feed, and an expert panel | the user signs in to a provider and names the model, then `mvf judge setup` |
 
 Run **`mvf doctor`** before the first video. It checks each backbone and
 prints the fix for anything missing. The agent fixes what it can; `NEEDS`
@@ -198,7 +215,14 @@ stopped.
 - **Brand in the picture, not in the pitch.** Show the product where the value
   happens. Keep its name out of the hook, speak it once at most, and save
   selling words for one soft CTA: most viewers never reach the end, and a
-  pitch reads as an ad.
+  pitch reads as an ad. When the owner wants the product in the first
+  seconds, let it be seen and heard working there (the real player playing,
+  its own sound in a pause after the hook) while the hook still speaks about
+  the subject.
+- **The picture is the whole frame.** Safe zones say where text and faces may
+  sit; they do not say where the picture ends. A cut built to the zones as
+  if they were the canvas put every subject in the top half of the phone and
+  scored 6, a template.
 - **Every angle names who a viewer would send it to, and why.**
 - Each reference gives its stage's bar first, then the lessons. Treat the
   lessons as evidence to weigh. Where the advice and your judgement differ,
@@ -210,7 +234,8 @@ stopped.
 inside a campaign.
 - It needs python3 and ffmpeg; `yt-dlp` for video references and transcripts;
   `mvf doctor` checks the rest.
-- `mvf init <slug> --product NAME` writes the folder and its `.gitignore`.
+- `mvf init <slug> --product NAME [--root DIR]` writes the folder and its
+  `.gitignore`; pass `--root` when the repo keeps campaigns elsewhere.
   For the next episode of a series, `mvf format save <name> --from <sid>`
   keeps the last one's look, captions, ambience, rigs, props and voice, and
   `mvf init <slug> --product NAME --format <name>` starts from them.

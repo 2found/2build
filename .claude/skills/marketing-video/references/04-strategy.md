@@ -15,7 +15,9 @@ segment, made believable by facts. It is built on a picked idea from
   is not picked only WARNs: pick it in research, one picked idea per script);
 - the `benefit` is missing or malformed ([Benefit](#benefit)).
 
-It WARNs when every angle has the same format, when the benefit differs from
+It WARNs when every angle has the same format, when two angles stand on the
+same facts (STR4: three candidates about one corner of the subject are one
+idea, and the owner gets no real choice), when the benefit differs from
 the campaign's, when the takeaway needs insider words, and on freshness
 ([Is it fresh?](#is-it-fresh)): no overlap verdict (OV1), an `OVERLAP` angle
 with no `overlap_note` (OV2), an empty `swap` (SW1).
@@ -46,6 +48,10 @@ seen the angles you are proud of.
 Every angle says what the viewer can use:
 `benefit: {type, takeaway, use_when}`.
 - `type` is this angle's benefit: lesson, decide, answer, match or how-to.
+  Those five are the usual ones, not a closed list: a `pov`, a `reaction` or a
+  `meme` may leave the viewer with something else (a laugh they pass on, a
+  thing to join). Name it in your own word; the check WARNs to make you look
+  twice and FAILs only when `type`, `takeaway` or `use_when` is empty.
   Angles may differ. If the owner named a campaign `benefit`, the angles
   follow it. On an awareness campaign, a `decide` about the product itself
   (start it, which version, where) only serves viewers already weighing it,

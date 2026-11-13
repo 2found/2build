@@ -18,7 +18,7 @@ Only developer runs may also rely on conversation. Resolve identity via the
 | `review-pr` | `PASS` \| `FINDINGS(<N>)` \| `FIXED(<N>)` |
 | `create-pr` | `PR_CREATED` |
 | `design-ui` | `DESIGNED` |
-| `ui-audit` | `AUDITED(<grade>, S0..S3 counts)` \| `INVENTORIED(<n>)` |
+| `ui-audit` | `AUDITED(<grade>, sev4..sev1 counts)` \| `INVENTORIED(<n>)` |
 | `perf-audit` | `AUDITED(<good\|attention\|problem\|not-measured>, red/yellow/green/unmeasured counts)` \| `VERIFIED(fixed/still/regressed counts)` |
 | `architect` | `ARCHITECTED(<current\|next\|both>, findings=<n>, stages=<n>)` |
 | `recon` | `STEAL(<approach>)` \| `PASS` |

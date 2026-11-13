@@ -496,7 +496,7 @@ def scaffold(campaign_dir: Path, script_path: Path, canvas: str, hook: str, take
             dur = round(cue["speech"][1] - b["vo_trim"] + 0.06, 3)
             audio.append({"beat": b["id"], "src": f"assets/vo/{cue['path']}", "start": b["vo_start"], "trim": b["vo_trim"], "dur": dur})
     mus = []
-    for name, vol in (("bed.wav", 1), ("sfx.wav", 1)):
+    for name, vol in (("bed.wav", 1), ("sfx.wav", 1), ("product.wav", 1)):
         p = (music / name) if music else proj / "assets/music" / name
         if p.is_file():
             (proj / "assets/music").mkdir(exist_ok=True)

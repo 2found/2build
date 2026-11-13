@@ -4,8 +4,8 @@ backgrounds, insets, stickers, thumbnail plates and character references.
 One jobs file per campaign, `07-video/art/art.json`; drafts are never overwritten
 (`draft/<ID>-s<seed>.png` + a `.json` receipt), and approving one fits it to the size
 it is SHOWN at (`<ID>.png` + `<ID>.json`). The gate is that display size over the
-drawn size: a 384x672 draft is a fine background under text or a 400 px inset, and
-a soft full-frame plate. Scaffold copies approved art to every project's
+drawn size. A draft is drawn no larger than it is shown (`"draw": "WxH"` on a job
+overrides that), up to what the engine draws on this machine. Scaffold copies approved art to every project's
 `assets/art/`; a beat cites what it shows in `art: [ID]`.
 
   {"style": "appended to every prompt", "engine": "qwen",
@@ -21,6 +21,7 @@ approve fits it like any draft. Nothing is generated, so it never counts toward 
 from __future__ import annotations
 
 import datetime as dt
+import functools
 import hashlib
 import json
 import math
@@ -57,6 +58,7 @@ SD_CLI = IMAGE_GEN / "sd-build/bin/sd-cli"
 UPSCALERS = {"esrgan": 2.0, "blend": 1.6, "lanczos": 1.0}
 BLEND = 0.65   # esrgan share in blend: keeps the redrawn edges, gives back some of the painted texture
 MAX_REF = 2 << 20
+REF_SIDE = 512
 # Things a picture model must never be asked for: the real product is shown, never drawn.
 UI = re.compile(r"\b(user\s+interface|\bui\b|dashboard|app\s+screen|screen\s*shot|screenshot|website|web\s*page|"
                 r"interface\s+of|giao\s+diện|ảnh\s+chụp\s+màn\s+hình)", re.I)
@@ -107,10 +109,22 @@ def remove_bg_cli() -> Path:
     return Path(os.environ.get("MVF_REMOVE_BG") or image_gen_dir() / "remove-bg")
 
 
+@functools.lru_cache(maxsize=None)
+def qwen_limits(cli: str) -> dict:
+    """The sizes generate-image draws on this machine (`--limits`); the small defaults when it cannot say."""
+    try:
+        r = subprocess.run([cli, "--limits"], capture_output=True, text=True, timeout=30)
+        lim = json.loads(r.stdout.strip().splitlines()[-1])
+        return {"max_pixels": int(lim["max_pixels"]), "sides": tuple(lim["sides"]), "step": int(lim["step"])}
+    except (OSError, subprocess.TimeoutExpired, ValueError, KeyError, IndexError):
+        return {}
+
+
 def engines(cd: Path | None) -> dict:
-    qwen = extensions.Image("local Qwen Image 2.1 Turbo (image-gen skill): free, ~2.5 min a 512² draft, needs an idle Mac; "
+    qwen = extensions.Image("local Qwen Image 2.1 Turbo (image-gen skill): free, about 7 min a megapixel on an M1 Pro "
+                            "(2 min for 384x672, 15 for a full 1088x1920 frame), needs an idle Mac; "
                             "transparent drafts come cut out (model alpha, else RMBG-1.4)",
-                            command=[str(qwen_cli())])
+                            command=[str(qwen_cli())], **qwen_limits(str(qwen_cli())))
     return {"qwen": qwen, **extensions.load(cd).images}
 
 
@@ -129,19 +143,38 @@ def canvas_ratio(canvas: str) -> float:
     return c["width"] / c["height"]
 
 
-def draw_size(ratio: float, eng: extensions.Image) -> tuple[int, int]:
-    """The largest size the engine draws at this aspect (within 3 %), in its step and pixel budget."""
+def draw_size(ratio: float, eng: extensions.Image, shown: tuple[int, int] | None = None) -> tuple[int, int]:
+    """The size to draw at this aspect (within 3 %), in the engine's step and pixel budget: the smallest that
+    covers `shown` without enlarging, else the largest the engine draws."""
     lo, hi = eng.sides
-    best = None
-    for w in range(lo, hi + 1, eng.step):
-        for h in range(lo, hi + 1, eng.step):
-            if w * h > eng.max_pixels or abs(w / h - ratio) / ratio > 0.03:
-                continue
-            if best is None or w * h > best[0] * best[1]:
-                best = (w, h)
-    if not best:
+    fits = [(w, h) for w in range(lo, hi + 1, eng.step) for h in range(lo, hi + 1, eng.step)
+            if w * h <= eng.max_pixels and abs(w / h - ratio) / ratio <= 0.03]
+    if not fits:
         raise SystemExit(f"the engine cannot draw aspect {ratio:.3f} inside {eng.sides} px")
-    return best
+    covers = [s for s in fits if shown and s[0] >= shown[0] and s[1] >= shown[1]]
+    return min(covers, key=lambda s: s[0] * s[1]) if covers else max(fits, key=lambda s: s[0] * s[1])
+
+
+def job_draw_size(job: dict, eng: extensions.Image) -> tuple[int, int]:
+    """A job's own `draw` size when it names one (the agent's trade of time for sharpness), else `draw_size`."""
+    if job.get("draw"):
+        try:
+            w, h = (int(v) for v in str(job["draw"]).lower().split("x"))
+        except ValueError:
+            raise SystemExit(f"{job.get('id')}: draw {job['draw']!r} is not WxH")
+        lo, hi = eng.sides
+        if not all(lo <= v <= hi and v % eng.step == 0 for v in (w, h)) or w * h > eng.max_pixels:
+            raise SystemExit(f"{job.get('id')}: draw {w}x{h} is outside what the engine draws here (multiples of {eng.step}, "
+                             f"sides {lo}-{hi}, at most {eng.max_pixels} px)")
+        return w, h
+    use = USES[job.get("use") or "plate"]
+    shown = display_size(job)
+    if shown:   # a use that passes soft (a background at 3x) is drawn that much smaller: time, not sharpness, is the cost
+        k = use[1] / 1.5
+        want = (math.ceil(shown[0] / k), math.ceil(shown[1] / k))
+    else:
+        want = REF_SIDE, REF_SIDE   # a reference is never shown, and --ref takes at most MAX_REF bytes
+    return draw_size(canvas_ratio(job.get("canvas") or use[0]), eng, want)
 
 
 def display_size(job: dict) -> tuple[int, int] | None:
@@ -394,8 +427,7 @@ def draw(cd: Path, ids: list[str], want_engine: str | None, seed: int | None, sp
             rep.info("A9", f"art.{jid}", f"{out.name} exists; a redraw is a new seed (--seed)")
             continue
         out.parent.mkdir(parents=True, exist_ok=True)
-        use = USES[job.get("use") or "plate"]
-        w, h = draw_size(canvas_ratio(job.get("canvas") or use[0]), eng)
+        w, h = job_draw_size(job, eng)
         ref = None
         want = cast_ref(cd, job, d.get("cast") or {})
         if want and not eng.refs:

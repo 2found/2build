@@ -100,7 +100,7 @@ def checks(cd: Path | None = None, quick: bool = False) -> list[dict]:
     if ch:
         add("judge", "OK", f"evaluator model {ch['provider']}/{ch['model']} (chosen {ch.get('set_at')})")
     add("judge", "OK" if st["workspace"] else ("INFO" if not ch else "MISSING"),
-        f"Micro Fish workspace {judge.home() / 'sim'} " + ("ready" if st["workspace"] else "not created"))
+        f"Micro Fish workspace {judge.home() / 'society'} " + ("ready" if st["workspace"] else "not created"))
     seen = {x["what"] for x in out}
     for what, msg, fix in st["problems"]:
         state = "NEEDS" if what in {"provider", "model"} else "MISSING"

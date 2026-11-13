@@ -54,10 +54,14 @@ FAILs when:
 It WARNs when an agent-panel round has no feed, and when `changes` is missing.
 
 ## Micro Fish
-The default evaluator. Micro Fish runs a simulated society on the user's own Soot: a crowd of
-personas from the campaign's segments watches the stimuli, an expert panel
-looks for what blocks the video, and an analyst tallies the result. It is a
-`simulated-panel`: the result is directional and never a forecast of views.
+The default evaluator. Micro Fish runs a simulated society on the user's own Soot. Every
+persona is its own Soot. Each one opens a feed over a few rounds and meets one
+of the videos among ordinary posts, the way a stranger would: it can scroll
+past, stop, finish, like, share or comment, and what it does changes what the
+next persona sees. Afterwards each persona is interviewed about the video it
+met, an expert panel records what blocks it, and the numbers are counted from
+what was recorded. It is a `simulated-panel`: the result is directional and
+never a forecast of views.
 
 **First use (once per machine).** `mvf doctor` lists what is missing, and
 `mvf judge status` shows the Soot providers that are signed in.
@@ -74,41 +78,53 @@ Later runs reuse the choice. Set it again only when the user asks.
 
 **Judge the scripts.**
 1. Run `mvf judge scripts <sid>… --control ctl-<name> [--bench <id>]
-   [--size quick|standard|deep] [--round rN]`. That is at most 4 stimuli: the 3
+   [--size quick|standard|deep] [--round rN]`. That is at most 4 videos: the 3
    candidates and a control (a script written to lose, `ctl-` prefix, not
-   lint-gated). Each stimulus is what a viewer gets, second by second. The
-   brief asks every persona to retell the video ("Video nói là…"), to tag
-   what was unclear, and to say what they would use and who they would send
-   it to. A quick run takes 10-30 minutes.
+   lint-gated). Each video is what a viewer gets, second by second, posted by
+   the same account. Each persona is given one video and never sees the
+   others, so nobody compares them side by side; a quick run draws 24 personas
+   per video. The interview asks each one to retell the video, how clear it
+   was, whether they would act, what they would use and what put them off. A
+   quick run takes 20-40 minutes.
 2. It writes `06-pretest/<round>/microfish/`:
-   - `answer.md`, the report;
-   - `tally.json` and `judge.json`, the per-script numbers and whether the
-     lead is clear and beats the control;
-   - `retell.md`, the intended retell beside the quoted ones;
-   - `interview.md`, the two leaders interviewed in the same conversation.
-   The panel never learns which letter is the control, so the analyst may
-   guess one: `mvf` prints the key and WARNs when `answer.md` calls a
-   candidate the control. Read that letter's verdict as a candidate's.
+   - `brief.json`, what the society was given, and `key.json`, which letter
+     is which script (the personas and experts never learn it);
+   - `answer.md`, the analyst's report;
+   - `tally.json` and `judge.json`, the per-script numbers: the average
+     watch time over the length (`avg_watch_s` / `duration_s` = `watch_pct`),
+     `like_rate`, `comment_rate`, who stopped, the video's rank among the
+     ordinary posts, and whether the lead is clear and beats the control.
+     Few people finish a short video, so the leader is decided on
+     `watch_pct`, then likes, then comments; `finished` is recorded and
+     decides nothing;
+   - `retell.md`, the intended retell beside the quoted ones, each marked
+     with how much of the video that persona watched.
    It also drafts `decision.json`, or writes `decision.suggested.json` when a
    decision already exists.
-3. Read `retell.md` and `interview.md`. Write `retell` with the quoted lines,
-   correct `winner` if the quotes and the numbers disagree, and list
-   `changes`. Delete `_todo`.
+3. Read `retell.md`. Write `retell` with the quoted lines, correct `winner` if
+   the quotes and the numbers disagree, and list `changes`. Delete `_todo`.
 4. Apply the changes to the script before the owner reads it. A change that
    was not tested goes in `untested`.
 
-A stopped run resumes with `mvf judge resume --round rN`; `mvf judge collect
-<microfish dir>` reads back a run that finished without it. When the control leads or
-ties, the panel could not tell the scripts apart: rewrite from the research,
-not the hook.
+The audience is drawn from the persona library, ages 18-45 by default. A
+campaign narrows it with a `panel` object in `02-audience/segments.json`
+(`age`, `sex`, `zone`, `region`, `match`). The shipped library and feed are
+Vietnamese; a campaign in another language sets `judge.library` and
+`judge.context` in `~/.babysit/marketing-video/config.json`.
 
-**Judge the cut.** `mvf judge video <proj>` (its round defaults to `v1`) gives the cut the same panel. One
-stimulus is built from the timeline and what review saw. A cut longer than one
-stimulus holds (3000 characters, about 90 s of voice) is split by itself into
-up to four consecutive parts of the one video; `judge.json` `summary` is the
-whole cut and `parts` shows where in it people left. It finds where
-people leave, whether the hook carries muted, and whether they can still
-retell it. Export WARNs (JV1) when a delivered cut was never judged.
+The provider can rate-limit a long run. Micro Fish then stops where it is and
+keeps its record: `mvf judge resume --round rN` continues from there, and
+`mvf judge collect <microfish dir>` reads back a run that finished without
+it. When the control leads or ties, or the lead is not clear, the society
+could not tell the scripts apart: rewrite from the research, not the hook,
+or run a larger `--size`.
+
+**Judge the cut.** `mvf judge video <proj>` (its round defaults to `v1`) puts
+the cut in the same feed as one video, built from the timeline and what
+review saw. `judge.json` `summary` holds the average watch time over the length,
+the like and comment rates, how many stopped, where
+the cut ranked among the ordinary posts, and what the experts flagged. Export
+WARNs (JV1) when a delivered cut was never judged.
 
 Without Soot, use the feed and cold read below as an `agent-panel`, and say so.
 

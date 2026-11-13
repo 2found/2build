@@ -10,6 +10,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from unittest import mock
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parents[1]
@@ -96,6 +97,25 @@ class ArtSizes(unittest.TestCase):
         self.assertEqual(art.draw_size(1080 / 1920, q), (384, 672))
         self.assertEqual(art.draw_size(1920 / 1080, q), (672, 384))
         self.assertEqual(art.draw_size(1.0, q), (512, 512))
+
+    def test_a_job_is_drawn_at_the_size_it_is_shown_within_what_the_machine_draws(self):
+        big = extensions.Image("q", command=["x"], max_pixels=1088 * 1920, sides=(256, 1920))
+        self.assertEqual(art.job_draw_size({"use": "plate"}, big), (1088, 1920))
+        self.assertEqual(art.job_draw_size({"use": "background"}, big), (544, 960))   # passes soft: half the frame
+        self.assertEqual(art.job_draw_size({"use": "sticker", "display": "420x420"}, big), (448, 448))
+        self.assertEqual(art.job_draw_size({"use": "reference"}, big), (512, 512))
+        self.assertEqual(art.job_draw_size({"use": "plate"}, extensions.Image("q", command=["x"])), (384, 672))
+        self.assertEqual(art.job_draw_size({"use": "background", "draw": "768x1344"}, big), (768, 1344))  # the agent's call
+        with self.assertRaises(SystemExit):
+            art.job_draw_size({"id": "P", "use": "plate", "draw": "1088x1920"}, extensions.Image("q", command=["x"]))
+
+    def test_qwen_limits_come_from_generate_image_and_fall_back(self):
+        art.qwen_limits.cache_clear()
+        self.assertEqual(art.qwen_limits("/no/such/generate-image"), {})
+        ok = mock.Mock(stdout='{"max_pixels": 2088960, "sides": [256, 1920], "step": 32, "memory_gib": 16}\n')
+        with mock.patch.object(art.subprocess, "run", return_value=ok):
+            self.assertEqual(art.qwen_limits("gi"), {"max_pixels": 2088960, "sides": (256, 1920), "step": 32})
+        art.qwen_limits.cache_clear()
 
     def test_gate_is_measured_at_display_size(self):
         plate = {"use": "plate"}

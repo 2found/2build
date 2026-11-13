@@ -34,7 +34,10 @@ guardrails.
   components, tokens, spacing and interaction patterns. Read the linked design
   spec and inspect its prototype (from the plan or `pointers.design`); the accepted flows, states and appearance are the
   baseline. Build to it. No new one-off component, color, font size, or layout when the
-  project has one. New user-facing surface with no design spec
+  project has one. The design note's UX contract names the owner screen and
+  the shared component for each job, loading, empty and error included; a
+  state the prototype does not show is built from those components
+  ([UI bar](../references/ui-bar.md) C1–C4), not improvised. New user-facing surface with no design spec
   (`pointers.design` empty, nothing in conversation) → invoke the `design-ui`
   skill via the Skill tool first; never improvise a layout the human first
   sees after implementation.

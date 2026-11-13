@@ -13,8 +13,9 @@ SHA-256 pinned in `scripts/models.json`. No account, no paid API, no network
 when drawing. `marketing-video` draws its art through this skill (`mvf art`);
 call it directly for a one-off image.
 
-**Heavy job.** One generation holds ~3 GiB RSS and takes ~2.5 min for 512² on
-an M1 Pro 16 GB. Start it only when the machine is idle (`uptime` load well
+**Heavy job.** One generation peaks near 3.5 GiB at any size (weights are read
+from disk a segment at a time) and takes about 7 min a megapixel on an M1 Pro
+16 GB. Start it only when the machine is idle (`uptime` load well
 below the core count, `memory_pressure` free >= ~40%). A non-blocking lock
 refuses a second concurrent run; on a shared machine queue it behind the same
 lock as renders and TTS (`MVF_HEAVY` in marketing-video).
@@ -37,21 +38,21 @@ authorised it and the machine is idle. `--check` verifies offline.
   --size <WxH> [--seed N] [--ref <reference.png>] [--transparent]
 ```
 
-Sizes are multiples of 32 from 256 to 768, at most 262,144 px (512², the
-16 GB budget; do not raise it without the user's say-so):
+Sizes are multiples of 32, each side 256 to 1920, within the machine's pixel
+budget. `generate-image --limits` prints it as JSON: 1088x1920 (a whole
+vertical frame) with 16 GB of memory or more, 512x512 below that, where nothing
+larger was measured. Measured on an M1 Pro 16 GB, 9:16:
 
-| Ratio | Size |
-| --- | --- |
-| 1:1 | 512x512 |
-| 3:4 / 4:3 | 448x576 / 576x448 |
-| 2:3 / 3:2 | 384x576 / 576x384 |
-| 9:16 / 16:9 | 384x672 / 672x384 |
+| Size | Time | Shown full-frame at 1080x1920 |
+| --- | --- | --- |
+| 384x672 | 2 min | 2.8x enlarged: soft, fine under text or as a small inset |
+| 576x1024 | 4.5 min | 1.9x: soft |
+| 768x1344 | 7.5 min | 1.4x: reads sharp |
+| 1088x1920 | 15.5 min | as drawn |
 
-These are drafts, about a third of a 1080x1920 frame. Upscaling a full-frame
-plate 2.8x reads soft on a phone, so use a draft where softness is fine (a
-background under text, dimmed or blurred), at the size it is shown (an inset
-card, a sticker, a thumbnail element) or as a reference for a larger engine.
-Never call a draft final in a report.
+You choose the size: draw at the size the picture is shown, smaller where
+softness is fine (a background under text, dimmed or blurred) and when time
+matters more. Other ratios take the same pixel counts (1024x1024, 1344x768, …).
 
 - The output must be a new path; nothing is overwritten.
 - `--ref`: PNG/JPEG <= 2 MiB; name its role (subject, style, composition) in
@@ -63,7 +64,7 @@ Never call a draft final in a report.
   `rmbg-1.4` or `none` (RMBG not installed). Prompt a plain flat background in
   a neutral colour the subject lacks; check the edge on dark and on white.
 - Prompts <= 4000 chars; no negative prompts, sampler changes or batches.
-- Text in the image is unreliable at this size (diacritics most of all): put
+- Text in the image is unreliable (diacritics most of all): put
   titles and captions in the layout layer (HTML/CSS) and prompt "no text".
 - Never prompt with a real person's name or ask for a real person's likeness,
   and never draw a product UI; use the real screen.

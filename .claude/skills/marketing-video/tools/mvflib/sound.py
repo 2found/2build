@@ -117,6 +117,48 @@ def auto_bed(proj: Path, mood: str, seed: int = 7) -> Path:
     return p
 
 
+PRODUCT = "product-audio.json"   # <proj>/: {"clip": path, "in": s, "at": [[s, e], …]}
+PRODUCT_OPEN_S = 5.0             # with no `at`, the product is heard in the pauses of the first seconds
+PRODUCT_MIN_GAP = 0.4
+PRODUCT_AUDIBLE_DB = -40.0
+
+
+def product_track(proj: Path, campaign: Path | None = None) -> dict | None:
+    """assets/music/product.wav: the product's own recorded sound (a narration, a player, a game),
+    at the voice's level inside its windows and silent under every spoken line. The clip plays on
+    from window to window, so a second window continues the recording instead of restarting it."""
+    out = proj / "assets/music/product.wav"
+    if not (proj / PRODUCT).is_file():
+        return None
+    spec, tl = load(proj / PRODUCT), load(proj / "timeline.json")
+    clip = Path(spec["clip"])
+    clip = clip if clip.is_absolute() else (campaign or proj) / clip
+    if not clip.is_file():
+        raise SystemExit(f"product audio {clip} is missing (named in {proj / PRODUCT})")
+    n = int((tl["duration"] + 0.05) * SR)
+    spans = sorted(speech_spans(tl))
+    wins = [tuple(w) for w in spec.get("at") or []]
+    if not wins:
+        edges = [0.0] + [x for s, e in spans for x in (s, e)] + [tl["duration"]]
+        wins = [(a, min(b, PRODUCT_OPEN_S)) for a, b in zip(edges[::2], edges[1::2])
+                if a < PRODUCT_OPEN_S and min(b, PRODUCT_OPEN_S) - a >= PRODUCT_MIN_GAP]
+    x = decode(clip)[int(float(spec.get("in") or 0) * SR):]
+    voice = _voice(proj, tl, n)
+    said = np.concatenate([voice[int(s * SR):int(e * SR)] for s, e in spans]) if spans else np.zeros(0)
+    used = x[: int(sum(e - s for s, e in wins) * SR)]
+    gain = 10 ** ((_db(said) - _db(used)) / 20) if said.any() and used.any() else 1.0
+    buf, pos = np.zeros(n), 0
+    for s, e in wins:
+        seg = x[pos:pos + int((e - s) * SR)]
+        pos += len(seg)
+        synth.place(buf, seg * synth.env(len(seg), 0.04, 0.08), s, gain)
+    buf *= duck_curve(n, spans, 60.0, 0.06)
+    write(out, buf)
+    rep = {"clip": str(clip), "windows": [[round(s, 2), round(e, 2)] for s, e in wins], "gain_db": round(20 * np.log10(gain), 1)}
+    dump(out.with_suffix(".json"), rep)
+    return rep
+
+
 def _voice(proj: Path, tl: dict, n: int) -> np.ndarray:
     v = np.zeros(n)
     for b in tl["beats"]:
@@ -155,11 +197,14 @@ def mixcheck(proj: Path) -> dict:
     tl = load(proj / "timeline.json")
     n = int((tl["duration"] + 0.05) * SR)
     mus = np.zeros(n)
-    for name in ("bed.wav", "sfx.wav"):
+    prod = None
+    for name in ("bed.wav", "sfx.wav", "product.wav"):
         p = proj / "assets/music" / name
         if p.is_file():
             x = decode(p)
             mus[: min(n, len(x))] += x[:n]
+            if name == "product.wav":
+                prod = np.pad(x[:n], (0, max(0, n - len(x))))
     voice = _voice(proj, tl, n)
     rows, bad = [], []
     for b in tl["beats"]:
@@ -174,5 +219,10 @@ def mixcheck(proj: Path) -> dict:
             bad.append(b["id"])
     rep = {"spans": rows, "under": bad, "min_db": min((r["margin_db"] for r in rows if r["margin_db"] is not None), default=None),
            "target_db": MIX_MARGIN_DB, "status": "PENDING LISTEN"}
+    if prod is not None:
+        # the first 100 ms where the product's own sound is audible and louder than the voice
+        w = SR // 10
+        rep["product_first_s"] = next((round(k / SR, 1) for k in range(0, n - w + 1, w)
+                                       if _db(prod[k:k + w]) > max(PRODUCT_AUDIBLE_DB, _db(voice[k:k + w]))), None)
     dump(proj / "assets/music/mixcheck.json", rep)
     return rep

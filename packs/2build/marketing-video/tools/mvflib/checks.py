@@ -77,7 +77,7 @@ def check_campaign(c: dict) -> Report:
         r.info("BRF", "campaign.benefit", f"no campaign benefit: each angle picks its own ({sorted(BENEFITS)}); set one "
                "only when the owner asks for it (references/04-strategy.md#benefit)")
     elif b not in BENEFITS:
-        r.fail("BRF", "campaign.benefit", f"{b!r} not in {sorted(BENEFITS)}")
+        r.warn("BRF", "campaign.benefit", f"{b!r} is not a listed benefit ({sorted(BENEFITS)}): fine if the owner named it")
     return r
 
 
@@ -256,6 +256,14 @@ def check_angles(a: dict, fact_ids: set, segment_ids: set, trend_ids: set, platf
                 r.fail("STR", where, f"idea {x.get('idea')!r}: an angle builds on a picked idea from 03-research")
             elif not idea.get("pick"):
                 r.warn("STR", where, f"idea {idea['id']} is not picked in research.json")
+    for i, x in enumerate(angles):
+        for y in angles[i + 1:]:
+            fx, fy = set(x.get("facts") or []), set(y.get("facts") or [])
+            both = fx & fy
+            if len(both) >= 2 and len(both) * 2 >= min(len(fx), len(fy)):
+                r.warn("STR4", "angles", f"{x.get('id')} and {y.get('id')} stand on the same facts ({', '.join(sorted(both))}): "
+                       "they are one idea told twice, and a pre-test between them picks a wording, not an idea. Build one "
+                       "of them on another part of the subject, or say in `warn_notes` why the candidates stay close")
     if len({x.get("format") for x in angles}) < min(2, len(angles)):
         r.warn("STR", "angles", "every angle uses the same format: test different formats, not different words")
     return r
@@ -267,8 +275,11 @@ def _benefit(b, where: str, wanted: str | None, lore: list, r: Report) -> None:
         r.fail("STR3", where, "benefit: {type, takeaway, use_when}: what the viewer can use after the video "
                "(references/04-strategy.md#benefit)")
         return
-    if b.get("type") not in BENEFITS:
-        r.fail("STR3", where, f"benefit.type {b.get('type')!r} not in {sorted(BENEFITS)}")
+    if not str(b.get("type") or "").strip():
+        r.fail("STR3", where, f"benefit.type is empty: name what the viewer leaves with ({sorted(BENEFITS)}, or your own)")
+    elif b["type"] not in BENEFITS:
+        r.warn("STR3", where, f"benefit.type {b['type']!r} is your own (listed: {sorted(BENEFITS)}): fine when it is what "
+               "the viewer leaves with; `takeaway` and `use_when` still say it in a real sentence")
     elif wanted and b["type"] != wanted:
         r.warn("STR3", where, f"benefit.type {b['type']!r}, but the owner asked for {wanted!r}")
     for k, what in (("takeaway", "the sentence the viewer keeps, about their life"),
@@ -305,8 +316,8 @@ def check_pretest(path: Path) -> Report:
     if "changes" not in d:
         r.warn("PRE", where, "changes: list what the pre-test changed in the script (empty list if nothing)")
     if m in {"simulated-panel", "human-panel"} and d.get("winner") and not str(d.get("retell", "")).strip():
-        r.fail("PRE3", where, "retell: quote what the panel retold about the winner (mvf judge writes retell.md and "
-               "interview.md); a pick nobody could retell was not tested for understanding")
+        r.fail("PRE3", where, "retell: quote what the panel retold about the winner (mvf judge writes retell.md)"
+               "; a pick nobody could retell was not tested for understanding")
     if d.get("_todo"):
         r.fail("PRE", where, f"the drafted decision is unread: {d['_todo']}")
     _retells(path.parent / "feed", str(d.get("winner") or ""), where, r)

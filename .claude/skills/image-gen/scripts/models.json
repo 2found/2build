@@ -1,5 +1,5 @@
 {
-  "_about": "Pinned weights (HuggingFace repo@revision, size, SHA-256) and the native runtime. Changing any line needs a side-by-side test.",
+  "_about": "Pinned weights (HuggingFace repo@revision, size, SHA-256) and the native runtime. Changing any line needs a side-by-side test. 2026-11-13, M1 Pro 16 GB, same prompts and seed: unsloth Q4_K_M, Q5_K_M, Q6_K and Q8_0 drew no visibly better picture than this Q4_K_M at 384x672 or 768x1344, ran 6-20 % slower and peaked at the same 3.5 GiB, so the pin stayed.",
   "sd_cli": {
     "repository": "https://github.com/leejet/stable-diffusion.cpp.git",
     "commit": "f89d9b13d730eabeede7314ce49dacd18d3c90c2"

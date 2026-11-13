@@ -20,6 +20,9 @@ caption over a face or a plate that melts at full size.
   still retell it once the picture, pace and captions are real. Each expert
   P0 goes into `review.json` as an issue. Export WARNs (JV1) when a delivered
   cut was never judged.
+- **Viewer first, panel on the fixed cut.** The viewer takes half a minute
+  and the panel about fifteen: a panel started on the same draft judged
+  frames that were already being replaced, and 3 of its 8 notes were stale.
 - **Judge once, fix once, ship.** After the panel has judged a cut, fix what it
   found (or accept it in `review.json` with a reason), check the fix with your
   own eyes and `mvf score`, and deliver. Do not run `mvf judge video` again on
@@ -71,9 +74,16 @@ Retell: one or two sentences
 ```
 Each red item goes into `review.json` as an issue, fixed or accepted with a
 reason. A delivery export WARNs when no viewer ran, the latest says
-UNVERIFIABLE (VW1), or red items have no issue near their second (VW2). One
-viewer per cut; after the fixes, check them yourself and ship, as with the
-panel.
+UNVERIFIABLE (VW1), or red items have no issue near their second (VW2).
+- **A framing red item is fixed when the subject is larger**, measured on the
+  new frame, not when the empty area has something drawn in it. One cut
+  answered "lower half empty" on six shots with a waveform across the gap,
+  marked all six fixed, and shipped with the subject still in the top half.
+- **Fixes to red items get fresh eyes.** The viewer takes about half a
+  minute, unlike the panel. When the red items were framing or a break,
+  render again and run `mvf viewer` once more; ship on APPROVE, or with what
+  is left `accepted` and the reason written. You cannot check your own
+  framing fix: you made the frame the viewer called empty.
 
 | Sev | Means | Examples |
 | --- | --- | --- |

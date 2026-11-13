@@ -186,6 +186,10 @@ image, canvas?, display?, ref?, cast?, transparent?, look?, style?}]}`.
   cut by RMBG and no agreement is recorded. Qwen's own alpha (`cutout:
   model-alpha` in the receipt) is not affected.
 - The `qwen` engine is the local `image-gen` skill (Qwen Image 2.1 Turbo).
+  It draws up to a whole 1088x1920 frame on a 16 GB machine, about 7 min a
+  megapixel. A job is drawn at the size it is shown (a background at half of
+  it, a reference at 512x512); `"draw": "WxH"` on a job is your own size, when
+  time or sharpness matters more.
   `$MVF_IMAGE_GEN` points at another generator, and any other engine is an
   `IMAGES` extension.
 
@@ -343,7 +347,16 @@ timing is measured.
   - the bed is looped to the runtime, 7 dB under the voice between lines and
     ducked under speech;
   - it writes `assets/music/mixcheck.json`, which names any beat under the
-    8 dB margin.
+    8 dB margin;
+  - `--product-audio FILE[@IN] [--product-at S-E,S-E]` adds the product's
+    own recorded sound (a narration, a player, a game) as a third stem,
+    `product.wav`: at the voice's level in its windows (default: the pauses
+    of the first 5 s), silent under every spoken line, rebuilt on each
+    score; the bed ducks under its windows as it does under speech, and the
+    cold viewer's brief marks them as the product's sound, not a silence. The report says the second it is first heard. Leave a pause for
+    it (a beat's `gap`): under a spoken line it would have to sit 8 dB down,
+    where nobody hears it. A hand-made `assets/music/product.wav` is mixed
+    and measured the same way.
 - **Thumbnail.** `mvf thumbnail <sid> [--canvas 16x9] [--art T1] [--text LINE]` writes
   `07-video/<sid>/thumb-<canvas>/index.html` once, then snapshots it to
   `thumbnail-<canvas>.jpg`. Edit the page and re-run. YouTube long-form needs

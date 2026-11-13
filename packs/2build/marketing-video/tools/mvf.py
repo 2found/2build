@@ -846,11 +846,22 @@ def cmd_score(a):
               + (f" · unknown kinds {sr['unknown']}" if sr["unknown"] else ""))
     else:
         (proj / "assets/music/sfx.wav").unlink(missing_ok=True)
+    if a.product_audio == "none":
+        (proj / sound.PRODUCT).unlink(missing_ok=True)
+        (proj / "assets/music/product.wav").unlink(missing_ok=True)
+    elif a.product_audio:
+        clip, _, at = a.product_audio.partition("@")
+        clip = Path(clip).expanduser().resolve()
+        dump(proj / sound.PRODUCT, {"clip": str(clip.relative_to(cd)) if clip.is_relative_to(cd) else str(clip), "in": float(at or 0),
+                                    "at": [[float(x) for x in w.split("-")] for w in a.product_at.split(",")] if a.product_at else []})
+    pr = sound.product_track(proj, cd)  # rebuilt on every score: the windows follow the voice's timing
+    if pr:
+        print(f"INFO PRODUCT  {Path(pr['clip']).name} in {pr['windows']} at the voice's level ({pr['gain_db']:+g} dB), silent under speech")
     bed = None
     if not a.none:
         bed = sound.auto_bed(proj, a.bed.split(":", 1)[1], a.seed) if a.bed.startswith("auto:") \
             else Path(a.bed).expanduser().resolve()
-    rep = score(proj, bed)
+    rep = score(proj, bed, pr["windows"]) if pr else score(proj, bed)
     if bed is not None and bed.name == "bed.src.wav":
         bed.unlink(missing_ok=True)
     for it in rep["items"]:
@@ -859,6 +870,10 @@ def cmd_score(a):
     lvl = "WARN" if mc["under"] else "INFO"
     print(f"{lvl:4} MIX  voice over bed+sfx: worst {mc['min_db']} dB (target ≥ {mc['target_db']:g})"
           + (f"; under in {', '.join(mc['under'])}: lower those cues or the bed" if mc["under"] else "") + " · PENDING LISTEN")
+    if "product_first_s" in mc:
+        first = mc["product_first_s"]
+        print(f"INFO MIX  the product's own sound is first heard at {first} s" if first is not None else
+              "WARN MIX  assets/music/product.wav is never heard: its windows fall under speech or outside the runtime")
     # index.html picks the stems up on re-scaffold (same script, hook, canvas, take)
     scaffold(cd, cd / m["script"], m["canvas"], m["hook"], take, m["platforms"])
     print(f"SCORED {proj.name} → {proj / 'assets/music'}")
@@ -1055,7 +1070,7 @@ def cmd_judge(a):
             print("WARN no --control: add a script the team already rejected; without a known loser the panel's "
                   "enthusiasm cannot be told from a good script")
         bench = [load(cd / "06-pretest/bench" / f"{b}.json") for b in a.bench or []]
-        judge.judge_scripts(cd, items, a.round, a.size, plat, manifests, bench, a.dry, not a.no_interview)
+        judge.judge_scripts(cd, items, a.round, a.size, plat, manifests, bench, a.dry)
     elif a.action == "video":
         if len(a.names) != 1:
             raise SystemExit("mvf judge video <proj>")
@@ -1216,6 +1231,9 @@ def main():
     p.add_argument("--none", action="store_true", help="no bed (removes a previous one)")
     p.add_argument("--sfx", default="auto", choices=["auto", "none"], help="render sfx.json cues (default) or drop them")
     p.add_argument("--seed", type=int, default=7, help="auto bed seed: another seed, another melody")
+    p.add_argument("--product-audio", metavar="FILE[@IN]|none", help="the product's own recorded sound, from IN seconds into the "
+                   "file, heard between spoken lines; kept for later runs (none removes it)")
+    p.add_argument("--product-at", metavar="S-E[,S-E]", help="timeline windows it plays in (default: the pauses of the first 5 s)")
     p.set_defaults(fn=cmd_score)
     p = sub.add_parser("export")
     p.add_argument("proj", nargs="+")
@@ -1245,9 +1263,8 @@ def main():
     p.add_argument("--bench", nargs="*", help="scripts: 06-pretest/bench/<id>.json real videos to rank against")
     p.add_argument("--round", default="r1")
     p.add_argument("--size", default="quick", choices=["quick", "standard", "deep"])
-    p.add_argument("--platform", help="the feed the crowd scrolls (default: the campaign's first platform)")
+    p.add_argument("--platform", help="the feed the personas scroll (default: the campaign's first platform)")
     p.add_argument("--dry", action="store_true", help="write the brief and key only; run nothing")
-    p.add_argument("--no-interview", action="store_true", help="skip the follow-up retell interview")
     p.set_defaults(fn=cmd_judge)
     p = sub.add_parser("qa")
     p.add_argument("video")

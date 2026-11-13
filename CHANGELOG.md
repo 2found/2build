@@ -1,4 +1,40 @@
 # Changelog
+## 1.130.0 — 2026-11-13
+
+### Added
+
+- New shared reference `references/ui-bar.md` (and pack copy
+  `packs/2build/shared/ui-bar.md`): the shared UI bar with row ids
+  (jobs J1–…, ownership O1–…, components C1–…, data D1–…) that
+  `ui-audit` scores against and `design-ui` designs to.
+- `generate-image --limits` (image-gen): reports this machine's drawable
+  pixel budget, side range and step as JSON, so callers (mvf art) size
+  jobs from it. Streaming weight loads keep runs near 3.5 GiB up to a
+  measured 1088×1920 on 16 GB; timeout raised to 3000 s.
+
+### Changed
+
+- `ui-audit` restructured around the UI bar: a product scope (the Map —
+  side-by-side duplication, unfinishable jobs, complexity, text density,
+  component/loading drift, UI speed, backend ground truth) joins the
+  journey walk; scopes are `product` / `flow <id>` / `inventory` /
+  `re-audit`; engine-truthful targets (WebKit audits in WebKit);
+  production-shaped data (D1–D3) is required. Checklists, helpers,
+  live-safety and the report template follow.
+- `design-ui` adds "Fit the product before drawing": jobs → path first,
+  one owner per fact/action, subtract in the same design, lifecycle
+  states from code, named shared components; every changed screen shown
+  loaded/loading/empty/failed/partly-failed on production-shaped data.
+- `marketing-video`: context discipline for long campaigns (fresh agents
+  for gathering, one agent per scene after your key frame, production in
+  a fresh context via `mvf next`); judge rewrite (persona society +
+  expert panel), art/sound/mix/flow checks upgraded, `mvf init --root`,
+  hook may show the product working in the first seconds,
+  picture-fills-the-frame rule; SCENE_GUIDE and pretest references
+  updated.
+- `qa`, `implement` and `references/handoff-contracts.md`: small fixes;
+  pack `packs/2build` mirrors all of the above.
+
 ## 1.129.0 — 2026-11-12
 
 ### Added
