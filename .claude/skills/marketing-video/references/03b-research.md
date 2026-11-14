@@ -121,9 +121,10 @@ insider words in `lore_terms`; the lint flags them in hooks and early beats.
   Either way it writes `top/<id>.txt` and `top/<id>.json`, most-viewed first.
   It does what it can and prints the rest as `AGENT:` lines, which are also
   kept in the row's `agent` list. Do them before `mvf check research`:
-  - `--platform tiktok "QUERY"` prints the `browse` steps: open `/search?q=`
-    and `/tag/<tag>`, and collect each post's link and card text at once
-    (the search page swaps its results a few seconds after loading). Then
+  - `--platform tiktok "QUERY"` prints the `browse` steps: from the home
+    page, search through the search box and click into the hashtag, never a
+    search URL ([03-trends.md](03-trends.md)), and collect each post's link
+    and card text at once (the results swap a few seconds after loading). Then
     pass the links with `--url`. mvf cannot search TikTok itself. It
     downloads each TikTok video and reads 4 at a time, so run a long list in
     the background.

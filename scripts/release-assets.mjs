@@ -30,7 +30,7 @@ function main() {
   downloadManifest(repository, version, commit, []);
   if (git("rev-parse", `v${version}^{commit}`) !== commit) throw new Error("Build checkout differs from release tag");
   mkdirSync(directory, {recursive: true});
-  const docs = git("ls-files").split("\n").filter(p => p === "VERSION" || p === "package.json" || /^README(?:\.[^.]+)?\.md$/.test(p) || p === "AGENTS.md" || p === "CLAUDE.md" || p === "BRANDING.md" || p === "CHANGELOG.md" || p.startsWith("docs/") && p.endsWith(".md") || /\/README(?:\.[^.]+)?\.md$/.test(p));
+  const docs = git("ls-files").split("\n").filter(p => p === "VERSION" || p === "package.json" || /^README(?:\.[^.]+)?\.md$/.test(p) || p === "AGENTS.md" || p === "CLAUDE.md" || p === "BRANDING.md" || p === "CHANGELOG.md" || p === "CHANGELOG-ARCHIVE.md" || p.startsWith("docs/") && p.endsWith(".md") || /\/README(?:\.[^.]+)?\.md$/.test(p));
   const docsName = `${repository.split("/")[1]}-docs_${version}.tar.gz`;
   execFileSync("git", ["archive", "--format=tar.gz", `--output=${resolve(directory, docsName)}`, "HEAD", ...docs]);
   const files = readdirSync(directory).filter(name => /\.(?:tar\.gz|tgz|zip|exe|dmg|sha256)$/.test(name) && statSync(join(directory, name)).isFile())

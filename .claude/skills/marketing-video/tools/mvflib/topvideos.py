@@ -15,7 +15,6 @@ import tempfile
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from urllib.parse import quote
 
 from .common import dump, load, today
 from .trendref import frames as frames_of, ytdlp
@@ -49,17 +48,20 @@ def search(query: str, n: int, max_min: float) -> list[dict]:
 
 
 def tiktok_search(query: str, scope: str) -> str:
-    """The agent's steps for a TikTok search, as checked logged out on 2026-11-08 (references/03-trends.md)."""
+    """The agent's steps for a TikTok search, as checked logged out on 2026-11-14 (references/03-trends.md).
+    TikTok blocks a loaded search or tag URL, so the steps type into the search box like a person."""
     words = re.findall(r"\w+", fold(query))
-    tag = "".join(words) if len(words) <= 3 else "<the title's hashtag, no spaces or accents>"
+    tag = "#" + "".join(words) if len(words) <= 3 else "<the title's hashtag, no spaces or accents>"
     js = ("JSON.stringify([...new Map([...document.querySelectorAll(\"a[href*=\\\"/video/\\\"]\")].map(a=>{let c=a;"
           "while(c.parentElement&&new Set([...c.parentElement.querySelectorAll(\"a[href*=\\\"/video/\\\"]\")]"
           ".map(x=>x.href)).size<2)c=c.parentElement;return [a.href,a.href+\" \"+c.innerText.replace(/\\s+/g,\" \")"
           ".slice(0,200)]})).values()])")
     return "\n".join([
         "AGENT: mvf cannot search TikTok (it needs a real browser). With the browse skill, logged out:",
-        f"AGENT:   open https://www.tiktok.com/search?q={quote(query)} and https://www.tiktok.com/tag/{tag}",
-        "AGENT:   collect each post's link and card text (likes, caption, creator) at once: the search page swaps "
+        "AGENT:   open https://www.tiktok.com/ (the home page; never load a /search or /tag URL, TikTok blocks it), "
+        f"snapshot -i, click the Search box, keyboard type {query!r}, press Enter",
+        f"AGENT:   then the hashtag {tag}: click it in a caption or the Hashtags tab, or type it in the search box",
+        "AGENT:   on each list, collect each post's link and card text (likes, caption, creator) at once: the page swaps "
         f"its results a few seconds after it loads. agent-browser eval '{js}'",
         f"AGENT:   then run: mvf top-videos --url URL... --scope {scope}  (views and duration come from yt-dlp; "
         "it downloads each video, so run a long list in the background)",
@@ -87,7 +89,8 @@ def agent_todo(row: dict, url: str, platform: str, frames: list[str] | None) -> 
                     f"research.json top_videos[].transcript names that file")
     if platform == "tiktok":
         todo.append("caption and comments: yt-dlp reads no TikTok comments; with the browse skill open the video "
-                    "by clicking it from /tag/<tag> or /search?q= (a direct load errors) and read "
+                    "by clicking it from the search results or hashtag list you reached through the search box "
+                    "(a loaded video, search or tag URL is blocked) and read "
                     "[data-e2e=browse-video-desc] and [data-e2e=comment-level-1]")
     return todo
 

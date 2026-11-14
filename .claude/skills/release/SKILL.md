@@ -56,6 +56,15 @@ Missing facts block only their dependent actions. Every stage needs an owner
 (`agent` or a named workflow), concrete verification, or `N/A` with a reason.
 In local mode the agent owns every required stage.
 
+This skill keeps the profile true; `setup-project` only creates it. When the
+profile disagrees with code/CI (a renamed workflow, a changed deploy command,
+a component it omits) or lacks a field this release resolved from evidence,
+the evidence wins and step 2 corrects the file that owns the fact in the
+release commit; a link to a runbook stays a link. Authority, landing,
+workflow suspension and hypercare thresholds are policy: a conflict there is
+a User Challenge, never a silent edit. `--dry-run` lists each drift with
+file:line and its correction instead.
+
 ### Discover CI and assign execution
 
 Scan the target repo's `.github/workflows/` YAML files at the candidate and
@@ -124,6 +133,19 @@ than undoing a package publication or declaring the whole release complete.
    baseline rather than guessing a previous tag. Describe user-visible changes,
    breaking changes, migration/compatibility notes and upgrade steps. Reuse
    this content for GitHub notes; exclude secrets/private operational details.
+   The changelog only grows, so never Read or Edit it whole: write the new
+   section (opening `## <version>`) to a notes file beside the release record
+   and insert it with `bbs changelog add --file <changelog> --notes <file>`;
+   the same file is the GitHub `--notes-file`. A format `add` cannot place
+   (an `Unreleased` section to fold in) is edited after reading only its head.
+   When the output says `rotate: suggested`, on the `developer` channel ask the
+   owner once whether to keep the newest N sections and move the rest to the
+   archive (`bbs changelog rotate --file <changelog> --keep N`); on yes, rotate
+   in the release commit. Elsewhere, or on no, record the suggestion under
+   `NEXT`; it never blocks the release. A profile may set `--max-bytes` and
+   `--keep`. `--dry-run` reports `bbs changelog check` instead.
+   Apply the profile corrections resolved with the contract here, so the
+   released revision carries a profile that describes it.
 
 3. **Verify the candidate.** Run the profile's required checks and meaningful
    QA, including a non-happy-path case. Library/CLI QA can be a failing input
@@ -187,6 +209,11 @@ than undoing a package publication or declaring the whole release complete.
    that leaves the docs pointing at the old source SHA ships stale
    instructions to new agents; record it as a concern. Finish only after
    required post-release work.
+   What this release learned that changes the next one (an unrecorded manual
+   step, a rollback or post-deploy check that differed from the profile) is
+   edited into the owning profile file in the working tree, never into the
+   released SHA, and named under `NEXT` to commit; a threshold that missed or
+   over-fired is proposed there, not edited. It never blocks the release.
 
 8. **Operating handover to Soot (never blocks).** Run it only when the release
    changed an agent-operable surface: an action, a status, a public fact or an

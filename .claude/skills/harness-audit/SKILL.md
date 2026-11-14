@@ -55,6 +55,9 @@ to audit release coverage. An equivalent linked inline section/runbook is
 valid; missing `RELEASE.md` alone is not a finding. Missing release guidance
 for an actual release surface, an unreachable existing profile or conflicting
 duplicate owners is a finding. A non-releasable repo can mark this N/A.
+The profile must say where each release unit deploys, how, and what is
+verified and observed after deploy; a field the repo contradicts is drift
+that the next release also corrects, so name the field and its evidence.
 
 Then inspect the following where relevant or present:
 

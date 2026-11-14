@@ -37,14 +37,19 @@ re-observed or dropped.
   and `close`, on every site and in every campaign, so cookies, a passed
   captcha and any login the owner made carry over instead of each run
   arriving as a new visitor. Never sign in yourself.
-  Checked 2026-11-08:
-  - These pages list `/video/` links with their caption and creator:
-    - `/search?q=<words>` (the Top tab; results drift off topic);
-    - `/tag/<tag>`;
-    - `/explore`.
-  - These pages fail:
-    - `/search/video?q=` errors;
-    - a video URL loaded directly errors too.
+- **Search like a person, on every platform.** Open the platform's home
+  page, click its search box, type the words, press Enter, then move
+  between result tabs and hashtags by clicking. Never load a search,
+  results or tag URL (`/search?q=`, `/results?search_query=`, `/tag/<tag>`):
+  platforms block those visits. The only URL you load is the home page.
+  TikTok, checked 2026-11-14:
+  - Open `https://www.tiktok.com/`, `snapshot -i`, click the Search box,
+    `keyboard type` the words, `press Enter`. The Top tab lists `/video/`
+    links with their caption and creator; its results drift off topic.
+  - A hashtag list: click the hashtag in a caption or in the Hashtags tab,
+    or type `#tag` in the search box. `/explore` is the Explore link in the
+    sidebar.
+  - A video URL loaded directly errors.
   - To open a video, click it from a list. The page then shows:
     - `[data-e2e=browse-video-desc]`;
     - `browse-like-count`;

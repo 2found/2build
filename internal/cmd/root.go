@@ -80,7 +80,7 @@ func NewRootCmd() *cobra.Command {
 		newSetupCmd(), newInstallCmd(),
 		newBootstrapCmd(), newStarterCmd(),
 		guardHelp(newUpdateCheckCmd()), guardHelp(newUpgradeCmd()),
-		guardHelp(newAutopilotCmd()),
+		guardHelp(newAutopilotCmd()), newChangelogCmd(),
 	)
 	return root
 }

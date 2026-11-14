@@ -126,7 +126,10 @@ class Transcript(unittest.TestCase):
             rows = topvideos.study(Path(d), ["kiếm", "lai"], [], 6, 300, "topic", platform="tiktok")
         self.assertEqual(rows, [])
         search.assert_not_called()
-        self.assertIn("https://www.tiktok.com/tag/kiemlai", out.getvalue())
+        self.assertIn("open https://www.tiktok.com/ ", out.getvalue())
+        self.assertIn("#kiemlai", out.getvalue())
+        self.assertNotIn("/search?q=", out.getvalue())
+        self.assertNotIn("tiktok.com/tag/", out.getvalue())
         self.assertIn("mvf top-videos --url URL... --scope topic", out.getvalue())
         self.assertIn("<the title's hashtag", topvideos.tiktok_search("quỷ bí chi chủ nên đọc hay xem phim", "benefit"))
 

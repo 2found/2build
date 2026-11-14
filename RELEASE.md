@@ -10,8 +10,9 @@ This profile covers `2found/2build`, base `main`, under the one
 `plugins[0].version`), `.codex-plugin/plugin.json` (`version`) and
 `package.json` (`version`) change in
 one commit. Use a prepared version if present; otherwise derive semver from
-the public CLI/skill contract changes. Tag `v<version>`. Update `CHANGELOG.md`
-from the previous published stable tag, then regenerate the Soot pack with
+the public CLI/skill contract changes. Tag `v<version>`. Add the `CHANGELOG.md`
+section from the previous published stable tag with `bbs changelog add` (older
+releases live in `CHANGELOG-ARCHIVE.md`), then regenerate the Soot pack with
 `python3 scripts/build-2build-pack.py` before final verification.
 
 Normal mode: [.github/workflows/release.yml](.github/workflows/release.yml)

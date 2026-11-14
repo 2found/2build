@@ -20,7 +20,8 @@ tickets/<ticket>/
 ```
 Every writable file is name-partitioned by skill, append-only, or
 lock-protected; all metadata mutations go through `bbs ticket` — never edit
-`index.json` by hand.
+`index.json` by hand. Append-only files only grow: write them through their
+verb, read a bounded slice (`tail`, `jq`, the latest handoff), never Read one whole.
 ## index.json
 All fields optional except `id`; unknown fields preserved. Key fields:
 `status`, `phase`, `parent`/`children`, `relations` (`blocks`, `blocked_by`,

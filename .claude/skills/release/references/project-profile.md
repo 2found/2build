@@ -4,14 +4,17 @@ Keep the shared flow in the skill and project facts in the repo. Link the
 profile from `AGENTS.md` or `CLAUDE.md`; `.babysit/release.md`, `RELEASE.md`, or
 an existing inline release section all work. This is an agent-readable contract,
 not a new CLI config schema. Resolve relative paths from the target repo root.
-Never copy deploy settings or secrets out of their maintained owners.
+It answers, per release unit, where it goes, how, and what happens after; a
+fact another doc maintains is a link, never a copy, and secrets never appear.
+`setup-project` creates it, the release skill keeps it current, and
+`harness-audit` checks it against the repo.
 
 | Field | Required decision |
 | --- | --- |
 | Identity/scope | Git remote, base branch, release units, components and dependency order |
 | Authority | Delivery bounds, landing policy, whether local workflow suspension is permitted |
 | Version | Authoritative files, synchronized mirrors, semver rule, tag template; first-release baseline |
-| Changelog | File and baseline tag policy, public/private release-note boundaries |
+| Changelog | File and baseline tag policy, public/private release-note boundaries; optional rotation limits (`--max-bytes`, `--keep`) |
 | Verification | Commands + cwd, smoke and failure case, required platforms/prerequisites |
 | Normal executor | Workflow/script, trigger, stage ownership and output evidence |
 | Local executor | Equivalent local checks/build/package; affected automatic workflows and guard policy |
