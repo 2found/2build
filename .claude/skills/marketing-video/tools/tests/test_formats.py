@@ -1,5 +1,6 @@
 """Saved formats (mvflib/formats.py): save a series' look by name, list it, start a new campaign from it."""
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,7 @@ def mvf(*args, cwd):
 class Formats(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
+        (Path(self.tmp.name) / ".git").mkdir()  # the library lives in this repo's .babysit/
         self.root = Path(self.tmp.name) / "campaigns"
         r = mvf("init", "ep1", "--product", "Acme", "--root", str(self.root), cwd=self.tmp.name)
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -41,7 +43,7 @@ class Formats(unittest.TestCase):
     def test_save_list_and_start_from_it(self):
         r = mvf("format", "save", "kiem-tu", "--from", "s01", cwd=self.cd)
         self.assertEqual(r.returncode, 0, r.stderr)
-        saved = json.loads((self.root / "_formats/kiem-tu/format.json").read_text())
+        saved = json.loads((formats.root(self.root) / "kiem-tu/format.json").read_text())
         self.assertEqual(saved["from"], "ep1/s01")
         self.assertEqual(saved["sound"], {"ambience": [{"kind": "wind", "db": -34}]})  # cues are one script's
         self.assertEqual(saved["voice"]["ref"], "thay")
@@ -76,11 +78,11 @@ class Formats(unittest.TestCase):
         self.assertFalse((self.root / "ep3").exists())  # a bad format name leaves no half-made campaign
         self.assertNotEqual(mvf("format", "save", "../evil", "--from", "s01", cwd=self.cd).returncode, 0)
         (self.root / "x2/format.json").parent.mkdir()
-        (self.root / "x2/format.json").write_text("{}")  # outside _formats/: init must not reach it
+        (self.root / "x2/format.json").write_text("{}")  # outside the formats: init must not reach it
         r = mvf("init", "ep4", "--product", "Acme", "--root", str(self.root), "--format", "../x2", cwd=self.tmp.name)
         self.assertNotEqual(r.returncode, 0)
         self.assertFalse((self.root / "ep4").exists())
-        keep = self.root / "_formats/hand"
+        keep = formats.root(self.root) / "hand"
         keep.mkdir()
         (keep / "notes.md").write_text("mine")  # a folder with no format.json is still not ours to delete
         self.assertIn("--force", mvf("format", "save", "hand", "--from", "s01", cwd=self.cd).stderr)
@@ -88,6 +90,16 @@ class Formats(unittest.TestCase):
         s = json.loads((self.cd / "05-scripts/s01.json").read_text())
         (self.cd / "05-scripts/s01.json").write_text(json.dumps({**s, "voice": {"mode": "clone", "ref": "../../x"}}))
         self.assertIn("voice.ref", mvf("format", "save", "y", "--from", "s01", cwd=self.cd).stderr)
+
+    def test_a_format_saved_before_the_library_still_starts_a_campaign(self):
+        mvf("format", "save", "old", "--from", "s01", cwd=self.cd)
+        legacy = self.root / "_formats"
+        shutil.move(str(formats.root(self.root)), str(legacy))
+        self.assertIn("old: from ep1/s01", mvf("format", "ls", cwd=self.cd).stdout)
+        r = mvf("init", "ep5", "--product", "Acme", "--root", str(self.root), "--format", "old", cwd=self.tmp.name)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        mvf("library", "save", cwd=self.cd)  # copies it into the library, so the campaigns folder can go
+        self.assertTrue((formats.root(self.root) / "old/format.json").is_file())
 
     def test_a_broken_applied_format_is_ignored(self):
         (self.cd / formats.APPLIED).write_text("{")

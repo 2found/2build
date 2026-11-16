@@ -34,8 +34,10 @@ or invalid.
 in official pictures from the rights holder.
 
 ## Tool
-- `mvf init <slug> --product NAME [--root DIR]` writes every stage file from
-  the templates, plus the campaign `.gitignore`.
+- `mvf init <slug> --product NAME [--subject S] [--root DIR]` writes every
+  stage file from the templates, plus the campaign `.gitignore`, then copies in
+  what the library keeps for the product and the subject (`subject` in
+  `campaign.json`): re-check the facts' dates before a script cites them.
 - `campaign.json` holds `slug`, `product`, `goal` (awareness, follow, signup,
   install, purchase, retention or launch), `benefit`, `kpi`, `markets`,
   `languages`, `platforms` (tiktok, x, youtube, youtube-long, instagram, facebook,

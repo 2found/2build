@@ -47,6 +47,12 @@ that wants one, and nothing asks for them
 
 One campaign is one folder, `marketing/campaigns/<slug>/` by default. Each stage
 leaves one artifact on disk, so the work survives a crash and can be audited.
+What a later video uses lives in the library, `<repo>/.babysit/marketing-video/library/`:
+the product pack (facts, captures, audience, trends, brand), each subject's
+material, the history of every angle and script, formats and production code.
+`mvf init --subject` starts from it and a final `mvf export` saves into it.
+Read it with `mvf library`, never by opening earlier campaigns; once
+`mvf library check <campaigns dir>` says SAFE, the campaign folders can be deleted.
 
 ## How it runs
 The owner touches a campaign three times, and the agent does everything else.
@@ -103,7 +109,7 @@ pick the ideas yourself:
 - **Every review:** the predict, overlap, coldread and viewer helpers.
 - **Production as a whole:** once the owner approves the script, stage 7
   starts in a fresh context that reads the disk (`mvf next`). It copies code
-  reused from an earlier campaign into the project and reads only its
+  reused from an earlier campaign (the library's `code/`) into the project and reads only its
   signatures (`rg -n '^def |^function '`), never whole files. Past about 150k
   tokens of context it writes `07-video/<sid>/HANDOFF.md` (what is done, the
   next `mvf next` step, open review notes) and ends; the caller starts a
@@ -278,8 +284,9 @@ stopped.
 inside a campaign.
 - It needs python3 and ffmpeg; `yt-dlp` for video references and transcripts;
   `mvf doctor` checks the rest.
-- `mvf init <slug> --product NAME [--root DIR]` writes the folder and its
-  `.gitignore`; pass `--root` when the repo keeps campaigns elsewhere.
+- `mvf init <slug> --product NAME [--subject S] [--root DIR]` writes the folder
+  and its `.gitignore`, and copies in the library's pack for the product and
+  material for the subject; pass `--root` when the repo keeps campaigns elsewhere.
   For the next episode of a series, `mvf format save <name> --from <sid>`
   keeps the last one's look, captions, ambience, rigs, props and voice, and
   `mvf init <slug> --product NAME --format <name>` starts from them.

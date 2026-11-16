@@ -114,7 +114,9 @@ Vietnamese; a campaign in another language sets `judge.library` and
 `judge.context` in `~/.babysit/marketing-video/config.json`.
 
 The provider can rate-limit a long run. Micro Fish then stops where it is and
-keeps its record: `mvf judge resume --round rN` continues from there, and
+keeps its record: `mvf judge resume --round rN` continues from there 2
+sessions at a time (`--parallel n` sets it; progress.log says why each
+session failed), and
 `mvf judge collect <microfish dir>` reads back a run that finished without
 it. When the control leads or ties, or the lead is not clear, the society
 could not tell the scripts apart: rewrite from the research, not the hook,

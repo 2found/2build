@@ -44,7 +44,9 @@ Write them to `{PREDICT}` (inside the campaign folder you were given).
 
 
 def past_videos(cd: Path, limit: int = 60) -> list[str]:
-    """What this owner already made: sibling campaigns' angles and script payoffs, plus campaign.past."""
+    """What this owner already made: sibling campaigns' angles and script payoffs, the library's history of
+    campaigns no longer beside this one, plus campaign.past."""
+    from .library import history
     out = []
     c = load(cd / "campaign.json") if (cd / "campaign.json").is_file() else {}
     out += [f"(this owner) {_cut(x)}" for x in c.get("past") or []]
@@ -82,6 +84,19 @@ def past_videos(cd: Path, limit: int = 60) -> list[str]:
                 out.append(f"{sib.name}/{s.get('id')} ({made}): {_cut(pay)}")
         if len(out) >= limit:
             break
+    gone = {}  # campaigns whose folder was deleted: only the library remembers them
+    for r in history(cd, exclude=cd.name):
+        if not (cd.parent / str(r.get("campaign"))).is_dir():
+            gone.setdefault(r.get("campaign"), []).append(r)
+    order = sorted(gone.items(), key=lambda kv: max(str(x.get("at") or "") for x in kv[1]), reverse=True)
+    order.sort(key=lambda kv: (kv[1][0].get("product") != c.get("product"), -len(mine & set(str(kv[0]).split("-")))))
+    for name, rs in order:
+        for r in rs:
+            if r.get("kind") == "angle":
+                out.append(f"{name}/{r.get('id')} (angle): {_cut(r.get('promise'))} [{r.get('format') or ''}]")
+            elif r.get("payoff"):
+                out.append(f"{name}/{r.get('id')} ({'made' if r.get('made') else 'script only, never made'}): "
+                           f"{_cut(r.get('payoff'))}")
     return out[:limit]
 
 

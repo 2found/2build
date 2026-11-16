@@ -1,7 +1,8 @@
 """A saved format: one series' look kept by name, so the next episode starts where the last one ended instead of
 being re-directed from a blank page. `mvf format save <name> --from <sid>` keeps the direction's look, captions
 and ambience, the campaign style, the rigs and props sheets and the script's voice; `mvf init --format <name>`
-starts a campaign with them. Formats live beside the campaigns in `_formats/<name>/`."""
+starts a campaign with them. Formats live in the library (`library/formats/<name>/`), so deleting the campaigns
+keeps them; one saved before that, in `<campaigns>/_formats/<name>/`, is still read."""
 from __future__ import annotations
 
 import datetime
@@ -10,14 +11,23 @@ from pathlib import Path
 
 from .common import campaign_style, dump, load
 
-DIR = "_formats"
+DIR = "_formats"  # where formats lived before the library
 FILE = "format.json"
 SHEETS = ("rigs.json", "props.json")
 APPLIED = "07-video/format.json"  # a direction takes these as defaults under its own keys
 
 
 def root(cd_or_campaigns: Path) -> Path:
-    return Path(cd_or_campaigns) / DIR
+    from .library import root as lib
+    return lib(cd_or_campaigns) / "formats"
+
+
+def _dirs(campaigns: Path) -> list[Path]:
+    return [root(campaigns), Path(campaigns) / DIR]
+
+
+def find(campaigns: Path, name: str) -> Path | None:
+    return next((d / name for d in _dirs(campaigns) if (d / name / FILE).is_file()), None)
 
 
 def plain(name: str, what: str = "format name") -> str:
@@ -33,7 +43,7 @@ def save(cd: Path, name: str, sid: str, force: bool = False) -> Path:
     if not dp.is_file():
         raise SystemExit(f"no {dp}: direct the episode first, then save its format")
     out = root(cd.parent) / name
-    if out.exists() and not force:
+    if (out.exists() or find(cd.parent, name)) and not force:
         raise SystemExit(f"format {name} exists ({out}); pass --force to replace it")
     d = load(dp)
     sp = cd / "05-scripts" / f"{sid}.json"
@@ -61,9 +71,12 @@ def save(cd: Path, name: str, sid: str, force: bool = False) -> Path:
 
 
 def listing(campaigns: Path) -> list[dict]:
-    r = root(campaigns)
     rows = []
-    for p in sorted(r.glob(f"*/{FILE}")) if r.is_dir() else []:
+    found = {}
+    for r in reversed(_dirs(campaigns)):  # the library's copy of a name wins
+        for p in r.glob(f"*/{FILE}") if r.is_dir() else []:
+            found[p.parent.name] = p
+    for p in (found[k] for k in sorted(found)):
         try:
             f = load(p)
         except (ValueError, OSError):
@@ -78,8 +91,8 @@ def listing(campaigns: Path) -> list[dict]:
 def apply(cd: Path, name: str) -> dict:
     """Copy a saved format into a fresh campaign: style into campaign.json, sheets into 07-video/, its voice
     into voices/, and the look/captions/ambience into 07-video/format.json for every direction to start from."""
-    src = root(cd.parent) / plain(name)
-    if not (src / FILE).is_file():
+    src = find(cd.parent, plain(name))
+    if not src:
         have = ", ".join(r["name"] for r in listing(cd.parent)) or "none"
         raise SystemExit(f"no format {name!r} in {root(cd.parent)} (have: {have})")
     f = load(src / FILE)

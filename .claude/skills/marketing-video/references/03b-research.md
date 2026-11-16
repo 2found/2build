@@ -86,8 +86,8 @@ insider words in `lore_terms`; the lint flags them in hooks and early beats.
   parts (most-loved passages, most-replayed scenes, most-used features, top
   reviews) count as evidence too. Agents score their own ideas high, so self-scores are not
   kept.
-- **Not made before.** Read the scripts of every earlier campaign beside this
-  one and list what they said in `covered`; an idea that re-tells one is out.
+- **Not made before.** `mvf library` lists what every earlier campaign said,
+  deleted ones included; list it in `covered`. An idea that re-tells one is out.
 - **Shapes that tend to work:**
   - a principle for a moment in the viewer's life, with the subject as the
     proof;

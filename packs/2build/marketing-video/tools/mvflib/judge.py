@@ -333,13 +333,15 @@ def _sim_id(cd: Path, tag: str) -> str:
     return f"{slug[:28]}-{tag}"[:40]
 
 
-def run(out: Path, keep: bool = False) -> dict:
+def run(out: Path, keep: bool = False, parallel: int | None = None) -> dict:
     """Play out/brief.json: add its personas, the feed rounds, the interviews, the experts, the report. A run the
-    provider stopped (rate limit) keeps what it recorded; the same call continues it."""
+    provider stopped (rate limit) keeps what it recorded; the same call continues it. `parallel` caps the sessions
+    at once (default: the workspace's workers, 8)."""
     mf = micro_fish()
     e = env()
+    cap = ["--parallel", str(parallel)] if parallel else []
     try:
-        r = subprocess.run([str(mf), "run", str(out / "brief.json")], env=e, capture_output=True, text=True)
+        r = subprocess.run([str(mf), "run", str(out / "brief.json"), *cap], env=e, capture_output=True, text=True)
     finally:
         if not keep:
             subprocess.run([str(mf), "stop"], env=e, capture_output=True, text=True)
@@ -354,8 +356,8 @@ def run(out: Path, keep: bool = False) -> dict:
     if res["state"] not in ("completed", "completed_with_failures"):
         dump(out / "run.json", res)
         raise SystemExit(f"Micro Fish {res['state']}: {res.get('reason') or r.stderr.strip()[-600:]}\n"
-                         f"What it recorded is kept. Continue with `mvf judge resume {out}`; read {out / 'progress.log'} "
-                         f"and {home() / 'serve.log'} (failure_kind) first if it stops again")
+                         f"What it recorded is kept. Continue with `mvf judge resume {out}` (2 sessions at a time); "
+                         f"if it stops again, read why each session failed in {out / 'progress.log'}")
     return res
 
 
@@ -475,7 +477,7 @@ def retell_sheet(cd: Path, t: dict, key: dict) -> str:
 
 
 def judge_scripts(cd: Path, items: list[tuple[dict, str, str]], round_: str, size: str, platform: str,
-                  manifests: dict, bench: list[dict], dry: bool) -> Path:
+                  manifests: dict, bench: list[dict], dry: bool, parallel: int | None = None) -> Path:
     """items: (script, hook, kind) with kind candidate|control. Writes 06-pretest/<round>/microfish/."""
     c = load(cd / "campaign.json")
     vi = _vi(c)
@@ -513,7 +515,7 @@ def judge_scripts(cd: Path, items: list[tuple[dict, str, str]], round_: str, siz
     require_ready()
     print(f"Micro Fish {size} on {choice()['provider']}/{choice()['model']}: sim {sim}, {len(order)} videos, "
           f"{personas(size, len(order))} personas…", flush=True)
-    dump(out / "run.json", {**run(out), "sim": sim})
+    dump(out / "run.json", {**run(out, parallel=parallel), "sim": sim})
     return collect(cd, out)
 
 
@@ -560,15 +562,17 @@ def collect(cd: Path, out: Path) -> Path:
     return out
 
 
-def resume(cd: Path, out: Path) -> Path:
-    """Continue a stopped run from what Micro Fish recorded, then read it back."""
+def resume(cd: Path, out: Path, parallel: int | None = None) -> Path:
+    """Continue a stopped run from what Micro Fish recorded, then read it back. A stopped run means the provider
+    could not keep up with the workspace's 8 sessions at once, so it continues 2 at a time."""
     k = load(out / "key.json")
     require_ready()
-    dump(out / "run.json", {**run(out), "sim": k["sim"]})
+    dump(out / "run.json", {**run(out, parallel=parallel or 2), "sim": k["sim"]})
     return _read_video(cd, out, k) if out.parent.name == "judge" else collect(cd, out)  # <proj>/judge/<round> is a cut
 
 
-def judge_video(cd: Path, proj: Path, round_: str, size: str, platform: str, dry: bool) -> Path:
+def judge_video(cd: Path, proj: Path, round_: str, size: str, platform: str, dry: bool,
+                parallel: int | None = None) -> Path:
     """The cut, met in a feed the way the scripts were: do people stop for it, how long do they watch, retell it. One subject,
     the whole audience; experts look for what the edit broke."""
     meta = load(proj / "mvf.json")
@@ -594,7 +598,7 @@ def judge_video(cd: Path, proj: Path, round_: str, size: str, platform: str, dry
         return out
     require_ready()
     print(f"Micro Fish {size}: judging the cut {proj.name} (sim {sim}, {personas(size, 1)} personas)…", flush=True)
-    dump(out / "run.json", {**run(out), "sim": sim})
+    dump(out / "run.json", {**run(out, parallel=parallel), "sim": sim})
     return _read_video(cd, out, load(out / "key.json"))
 
 

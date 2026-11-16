@@ -3,8 +3,11 @@
 campaign dir; every artifact has a check; every video is measured against the
 platform it ships to. Run from anywhere inside a campaign (or pass --campaign).
 
-  init <slug> --product NAME [--format F]   new campaign from templates (default <repo>/marketing/campaigns/<slug>)
+  init <slug> --product NAME [--subject S] [--format F]   new campaign from templates and the library
+                                    (default <repo>/marketing/campaigns/<slug>)
   format save <name> --from <sid> | ls      keep a series' look, captions, ambience, rigs, props and voice by name
+  library [save|check DIR]          what earlier videos left (product pack, material, history, formats); save this
+                                    campaign into it; check that a campaigns folder can be deleted
   status                            stage by stage: present, FAIL/WARN counts, what is next
   next [--json]                     the one next action, and whether the agent or the owner takes it
   sheet <sid>                       the script as the owner reads it; approve <sid> --verdict … records their word
@@ -96,7 +99,9 @@ def refs(cd: Path) -> dict:
 
 
 def past_scripts(cd: Path) -> list[tuple[str, str]]:
-    """The voice-over of every script in the other campaigns beside this one: what the owner already made."""
+    """The voice-over of every script in the other campaigns beside this one and in the library's history:
+    what the owner already made, even after its campaign folder was deleted."""
+    from mvflib import library
     out = []
     for f in sorted(cd.resolve().parent.glob("*/05-scripts/*.json")):
         if f.parents[1] == cd.resolve() or not (f.parents[1] / "campaign.json").is_file():
@@ -107,6 +112,9 @@ def past_scripts(cd: Path) -> list[tuple[str, str]]:
             continue
         beats = (d.get("beats") if isinstance(d, dict) else None) or []
         out.append((f"{f.parents[1].name}/{f.stem}", " ".join(str(b.get("vo") or "") for b in beats if isinstance(b, dict))))
+    seen = {w for w, _ in out}
+    out += [(w, r.get("vo") or "") for r in library.history(cd, exclude=cd.resolve().name) if r.get("kind") == "script"
+            and (w := f"{r.get('campaign')}/{r.get('id')}") not in seen]
     return out
 
 
@@ -244,9 +252,9 @@ def cmd_init(a):
     if a.format:
         from mvflib import formats
         formats.plain(a.format)
-    if a.format and not (root / "_formats" / a.format / "format.json").is_file():
+    if a.format and not formats.find(root, a.format):
         have = ", ".join(r["name"] for r in formats.listing(root)) or "none"
-        raise SystemExit(f"no format {a.format!r} in {root / '_formats'} (have: {have})")
+        raise SystemExit(f"no format {a.format!r} in {formats.root(root)} (have: {have})")
     for rel, tmpl in (("campaign.json", "campaign.json"), ("01-product/facts.json", "facts.json"),
                       ("02-audience/segments.json", "segments.json"), ("03-trends/trends.json", "trends.json"),
                       ("03-research/research.json", "research.json"), ("04-strategy/angles.json", "angles.json")):
@@ -256,6 +264,11 @@ def cmd_init(a):
     for d in ("01-product/screens", "05-scripts", "06-pretest", "07-video", "08-delivery", "brand", "voices", "extensions"):
         (cd / d).mkdir(parents=True, exist_ok=True)
     (cd / ".gitignore").write_text(CAMPAIGN_GITIGNORE, encoding="utf-8")
+    from mvflib import library
+    if a.subject:
+        dump(cd / "campaign.json", {**load(cd / "campaign.json"), "subject": library.slug(a.subject)})
+    for line in library.seed(cd, a.product, a.subject):
+        print(f"from the library: {line}")
     if a.format:
         from mvflib import formats
         f = formats.apply(cd, a.format)
@@ -469,6 +482,8 @@ def cmd_approve(a):
     cd = campaign_dir(a)
     sid = load(script_path(cd, a.sid))["id"]
     rec = flow.approve(cd, sid, a.verdict, a.note or "", a.hook, a.thesis)
+    from mvflib import library
+    library.record(cd)
     print(f"owner {rec['verdict']} {sid}/{rec['hook']} on {rec['at']}"
           + (f", thesis {rec['thesis']!r}" if rec.get("thesis") else "") + f" → {cd / flow.OWNER}")
 
@@ -958,6 +973,29 @@ def cmd_export(a):
         print(f"delivered → {cd / '08-delivery'}  (listen and watch every file before it is called done; nothing was uploaded)")
         if rep.fails:
             sys.exit(1)
+    if not a.draft:
+        from mvflib import library
+        library.save(cd)
+        print(f"saved to the library {library.root(cd)}: the next campaign starts from it")
+
+
+def cmd_library(a):
+    from mvflib import library
+    cd = maybe_campaign(a)
+    if a.action == "check":
+        d = Path(a.dir) if a.dir else (cd.parent if cd else None)
+        if not d or not d.is_dir():
+            raise SystemExit("mvf library check <campaigns folder>")
+        ok, lines = library.check(d)
+        print("\n".join(lines))
+        sys.exit(0 if ok else 1)
+    if a.action == "save":
+        if not cd:
+            raise SystemExit("run inside a campaign (or pass --campaign)")
+        out = library.save(cd, a.subject)
+        print(f"saved {cd.name} → {library.root(cd)}: " + ", ".join(f"{k} {v}" for k, v in out.items() if v))
+        return
+    print(library.summary(cd or project_root(), cd))
 
 
 def cmd_viewer(a):
@@ -1070,14 +1108,18 @@ def cmd_judge(a):
             print("WARN no --control: add a script the team already rejected; without a known loser the panel's "
                   "enthusiasm cannot be told from a good script")
         bench = [load(cd / "06-pretest/bench" / f"{b}.json") for b in a.bench or []]
-        judge.judge_scripts(cd, items, a.round, a.size, plat, manifests, bench, a.dry)
+        judge.judge_scripts(cd, items, a.round, a.size, plat, manifests, bench, a.dry, a.parallel)
     elif a.action == "video":
         if len(a.names) != 1:
             raise SystemExit("mvf judge video <proj>")
-        judge.judge_video(cd, proj_path(cd, a.names[0]), a.round if a.round != "r1" else "v1", a.size, plat, a.dry)
+        judge.judge_video(cd, proj_path(cd, a.names[0]), a.round if a.round != "r1" else "v1", a.size, plat, a.dry,
+                          a.parallel)
     elif a.action in ("resume", "collect"):
         out = Path(a.names[0]).resolve() if a.names else cd / "06-pretest" / a.round / "microfish"
-        (judge.resume if a.action == "resume" else judge.collect)(cd, out)
+        if a.action == "resume":
+            judge.resume(cd, out, a.parallel)
+        else:
+            judge.collect(cd, out)
 
 
 def main():
@@ -1089,7 +1131,13 @@ def main():
     p.add_argument("--product", required=True)
     p.add_argument("--root")
     p.add_argument("--format", help="start from a saved format (`mvf format ls`)")
+    p.add_argument("--subject", help="what the video is about (a novel, a feature): starts from its saved material")
     p.set_defaults(fn=cmd_init)
+    p = sub.add_parser("library", help="what earlier videos left: product pack, material, history, formats")
+    p.add_argument("action", nargs="?", choices=["ls", "save", "check"], default="ls")
+    p.add_argument("dir", nargs="?", help="check: the campaigns folder to delete")
+    p.add_argument("--subject", help="save: file this campaign's material under this subject")
+    p.set_defaults(fn=cmd_library)
     p = sub.add_parser("format", help="save a series' look by name, or list saved formats")
     p.add_argument("action", choices=["save", "ls"])
     p.add_argument("name", nargs="?")
@@ -1265,6 +1313,7 @@ def main():
     p.add_argument("--size", default="quick", choices=["quick", "standard", "deep"])
     p.add_argument("--platform", help="the feed the personas scroll (default: the campaign's first platform)")
     p.add_argument("--dry", action="store_true", help="write the brief and key only; run nothing")
+    p.add_argument("--parallel", type=int, help="sessions at once (default 8; resume 2)")
     p.set_defaults(fn=cmd_judge)
     p = sub.add_parser("qa")
     p.add_argument("video")
