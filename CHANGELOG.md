@@ -2,6 +2,27 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
+## 1.134.0 — 2026-11-17
+
+### Changed
+
+- `marketing-video` — subagent budget and parallelism rules from live campaign
+  findings: gathering and capture agents run on the mid-tier model with call
+  caps, product captures happen at script time instead of inside production,
+  scene agents build in parallel (max four) against a frozen key frame and
+  shared drawing code, and long production runs hand off via `HANDOFF.md`
+  past ~150k tokens.
+- `mvf next` — asks for the key frame even when every scene placeholder is
+  already filled, so a cut built ahead of its look still settles that look
+  beside the references.
+- Pretest audience sizing — a `quick` run now draws 4-8 personas in total
+  (personas run on the user's own AI tokens); `standard`/`deep` keep 48/96
+  per video.
+- `mvf viewer` review — stop accepting fixes once a round scores no higher
+  than the last with no P0 open; write what keeps the cut from the next step.
+- `mvf doctor` — checks `agent-browser` is runnable and reports its path for
+  gathering briefs; `browse` skill reinstalls the link once when it fails.
+
 ## 1.133.0 — 2026-11-14
 
 ### Added

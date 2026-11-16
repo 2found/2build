@@ -84,6 +84,12 @@ UNVERIFIABLE (VW1), or red items have no issue near their second (VW2).
   render again and run `mvf viewer` once more; ship on APPROVE, or with what
   is left `accepted` and the reason written. You cannot check your own
   framing fix: you made the frame the viewer called empty.
+- **Stop when the score stops moving.** After a fix round whose viewer
+  scores no higher than the one before, with no P0 open, stop: accept what
+  is left with its reason and write in `score` what keeps the cut from the
+  next step. One cut ran four viewer rounds that all scored 6 ("a template:
+  flat illustration, little depth"); that level was set by the look at the
+  key frame, and no round of fixes moved it.
 
 | Sev | Means | Examples |
 | --- | --- | --- |

@@ -13,6 +13,7 @@ renders. Do not turn this into a product review unless asked.
   change.
 ## Engine
 Browsing runs on [`agent-browser`](https://github.com/vercel-labs/agent-browser) — `agent-browser open <url>`, then `snapshot -i` for refs, `click @e<n>` / `type @e<n> <text>` / `fill` / `select` to interact (the `@ref` is an argument to a verb, never a bare command), plus `eval`, `screenshot`, `errors`, `vitals`. One-time: `npm install -g agent-browser cloakbrowser`.
+Run `agent-browser --version` before the first call. If it fails (not found, or the link on `PATH` points into a deleted worktree), run that install once, which rewrites the link, and check again; don't hunt the disk for a binary or wrap one by hand.
 Verbs worth knowing before reaching for `--help`:
 `batch "<cmd>" "<cmd>" …` runs a whole sequence in one call (`--bail` stops at
 the first error) — prefer it to one call per click, every call re-reads the

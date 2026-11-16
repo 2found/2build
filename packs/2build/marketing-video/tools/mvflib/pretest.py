@@ -9,7 +9,14 @@ from pathlib import Path
 from . import timing
 from .common import PLATFORMS, copy_kind, load
 
-SIZES = {"quick": 24, "standard": 48, "deep": 96}
+SIZES = {"quick": 2, "standard": 48, "deep": 96}  # personas per video
+
+
+def personas(size: str, videos: int) -> int:
+    """How many personas a run draws. Every persona spends the user's own AI tokens, so the default quick run keeps
+    the whole society at 4-8."""
+    n = SIZES[size] * videos
+    return min(8, max(4, n)) if size == "quick" else n
 
 
 def caption_of(script: dict) -> str:
@@ -78,7 +85,7 @@ def brief(campaign_dir: Path, scripts: list[Path], hooks: dict[str, list[str]], 
 Viewers scroll a feed and most watch X muted: judge each variant on its on-screen text alone too.
 
 **Markets:** {', '.join(c.get('markets') or [])} · **Languages:** {', '.join(c.get('languages') or [])}
-**Size:** {size} ({SIZES[size]} personas)
+**Size:** {size} ({SIZES[size]} personas per variant)
 
 ## Audience (from research, verbatim)
 {chr(10).join(seg_txt)}

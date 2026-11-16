@@ -146,6 +146,9 @@ class Owner(unittest.TestCase):
         c["budget"] = {"scripts": 1}
         (self.cd / "campaign.json").write_text(json.dumps(c))
         (proj / "compositions").mkdir()
+        (proj / "compositions/B01.html").write_text("<div></div>")
+        x = self.nxt()  # scenes built without one: the key frame is still asked for
+        self.assertEqual((x["run"], "never set" in x["why"]), ("mvf keyframe s01-test/9x16 --at <second>", True))
         (proj / "compositions/B01.html").write_text('<div data-mvf="placeholder"></div>')
         self.assertEqual(self.nxt()["run"], "mvf keyframe s01-test/9x16 --at <second>")  # one finished frame first
         (proj / "review").mkdir()

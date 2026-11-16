@@ -152,12 +152,17 @@ class Judge(unittest.TestCase):
         self.assertEqual((b["sim"], b["platform"], b["language"]), ("demo-r1", "TikTok", "vi"))
         self.assertEqual([x["id"] for x in b["subjects"]], ["a", "b", "c"])
         self.assertEqual({x["account"] for x in b["subjects"]}, {"Acme"})  # nothing but the video tells the arms apart
-        self.assertEqual(b["audience"], {"age": [18, 45], "n": 72, "cap": True})  # quick: 24 personas per video
+        self.assertEqual(b["audience"], {"age": [18, 45], "n": 6, "cap": True})  # quick: 2 per video, 4-8 in all
         self.assertIn('GIỌNG: \\"Your inbox is lying.\\"', text)
         self.assertEqual([q["id"] for q in b["questions"]][:3], ["retell", "clarity", "intent"])
         self.assertEqual(len(b["experts"]), 4)
         for hidden in ("s00-old", "control", "đối chứng", "learns a trick"):  # the key and the writer's intent stay out
             self.assertNotIn(hidden, text)
+
+    def test_a_quick_run_keeps_the_society_at_four_to_eight(self):
+        from mvflib.pretest import personas
+        self.assertEqual([personas("quick", k) for k in (1, 2, 3, 4, 5)], [4, 4, 6, 8, 8])
+        self.assertEqual(personas("standard", 2), 96)
 
     def test_long_visuals_are_shortened_before_any_voice(self):
         rows = [(i, i + 1, "a very long picture description " * 20, "", (f"line {i} " * 8).strip()) for i in range(12)]
@@ -182,7 +187,7 @@ class Judge(unittest.TestCase):
         (self.cd / "02-audience/segments.json").write_text(json.dumps({"segments": [], "panel": {"age": [18, 30], "zone": "Đô Thị"}}))
         self.run_mvf("judge", "scripts", "s01-a", "--dry")
         b = json.loads((self.cd / "06-pretest/r1/microfish/brief.json").read_text())
-        self.assertEqual(b["audience"], {"age": [18, 30], "zone": "Đô Thị", "n": 24, "cap": True})
+        self.assertEqual(b["audience"], {"age": [18, 30], "zone": "Đô Thị", "n": 4, "cap": True})
         self.language("en")
         r = self.run_mvf("judge", "scripts", "s01-a", "--dry", ok=False)
         self.assertIn("judge.library", r.stderr)
@@ -267,7 +272,7 @@ class Judge(unittest.TestCase):
         out = proj / "judge/v1"
         b = json.loads((out / "brief.json").read_text())
         self.assertIn("a red inbox badge reading 99", b["subjects"][0]["content"])  # the cut, not only the plan
-        self.assertEqual((len(b["subjects"]), b["audience"]["n"], b["experts"][0]["id"]), (1, 24, "editor"))
+        self.assertEqual((len(b["subjects"]), b["audience"]["n"], b["experts"][0]["id"]), (1, 4, "editor"))
         j = json.loads((out / "judge.json").read_text())
         self.assertEqual((j["complete"], j["summary"]["watch_pct"], j["summary"]["stopped"]), (True, 70, 90))
         s = j["summary"]  # few finish a short video: the cut is read on watch time over length, likes and comments

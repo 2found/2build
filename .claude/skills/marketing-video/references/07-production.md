@@ -125,7 +125,9 @@ Settle the look on one frame before building every scene.
   it from `direction.json` ([07-direction](07-direction.md)) where the kit
   reaches the same level; a generated scene that looks poorer than the key
   frame is rewritten by hand (`"custom"`). `mvf next` asks for the key frame
-  before the other scenes.
+  before the other scenes. The look and the shared drawing code freeze with
+  the key frame, and the other scenes are then built in parallel
+  ([SKILL.md § Contexts](../SKILL.md#contexts)).
 
 The same three beats were built both ways. The kit version, written as data
 without looking, was a small rig on a flat ground. The hand-written one had a

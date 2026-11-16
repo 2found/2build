@@ -283,11 +283,15 @@ def next_action(cd: Path, stage_report, lint_fails) -> dict:
     for proj in projs:
         rel = proj.relative_to(cd / "07-video")
         holes = placeholders(proj)
+        # Asked even once no placeholder is left: scenes written by the agent's own build script clear them, and
+        # one cut built all ten scenes before its key frame.
+        if not (proj / KEYFRAME).is_file():
+            return _act("agent", f"author the turning beat of {rel} by hand, finished, on the face of whoever reacts when "
+                        "the video has people, and lay one frame of it beside the most-viewed references", run=f"mvf keyframe {rel} --at <second>",
+                        ref="references/07-production.md#the-key-frame",
+                        why=None if holes else "the scenes are built but the look was never set beside the references: "
+                        "make the key frame now and bring every scene to it")
         if holes:
-            if not (proj / KEYFRAME).is_file():
-                return _act("agent", f"author the turning beat of {rel} by hand, finished, on the face of whoever reacts when "
-                            "the video has people, and lay one frame of it beside the most-viewed references", run=f"mvf keyframe {rel} --at <second>",
-                            ref="references/07-production.md#the-key-frame")
             return _act("agent", f"author the scenes {holes} of {rel} to the key frame's level",
                         ref="references/07-production.md#the-key-frame")
         if not (proj / "assets/music").is_dir() or not any((proj / "assets/music").iterdir()):

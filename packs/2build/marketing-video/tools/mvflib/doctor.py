@@ -111,6 +111,12 @@ def checks(cd: Path | None = None, quick: bool = False) -> list[dict]:
     v = _ver(["yt-dlp", "--version"]) if shutil.which("yt-dlp") else None
     add("research", "OK" if v else "WARN", f"yt-dlp {v or 'not found'} (top-videos, trend-video)",
         "" if v else "brew install yt-dlp")
+    ab = shutil.which("agent-browser")  # None for a dangling symlink too
+    v = _ver([ab, "--version"]) if ab else None
+    add("research", "OK" if v else "WARN",
+        f"{v + ' at ' + ab if v else 'agent-browser not runnable'} (TikTok, pages that need a browser;"
+        " put this path in gathering briefs)",
+        "" if v else "npm install -g agent-browser cloakbrowser")
     return out
 
 

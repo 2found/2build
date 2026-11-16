@@ -82,10 +82,11 @@ Later runs reuse the choice. Set it again only when the user asks.
    candidates and a control (a script written to lose, `ctl-` prefix, not
    lint-gated). Each video is what a viewer gets, second by second, posted by
    the same account. Each persona is given one video and never sees the
-   others, so nobody compares them side by side; a quick run draws 24 personas
-   per video. The interview asks each one to retell the video, how clear it
-   was, whether they would act, what they would use and what put them off. A
-   quick run takes 20-40 minutes.
+   others, so nobody compares them side by side. Every persona runs on the
+   user's own AI tokens, so the default quick run draws 2 per video and 4-8 in
+   all; `--size standard|deep` (48 or 96 per video) only when the user asks.
+   The interview asks each one to retell the video, how clear it was, whether
+   they would act, what they would use and what put them off.
 2. It writes `06-pretest/<round>/microfish/`:
    - `brief.json`, what the society was given, and `key.json`, which letter
      is which script (the personas and experts never learn it);

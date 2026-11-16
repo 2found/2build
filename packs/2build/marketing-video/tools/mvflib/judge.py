@@ -20,7 +20,7 @@ from pathlib import Path
 
 from . import timing
 from .common import PLATFORMS, Report, config, dump, load, save_user_config, today, user_dir
-from .pretest import SIZES, caption_of
+from .pretest import SIZES, caption_of, personas
 
 STIMULUS_CHARS = 12000  # Micro Fish refuses a longer subject (about six minutes of Vietnamese voice)
 LABELS = "abcd"  # Micro Fish takes up to 4 subjects, one arm of the audience each
@@ -318,7 +318,7 @@ def brief(cd: Path, sim: str, subjects: list[tuple[str, str]], size: str, platfo
     out = {"sim": sim, "goal": goal, "platform": PLATFORMS[platform]["label"], "language": "vi" if vi else "en",
            "subjects": [{"id": lab, "label": f"Video {lab.upper()}", "account": account, "content": text}
                         for lab, text in subjects],
-           "audience": audience(cd, c, SIZES[size] * len(subjects)), "rounds": 3, "feed_size": 4,
+           "audience": audience(cd, c, personas(size, len(subjects))), "rounds": 3, "feed_size": 4,
            "metric": "depth",  # few people finish a short video: decide on how far they watched, not on who finished
            "questions": questions(vi), "experts": lenses}
     if j.get("context"):
@@ -507,12 +507,12 @@ def judge_scripts(cd: Path, items: list[tuple[dict, str, str]], round_: str, siz
     dump(out / "brief.json", b)
     dump(out / "key.json", {"sim": sim, "platform": platform, "size": size, "stimuli": key})
     if dry:
-        print(f"{out / 'brief.json'} ({len(order)} videos, {b['audience']['n']} personas, {SIZES[size]} per video) · "
+        print(f"{out / 'brief.json'} ({len(order)} videos, {b['audience']['n']} personas) · "
               f"key {out / 'key.json'} (never shown to the society)")
         return out
     require_ready()
     print(f"Micro Fish {size} on {choice()['provider']}/{choice()['model']}: sim {sim}, {len(order)} videos, "
-          f"{SIZES[size]} personas each…", flush=True)
+          f"{personas(size, len(order))} personas…", flush=True)
     dump(out / "run.json", {**run(out), "sim": sim})
     return collect(cd, out)
 
@@ -590,10 +590,10 @@ def judge_video(cd: Path, proj: Path, round_: str, size: str, platform: str, dry
     dump(out / "brief.json", brief(cd, sim, [("a", video_stimulus(proj, script, platform, vi))], size, platform, goal, ex))
     dump(out / "key.json", {"sim": sim, "platform": platform, "size": size, "stimuli": key})
     if dry:
-        print(f"{out / 'brief.json'} ({SIZES[size]} personas)")
+        print(f"{out / 'brief.json'} ({personas(size, 1)} personas)")
         return out
     require_ready()
-    print(f"Micro Fish {size}: judging the cut {proj.name} (sim {sim}, {SIZES[size]} personas)…", flush=True)
+    print(f"Micro Fish {size}: judging the cut {proj.name} (sim {sim}, {personas(size, 1)} personas)…", flush=True)
     dump(out / "run.json", {**run(out), "sim": sim})
     return _read_video(cd, out, load(out / "key.json"))
 

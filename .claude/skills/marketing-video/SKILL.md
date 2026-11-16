@@ -61,19 +61,54 @@ The owner touches a campaign three times, and the agent does everything else.
 ### Contexts
 A campaign runs for hours, and a context that carries every download and
 every scene's code loses the brief. Keep the main context for reading the
-material, writing and deciding, and give the rest to fresh agents on the
-strongest model available (Opus on Claude Code), each with a brief on disk
-and a result on disk:
+material, writing and deciding, and give the rest to fresh agents, each
+with a brief on disk and a result on disk. Scene agents and review helpers
+run on the strongest model available (Opus on Claude Code); gathering and
+capture agents run on the mid-tier one (Sonnet), since every item they bring
+back carries its URL and verbatim quote, or is a file you look at, and you
+pick the ideas yourself:
 - **Gathering** (stages 1-3.5): downloads, frame sheets, transcripts and
   source pulls go into `00-material/` and the source lists. You then read
   the pack yourself and pick the ideas: a script written from a helper's
-  summary has lost the details it needed.
-- **Each scene, after the key frame is yours:** one agent per scene, given
-  `SCENE_GUIDE.md`, the key frame, its beat and the storyboard. It returns
-  snapshots; you look at them. Renders run one at a time.
+  summary has lost the details it needed. A gathering agent re-reads its
+  whole context on every call (two of them once spent 150 calls and five
+  times the main context's tokens), so its brief pastes the exact commands,
+  the reference lines it needs (never "read <whole file>") and the
+  `agent-browser` path from `mvf doctor`; it writes any output longer than
+  about 3k characters to a file and prints only its head, and skips a
+  blocked site after one try. The brief also names how much is enough (for
+  example 30 top videos with transcripts) and a cap of about 40 calls; the
+  agent returns when it has either, with what it has (one ran 31 minutes
+  until the owner asked to stop it).
+- **Product captures** (stage 1, or as soon as the script names a screen;
+  at the latest when the script goes to the owner, for the leading script,
+  so it runs while they read):
+  one capture agent records every screen and recording the script needs
+  into `01-product/captures/`, with the login steps, what to crop and the
+  `agent-browser` path in its brief; you look at what it returns. Production
+  starts with the captures on disk and never records them itself (one
+  production agent spent 47 calls and a fifth of its tokens capturing).
+- **Each scene, after the key frame is yours:** one agent per scene, always
+  (two or three short neighbouring beats may share one), run in parallel,
+  at most four at once. Before they start, the key frame, `direction.json`,
+  the shared drawing code (cast, places, helpers, fonts) and the scaffold
+  are done and frozen. Each agent gets `SCENE_GUIDE.md`, the key frame, its
+  beat, the storyboard and the first and last frames of the beats beside
+  it. It writes only its own scene files, reads the shared ones, and asks
+  for any shared change in its result instead of making it; you make it.
+  It snapshots only its own beat and returns the snapshots. You lay every
+  beat's snapshot beside the key frame on one sheet, send a beat that
+  drifts back to its agent (the fixes in parallel too), then render once.
+  Renders run one at a time.
 - **Every review:** the predict, overlap, coldread and viewer helpers.
 - **Production as a whole:** once the owner approves the script, stage 7
-  starts in a fresh context that reads the disk (`mvf next`).
+  starts in a fresh context that reads the disk (`mvf next`). It copies code
+  reused from an earlier campaign into the project and reads only its
+  signatures (`rg -n '^def |^function '`), never whole files. Past about 150k
+  tokens of context it writes `07-video/<sid>/HANDOFF.md` (what is done, the
+  next `mvf next` step, open review notes) and ends; the caller starts a
+  fresh agent from that file. Each fix round after a review starts fresh the
+  same way, from the review notes and file paths.
 
 These roles are part of their stage, so a caller's "no subagents" default
 does not cover them. With no agent tool, work in one context and re-read
