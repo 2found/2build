@@ -2,6 +2,44 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
+## 1.135.0 — 2026-11-17
+
+### Added
+
+- `marketing-video` — the library, what one video leaves for the next. Campaign
+  folders were the only memory, so deleting one took its facts, captures,
+  formats and every script with it. The library
+  (`<repo>/.babysit/marketing-video/library/`, `$MVF_LIBRARY` moves it) keeps the
+  product pack, each subject's material, saved formats, the production code and
+  one history line per angle and script. `mvf library` lists it, `mvf library
+  save` files a campaign into it, and `mvf library check <campaigns dir>` says
+  whether those folders can be deleted. `mvf init --subject` starts from the
+  product pack and that subject's material; `mvf export` saves into the library;
+  `mvf approve` records the scripts, so `mvf overlap` and the research stage see
+  campaigns whose folder is gone.
+- `mvf judge --parallel` caps Micro Fish sessions at once; a run stopped by a
+  provider rate limit resumes 2 at a time, and `progress.log` says why each
+  session failed.
+
+### Changed
+
+- `marketing-video` formats now live in the library (`library/formats/<name>/`),
+  so deleting the campaigns keeps them. A format saved before this release in
+  `<campaigns>/_formats/<name>/` is still read, and `mvf library save` copies it
+  forward.
+
+### Fixed
+
+- `bbs team watch` no longer wakes a held team lead that has no open batch. A
+  lead waiting on a human spent a full reconciliation turn at every status
+  interval to rediscover the same wait; the default nudge now names the exit —
+  nothing changed and nothing running means the team is waiting on a human, so
+  run `bbs team hold`, say so and end the turn. The nudge is a plain line
+  carrying the skill prompt as its fallback instead of a skill invocation that
+  re-reads the whole skill.
+- `bbs team hold release` re-arms the watcher, which may have exited while every
+  record it saw was held (an empty watch set is its terminal condition).
+
 ## 1.134.0 — 2026-11-17
 
 ### Changed
