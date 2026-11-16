@@ -1099,6 +1099,10 @@ func foremanHoldRelease(id string) error {
 	if err := foreman.Save(r); err != nil {
 		return err
 	}
+	// The watcher may have exited while every record it saw was held (an
+	// empty watch set is its terminal condition), so release re-arms it the
+	// way adopt does — best-effort, idempotent under the watch lock.
+	spawnWatcher()
 	fmt.Printf("released hold on %s — design checkpoints self-resolve by default again\n", id)
 	fmt.Println("work already escalated under the hold stands; in-flight workers keep going.")
 	return nil

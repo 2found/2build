@@ -93,7 +93,7 @@ func testWatchOpts() watchOpts {
 	// statusInterval sits past every horizon the legacy tests exercise, so
 	// they keep testing the stall clock alone; the status tests set their own.
 	return watchOpts{interval: time.Minute, idle: 10 * time.Minute,
-		statusInterval: time.Hour, lines: 40, nudge: "check status", maxNudges: 2}
+		statusInterval: time.Hour, lines: 40, nudge: watchDefaultNudge, maxNudges: 2}
 }
 
 // A pane that keeps changing is a foreman that is working. It must produce no
@@ -130,7 +130,7 @@ func TestWatchIgnoresTrailingWhitespace(t *testing.T) {
 	if !strings.HasPrefix(line, "NUDGED") {
 		t.Fatalf("re-padded pane should still be idle, got %q", line)
 	}
-	if !strings.Contains(callLog(t, log), "terminal send --terminal term_0 --text /bbs:team --team-id fm-test check status --enter") {
+	if !strings.Contains(callLog(t, log), "terminal send --terminal term_0 --text bbs team watch (team fm-test): "+watchDefaultNudge) {
 		t.Error("expected the nudge text to be sent")
 	}
 }
@@ -151,7 +151,7 @@ func TestWatchNudgesAfterIdle(t *testing.T) {
 		t.Fatalf("got %q", line)
 	}
 	calls := callLog(t, log)
-	if !strings.Contains(calls, "terminal send --terminal term_0 --text /bbs:team --team-id fm-test check status --enter") {
+	if !strings.Contains(calls, "terminal send --terminal term_0 --text bbs team watch (team fm-test): "+watchDefaultNudge) {
 		t.Errorf("nudge text not sent and submitted; calls:\n%s", calls)
 	}
 }
@@ -228,7 +228,7 @@ func TestWatchStatusCheckOnMovingPane(t *testing.T) {
 	if !strings.HasPrefix(line, "STATUS fm-test") {
 		t.Fatalf("a moving pane must still get the status check, got %q", line)
 	}
-	if !strings.Contains(callLog(t, log), "terminal send --terminal term_0 --text /bbs:team --team-id fm-test check status --enter") {
+	if !strings.Contains(callLog(t, log), "terminal send --terminal term_0 --text bbs team watch (team fm-test): "+watchDefaultNudge) {
 		t.Error("expected the status prompt to be sent")
 	}
 	if s := watchLoad(r.ID); s.Nudges != 0 || !s.PendingStatus {
@@ -410,6 +410,34 @@ func TestCompleteWritesRecapAndWatcherLeavesForemanOpen(t *testing.T) {
 	}
 }
 
+// A held team with no open batch is waiting on a human by construction: a
+// status prompt would spend a full turn rediscovering the same wait every
+// interval, so the watcher leaves it alone — and watches it again the moment
+// it hands over a batch, whose workers still owe it a wake.
+func TestWatchLeavesAHeldTeamAlone(t *testing.T) {
+	client, r, _, _ := watchFixture(t)
+	r.Hold = &foreman.Hold{HeldBy: "long", At: foreman.Now()}
+	if err := foreman.Save(r); err != nil {
+		t.Fatal(err)
+	}
+	targets, err := watchTargets(client, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 0 {
+		t.Fatalf("held foreman still watched: %+v", targets)
+	}
+	if err := saveBatch(r.ID, foremanBatch{ID: r.ID + "-followup", Tasks: []batchMember{{Task: "t1"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if targets, err = watchTargets(client, ""); err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 1 || targets[0].ID != r.ID {
+		t.Fatalf("held foreman with an open batch is not watched: %+v", targets)
+	}
+}
+
 // A closed workspace is the batch finishing, not a failure — and must not be
 // reported as unreachable, which is what a human would go investigate.
 func TestWatchReportsAClosedWorkspace(t *testing.T) {
@@ -468,7 +496,7 @@ func TestWatchOptsDefaultsAndValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o.idle != 55*time.Minute || o.interval != time.Minute || o.statusInterval != 55*time.Minute || o.nudge != "check status" || o.maxNudges != 3 {
+	if o.idle != 55*time.Minute || o.interval != time.Minute || o.statusInterval != 55*time.Minute || o.nudge != watchDefaultNudge || o.maxNudges != 3 {
 		t.Errorf("unexpected defaults: %+v", o)
 	}
 	o, err = watchOptsFrom(map[string]string{"idle": "90", "status-interval": "45", "nudge": "status?", "once": "1"})

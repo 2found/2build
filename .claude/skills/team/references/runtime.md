@@ -50,7 +50,12 @@ The detached `bbs team watch` is the external missed-event/restart backup;
 adopt/spawn start it automatically. The lead never schedules its own status timer
 or polls on empty waits; it hands each batch to `bbs team batch` and ends
 its turn, and that watcher wakes it (SKILL.md). An external status/recovery reminder is a bounded wake,
-not permission to start a new polling loop. `bbs team ensure <id>` can recover
+not permission to start a new polling loop. When a status prompt arrives and
+nothing has changed with no worker or Dispatch still running, the team is
+waiting on a human: run `bbs team hold <id>`, say what you are waiting for and
+end the turn. The watcher then leaves a held team alone, so it spends no turn
+re-reporting the same wait every interval; the human resumes it with `bbs team
+hold release <id>`. `bbs team ensure <id>` can recover
 a missing terminal; never resume an ambiguous "last" conversation.
 
 Reconcile only for cold resume, an explicit status request, an external recovery

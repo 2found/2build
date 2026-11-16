@@ -454,12 +454,18 @@ that stopped working also stopped reporting that it stopped.
 
 `bbs team watch` is the outside observer. It captures the last N lines of the
 lead's Orca terminal on an interval; if those bytes are identical for longer than
-`--idle`, it types a nudge into the pane — the same "check status" a human would
-send — and if the nudges stop landing, it says so and gives up rather than
-poking forever. Independently of the pane, every `--status-interval` it sends
-the same skill prompt as an active status check, so a busy team lead still gets
-asked; a team lead whose record says `done` leaves the watch set even while its
-terminal stays open. The status interval defaults to the configured
+`--idle`, it types a nudge into the pane — the same "check status" a human
+would send, extended with an out: if nothing changed and no worker or
+Dispatch is still running, the lead runs `bbs team hold <id>`, says so and
+ends the turn — a lead waiting on a human would otherwise burn a full
+status turn every `--status-interval` forever — and if the nudges stop
+landing, it says so and gives up rather than poking forever. Independently
+of the pane, every `--status-interval` it sends the same status line as an
+active status check would, so a busy team lead still gets asked; a team lead whose
+record says `done`, or a held one, leaves the watch set while no batch is
+open, even though its terminal stays open (a human resumes a held team with
+`bbs team hold release <id>`, which also re-arms the watcher if it exited
+on the all-held set). The status interval defaults to the configured
 `foreman_status_interval` (3300 seconds, just inside a one-hour prompt cache so
 the prompt reads the cache instead of rewriting it). The idle threshold defaults to that
 same interval; `--status-interval` overrides it for that watcher and `--idle`
@@ -539,7 +545,7 @@ bbs team watch --once                # one pass, for cron
 | `--idle <sec>` | effective `--status-interval` (3300) | unchanged for this long → nudge |
 | `--status-interval <sec>` | `foreman_status_interval` config (3300) | periodic status prompt, even while the pane moves |
 | `--lines <n>` | 40 | how much of the pane forms the fingerprint |
-| `--nudge <text>` | `check status` | what gets typed in |
+| `--nudge <text>` | `check status` + the hold out | what gets typed in; the default tells an idle team with nothing running to hold itself |
 | `--max-nudges <n>` | 3 | budget before it reports `STALLED` and stops |
 | `--worker-idle <sec>` | 600 | batch worker pane unchanged this long, Dispatch open → nudge |
 | `--worker-nudges <n>` | 2 | worker nudges before the batch reports it `stalled:<task>` |
@@ -556,8 +562,8 @@ exits when no team lead has an open Orca terminal. Output is events only — a
 team lead that is working produces no output at all.
 
 ```text
-NUDGED fm-acme after 12m (1/3) — sent "check status"
-STATUS fm-acme after 60m — sent "check status"
+NUDGED fm-acme after 12m (1/3) — sent "check status: … bbs team hold <id> …"
+STATUS fm-acme after 60m — sent "check status: … bbs team hold <id> …"
 STALLED fm-acme — 3 nudges, no change in 41m; open "bbs team"
 GONE fm-acme — terminal "bbs team" is closed
 ```
@@ -570,7 +576,10 @@ refund the budget: real progress changes the pane on more than one tick, which
 is what keeps `--max-nudges` binding on a dead session. The status clock is
 separate from the idle clock on purpose: a status prompt neither spends a
 nudge nor resets the idle window, so it can never let an unresponsive terminal
-slip past the stall bound.
+slip past the stall bound. A **held** team lead with no open batch is skipped
+outright: it is waiting on a human, so a status prompt would buy a full
+reconciliation turn for the same wait every interval — the burn the hold is
+for. A held team that hands over a batch is watched again.
 
 ## Health checks
 

@@ -34,13 +34,16 @@ import (
 // The only signal that survives that is the one from outside: the terminal. If
 // the last N lines of the pane are byte-identical for long enough, the session
 // is not working, whatever it last said about itself. The response is the
-// cheapest thing that could restart it — type "check status" into the pane, the
-// same nudge a human would give — and the escalation is to stop nudging and say
-// so, because a watchdog that pokes forever is indistinguishable from one that
-// is broken.
+// cheapest thing that could restart it — type "check status" into the pane,
+// the same nudge a human would give. The prompt also names the exit a working
+// nudge has: a lead with nothing running and nothing changed is waiting on a
+// human, so it puts the team on `bbs team hold` and ends the turn instead of
+// reporting the same thing at every wake. The escalation is to stop nudging
+// and say so, because a watchdog that pokes forever is indistinguishable from
+// one that is broken.
 //
 // Beside that stall clock runs a second, independent one: every
-// --status-interval the foreman gets the same skill prompt even while its pane
+// --status-interval the foreman gets the same status line even while its pane
 // is moving, because a busy pane is not a status report. The flag's default
 // is the configured foreman_status_interval — the same fallback audit
 // interval the Foreman skill uses — so the two
@@ -155,11 +158,20 @@ func paneFingerprint(pane string) string {
 	return hex.EncodeToString(sum[:8])
 }
 
+// watchDefaultNudge is what the stall clock and the status clock both type
+// into the pane. It doubles as the last word on an idle team lead: a lead
+// with nothing running and nothing changed is waiting on a human, not on
+// the watcher, so it puts the team on hold and ends the turn instead of
+// answering another wake — every further check status would spend the same
+// tokens for the same report. The watcher then leaves a held team alone
+// (finishedIdle), so the hold is also what stops the prompts.
+const watchDefaultNudge = "check status: report where the team stands. If nothing changed and no worker or Dispatch is still running, the team is waiting on a human — run `bbs team hold` on this team, say so, and end the turn; a human resumes it with `bbs team hold release <id>`."
+
 func watchOptsFrom(kv map[string]string) (watchOpts, error) {
 	o := watchOpts{
 		interval:     60 * time.Second,
 		lines:        40,
-		nudge:        "check status",
+		nudge:        watchDefaultNudge,
 		maxNudges:    3,
 		workerIdle:   10 * time.Minute,
 		workerNudges: 2,
@@ -458,12 +470,20 @@ func orphanedBatchLines(targets []foreman.Record, id string) []string {
 // foreman, so a session wedged long enough to need a nudge is exactly the one
 // that has gone stale. Selecting on liveness would drop every foreman this
 // command exists to catch.
-// finishedIdle reports a done foreman with no open batch: idle by design, so a
-// nudge or status prompt would wake it for nothing. A done foreman that hands
-// over a new batch (follow-up work after complete) still owes its workers the
-// batch wake — skipping it left their questions unanswered for hours.
+
+// finishedIdle reports a foreman that must not be woken: one whose record
+// says done, or one a human has held, each with no open batch. A held team
+// is waiting on a human by construction (the nudge puts it there), so a
+// status prompt would spend a full reconciliation turn to rediscover the
+// same wait at every interval — the burn `bbs team hold` exists to stop.
+// Both still owe their workers the batch wake: a done or held foreman that
+// hands over a new batch (follow-up work) is watched again, so their
+// questions are not left unanswered for hours.
 func finishedIdle(r foreman.Record) bool {
-	return strings.EqualFold(r.Status, "done") && !anyOpenBatch(r.ID)
+	if anyOpenBatch(r.ID) {
+		return false
+	}
+	return strings.EqualFold(r.Status, "done") || r.Hold != nil
 }
 
 // foremanTerm is the key that reaches r's terminal: its handle while live, else its title.
@@ -689,6 +709,13 @@ func watchTick(client *orca.Client, r foreman.Record, o watchOpts, now time.Time
 // watchSend delivers one prompt to the foreman's pane: Send + Enter in one
 // call, because text with no Enter sits in the composer unsent while the pane
 // still looks busy — which would read as a foreman ignoring the poke.
+//
+// The text is a plain line, not a skill invocation, for the reason batchWake
+// is: the skill is already in a live lead's context, so wrapping every nudge
+// in `/bbs:team` re-reads the whole skill into a turn whose answer is usually
+// "nothing changed". The line names the team and carries the skill prompt as
+// the fallback, so a post-compaction lead that lost the protocol still has
+// exactly the recovery instruction in front of it.
 func watchSend(client *orca.Client, r foreman.Record, instruction string) (string, error) {
 	agentName := r.Agent
 	if agentName == "" {
@@ -698,7 +725,9 @@ func watchSend(client *orca.Client, r foreman.Record, instruction string) (strin
 	if err != nil {
 		return "", err
 	}
-	prompt := foremanSkillPrompt(prof, r, instruction)
+	prompt := "bbs team watch (team " + r.ID + "): " + instruction +
+		" If the team skill's instructions are no longer in your context, run " +
+		foremanSkillPrompt(prof, r, "") + " first."
 	if err := client.SendEnter(foremanTerm(client, r), prompt); err != nil {
 		foreman.MarkUnreachable(r.ID)
 		return "", err
