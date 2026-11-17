@@ -2,7 +2,7 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
-## Unreleased
+## 1.138.0 — 2026-11-17
 
 ### Changed
 
