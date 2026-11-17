@@ -15,8 +15,8 @@ Own the release through verified distribution, production behavior and local
 consumer updates. Builder owns this delivery skill; autopilot's QA handoff
 does not invoke it or grant release permission.
 
-Follow [preamble](../references/preamble.md) for bootstrap/telemetry and the
-[Auto-Decision Framework](../references/auto-decision-framework.md) for decisions.
+Follow [preamble](../../shared/preamble.md) for bootstrap/telemetry and the
+[Auto-Decision Framework](../../shared/auto-decision-framework.md) for decisions.
 Shared refs are filesystem paths beside this skill's directory, so read them by path, not as `skill://`.
 For `--dry-run`, skip the mutating bootstrap and telemetry; read context directly.
 
@@ -224,7 +224,7 @@ than undoing a package publication or declaring the whole release complete.
 
 8. **Operating handover to Soot (never blocks).** Run it only when the release
    changed an agent-operable surface: an action, a status, a public fact or an
-   API ([agent-operable](../references/agent-operable.md) owns that trigger
+   API ([agent-operable](../../shared/agent-operable.md) owns that trigger
    and the bar). Otherwise, or when no Soot operates the product (the
    profile's operating row says so, or no Soot Forge pack forwards to its
    service and no Soot source mirrors its `/llms.txt`), record
@@ -250,7 +250,7 @@ than undoing a package publication or declaring the whole release complete.
 
 ## Output
 When a person reads the result, the reply opens to
-[owner language](../references/owner-language.md): whether the product is
+[owner language](../../shared/owner-language.md): whether the product is
 live, the address to open, anything that costs money or still needs them;
 the block follows for callers.
 

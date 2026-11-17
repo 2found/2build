@@ -13,12 +13,12 @@ user-invocable: false
 
 # semantic-decision
 A reusable step inside the work, independent of its provider. Follow the
-[Auto-Decision Framework](../references/auto-decision-framework.md); mechanical
+[Auto-Decision Framework](../../shared/auto-decision-framework.md); mechanical
 facts need no model, and User Challenges retain their escalation channel.
 Shared refs are filesystem paths beside this skill's directory, so read them
 by path, not as `skill://`.
 
-1. Read [the contract](../references/semantic-decision.md). Take the caller's
+1. Read [the contract](../../shared/semantic-decision.md). Take the caller's
    evidence, decision kind, bounded choices and applicable rubric from context
    or files. Keep cited evidence and criteria in a request JSON file; no ticket
    is required. Missing evidence: gather it or return `NEEDS_CONTEXT` only when

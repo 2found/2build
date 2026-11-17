@@ -27,7 +27,7 @@ steps and ends when the ticket is ready for its phase's integration:
    independent: build against the accepted contracts, never their code. For each interface contract the ticket builds against
    (`.babysit/contracts.yaml`), `bbs contract pin <id>`; a ticket that
    provides one changes its files first and runs `bbs contract check <id>`
-   before reporting ([contracts](../references/contracts.md)).
+   before reporting ([contracts](../../../shared/contracts.md)).
 
    The ticket brief (`origin.design_doc`) and the parent prototype it links
    are the accepted design. Before building UI, open every state link in the
@@ -43,7 +43,7 @@ steps and ends when the ticket is ready for its phase's integration:
    screen the prototype lacks is a material deviation for the lead (step 2).
 2. **Plan approval** — every plan (`M`, `L`, or an `S` planned as `M`) is
    self-approved; nothing waits on the lead by size. Judge the plan with
-   `../semantic-decision/SKILL.md` kind `human-review` against the accepted
+   `../../semantic-decision/SKILL.md` kind `human-review` against the accepted
    parent artifacts, write the five-line rubric with named evidence and run
    `bbs ticket approval publish --kind plan`, then resolve it yourself
    with `bbs ticket approval self-resolve --team <assigned id>

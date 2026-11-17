@@ -16,8 +16,8 @@ skill text) is often the smallest lever; the report must show the real split.
 Read-only: it never edits settings, skills or memory in the same run unless the
 request explicitly asks to apply the proposals.
 
-Follow [preamble](../references/preamble.md) for bootstrap and telemetry, and
-[Auto-Decision Framework](../references/auto-decision-framework.md) for decisions.
+Follow [preamble](../../shared/preamble.md) for bootstrap and telemetry, and
+[Auto-Decision Framework](../../shared/auto-decision-framework.md) for decisions.
 Shared refs are filesystem paths beside this skill's directory, so read them
 by path, not as `skill://`.
 

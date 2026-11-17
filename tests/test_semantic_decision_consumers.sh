@@ -20,10 +20,10 @@ with tempfile.TemporaryDirectory() as temp:
     assert builder.build(pack, version="", commit="") == 0
     for skill in ("autopilot", "implement", "plan-draft", "qa", "review-pr", "triage", "semantic-decision"):
         text = (pack / "skills" / skill / "SKILL.md").read_text()
-        for target in re.findall(r"\.\./(?:semantic-decision|references)/[\w.-]+\.md", text):
+        for target in re.findall(r"(?:\.\./)+(?:semantic-decision|shared)/[\w.-]+\.md", text):
             assert (pack / "skills" / skill / target).is_file(), (skill, target)
-    contract = (pack / "skills/references/semantic-decision.md").read_text()
-    assert (pack / "skills/references" / re.search(r"\[semantic-decision skill\]\(([^)]+)\)", contract)[1]).is_file()
+    contract = (pack / "shared/semantic-decision.md").read_text()
+    assert (pack / "shared" / re.search(r"\[semantic-decision skill\]\(([^)]+)\)", contract)[1]).is_file()
     semantic = (pack / "skills/semantic-decision/SKILL.md").read_text()
     assert "uses the calling LLM fallback" in semantic
     assert "skill reports `BBS_DEGRADED` and stops" not in semantic

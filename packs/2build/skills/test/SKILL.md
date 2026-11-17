@@ -17,9 +17,9 @@ Modes: `create [scope]`, `audit [scope]`, `optimize [scope]`. With no mode,
 infer it from the request; ordinary implementation uses `create` scoped to the
 change, not a whole-project audit.
 
-Follow [preamble](../references/preamble.md) for bootstrap, telemetry and
+Follow [preamble](../../shared/preamble.md) for bootstrap, telemetry and
 standalone/ticket handling, and the
-[Auto-Decision Framework](../references/auto-decision-framework.md) for decisions.
+[Auto-Decision Framework](../../shared/auto-decision-framework.md) for decisions.
 Shared refs are filesystem paths beside this skill's directory, so read them
 by path, not as `skill://`.
 

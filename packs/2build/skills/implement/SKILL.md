@@ -17,14 +17,14 @@ guardrails.
   checks; optional proposals are not work to implement. Derive files, task
   order and coding steps from the code within those boundaries. If the work
   collapses to ≤3 trivial doc/comment-only edits, downgrade `ticket_size` one
-  tier using the downgrade hook in `../references/ticket-size-rubric.md` (it writes the
-  audit-log line). Shared refs (`../references/*.md`) are filesystem paths
+  tier using the downgrade hook in `../../shared/ticket-size-rubric.md` (it writes the
+  audit-log line). Shared refs (`../../shared/*.md`) are filesystem paths
   beside this skill's directory, so read them by path, not as `skill://`.
 - Read the plan's findings and unknowns as evidence to carry forward. Check
   relevant open items before dependent work; retain each material item's outcome
   and evidence in the handoff (confirmed, corrected, or still open with impact
   and next check). Do not re-investigate resolved findings without conflicting
-  evidence. New discoveries follow `../references/finding-unknowns.md`; preserve
+  evidence. New discoveries follow `../../shared/finding-unknowns.md`; preserve
   them durably, and record changed assumptions/decisions in `## Deviations`.
   An unresolved acceptance blocker prevents a completion claim.
 - The plan file is the Claude Code plan: derive the native task list
@@ -44,7 +44,7 @@ guardrails.
   project has one. The design note's UX contract names the owner screen and
   the shared component for each job, loading, empty and error included; a
   state the prototype does not show is built from those components
-  ([UI bar](../references/ui-bar.md) C1–C4), not improvised. New user-facing surface with no design spec
+  ([UI bar](../../shared/ui-bar.md) C1–C4), not improvised. New user-facing surface with no design spec
   (`pointers.design` empty, nothing in conversation) → invoke the `design-ui`
   skill via the Skill tool first; never improvise a layout the human first
   sees after implementation.
@@ -55,7 +55,7 @@ guardrails.
   alone or rewrite the accepted prototype to conceal implementation drift.
 - API surfaces follow best practice by default, even when the plan is silent
   — an unpaginated list endpoint is a bug, not a simplification. A new or
-  changed write also meets `../references/agent-operable.md` (retry-safe,
+  changed write also meets `../../shared/agent-operable.md` (retry-safe,
   previewable, machine-readable errors) unless the plan names it a gap.
 - Same at the DB layer: every new or changed query needs a bounded access
   path — check the declared indexes; cost should grow with rows returned,
@@ -65,7 +65,7 @@ guardrails.
   the smallest reversible change preserving the plan's intent, log it (see
   Ticket Mode), and keep going. If evidence invalidates a material design
   decision, invariant or scope boundary, record it and route through
-  `../references/auto-decision-framework.md` before dependent work; reversibility
+  `../../shared/auto-decision-framework.md` before dependent work; reversibility
   alone does not authorize a new direction. Never silently absorb a deviation.
 - Never branch, commit, or push — leave the change in the working tree.
   Skills are infra-isolated; git belongs to the invoking workflow

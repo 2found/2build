@@ -13,7 +13,7 @@ disable-model-invocation: true
 # marketing-video
 A founder or indie dev with no marketing team gets a platform-ready video, made
 by an agent. This is a manual stopgap until 2found's marketing product (2market)
-ships. Follow the [preamble](../references/preamble.md) for bootstrap and
+ships. Follow the [preamble](../../shared/preamble.md) for bootstrap and
 telemetry. Shared refs are filesystem paths beside this skill's directory, so
 read them by path, not as `skill://`.
 

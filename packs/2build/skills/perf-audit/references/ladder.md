@@ -11,7 +11,7 @@ index and returns only what it needs, yet runs too often → cache).
 | 3 Data | work caused by data volume | purge or archive by a retention rule; fix bloat; move large blobs out of hot tables; maintained counters instead of `COUNT(*)` | data · **irreversible** without a backup |
 | 4 Flow | work the feature asks for | side effects to a background job; batch; precompute; paginate or lazy-load; UX that needs fewer calls | product behaviour · needs a plan |
 | 5 Cache on what exists | repeated identical work | cache headers on the CDN already in front; keys in the cache service already running; in-process memo for immutable data | staleness, a new failure mode · turn off |
-| 6–7 Infra, architecture | real work beyond one resource; limits of the shape | the [architect roadmap](../architect/references/roadmap.md)'s stages, in its order (edge, right-size, database, shared cache, jobs, instances, replicas, partitions, services) | money and operations · `architect` designs |
+| 6–7 Infra, architecture | real work beyond one resource; limits of the shape | the [architect roadmap](../../architect/references/roadmap.md)'s stages, in its order (edge, right-size, database, shared cache, jobs, instances, replicas, partitions, services) | money and operations · `architect` designs |
 
 Never: cache what an index fixes, add capacity for unattributed cost, or split
 a service for performance alone. The project's own rules (`AGENTS.md`,

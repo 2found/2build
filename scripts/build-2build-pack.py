@@ -11,10 +11,10 @@ Orca transport and does not port to a soot pack. Output layout:
         build-meta.json              version/commit provenance (release builds only)
         skills/<skill>/SKILL.md      one per skill
         skills/<skill>/…             aux files (references/, workflows/, data/)
-        skills/references/           .claude/skills/references/ (no SKILL.md, so not a skill)
+        shared/                      .claude/skills/references/
 
-The layout mirrors .claude/skills/, so every relative Markdown link in a skill
-resolves unchanged.
+Every directory under skills/ is a skill, so the shared references sit beside
+skills/ and relative paths in Markdown are rewritten to the packed layout.
 
 Install into a soot deployment:
     soot add <2build-repo> --path packs/2build
@@ -35,6 +35,7 @@ import filecmp
 import gzip
 import json
 import os
+import posixpath
 import re
 import shutil
 import sys
@@ -100,17 +101,61 @@ def with_prerequisite(text):
     return text[:at] + "\n" + prerequisite + text[at:]
 
 
-def copy_skill(dst_dir, src_dir):
-    dst_dir.mkdir(parents=True, exist_ok=True)
+RELATIVE_PATH = re.compile(r"(?:\.\./)+[A-Za-z0-9_.-][A-Za-z0-9_./-]*|(?:\.\./)+")
+
+
+def packed_location(rel):
+    """Map a path relative to .claude/skills to its path inside the pack."""
+    parts = rel.split("/", 1)
+    if parts[0] == "references":
+        return "/".join(["shared"] + parts[1:])
+    return "skills/" + rel
+
+
+def pack_markdown(text, src_rel, out_rel):
+    """Rewrite `../`-relative paths so they resolve from the packed file.
+
+    src_rel and out_rel are the file's paths relative to .claude/skills and to
+    the pack root; targets outside .claude/skills are left as written."""
+    src_dir = posixpath.dirname(src_rel)
+    out_dir = posixpath.dirname(out_rel)
+
+    # Auxiliary files (a skill's references/, workflows/) often write paths
+    # relative to the skill folder; use that reading when the file-relative
+    # one names nothing.
+    skill_dir = src_rel.split("/", 1)[0] if "/" in src_rel else ""
+
+    def fix(m):
+        link = m.group(0)
+        resolved = posixpath.normpath(posixpath.join(src_dir, link))
+        if not (SKILLS / resolved).exists() and skill_dir and skill_dir != src_dir:
+            alt = posixpath.normpath(posixpath.join(skill_dir, link))
+            if (SKILLS / alt).exists():
+                resolved = alt
+        if resolved == ".." or resolved.startswith("../"):
+            return link
+        target = packed_location(resolved) if resolved != "." else ""
+        new = posixpath.relpath(target or ".", out_dir or ".")
+        return new + "/" if link.endswith("/") and not new.endswith("/") else new
+
+    return RELATIVE_PATH.sub(fix, text)
+
+
+def copy_tree(src_dir, dst_dir, out):
+    """Copy src_dir to dst_dir, rewriting relative paths in Markdown files."""
     for path in sorted(src_dir.rglob("*")):
         if not path.is_file():
             continue
-        rel = path.relative_to(src_dir)
-        target = dst_dir / rel
+        target = dst_dir / path.relative_to(src_dir)
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, target)
-        if rel == Path("SKILL.md"):
-            target.write_text(with_prerequisite(target.read_text()))
+        if target.suffix == ".md":
+            text = pack_markdown(target.read_text(),
+                                 path.relative_to(SKILLS).as_posix(),
+                                 target.relative_to(out).as_posix())
+            if target.name == "SKILL.md" and target.parent.parent.name == "skills":
+                text = with_prerequisite(text)
+            target.write_text(text)
 
 
 def write_tarball(pack_dir, out_path):
@@ -220,19 +265,13 @@ def build(out, version, commit):
         if frontmatter_field(text, "name") != name:
             failures.append(f"{name}: frontmatter name must equal the folder name")
             continue
-        copy_skill(out / "skills" / name, skill_dir)
+        copy_tree(skill_dir, out / "skills" / name, out)
         skills.append(name)
         rows.append((name, packed, description))
 
     shared = SKILLS / "references"
     if shared.is_dir():
-        dst = out / "skills" / "references"
-        dst.mkdir(parents=True, exist_ok=True)
-        for path in sorted(shared.rglob("*")):
-            if path.is_file():
-                target = dst / path.relative_to(shared)
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(path, target)
+        copy_tree(shared, out / "shared", out)
 
     manifest = {
         "name": "2build",
@@ -351,9 +390,9 @@ def build(out, version, commit):
         "## Pack layout",
         "",
         "Each skill is `skills/<name>/SKILL.md`; shared 2build references live",
-        "under `skills/references/` (no `SKILL.md`, so not a skill), the same",
-        "layout as the source, so relative links resolve unchanged. Auxiliary",
-        "skill assets (references/, workflows/, data/) ship under each skill dir.",
+        "under `shared/`, and relative paths in Markdown are rewritten to this",
+        "layout. Auxiliary skill assets (references/, workflows/, data/) ship",
+        "under each skill dir.",
         "The CLI prerequisite is inlined at the top of every `SKILL.md`.",
         "",
         "A Soot that selects the pack (`\"packs\": [\"2build\"]`) reads every",

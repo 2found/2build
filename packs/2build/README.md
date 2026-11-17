@@ -107,9 +107,9 @@ for that workflow.
 ## Pack layout
 
 Each skill is `skills/<name>/SKILL.md`; shared 2build references live
-under `skills/references/` (no `SKILL.md`, so not a skill), the same
-layout as the source, so relative links resolve unchanged. Auxiliary
-skill assets (references/, workflows/, data/) ship under each skill dir.
+under `shared/`, and relative paths in Markdown are rewritten to this
+layout. Auxiliary skill assets (references/, workflows/, data/) ship
+under each skill dir.
 The CLI prerequisite is inlined at the top of every `SKILL.md`.
 
 A Soot that selects the pack (`"packs": ["2build"]`) reads every

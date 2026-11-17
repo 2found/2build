@@ -18,7 +18,7 @@ handoff, never a silent one.
 | Errors a machine can act on | A stable `code`, a message, and the recovery (which field, which next call). Invalid input is `400` with that body; never a `200` carrying an error, never an HTML error page on an API route. |
 | A scoped agent identity | Its own credential, least privilege, bound to tenant and user. Acting for a user means verifying a short-lived signed assertion, never trusting a header. The audit trail names the agent. |
 | State readable without the UI | A health endpoint, and a read path for what needs attention (pending, failed, due, over budget): the same facts the dashboard shows, from the same source. |
-| Facts published once, for machines | `/llms.txt` plus Markdown pages generated from the data the product runs on, one topic per page ([AX Markdown delivery](../agent-first-docs/references/ax-markdown.md)). A retyped price is a second copy. |
+| Facts published once, for machines | `/llms.txt` plus Markdown pages generated from the data the product runs on, one topic per page ([AX Markdown delivery](../skills/agent-first-docs/references/ax-markdown.md)). A retyped price is a second copy. |
 | Events with stable ids | What is worth reacting to (new order, failed job, user message) leaves the product with an id, so a duplicate delivery is harmless. |
 | A way to test without harm | Test accounts and seed data an eval can run against; no flow that only works on production. |
 

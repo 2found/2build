@@ -15,8 +15,8 @@ Check whether an agent can discover the right constraints, run the project and
 verify a change from the instructions actually available to it. Findings need
 repository evidence, not a preferred documentation template.
 
-Follow [preamble](../references/preamble.md) for bootstrap and telemetry, and
-[Auto-Decision Framework](../references/auto-decision-framework.md) for decisions.
+Follow [preamble](../../shared/preamble.md) for bootstrap and telemetry, and
+[Auto-Decision Framework](../../shared/auto-decision-framework.md) for decisions.
 Shared refs are filesystem paths beside this skill's directory, so read them
 by path, not as `skill://`.
 
@@ -75,14 +75,14 @@ Then inspect the following where relevant or present:
 | Architecture and operational rules | Representative implementation and current configuration at the named path | Guidance contradicts reality, duplicates have drifted, ownership or exceptions are ambiguous |
 | Architecture owners | Service directories, nested entrypoints and the system/service split in [project docs](../setup-project/references/project-docs.md#which-architecture-documents) | A service without an owner; system doc not linking a service doc; system doc holding service internals, schema detail, deploy env/commands, content conventions, roadmaps, resolved history or account IDs that another owner holds (name the target owner) |
 | Placeholders | `rg -n 'TODO\(2build\):'` across entrypoints and linked owners | Each remaining placeholder (file:line, missing fact) as an open gap; a placeholder the repository already answers is drift |
-| Base branch | [git flow](../references/git-flow.md) resolution against actual refs | Resolves to a branch the repo does not release from; a leftover `.babysit/git-flow.yaml` is ignored (note, not defect) |
+| Base branch | [git flow](../../shared/git-flow.md) resolution against actual refs | Resolves to a branch the repo does not release from; a leftover `.babysit/git-flow.yaml` is ignored (note, not defect) |
 | `.babysit/qa.yaml` and local overrides | Effective local environment, service commands, credential variable names and meaningful flows | Wrong/missing target, hosted-only QA, no failure/empty/validation case, override changes target or credential source unexpectedly |
 | Release profile (`RELEASE.md`, `.babysit/release.md` or linked inline owner) | Version/mirror/lockfile sources, tags/changelog, CI/script stage ownership, package registries, current deploy/rollback runbook, observation rules and CLI installation paths | Wrong repo/component/version identity, stale commands, missing required stage or unjustified N/A, ambiguous artifact/SHA, unverifiable hypercare bounds, missing local update verification or profile unreachable from entrypoints |
 | Ignore rules and examples | Tracked filenames, `.gitignore`, `.env.example`, configuration references | Secret-bearing local files tracked or not ignored, committed credential literals, names pointing at the wrong environment |
 | Browser automation hygiene | Browser/QA bullets in the entrypoint against `/bbs:browse` § Browser hygiene; scripts, CI or docs that launch Chrome | Entrypoint tells agents to use the installed Chrome, `pkill`/`kill`/`close --all` as cleanup, or an ad-hoc session name; a browser-using project with no close-the-browser instruction |
 | Related repo/workspace pointers | Only relevant entries in `~/.babysit/config.yaml`, named local paths and `RELATED_*_REPO` fallback | Referenced repo unavailable, roles disagree, machine paths committed, project-local `.babysit/config.yaml` mistaken for the registry |
 
-Read [git flow](../references/git-flow.md) only for 2build git checks.
+Read [git flow](../../shared/git-flow.md) only for 2build git checks.
 Missing `.babysit` files or workspace registration in a repo that does not use
 those features is not a finding. For CLI/library repos, validate their actual
 check path instead of requiring a browser URL. An unavailable submodule or

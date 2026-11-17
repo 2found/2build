@@ -1,5 +1,5 @@
 # Semantic decision
-Contract for the [semantic-decision skill](../semantic-decision/SKILL.md),
+Contract for the [semantic-decision skill](../skills/semantic-decision/SKILL.md),
 a judgment step governed by the Auto-Decision Framework. The default provider
 is the calling `llm`; configured Cloudflare uses `clef-flash` or `clef`, with
 `llm` fallback. The CLI

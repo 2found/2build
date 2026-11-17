@@ -40,7 +40,7 @@ a precise ask.
      `uncommitted changes` is the normal handoff (workers never commit), but
      distinguish this run's work from user/other-run edits before resuming;
      never adopt all dirt. `checkpoint predates the last commit` → a commit
-     landed under the run ([git flow](../references/git-flow.md)): verify
+     landed under the run ([git flow](../../shared/git-flow.md)): verify
      ticket/head identity, then
      run `bbs autopilot checkpoint --refresh` if appropriate and inspect the
      audit again; refreshing metadata does not prove the work passed.

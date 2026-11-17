@@ -81,7 +81,7 @@ Exercise the application like a user and leave reproducible evidence.
    ports, databases and secrets `qa.yaml` names. When the run uses a resource
    only one ticket can hold at a time, take `bbs ticket surface acquire`
    first, run `QA_ENV_REVERT` after, and `surface release` on every outcome —
-   see `../references/worktrees.md`. Shared refs (`../references/*.md`) are
+   see `../../shared/worktrees.md`. Shared refs (`../../shared/*.md`) are
    filesystem paths beside this skill's directory, so read them by path, not
    as `skill://`.
 3. Code-level checks (tests, typecheck, lint) first — they gate, they don't
@@ -117,7 +117,7 @@ Exercise the application like a user and leave reproducible evidence.
      expired-session case. A new or changed action, status or API also runs
      once as an agent would: through its non-UI path with a scoped
      credential — the write repeated with the same key, its preview, one
-     invalid input (`../references/agent-operable.md`); a row the plan named
+     invalid input (`../../shared/agent-operable.md`); a row the plan named
      a gap is reported, not failed.
    - **Hard-to-reach states** — every dialog, confirm or dirty-state guard
      gets cancel and Escape; background/hidden-window, offline and timing
@@ -164,7 +164,7 @@ Exercise the application like a user and leave reproducible evidence.
    checked, or whose reference will not load, is a conformance gap that
    blocks PASS. This is acceptance verification, not pixel equality or a new
    design exercise. Each changed screen also meets the
-   [UI bar](../references/ui-bar.md): shoot its loading, empty and error
+   [UI bar](../../shared/ui-bar.md): shoot its loading, empty and error
    states and lay it beside its nearest sibling screen (C1–C3), walk the
    design note's jobs counting steps (J2), check nothing it shows already
    lives on another screen (O1), and time its open and main action (P1, P2).

@@ -11,7 +11,7 @@ GitHub and in most editors, and it diffs.
 | Sequence | the hottest or riskiest path through every hop, with cache decisions | the owner of that path (service document or caching doc) | next-gen document, only when the path changes |
 
 A home that does not exist yet: create the system document from the
-[skeleton](../setup-project/references/project-docs.md#skeleton-for-a-missing-document);
+[skeleton](../../setup-project/references/project-docs.md#skeleton-for-a-missing-document);
 for the others, keep the diagram in the next-gen document under "Current" and
 name the missing owner as a finding.
 

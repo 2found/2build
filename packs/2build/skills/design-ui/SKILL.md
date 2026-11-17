@@ -15,11 +15,11 @@ Make it really good, use lots of tokens and iterate till you're proud of it.
 
 Own project continuity and a reviewable design handoff. Visual direction comes
 from the brief and the design authority, not a preset style. Usability is not
-taste: the design meets the [UI bar](../references/ui-bar.md), whose row ids
+taste: the design meets the [UI bar](../../shared/ui-bar.md), whose row ids
 (J1, O1, C2 …) are cited below.
 
-Follow [preamble](../references/preamble.md) and the
-[Auto-Decision Framework](../references/auto-decision-framework.md).
+Follow [preamble](../../shared/preamble.md) and the
+[Auto-Decision Framework](../../shared/auto-decision-framework.md).
 Shared refs are filesystem paths beside this skill's directory, so read them
 by path, not as `skill://`.
 

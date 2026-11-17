@@ -6,7 +6,7 @@ existing linked section of the deployment/ops runbook, else
 work". The first audit creates it; later audits update it.
 
 Unknown facts are `TODO(2build):` lines per the
-[placeholder rule](../setup-project/references/project-docs.md#placeholders);
+[placeholder rule](../../setup-project/references/project-docs.md#placeholders);
 a placeholder is an open gap, never a default. No secret values: name the
 environment variable or credential and the access route only.
 

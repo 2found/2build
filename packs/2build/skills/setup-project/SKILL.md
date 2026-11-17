@@ -14,8 +14,8 @@ disable-model-invocation: true
 Create the minimum configuration future runs need. Re-running preserves valid
 settings and fills gaps; it is not an implicit profile switch or repo-wide audit.
 
-Follow [preamble](../references/preamble.md) for bootstrap and telemetry, and
-[Auto-Decision Framework](../references/auto-decision-framework.md) for decisions.
+Follow [preamble](../../shared/preamble.md) for bootstrap and telemetry, and
+[Auto-Decision Framework](../../shared/auto-decision-framework.md) for decisions.
 Shared refs are filesystem paths beside this skill's directory, so read them
 by path, not as `skill://`.
 
@@ -37,7 +37,7 @@ and verified facts; it does not rewrite existing content or unrelated
 instructions unless asked.
 
 ## Configure only missing or requested settings
-- Git needs no configuration ([git flow](../references/git-flow.md)). Verify
+- Git needs no configuration ([git flow](../../shared/git-flow.md)). Verify
   the base branch resolves to the branch the repo releases from (`origin/HEAD`
   by default); if not, report the one-line fix (`git remote set-head origin
   <branch>`) instead of writing a policy file. A leftover
@@ -126,7 +126,7 @@ passing QA run. Configuration validation does not prove application journeys;
 use `browse` / `qa` when actual UI verification is requested.
 
 When a person reads the result, the reply opens to
-[owner language](../references/owner-language.md); the block follows for
+[owner language](../../shared/owner-language.md); the block follows for
 callers.
 
 ```text

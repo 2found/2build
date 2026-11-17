@@ -219,7 +219,7 @@ the script). Control scripts (`ctl-…`) skip the key, thesis and turn checks.
   inflated words (siêu phẩm, kiệt tác, game-changer, unlock), three abstract
   nouns in a row, stacked "!" (WT1). Lint reads every `vo`, `onscreen` and
   hook variant. Say the plain thing instead.
-- **Vietnamese scripts go through [humanizer-vi](../humanizer-vi/SKILL.md)**
+- **Vietnamese scripts go through [humanizer-vi](../../humanizer-vi/SKILL.md)**
   in embedded mode before lint and the pre-test, and again after any rewrite
   the pre-test asks for: `vo`, `onscreen`, hook variants and platform copy.
   It catches what lint cannot hear (calques of English idioms, "việc/sự/một

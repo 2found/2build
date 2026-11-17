@@ -10,7 +10,7 @@ Autopilot's project-start workflow. It runs when the checkout holds no
 project (SKILL.md init step 3) or the invocation names it
 (`/bbs:autopilot new "<idea>"`). The person at the keyboard may never have
 used a terminal: every question and stop follows
-[owner language](../references/owner-language.md).
+[owner language](../../../shared/owner-language.md).
 
 The whole run is one ticket. It needs no `plan.md` (init step 4 does not
 apply: the steps below are the plan) and its design approval is the product
@@ -23,8 +23,8 @@ the handoff, never asked.
 `architect`, `setup-project` and `harness-audit` are commands a human types;
 they are not in the model's skill listing. Run each by reading its `SKILL.md`
 by path in full and following it (SKILL.md § Harness and terminal
-portability, the full-file fallback): `../architect/SKILL.md`,
-`../setup-project/SKILL.md`, `../harness-audit/SKILL.md`. Like every
+portability, the full-file fallback): `../../architect/SKILL.md`,
+`../../setup-project/SKILL.md`, `../../harness-audit/SKILL.md`. Like every
 reference here, these resolve from the autopilot skill's directory, not from
 this file's.
 
@@ -68,7 +68,7 @@ is missing. Never scaffold over an existing service directory.
    answer; stop asking when the fields are settled or the person says
    enough, and decide the rest as recorded defaults. With no channel that can
    answer, skip the interview and record every open field as an open decision
-   with its default ([finding-unknowns](../references/finding-unknowns.md)).
+   with its default ([finding-unknowns](../../../shared/finding-unknowns.md)).
    A product the starters cannot carry (a native mobile or desktop app) is
    said here, with the web-first version offered as the default.
 3. Write `docs/REQUIREMENT.md`: user, problem, platform, requirements with
@@ -178,7 +178,7 @@ one question with a default.
 3. Exit criteria: the product checkpoint is approved; every service starts
    with the one command; both gates are recorded and readiness is ready;
    every requirement is in the backlog; each `TODO(2build):` left is listed.
-4. Handoff, to [owner language](../references/owner-language.md): what now
+4. Handoff, to [owner language](../../../shared/owner-language.md): what now
    exists and the one command and address that open it; the architect's
    owner summary (what it is made of, what it will cost per month once
    live, what was left out); decisions taken on the owner's behalf with

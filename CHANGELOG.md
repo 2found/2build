@@ -2,6 +2,16 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
+## 1.138.1 — 2026-11-17
+
+### Fixed
+
+- Soot pack: shared references move from `skills/references/` to `shared/`,
+  because Soot Forge treats every folder under `skills/` as a skill and
+  refused the pack. Relative paths in packed Markdown are rewritten to the
+  packed layout, including paths in a skill's auxiliary files that were
+  written relative to the skill folder.
+
 ## 1.138.0 — 2026-11-17
 
 ### Changed

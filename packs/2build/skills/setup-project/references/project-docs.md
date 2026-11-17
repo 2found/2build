@@ -88,7 +88,7 @@ Use the headings above for the document's role. Do not add prose to make it
 look complete.
 
 ## Release profile
-Fields are [the release skill's profile contract](../release/references/project-profile.md).
+Fields are [the release skill's profile contract](../../release/references/project-profile.md).
 For a releasable app, CLI, library or pack with no owner, create `RELEASE.md`
 with one row per field: the observed fact (version files, scripts, CI,
 runbooks), `N/A — <reason>`, or `TODO(2build):`. A greenfield repo that will be

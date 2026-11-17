@@ -26,7 +26,7 @@ changed ([verification.md](references/verification.md)), so nothing needs a
 commit to be proven, and the checkpoint carries crash-resume. Who commits is
 decided above it — the human after a direct run, or `team`, which takes
 each ticket's tree at its `task done` and lands **one commit per phase**
-([git flow](../references/git-flow.md)). The lead decomposes the project,
+([git flow](../../shared/git-flow.md)). The lead decomposes the project,
 creates the worktrees, starts one autopilot assistant per ticket, and
 integrates, verifies and lands each phase. There is no parent/orchestrate exception inside
 autopilot.
@@ -65,9 +65,9 @@ never recursively invokes itself or turns a follow-up it noticed into accepted
 scope: it names the follow-up and its evidence in the handoff, and the human
 or a Team lead decides whether to open a ticket for it.
 ## Harness and terminal portability
-- Follow [the preamble](../references/preamble.md) and
-  [Auto-Decision Framework](../references/auto-decision-framework.md) —
-  shared refs (`../references/*.md`) are filesystem paths beside this skill's
+- Follow [the preamble](../../shared/preamble.md) and
+  [Auto-Decision Framework](../../shared/auto-decision-framework.md) —
+  shared refs (`../../shared/*.md`) are filesystem paths beside this skill's
   directory, so read them by path, not as `skill://`.
   Resolve the active harness from session metadata and exposed tools; use
   the preamble's `AGENT` / `SKILL_REF`, not the terminal brand or an installed
@@ -107,12 +107,12 @@ or a Team lead decides whether to open a ticket for it.
    already a ticket worktree (Team put you here), that is fine: work in
    place. When seeding `requirement.md`
    from free text, list open decisions explicitly instead of papering over
-   them ([finding-unknowns](../references/finding-unknowns.md)).
+   them ([finding-unknowns](../../shared/finding-unknowns.md)).
    A requirement an agent drafted (a Soot draft, another agent's ticket) is
    confirmed by a person once before step 4, `--auto` included, with its
    after-release criteria rewritten and its effort estimate as the plan's
    size bound: follow
-   [agent-drafted requirements](../references/agent-drafted-requirements.md).
+   [agent-drafted requirements](../../shared/agent-drafted-requirements.md).
    Before edits, record the starting HEAD, integration base, and pre-existing
    working changes in the checkpoint/handoff. Preserve that baseline on resume
    so the ticket's own changes stay distinguishable from what was already
@@ -261,7 +261,7 @@ autopilot_auto true` so re-entry and resume keep it. Under it:
 Without `--auto`, a run whose init produced a plan or prototype asks once
 before building — a question, never a block to paste — through the
 invocation's escalation channel
-([preamble](../references/preamble.md)): `developer` one `AskUserQuestion`,
+([preamble](../../shared/preamble.md)): `developer` one `AskUserQuestion`,
 `dashboard` a `--kind plan` approval record. The question is the design
 checkpoint and the last thing on screen. Init may have run `plan-draft` /
 `design-ui`, which print their own reports: condense them into the pointer
@@ -532,7 +532,7 @@ does not replace normal cleanup.
   or the dispatching Team lead (one commit per phase). Step skills edit the
   working tree and never commit either.
 - `INVOKER=developer`: every stop — a question, a handoff, `NEEDS_CONTEXT`,
-  the final status — follows [owner language](../references/owner-language.md):
+  the final status — follows [owner language](../../shared/owner-language.md):
   what happened, where to look, the exact next command to paste. A
   non-technical user must be able to keep the build moving without knowing
   git.

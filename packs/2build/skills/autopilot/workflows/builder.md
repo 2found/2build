@@ -60,7 +60,7 @@ ticket/requirement, stop with `NEEDS_CONTEXT`.
    `**Verify:**` line, and the implement handoff — not just the diff. The
    `qa` skill tests this checkout: inside a ticket worktree it runs what it
    needs there and takes the surface lease for a shared resource (see
-   `../references/worktrees.md`). No runnable target → record the blocker
+   `../../../shared/worktrees.md`). No runnable target → record the blocker
    and run the strongest fallback (`browse` for UI, else a narrow local
    check). Bracket it with `bbs autopilot verification begin --gate qa` and
    `record`.

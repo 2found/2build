@@ -5,7 +5,7 @@ Delete sections that do not apply.
 
 ## Part 1 — for the owner
 Written last, from the finished technical part, in the language the owner
-writes in, to [owner language](../references/owner-language.md). It opens
+writes in, to [owner language](../../../shared/owner-language.md). It opens
 the file: nothing technical comes before it. One screen, about 40 lines.
 
 Allowed in this part: journeys named by what a person does ("opening a

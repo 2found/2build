@@ -7,8 +7,8 @@ the evidence (file, config, console) for each.
 ## Triggers
 Written as `<signal> <op> <threshold> in <n> of <m> windows`, read at peak
 after waste is removed. Default: 2 of 3 weekly peak windows. Signals and
-budgets come from the [performance profile](../perf-audit/references/profile.md)
-and [perf-audit budgets](../perf-audit/references/measure.md#budgets); a
+budgets come from the [performance profile](../../perf-audit/references/profile.md)
+and [perf-audit budgets](../../perf-audit/references/measure.md#budgets); a
 trigger whose signal nobody collects names that missing signal as a finding
 and is appended to the profile's Signals table as `TODO(2build):`.
 

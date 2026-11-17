@@ -33,7 +33,7 @@ by path, not as `skill://`.
 1. Read the requirement and trace the affected flow through callers, services,
    modules, data stores and consumers, including relevant neighboring repos
    available in the workspace. Use architecture docs, code and recent similar
-   commits; read `../references/finding-unknowns.md` for git archaeology.
+   commits; read `../../shared/finding-unknowns.md` for git archaeology.
    Bound the survey by the change's reach, not just the edited directory. Record
    unavailable system context as an unknown, not an invented dependency.
    Derive implied cases: shared state/routes, permissions, empty/error states,
@@ -41,12 +41,12 @@ by path, not as `skill://`.
    volume. An aggregate/filter the indexes cannot bound needs a plan-level
    index/denormalization/cache decision. A change that adds or reshapes an
    action, a reported status, a public fact or an API is checked against
-   `../references/agent-operable.md`: **Approach** names the rows it meets
+   `../../shared/agent-operable.md`: **Approach** names the rows it meets
    and each one it leaves as a gap. Actively look for evidence that
    challenges the requirement's assumptions, not just answers to listed questions.
    Cite material discoveries and derived scope/risks in **Unknowns**: what was
    learned, why it matters, and resolved/open status. Resolve derivable choices
-   through `../references/auto-decision-framework.md` into **Approach**, retaining
+   through `../../shared/auto-decision-framework.md` into **Approach**, retaining
    a short discovery note when it changes the human's understanding even if
    already resolved; do not repeat the decision detail.
 2. Survey existing patterns before proposing new ones. For UI/frontend work,
@@ -58,7 +58,7 @@ by path, not as `skill://`.
    the baseline for checking the delivered UI; link them in **Design** with the
    key flows/states to compare. Do not drop them to meet the review budget.
 3. Use `../semantic-decision/SKILL.md` with kind `task-size` and the canonical
-   `../references/ticket-size-rubric.md` to classify XS/S/M/L. With a ticket,
+   `../../shared/ticket-size-rubric.md` to classify XS/S/M/L. With a ticket,
    persist via `bbs ticket set-pointer ticket_size <size>`; otherwise report
    size inline. Size controls planning depth, not a quota to fill.
 4. Write **Approach** around the before/after system behavior: where logic and
@@ -86,10 +86,10 @@ by path, not as `skill://`.
    split: plan L work as one ticket with ordered milestones in **Approach**.
 6. Before handoff, check coverage and review cost (below), then re-check size.
    If ≥40% of in-scope items were deferred to follow-up tickets, downgrade one
-   tier using the hook in `../references/ticket-size-rubric.md`. Required child
+   tier using the hook in `../../shared/ticket-size-rubric.md`. Required child
    tickets in this plan are decomposition, not deferred scope. With a ticket,
    write the plan to `bbs ticket path plan --write` and register it
-   ([write recipe](../references/ticket-layout.md#typical-skill-usage));
+   ([write recipe](../../shared/ticket-layout.md#typical-skill-usage));
    without one, return it in the response.
 
 ## Review budget and format
@@ -151,7 +151,7 @@ For decomposition, write `manifest.md` beside `plan.md` (not the identity file
 single worker session plans, builds, reviews and QAs end to end, for hours or
 days if needed. Each phase is one coherent vertical slice that leaves the
 product working, sized `XS`–`L` on the
-[size rubric](../references/ticket-size-rubric.md). Every phase boundary costs a cold
+[size rubric](../../shared/ticket-size-rubric.md). Every phase boundary costs a cold
 session and a full review/QA cycle, so prefer fewer, larger phases and split
 by context, not size: work on one module, the same files or an interface still
 being shaped stays in one row; split only where modules are disjoint behind an

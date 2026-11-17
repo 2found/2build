@@ -1,6 +1,6 @@
 # Auto-Decision Framework
 Classify → act → report. Auto-deciding replaces human judgment, not analysis.
-For bounded judgment (scope, routing, tests, review), use the [semantic-decision skill](../semantic-decision/SKILL.md) after collecting evidence.
+For bounded judgment (scope, routing, tests, review), use the [semantic-decision skill](../skills/semantic-decision/SKILL.md) after collecting evidence.
 Its default LLM provider, optional Cloudflare provider and contract apply;
 mechanical facts and User Challenges stay governed by this framework.
 

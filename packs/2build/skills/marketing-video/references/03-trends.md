@@ -32,7 +32,7 @@ re-observed or dropped.
   follow or comment.
 - For a long-form reference, the title and the thumbnail carry the hook.
 - **Read TikTok through the `browse` skill on its CloakBrowser engine**
-  (`../browse/SKILL.md`: headed agent-browser, logged out, its session export
+  (`../../browse/SKILL.md`: headed agent-browser, logged out, its session export
   and cleanup). Plain Chromium is the browse default and TikTok blocks it —
   the CloakBrowser stealth exports are required, and the `mvf-research`
   profile below only exists on that engine.

@@ -16,8 +16,8 @@ System-level design over a product horizon. `plan-draft` plans one change and
 in what order, and hands each stage to them. It writes documents and
 diagrams only: never code, infrastructure, configuration or data.
 
-Follow [preamble](../references/preamble.md) and the
-[Auto-Decision Framework](../references/auto-decision-framework.md). Shared
+Follow [preamble](../../shared/preamble.md) and the
+[Auto-Decision Framework](../../shared/auto-decision-framework.md). Shared
 refs are filesystem paths beside this skill's directory, so read them by path, not as `skill://`.
 Detail: [roadmap](references/roadmap.md) (tracks, triggers, seams) ·
 [diagrams](references/diagrams.md) (set, homes, render check) ·
@@ -98,7 +98,7 @@ Mirror the steps into the task list.
      a lock, unbounded tables or queries, fan-out per request.
    - **Cost**: spend per component against what it serves.
    - **Operability**: rows of
-     [agent-operable](../references/agent-operable.md) the system does not
+     [agent-operable](../../shared/agent-operable.md) the system does not
      meet (UI-only operator actions, writes with no preview or retry safety,
      no health or needs-attention read path), `high` when an agent is due to
      run the product within the horizon.
@@ -145,7 +145,7 @@ document do not apply; principles 1–4 and 6 do. Input is the requirement
    with the signal that would add it. A fact decided later is a
    `TODO(2build):` line.
 5. **Owner summary**, returned in the reply to
-   [owner language](../references/owner-language.md) and kept out of the
+   [owner language](../../shared/owner-language.md) and kept out of the
    document: what the product is made of (roles, not component names), what
    it will cost per month once live, what was left out and when it would be
    added, and each decision that is the owner's with its default.

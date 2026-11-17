@@ -18,8 +18,8 @@ numbers as their acceptance, and `verify` re-measures them. A cause that is a
 bug rather than a cost (wrong results, crashes, a broken deploy) goes to
 `investigate`.
 
-Follow [preamble](../references/preamble.md) and the
-[Auto-Decision Framework](../references/auto-decision-framework.md). Shared
+Follow [preamble](../../shared/preamble.md) and the
+[Auto-Decision Framework](../../shared/auto-decision-framework.md). Shared
 refs are filesystem paths beside this skill's directory, so read them by path, not as `skill://`.
 Detail: [measure](references/measure.md) (access, sources, where time goes,
 budgets, noise) · [ladder](references/ladder.md) (fix order, safety per rung)
@@ -34,7 +34,7 @@ budgets, noise) · [ladder](references/ladder.md) (fix order, safety per rung)
 ## Writing for the owner
 The reader decides with money and risk, not stack traces, and reads only the
 report's first part. That part follows
-[owner language](../references/owner-language.md) and the
+[owner language](../../shared/owner-language.md) and the
 [template](references/report.md)'s part 1: journeys and seconds a person
 feels, causes a non-engineer could repeat, numbered recommendations each with
 money, risk and the command that starts it. Routes, percentiles, ids and
@@ -60,7 +60,7 @@ when the profile is new.
 
 The one `NEEDS_CONTEXT` this skill may raise is missing read-only production
 access. Raise it once, through the
-[preamble's channel](../references/preamble.md#one-mode-four-escalation-channels),
+[preamble's channel](../../shared/preamble.md#one-mode-four-escalation-channels),
 naming exactly what access is needed, for how long and that it only reads;
 when the channel cannot wait, finish with lab and static evidence and put the
 request in `NEXT`.
@@ -97,7 +97,7 @@ the task list.
    sentence, classify it waste or real work, and prove it (a local toggle
    that removes the suspect and re-measures, a plan at production volume, or
    a counted fact such as queries per request). Check earlier fixes in the
-   same area first ([git archaeology](../references/finding-unknowns.md)). An
+   same area first ([git archaeology](../../shared/finding-unknowns.md)). An
    unproven cause is a `suspect`, never a ranked fix.
 5. **Rank** each proven cause on the lowest [ladder](references/ladder.md)
    rung that removes it, with estimated gain (ms × calls, CPU share, money),

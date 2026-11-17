@@ -13,10 +13,10 @@ disable-model-invocation: true
 # ui-audit
 Make it really good, use lots of tokens and iterate till you're proud of it.
 
-Follow [preamble](../references/preamble.md) and the
-[Auto-Decision Framework](../references/auto-decision-framework.md). Shared
+Follow [preamble](../../shared/preamble.md) and the
+[Auto-Decision Framework](../../shared/auto-decision-framework.md). Shared
 refs are filesystem paths beside this skill's directory, so read them by path, not as `skill://`.
-The standard is the [UI bar](../references/ui-bar.md); findings cite its row
+The standard is the [UI bar](../../shared/ui-bar.md); findings cite its row
 ids. Evaluate and report only; fixes go to `autopilot` (`plan-draft` /
 `design-ui` / `implement`). Browser setup, session and cleanup: the
 [`browse`](../browse/SKILL.md) skill (`agent-browser`); do not duplicate it.
@@ -159,7 +159,7 @@ never its own letter grade: a lens fails when any of its bar rows fails, on
 source or runtime evidence alike, and lists the rows it could not measure.
 Every number recorded in a Map table is judged against its row; a count
 without a verdict is not a measurement. Numbers
-are the [UI bar](../references/ui-bar.md)'s unless the design authority sets
+are the [UI bar](../../shared/ui-bar.md)'s unless the design authority sets
 its own.
 
 | lens | bar rows | measured by | pass |
