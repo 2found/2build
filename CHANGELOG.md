@@ -2,6 +2,18 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
+## Unreleased
+
+### Changed
+
+- Soot pack `packs/2build` is now a Soot pack v2: `pack.json` carries only
+  `name`, a `{vi, en}` description and keywords, and each skill is
+  `skills/<name>/SKILL.md`, named as is (was `2build_<name>`, listed in a v1
+  `skills[]` manifest with `api_version`). Shared references ship at
+  `skills/references/`, mirroring `.claude/skills/`, so relative links resolve
+  unchanged. A Soot runtime that reads only v1 packs refuses it; Soot Forge
+  0.21.0 pins this layout.
+
 ## 1.137.0 — 2026-11-17
 
 ### Changed

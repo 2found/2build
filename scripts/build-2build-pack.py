@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
 """Build the `2build` soot pack from .claude/skills/.
 
-Every 2build skill becomes one pack skill (the dir is named after the skill,
-skill name == 2build_<skill>). Rename shims (`foreman`, `release-prd`, `analytics-review`) are excluded, and so is `team` — its runtime depends on
+Every 2build skill becomes one pack skill, `skills/<skill>/SKILL.md` (Soot
+pack v2: the folder name is the skill name, used as is). Rename shims (`foreman`, `release-prd`, `analytics-review`) are excluded, and so is `team` — its runtime depends on
 Orca transport and does not port to a soot pack. Output layout:
 
-    <out>/2build/            git-addable, self-contained pack folder
-        pack.json
+    <out>/2build/                    git-addable, self-contained pack folder
+        pack.json                    {name, description, keywords}; skills are found by folder
         README.md
-        build-meta.json      version/commit provenance (release builds only)
-        <skill>/skill.md     one per skill
-        <skill>/…            aux files (references/, workflows/, data/)
-        shared/              .claude/skills/references/ (Markdown paths translated)
+        build-meta.json              version/commit provenance (release builds only)
+        skills/<skill>/SKILL.md      one per skill
+        skills/<skill>/…             aux files (references/, workflows/, data/)
+        skills/references/           .claude/skills/references/ (no SKILL.md, so not a skill)
+
+The layout mirrors .claude/skills/, so every relative Markdown link in a skill
+resolves unchanged.
 
 Install into a soot deployment:
     soot add <2build-repo> --path packs/2build
     # then select the pack in the Soot definition:
-    #   "packs": ["2build"]            → every skill in pack.json
+    #   "packs": ["2build"]            → every skill under skills/
 
 CI / release usage:
     python3 scripts/build-2build-pack.py --check-tree          # CI drift check
@@ -49,7 +52,7 @@ SOOT_SKILL_LIMIT = 64 << 10  # matches internal/config/config.go maxPromptBytes
 # Soot inlines a skill body verbatim into the agent prompt and never resolves
 # the `../references/` links the source skills carry, so the bbs-CLI
 # prerequisite has to sit in the body itself to be read. Injected into every
-# packed skill.md (after the frontmatter) and repeated in the README.
+# packed SKILL.md (after the frontmatter) and repeated in the README.
 PREREQUISITE = (
     "> **Prerequisite — the `bbs` CLI.** Every command below shells out to `bbs`.\n"
     "> Install it first: `brew install 2found/2build/bbs` (macOS/Linux), the release\n"
@@ -97,25 +100,16 @@ def with_prerequisite(text):
     return text[:at] + "\n" + prerequisite + text[at:]
 
 
-def pack_markdown(text):
-    """Translate source skill-directory paths to the pack's filesystem layout."""
-    text = text.replace("../references/", "../shared/")
-    return re.sub(r"(\.\./[A-Za-z0-9_-]+/)SKILL\.md\b", r"\1skill.md", text)
-
-
 def copy_skill(dst_dir, src_dir):
     dst_dir.mkdir(parents=True, exist_ok=True)
     for path in sorted(src_dir.rglob("*")):
         if not path.is_file():
             continue
         rel = path.relative_to(src_dir)
-        rel = Path("skill.md") if rel == Path("SKILL.md") else rel
         target = dst_dir / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, target)
-        if target.suffix == ".md":
-            target.write_text(pack_markdown(target.read_text()))
-        if rel == Path("skill.md"):
+        if rel == Path("SKILL.md"):
             target.write_text(with_prerequisite(target.read_text()))
 
 
@@ -214,39 +208,42 @@ def build(out, version, commit):
             failures.append(f"{name}: missing SKILL.md")
             continue
         text = skill_file.read_text()
-        packed = len(with_prerequisite(pack_markdown(text)).encode())
+        packed = len(with_prerequisite(text).encode())
         if packed > SOOT_SKILL_LIMIT:
             failures.append(
-                f"{name}: skill.md is {packed} bytes, over the {SOOT_SKILL_LIMIT}-byte soot skill limit")
+                f"{name}: SKILL.md is {packed} bytes, over the {SOOT_SKILL_LIMIT}-byte soot skill limit")
             continue
         description = frontmatter_field(text, "description")
         if not description:
             failures.append(f"{name}: no description in SKILL.md frontmatter")
             continue
-        copy_skill(out / name, skill_dir)
-        skills.append({
-            "name": f"2build_{name}",
-            "file": f"{name}/skill.md",
-            "description": description,
-        })
+        if frontmatter_field(text, "name") != name:
+            failures.append(f"{name}: frontmatter name must equal the folder name")
+            continue
+        copy_skill(out / "skills" / name, skill_dir)
+        skills.append(name)
         rows.append((name, packed, description))
 
     shared = SKILLS / "references"
     if shared.is_dir():
-        dst = out / "shared"
+        dst = out / "skills" / "references"
         dst.mkdir(parents=True, exist_ok=True)
         for path in sorted(shared.rglob("*")):
             if path.is_file():
                 target = dst / path.relative_to(shared)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(path, target)
-                if target.suffix == ".md":
-                    target.write_text(pack_markdown(target.read_text()))
 
     manifest = {
-        "api_version": "soot/v1",
-        "id": "2build",
-        "skills": skills,
+        "name": "2build",
+        "description": {
+            "vi": "Quy trình làm sản phẩm của 2build: lên kế hoạch, viết code, review, kiểm thử và phát hành từng việc một. Các skill gọi CLI bbs.",
+            "en": "Product engineering workflows from 2build: plan, build, review, test and ship one ticket at a time. Skills shell out to the bbs CLI.",
+        },
+        "keywords": {
+            "vi": ["lập trình", "kiểm thử", "phát hành"],
+            "en": ["engineering", "coding", "qa", "release"],
+        },
     }
     data = json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"
     if len(data.encode()) > 64 << 10:
@@ -329,10 +326,10 @@ def build(out, version, commit):
         "",
         "| Work | Start with |",
         "| --- | --- |",
-        "| Evaluate external code | [recon](recon/skill.md) |",
-        "| Finish a ticket | [autopilot](autopilot/skill.md), [implement](implement/skill.md), [qa](qa/skill.md) |",
-        "| Docs or marketing page | [agent-first-docs](agent-first-docs/skill.md) |",
-        "| Diagnose a failure | [investigate](investigate/skill.md) |",
+        "| Evaluate external code | [recon](skills/recon/SKILL.md) |",
+        "| Finish a ticket | [autopilot](skills/autopilot/SKILL.md), [implement](skills/implement/SKILL.md), [qa](skills/qa/SKILL.md) |",
+        "| Docs or marketing page | [agent-first-docs](skills/agent-first-docs/SKILL.md) |",
+        "| Diagnose a failure | [investigate](skills/investigate/SKILL.md) |",
         "",
         "`foreman` is not included: its project coordinator requires the Orca",
         "worker runtime. See the [full product](https://github.com/2found/2build)",
@@ -353,13 +350,14 @@ def build(out, version, commit):
         "",
         "## Pack layout",
         "",
-        "Shared 2build references live under `shared/`; skill files reference",
-        "them by relative path where the original skill did. Auxiliary skill",
-        "assets (references/, workflows/, data/) ship under each skill dir.",
-        "The CLI prerequisite is inlined at the top of every `skill.md`.",
+        "Each skill is `skills/<name>/SKILL.md`; shared 2build references live",
+        "under `skills/references/` (no `SKILL.md`, so not a skill), the same",
+        "layout as the source, so relative links resolve unchanged. Auxiliary",
+        "skill assets (references/, workflows/, data/) ship under each skill dir.",
+        "The CLI prerequisite is inlined at the top of every `SKILL.md`.",
         "",
         "A Soot that selects the pack (`\"packs\": [\"2build\"]`) reads every",
-        "skill in `pack.json`; the pack has no tools.",
+        "skill under `skills/`; the pack has no tools.",
         "",
         "This README is generated from `scripts/build-2build-pack.py` in the",
         "2build repository. Edit that source and regenerate the pack to update it.",

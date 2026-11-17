@@ -19,15 +19,15 @@ with tempfile.TemporaryDirectory() as temp:
     pack = Path(temp) / "2build"
     assert builder.build(pack, version="", commit="") == 0
     for skill in ("autopilot", "implement", "plan-draft", "qa", "review-pr", "triage", "semantic-decision"):
-        text = (pack / skill / "skill.md").read_text()
-        for target in re.findall(r"\.\./(?:semantic-decision|shared)/[\w.-]+\.md", text):
-            assert (pack / skill / target).is_file(), (skill, target)
-    contract = (pack / "shared/semantic-decision.md").read_text()
-    assert (pack / "shared" / re.search(r"\[semantic-decision skill\]\(([^)]+)\)", contract)[1]).is_file()
-    semantic = (pack / "semantic-decision/skill.md").read_text()
+        text = (pack / "skills" / skill / "SKILL.md").read_text()
+        for target in re.findall(r"\.\./(?:semantic-decision|references)/[\w.-]+\.md", text):
+            assert (pack / "skills" / skill / target).is_file(), (skill, target)
+    contract = (pack / "skills/references/semantic-decision.md").read_text()
+    assert (pack / "skills/references" / re.search(r"\[semantic-decision skill\]\(([^)]+)\)", contract)[1]).is_file()
+    semantic = (pack / "skills/semantic-decision/SKILL.md").read_text()
     assert "uses the calling LLM fallback" in semantic
     assert "skill reports `BBS_DEGRADED` and stops" not in semantic
-    assert "skill reports `BBS_DEGRADED` and stops" in (pack / "qa/skill.md").read_text()
+    assert "skill reports `BBS_DEGRADED` and stops" in (pack / "skills/qa/SKILL.md").read_text()
 
 # Execute each consumer's actual load expression with a dummy project exporter.
 # Provider values from the project must be filtered, while QA variables and

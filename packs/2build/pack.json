@@ -1,131 +1,20 @@
 {
-  "api_version": "soot/v1",
-  "id": "2build",
-  "skills": [
-    {
-      "name": "2build_agent-first-docs",
-      "file": "agent-first-docs/skill.md",
-      "description": "Write a product's docs, quick start or marketing page around one copyable coding-agent prompt, and serve docs as agent-readable Markdown (llms.txt, .md URLs). Use for onboarding docs, quick starts, product pages, heroes and CTAs."
-    },
-    {
-      "name": "2build_architect",
-      "file": "architect/skill.md",
-      "description": "Map a system's current architecture and design its next generation with diagrams: verified as-is design, headroom, safety gaps, and a staged scaling roadmap (edge, database, cache, jobs, replicas, services) where each stage waits for a measured trigger. `new` designs the smallest system for a product with no code yet."
-    },
-    {
-      "name": "2build_autopilot",
-      "file": "autopilot/skill.md",
-      "description": "Deliver one ticket end-to-end from a requirement or accepted plan to a verified, releasable change left uncommitted in its checkout. Own implementation, review fixes, QA, and evidence across resumes; the default for any size of change, including a day-long one. In a folder with no project yet, start one from an idea (or none): requirement, prototype, scaffolded services, harness and a feature backlog. Use team only for phased releases, independent phase verification or parallel work on disjoint parts."
-    },
-    {
-      "name": "2build_browse",
-      "file": "browse/skill.md",
-      "description": "Use the browser for focused web-app checks: open a URL, inspect state, click through a flow, capture screenshots, read console errors, or verify a frontend fix. Prefer this over a full QA workflow."
-    },
-    {
-      "name": "2build_create-pr",
-      "file": "create-pr/skill.md",
-      "description": "Prepare and create a pull request from the current branch. Use when a human requests a PR; 2build workflows never open one."
-    },
-    {
-      "name": "2build_design-ui",
-      "file": "design-ui/skill.md",
-      "description": "Design and iterate a reviewable UI from the user's jobs, using the project's design authority and existing screens, to the shared UI bar (jobs that finish, one owner per feature, simple, scannable, one component system, fast). Use for UI design requests or a workflow's design/prototype handoff; a direct build request can use the working UI as its prototype."
-    },
-    {
-      "name": "2build_harness-audit",
-      "file": "harness-audit/skill.md",
-      "description": "Audit AGENTS.md, CLAUDE.md and linked project instructions against repository code, scripts, CI and agent configuration. Use to find stale commands, broken references, conflicting rules or missing verification paths; setup-project owns initial 2build configuration."
-    },
-    {
-      "name": "2build_humanizer-vi",
-      "file": "humanizer-vi/skill.md",
-      "description": "Rewrite AI-sounding or machine-translated Vietnamese so it reads like a Vietnamese writer without changing what it says. Use when editing, reviewing or translating Vietnamese prose, scripts or docs for AI tells such as \"không chỉ... mà còn\", staged openers (\"Hãy cùng khám phá\"), calques of English idioms, \"việc/sự/một cách\" nominalization, \"được... bởi\" passives, inflated words (đột phá, nâng tầm, hành trình), sales language, dashes, bold labels or filler."
-    },
-    {
-      "name": "2build_image-gen",
-      "file": "image-gen/skill.md",
-      "description": "Generate raster images locally with Qwen Image 2.1 Turbo (Metal, no account, no network at generation time) and cut subjects out of their background with RMBG-1.4. Use for draft plates, backgrounds, covers, stickers and reference-guided edits; not pixel-exact edits, UI mock-ups or likenesses of real people."
-    },
-    {
-      "name": "2build_implement",
-      "file": "implement/skill.md",
-      "description": "Implement a scoped code change from the user's request, an accepted plan.md, or ticket context. Use for feature work, bug fixes, endpoints, UI changes, integrations, and contained refactors."
-    },
-    {
-      "name": "2build_investigate",
-      "file": "investigate/skill.md",
-      "description": "Debug a failure before fixing it. Use when the user asks why something is broken, wants root cause analysis, or reports an error, regression, flaky test, crash, or unexpected behavior."
-    },
-    {
-      "name": "2build_marketing-video",
-      "file": "marketing-video/skill.md",
-      "description": "Plan and produce marketing videos for your own product on TikTok, YouTube (Shorts and long-form), Instagram and Facebook Reels, X and LinkedIn, for any product and any kind of video, from research to a script strangers can retell, art, voice, edit and per-platform files; you post them."
-    },
-    {
-      "name": "2build_perf-audit",
-      "file": "perf-audit/skill.md",
-      "description": "Audit one feature's or the whole system's performance for an owner who is not an engineer: what users feel, proven causes from production signals, fixes ranked easiest and safest first. Use when something feels slow, before buying capacity, or to verify a fix."
-    },
-    {
-      "name": "2build_plan-draft",
-      "file": "plan-draft/skill.md",
-      "description": "Draft a technical plan before implementation. Use when the user asks for a plan, architecture, ticket breakdown, or wants to turn a requirement into plan.md without coding yet."
-    },
-    {
-      "name": "2build_qa",
-      "file": "qa/skill.md",
-      "description": "Systematically test a web application, fix issues caused by the current change, and re-verify. Use for full QA loops, critical user flows, release checks, or test-and-fix requests."
-    },
-    {
-      "name": "2build_recon",
-      "file": "recon/skill.md",
-      "description": "Evaluate an external repository, library, or tool against the current project. Use for adoption decisions, architecture comparisons, or requests to explore and borrow from another project."
-    },
-    {
-      "name": "2build_release",
-      "file": "release/skill.md",
-      "description": "Release a repository or selected services to production, from version and changelog through main sync, GitHub release, package distribution, deployment and hypercare. Supports --local when CI quota is exhausted; use --dry-run for a read-only release plan."
-    },
-    {
-      "name": "2build_review-pr",
-      "file": "review-pr/skill.md",
-      "description": "Review code before it lands — the current branch, working diff, or a GitHub pull request. Use when asked to review a PR/diff/change, run a code review, do a pre-merge or pre-commit check, hunt for bugs, or gate a change before landing. Surfaces correctness bugs, removed behavior, cross-file breakage, security, performance, and cleanup, then verifies each candidate before reporting. Effort levels low|medium|high|xhigh|max (default medium; only an explicit human request runs above medium); --fix applies findings to the working tree, --comment posts inline PR comments. Claude Code /code-review pipeline with babysit semantic-decision integration."
-    },
-    {
-      "name": "2build_semantic-decision",
-      "file": "semantic-decision/skill.md",
-      "description": "Make an explicit, structured judgment from evidence and bounded choices. Use for task sizing, skill routing, orchestration need, test impact, review findings, recovery, decision tiers, or whether human/deeper review is warranted. Defaults to the current LLM; configured Cloudflare Clef/Clef-flash can replace the provider."
-    },
-    {
-      "name": "2build_setup-project",
-      "file": "setup-project/skill.md",
-      "description": "Initialize or update a repo's 2build configuration, QA target, architecture and release documents, and project pointers. Use for onboarding or requested configuration changes; use harness-audit to inspect existing AGENTS.md, CLAUDE.md and related harness files."
-    },
-    {
-      "name": "2build_telemetry-review",
-      "file": "telemetry-review/skill.md",
-      "description": "Review 2build's own telemetry, not product analytics. Use to turn ~/.babysit/analytics (skill-usage.jsonl, decisions.jsonl) into a short ticket-ready report — which skills fire and fail, whether plan-draft habitually over-sizes, where runs go BLOCKED."
-    },
-    {
-      "name": "2build_test",
-      "file": "test/skill.md",
-      "description": "Create meaningful regression coverage, audit weak or redundant tests, and optimize test lanes using measured cost and change impact. Use for test creation, suite audits, failing-test investigation, or CI test optimization; browser journey QA stays with qa/browse."
-    },
-    {
-      "name": "2build_token-audit",
-      "file": "token-audit/skill.md",
-      "description": "Audit where agent sessions spend tokens and what every session loads before work starts (skill listing, CLAUDE.md/AGENTS.md, memory), then rank savings that keep quality. Use when runs feel expensive, before tuning skills, models, effort or compaction, or to check background context bloat."
-    },
-    {
-      "name": "2build_triage",
-      "file": "triage/skill.md",
-      "description": "Tier-1 triage for a stalled or BLOCKED autonomous run. Use when a worker returned BLOCKED/NEEDS_CONTEXT or a ticket's checkpoint stopped advancing — classify recoverable vs needs-human, post a structured handoff, optionally resume from the checkpoint."
-    },
-    {
-      "name": "2build_ui-audit",
-      "file": "ui-audit/skill.md",
-      "description": "Audit a running app's UI/UX against the shared UI bar. Maps the whole product side by side (features duplicated across screens, jobs that cannot finish, complexity, text density, component and loading/spacing drift, UI speed, backend ground truth) and walks real user journeys end to end (PASS/FRICTION/BLOCKED); measured and evidenced, reported for the owner with fixes ranked cut-first. Also builds the flow inventory and re-audits after a fix. Use before planning UI improvements, when the UI feels hard to use, slow or inconsistent, when users get stuck, or to audit a live app safely."
-    }
-  ]
+  "name": "2build",
+  "description": {
+    "vi": "Quy trình làm sản phẩm của 2build: lên kế hoạch, viết code, review, kiểm thử và phát hành từng việc một. Các skill gọi CLI bbs.",
+    "en": "Product engineering workflows from 2build: plan, build, review, test and ship one ticket at a time. Skills shell out to the bbs CLI."
+  },
+  "keywords": {
+    "vi": [
+      "lập trình",
+      "kiểm thử",
+      "phát hành"
+    ],
+    "en": [
+      "engineering",
+      "coding",
+      "qa",
+      "release"
+    ]
+  }
 }
