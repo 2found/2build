@@ -300,6 +300,7 @@ def align(display: str, counts: list[int], spoken: str, heard: dict, speech: tup
             step = (b - a) / (i2 - i1)
             for k in range(i2 - i1):
                 times[i1 + k] = (a + step * k, a + step * (k + 1))
+    heard_tok = [t is not None for t in times]
     # Interpolate unmatched tokens between known neighbours (or the speech span).
     known = [(i, t) for i, t in enumerate(times) if t]
     n = len(sp)
@@ -313,11 +314,14 @@ def align(display: str, counts: list[int], spoken: str, heard: dict, speech: tup
         step = (b_t - a_t) / max(1, b_i - a_i)
         times[i] = (a_t + step * (i - a_i - 1) + 0.0, a_t + step * (i - a_i))
     times = [times[j] for j in sp_map]  # back to one entry per spoken token
+    heard_tok = [heard_tok[j] for j in sp_map]
     # Display words take the span of their spoken tokens.
     out, k = [], 0
     for w, c in zip(words(display), counts):
         span = times[k:k + c] or [(speech[1], speech[1])]
         out.append({"w": w, "s": round(span[0][0], 3), "e": round(max(span[-1][1], span[0][0] + 0.05), 3)})
+        if c and not any(heard_tok[k:k + c]):
+            out[-1]["unheard"] = True  # Whisper did not hear it: interpolated, maybe never said
         k += c
     # Monotonic, inside the speech span.
     last = speech[0]
@@ -398,7 +402,8 @@ def voice_cue(v: Voice, ears: Ears, cue: dict, lang: str, speed: float, say: dic
     if not plan:
         raise SystemExit(f"{cue['id']}: nothing left to say after cleaning")
     tts_text = "\n".join(" ".join(unit) for unit in plan)
-    seed = int(hashlib.sha1(cue["id"].encode()).hexdigest()[:6], 16)
+    # the same line gives the same audio; a redo (`mvf voice --redo`) salts the seed with its take
+    seed = int(hashlib.sha1(f"{cue['id']}{cue.get('salt', '')}".encode()).hexdigest()[:6], 16)
     audio, sr = v.say(plan, lang, speed, seed=seed, instruct=instruct)
     wav = out / f"{cue['id']}.wav"
     v.save(wav, audio, sr)

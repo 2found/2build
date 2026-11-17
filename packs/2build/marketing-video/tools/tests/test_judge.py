@@ -181,6 +181,28 @@ class Judge(unittest.TestCase):
         with self.assertRaises(SystemExit):
             judge.stimulus(rows * 4, 720.0, "measured", "", "tiktok", True)
 
+    def test_a_long_video_is_its_card_its_opening_and_each_chapters_key_lines(self):
+        from mvflib import timing
+        beats = [{"id": f"B{i + 1:02d}", "role": "hook" if i == 0 else "body", "visual": "một hình dài " * 10,
+                  "vo": (f"câu {i} " * 30).strip(), **({"chapter": f"Chương {i // 30}"} if i % 30 == 0 else {}),
+                  **({"key_moment": True} if i % 30 == 15 else {})} for i in range(150)]
+        sv = {"id": "s01-long", "beats": beats, "language": "vi",
+              "platforms": {"youtube-long": {"title": "Ba câu hỏi", "thumbnail_text": "đừng bỏ dở"}}}
+        tl = timing.build(sv, None)
+        self.assertGreater(tl["duration"], 900)
+        with self.assertRaises(SystemExit):  # a feed's stimulus cannot hold it
+            judge.stimulus(judge._rows(beats, tl["beats"]), tl["duration"], "estimated", "", "tiktok", True)
+        text = judge.long_stimulus(sv, tl, "youtube-long", True)
+        self.assertLessEqual(len(text), judge.STIMULUS_CHARS)
+        self.assertIn('tiêu đề "Ba câu hỏi"', text)
+        self.assertIn('ảnh bìa ghi "đừng bỏ dở"', text)
+        self.assertEqual(text.count("== Chương"), 5)
+        self.assertIn(f'"{beats[0]["vo"]}"', text)  # the opening word for word
+        for i in (15, 45, 135):
+            self.assertIn(f'"{beats[i]["vo"]}"', text)  # every key line word for word
+        self.assertTrue(judge.long_form("youtube-long") and not judge.long_form("youtube"))
+        self.assertEqual([q["id"] for q in judge.questions(True, True)][-2:], ["click", "left_at"])
+
     def test_the_campaign_names_its_audience_and_another_language_needs_its_own_library(self):
         self.setup_judge()
         (self.cd / "02-audience").mkdir(exist_ok=True)

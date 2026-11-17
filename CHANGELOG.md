@@ -2,6 +2,37 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
+## 1.136.0 — 2026-11-17
+
+### Added
+
+- `marketing-video` — long-form YouTube (15–20 min) is a first-class target. A
+  `youtube-long` video is judged as it is chosen: each `mvf judge` subject is
+  the title and thumbnail card, the first 90 s word for word, then each chapter
+  by its title with its `key_moment` lines verbatim and the rest condensed, so
+  a 17-minute script fits one Micro Fish subject. The interview adds `click`
+  (would the viewer click the card) and `left_at` (the chapter they would
+  leave); the leader is ranked on watch share × click share. A cut over 5
+  minutes gets a 1 fps overview brief (six sheets) plus `mvf viewer <proj>
+  --chapter K` per-chapter briefs answered in parallel; an unanswered chapter
+  WARNs. A beat may set `captions_y` (a frame share, or `[[seconds, share],
+  …]` marks) to lift or hide captions part-way through. The direction stage
+  splits long-form beats into chapters — at most four agents at once — and the
+  production review folds each chapter's verdict back.
+- `mvf judge` on a rate-limit stop now resumes where it left off —
+  `mvf judge resume --round rN` — and `progress.log` records why each session
+  failed.
+
+### Changed
+
+- `marketing-video` — YouTube hard limits follow account state: verified
+  uploads allow 12 h / 256 GB; the 15-minute unverified cap moved from a hard
+  limit to a WARN (`unverified_max_s`).
+- Long cuts are read at 12 fps instead of 1 fps for viewer briefs: a 17-minute
+  30 fps master otherwise held ~450 MB in memory.
+- `mvf export` and `mvf lint` copy and check long-form files (chapter briefs,
+  captions marks) alongside the existing script and timeline.
+
 ## 1.135.0 — 2026-11-17
 
 ### Added

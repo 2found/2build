@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from . import timing
 from .common import Report, words
 
 ENDING_HOLD = 2.0     # seconds after the last line of the ending when nothing follows
@@ -88,6 +89,7 @@ def _ending(beats, tl, sid, r: Report):
 def _keys(beats, tl, sid, r: Report):
     keys = [(b, t) for b, t in zip(beats, tl["beats"]) if b.get("key_moment")]
     lo, hi = KEY_RANGE
+    hi *= max(1, len(timing.chapters({"beats": beats}, tl)))  # a long video: up to 4 per chapter
     if not lo <= len(keys) <= hi:
         r.warn("K1", sid, f"{len(keys)} beats marked key_moment: mark the {lo}–{hi} lines a viewer must not miss "
                "(the stake, the turn, the payoff); each gets its own hold, picture and sound moment")

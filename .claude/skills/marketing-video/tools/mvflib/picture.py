@@ -23,6 +23,7 @@ POP_JUMP, POP_BACK = 25.0, 6.0
 LOUD_LU, HARSH_DB = 3.0, 3.0
 FLAT_VIDEO, FLAT_BEAT = 0.6, 0.75  # share of the frame in one flat colour: the video's median, one beat's mean
 SR = 24000
+LONG_S, LONG_FPS = 120.0, 12.0  # a longer cut is read at 12 fps: a 17-minute master at 30 fps held ~450 MB
 
 
 def _probe(path: Path) -> tuple[int, int, float]:
@@ -35,11 +36,14 @@ def _probe(path: Path) -> tuple[int, int, float]:
     return int(s["width"]), int(s["height"]), num / den
 
 
-def frames(path: Path) -> tuple[np.ndarray, float]:
-    """Every frame as small grey pixels (n, h, w) and the frame rate."""
+def frames(path: Path, most_fps: float | None = None) -> tuple[np.ndarray, float]:
+    """Every frame (or `most_fps` of them a second) as small grey pixels (n, h, w) and the rate they were read at."""
     W, H, fps = _probe(path)
     h = max(2, round(W_PX * H / W / 2) * 2)
-    raw = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(path), "-vf", f"scale={W_PX}:{h},format=gray",
+    vf = f"scale={W_PX}:{h},format=gray"
+    if most_fps and fps > most_fps:
+        fps, vf = most_fps, f"fps={most_fps:g},{vf}"
+    raw = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(path), "-vf", vf,
                           "-f", "rawvideo", "-"], capture_output=True, check=True).stdout
     return np.frombuffer(raw, dtype=np.uint8).reshape(-1, h, W_PX).astype(np.float32), fps
 
@@ -47,7 +51,7 @@ def frames(path: Path) -> tuple[np.ndarray, float]:
 def audio(path: Path) -> np.ndarray:
     raw = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(path), "-f", "f32le", "-ac", "1",
                           "-ar", str(SR), "-"], capture_output=True, check=True).stdout
-    return np.frombuffer(raw, dtype=np.float32).astype(np.float64)
+    return np.frombuffer(raw, dtype=np.float32)
 
 
 def flat_shares(path: Path, fps: float = 1.0) -> np.ndarray:
@@ -106,7 +110,7 @@ def check(path: Path, tl: dict, cap_band: tuple[float, float] | None = None) -> 
     r = Report()
     where = Path(path).name
     try:
-        fr, fps = frames(path)
+        fr, fps = frames(path, LONG_FPS if (tl.get("duration") or 0) > LONG_S else None)
     except (subprocess.CalledProcessError, OSError, ValueError, KeyError, IndexError) as e:
         r.warn("PX0", where, f"could not read the frames for the picture checks: {e}")
         return r

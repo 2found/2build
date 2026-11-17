@@ -179,6 +179,20 @@ class Lint(unittest.TestCase):
         for k in ("numbers", "numbers_dont_fit", "who_made_it", "tell_a_friend"):
             self.assertIn(f'"{k}"', text)
 
+    def test_a_long_video_is_read_as_chosen_and_its_body_is_written_once(self):
+        from mvflib.pretest import _script_block, coldread, place
+        self.assertIn("TikTok feed", place(script())[0])
+        s = script(platforms={"youtube-long": {"title": "Your inbox lies", "thumbnail_text": "inbox"}},
+                   variants=[{"id": "H2", "vo": "Another opening line."}])
+        text, long = place(s)
+        self.assertTrue(long)
+        self.assertIn('title "Your inbox lies"', text)
+        self.assertIn("home page", coldread(s, "H2", None))
+        h2 = _script_block(s, "H2", None, "s01/H1")
+        self.assertIn("Another opening line.", h2)
+        self.assertIn("the same beats as s01/H1", h2)
+        self.assertNotIn(s["beats"][1]["vo"], h2)
+
     def test_brand_in_hook_text_warns(self):
         s = script()
         s["beats"][0]["onscreen"] = "Acme sorts your inbox"
@@ -301,6 +315,13 @@ class Captions(unittest.TestCase):
         self.assertNotIn("00:00:00,500 --> 00:00:00,500", cue)
         self.assertIn("twenty four", cue)
 
+    def test_a_group_never_shows_before_its_beats_cut(self):
+        tl = timing.build(timing.variant(script(), None), MANIFEST)
+        g = caption_groups(tl, script())
+        b1 = tl["beats"][1]
+        first = next(x for x in g if x["tokens"][0]["s"] >= b1["start"])
+        self.assertGreaterEqual(first["s"], b1["start"])
+
     def test_groups_keep_punctuation_and_cap_three_words(self):
         tl = timing.build(timing.variant(script(), None), MANIFEST)
         g = caption_groups(tl, script())
@@ -417,6 +438,8 @@ class Speech(unittest.TestCase):
         ws = tts.align("one two three four five", c, sp, heard, (0, 1.2))
         self.assertEqual([w["w"] for w in ws], ["one", "two", "three", "four", "five"])
         self.assertTrue(0.2 <= ws[1]["s"] < ws[2]["s"] < ws[3]["s"] < 1.0)
+        # a run Whisper never heard is flagged: the take may have dropped it
+        self.assertEqual([w["w"] for w in ws if w.get("unheard")], ["two", "three", "four"])
 
 
 class OmniVoiceTake(unittest.TestCase):

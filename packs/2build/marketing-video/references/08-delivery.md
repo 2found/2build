@@ -57,7 +57,8 @@ reference, Meta's Reels publishing guide, LinkedIn Help a548372 and a1311816.
 - **Captions** come from the measured word times. With the `files` voice
   engine those times are spread by length, not measured: re-time them from
   the audio (`mvf voice --rehear --engine …`) before delivery. The cover is
-  frame 0.
+  frame 0, or `platforms.<p>.cover_at` (seconds) when the hook builds its
+  still: one count-up's frame 0 showed 1,2M where the fact was 4,5M.
 - **Watched and heard.** Watch each file once with sound and once muted. Check
   that:
   - the hook reads at 0 s;

@@ -72,6 +72,29 @@ class YouTubeLint(unittest.TestCase):
         s["platforms"]["youtube-long"]["description"] = "acme tips\n0:00 Intro\n0:15 Filter"
         self.assertIn("P5", codes(lint(s, c, REFS), "FAIL"))  # fewer than 3
 
+    def test_chapters_come_from_the_beats_not_typed(self):
+        from mvflib import timing
+        c = {**self.c, "platforms": ["youtube-long"]}
+        s = script()
+        s["platforms"] = {"youtube-long": {**YT, "canvas": "16x9", "thumbnail_text": "inbox lies"}}
+        for b, t in zip(s["beats"], ("Intro", "Filter", "Try it")):
+            b["chapter"] = t
+            b["min_s"] = 12
+        tl = timing.build(timing.variant(s, None), None)
+        self.assertNotIn("P5", codes(lint(s, c, REFS), "FAIL"))
+        desc = copy_files(s, "youtube-long", tl)["description.txt"]
+        self.assertTrue(desc.startswith("One filter sorts it."), desc)
+        stamps = [ln.split(" ", 1)[0] for ln in desc.splitlines() if ln[:1].isdigit()]
+        self.assertEqual(stamps, [timing.stamp(b["start"]) for b in tl["beats"]])
+        self.assertEqual(stamps[0], "0:00")
+        self.assertEqual(timing.stamp(3725), "1:02:05")
+        self.assertNotIn("0:00", copy_files(s, "youtube", tl)["description.txt"])  # a Short has no chapters
+        del s["beats"][0]["chapter"]  # a cold open before chapter 1 leaves 0:00 unnamed
+        self.assertIn("P5", codes(lint(s, c, REFS), "FAIL"))
+        s["beats"][0]["chapter"] = "Intro"
+        s["platforms"]["youtube-long"]["description"] = "acme\n0:00 Intro\n0:15 Filter\n0:30 Try it"
+        self.assertIn("P5", codes(lint(s, c, REFS), "WARN"))  # typed stamps drift after the voice
+
     def test_copy_files_per_platform(self):
         s = yt_script()
         self.assertEqual(set(copy_files(s, "youtube")), {"title.txt", "description.txt", "tags.txt"})

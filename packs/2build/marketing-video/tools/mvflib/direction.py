@@ -103,6 +103,16 @@ BLENDS = {"normal", "multiply", "screen", "overlay", "darken", "lighten", "color
 LAYER_Z = 0.25  # default depth: 0 moves with the plate, 1 moves twice as far (near the lens)
 
 
+def captions_marks(v) -> list[tuple[float, float | None]]:
+    """A beat's captions_y: one frame share for the whole beat, or [[seconds into the beat, share or null], …]
+    when part of the beat needs them elsewhere (its second half is a product screen) or not at all (null)."""
+    if v is None:
+        return []
+    if not isinstance(v, list):
+        return [(0.0, float(v))]
+    return [(float(at), None if y is None else float(y)) for at, y in v]
+
+
 def path(cd: Path, sid: str) -> Path:
     return cd / "07-video" / sid / DIRECTION
 
@@ -469,8 +479,9 @@ def _resolve_beat(bid, b, slot, nxt_slot, geo, art, media, rep, out):
                                "src": f"{sid}.key{j}"})
         s["s_last"] = prev_to["s"] if prev_to else 1.0
         cap_band = (geo["cap_top"] - 12, geo["cap_top"] + 2 * geo["cap_size"] + 40)
-        if raw.get("captions_y") is not None:
-            ct = float(raw["captions_y"]) * H
+        ys = [y for _, y in captions_marks(raw.get("captions_y")) if y is not None]
+        if ys:
+            ct = float(ys[0]) * H
             cap_band = (round(ct) - 12, round(ct + 2 * geo["cap_size"] + 40))
         ctx = {"preset": out.get("preset") or {}, "rigs": out.get("rigs") or {}, "props": out.get("props") or {}, "media": media,
                "words": [(w["s"] - b["start"] + lead, w["e"] - b["start"] + lead) for w in b.get("words") or []]}

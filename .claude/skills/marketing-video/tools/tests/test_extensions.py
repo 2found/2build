@@ -132,8 +132,9 @@ FAKE_ENGINE = textwrap.dedent("""
     for c in job["cues"]:
         with wave.open(str(out / f"{c['id']}.wav"), "wb") as w:
             w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(b"\\0\\0" * 16000)
+        lost = [{"w": w, "s": 0.5, "e": 0.55, "unheard": True} for w in ("a", "b")] if c.get("salt") else []
         cues.append({"id": c["id"], "text": c["text"], "path": f"{c['id']}.wav", "duration_s": 1.0,
-                     "speech": [0.1, 0.9], "words": []})
+                     "speech": [0.1, 0.9], "words": lost, "salt": c.get("salt")})
     json.dump({"engine": "fake", "language": job["language"], "voice": job["voice"], "extra": extra, "cues": cues},
               open(out / "manifest.json", "w"))
 """)
@@ -156,6 +157,13 @@ class CommandEngine(unittest.TestCase):
             self.assertEqual(m["extra"], ["--style", "calm"])
             self.assertEqual(m["mvf_voice"]["engine"], "fake")
             self.assertIn("already voices every line", mvf(cd, "voice", "s01-test").stdout)
+            # an unchanged line drawn again gets a new seed, and words the ASR never heard are flagged
+            r = mvf(cd, "voice", "s01-test", "--redo", "B02")
+            self.assertIn("1 line(s) to voice with fake, 2 reused from t01", r.stdout)
+            self.assertIn('WARN B02: Whisper did not hear "a b" at 0.50s', r.stdout)
+            m = json.loads((cd / "07-video/s01-test/takes/t02/manifest.json").read_text())
+            self.assertEqual({c["id"]: c.get("salt") for c in m["cues"]}, {"B01": None, "B02": ":t02", "B03": None})
+            self.assertIn("no spoken line B9", mvf(cd, "voice", "s01-test", "--redo", "B9", ok=False).stderr)
 
     def test_a_voice_used_once_is_found_by_every_later_campaign(self):
         d, root = repo()
@@ -226,6 +234,14 @@ class ScoreAndMaster(unittest.TestCase):
         from mvflib.mix import duck_expr, score
         self.assertEqual(duck_expr([], 0.4), "1")
         self.assertIn("max(", duck_expr([(0.5, 1.0), (2.0, 3.0)], 0.4))
+        # a long video: ffmpeg parses about 100 nested calls, so 200 lines go in chained filters
+        from mvflib.mix import duck_filters
+        from mvflib.export import run
+        af = duck_filters([(i * 4 + 1.0, i * 4 + 3.0) for i in range(200)][::-1], 0.4)
+        self.assertEqual(af.count("volume="), 4)
+        with tempfile.TemporaryDirectory() as td:
+            run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
+                 "-t", "1", "-af", af, str(Path(td) / "x.wav")])
         with tempfile.TemporaryDirectory() as d:
             proj = Path(d)
             (proj / "assets/vo").mkdir(parents=True)

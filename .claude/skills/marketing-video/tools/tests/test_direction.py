@@ -259,6 +259,12 @@ class Layers(unittest.TestCase):
         out = captions_html(groups, GEO, brand, 4.0, None, None, [(2.0, 4.0, 300)])
         self.assertIn('<div id="cap1" class="cap" style="top:300px">', out)
         self.assertIn('<div id="cap0" class="cap">', out)
+        # a window of a beat with no captions (its second half is a product screen) draws none there
+        from mvflib.direction import captions_marks
+        self.assertEqual(captions_marks([[0, 0.6], [1.5, None]]), [(0.0, 0.6), (1.5, None)])
+        out = captions_html(groups, GEO, brand, 4.0, None, None, [(0.0, 1.5, 1100), (1.5, 4.0, None)])
+        self.assertIn('<div id="cap0" class="cap" style="top:1100px">', out)
+        self.assertNotIn('id="cap1"', out)
 
     def test_raw_tweens_pass_through_so_the_agent_is_not_capped_by_the_presets(self):
         p, rep = self.plan([{"art": "HERO", "tweens": [

@@ -51,6 +51,11 @@ def family(platform: str) -> str:
     return (PLATFORMS.get(platform) or {}).get("family", platform)
 
 
+def long_form(platform: str) -> bool:
+    """A platform people choose a video on (a title and a thumbnail, then minutes of it), not a feed they scroll."""
+    return ((PLATFORMS.get(platform) or {}).get("recommend") or {}).get("min_s", 0) >= 60
+
+
 def copy_kind(platform: str) -> str:
     """How a platform's text is written: `caption` (one caption under the video), `post` (X: a post and a
     thread) or `youtube` (title, description, tags)."""
@@ -77,7 +82,7 @@ ID_RE = {
     "segment": re.compile(r"^A\d{1,2}$"),
     "trend": re.compile(r"^T\d{1,3}$"),
     "angle": re.compile(r"^G\d{1,2}$"),
-    "beat": re.compile(r"^B\d{2}$"),
+    "beat": re.compile(r"^B\d{2,3}$"),  # B100+ for long-form
     "hook": re.compile(r"^H\d$"),
     "script": re.compile(r"^(s\d{2}|ctl)(-[a-z0-9]+)*$"),  # ctl-…: a control, written to lose
 }

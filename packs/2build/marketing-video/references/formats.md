@@ -70,5 +70,23 @@ The specs and copy limits live in `tools/mvflib/platforms.json`, which
   Two channels done well beat five uploads of one file.
 - A short and a long-form version of one idea are two scripts that share
   research. The short is not a trimmed long-form.
+
+**Long-form (YouTube, 15-20 min).** The tools scale to it; what changes:
+- **Chapters come from the beats.** A beat's `chapter` title opens a chapter
+  that runs to the next one; the first beat opens the first. YouTube needs at
+  least 3, each at least 10 s (P5 FAILs otherwise). Export writes the stamps
+  into the description from measured time, so never type them.
+- **Length.** Over 15 minutes, YouTube takes the upload only from a verified
+  channel: L1 WARNs, and the owner verifies before posting.
+- **Lint per chapter.** K1 scales the key moments with the chapter count, and
+  over 2 minutes a WARN that repeats folds into one line counted by chapter.
+- **Pre-test** reads a long video the way it is chosen: the title and
+  thumbnail card, the first 90 s word for word, then each chapter's
+  `key_moment` lines word for word and the rest condensed. The panel is also
+  asked whether it would click and where it would leave; the leader is
+  ranked on watch share times click share ([06](06-pretest.md#micro-fish)).
+- **Production** gives one scene agent a chapter instead of a beat (SKILL.md
+  § Contexts), and the cold viewer sees the whole cut sparsely, then each
+  chapter at 1 fps ([07-review](07-review.md#cold-viewer)).
 - `platforms.<p>` in the script carries that channel's copy, and lint checks
   each one against its limits.

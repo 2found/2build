@@ -114,9 +114,8 @@ Vietnamese; a campaign in another language sets `judge.library` and
 `judge.context` in `~/.babysit/marketing-video/config.json`.
 
 The provider can rate-limit a long run. Micro Fish then stops where it is and
-keeps its record: `mvf judge resume --round rN` continues from there 2
-sessions at a time (`--parallel n` sets it; progress.log says why each
-session failed), and
+keeps its record: `mvf judge resume --round rN` continues from there
+(`--parallel 2` when progress.log shows rate limits), and
 `mvf judge collect <microfish dir>` reads back a run that finished without
 it. When the control leads or ties, or the lead is not clear, the society
 could not tell the scripts apart: rewrite from the research, not the hook,
@@ -129,7 +128,16 @@ the like and comment rates, how many stopped, where
 the cut ranked among the ordinary posts, and what the experts flagged. Export
 WARNs (JV1) when a delivered cut was never judged.
 
-Without Soot, use the feed and cold read below as an `agent-panel`, and say so.
+**A long video** (youtube-long) is judged as it is chosen: each subject is
+the title and thumbnail card, the first 90 s word for word, then each chapter
+by its title with its `key_moment` lines word for word and the rest
+condensed, so a 17-minute script fits one subject. The interview adds `click`
+(would they click the card) and `left_at` (the chapter they would leave), the
+first expert is a long-form editor, and the leader is ranked on watch share
+times click share. A script still too long names fewer key moments.
+
+Without Soot, use the cold read below as an `agent-panel`, and say so (a long
+video is not met in a feed: `mvf feed` WARNs).
 
 ## Direction
 - **Agent readers are generous and judge entertainment.** Handed one script and

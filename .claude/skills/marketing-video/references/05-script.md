@@ -248,16 +248,18 @@ so only live candidates remain. The keys the tool reads:
            "thesis": ["wording 1", "wording 2"], "loops": [{"id": "L1", "q": "", "open": "B01", "close": "B04"}]},
  "voice": {"mode": "recorded|clone|design|preset|none", "ref": "", "instruct": "", "name": "", "engine": "", "speed": 1.0},
  "beats": [{"id": "B01", "role": "hook", "vo": "", "onscreen": "", "visual": "", "shots": [], "facts": [],
-            "material": [], "art": [], "keys": [], "voice": "", "key_moment": false, "tempo": "", "device": ""}],
+            "material": [], "art": [], "keys": [], "voice": "", "key_moment": false, "tempo": "", "device": "", "chapter": ""}],
  "variants": [{"id": "H2", "vo": "", "onscreen": "", "visual": ""}],
  "material_override": "",
  "warn_notes": {"V2": "why this advice does not fit", "U1 s01[H2]": "a note for one place only"},
- "platforms": {"tiktok": {"canvas": "9x16", "caption": "", "sound": "original|trend:T1", "cover_text": ""},
+ "platforms": {"tiktok": {"canvas": "9x16", "caption": "", "sound": "original|trend:T1", "cover_text": "", "cover_at": 0},
                "x": {"post": "", "thread": [], "cover_text": "", "facts": [], "premium": false},
                "youtube": {"title": "", "description": "", "tags": [], "cover_text": ""},
                "youtube-long": {"canvas": "16x9", "title": "", "description": "", "tags": [], "thumbnail_text": ""}}}
 ```
 - `hook` is the variant the video is made with: only it is voiced and produced.
+- `chapter` (long-form only) titles the chapter this beat opens
+  ([formats](formats.md)); leave it out on every other beat.
 - `shots` lists the visible changes planned inside a beat (a cut, a push, a
   reveal); the pacing check counts them, so a long spoken sentence stays one
   beat.

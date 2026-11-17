@@ -72,6 +72,13 @@ Red items: 3s caption over the face; 6.5s frozen hand   (or none)
 Score: 6
 Retell: one or two sentences
 ```
+A cut over 5 minutes is too long for one helper at 1 fps: its brief shows a
+frame every few seconds (six sheets) and the chapter list, and asks the chapter
+the viewer would leave. Then `mvf viewer <proj> --chapter K` writes one
+1 fps brief per chapter (`viewer-brief-vN-cK.md`, answered in
+`viewer-vN-cK.md`); give them to fresh helpers in parallel. Their red items
+count with the overview's, and an unanswered one WARNs (VW1).
+
 Each red item goes into `review.json` as an issue, fixed or accepted with a
 reason. A delivery export WARNs when no viewer ran, the latest says
 UNVERIFIABLE (VW1), or red items have no issue near their second (VW2).
@@ -84,6 +91,16 @@ UNVERIFIABLE (VW1), or red items have no issue near their second (VW2).
   render again and run `mvf viewer` once more; ship on APPROVE, or with what
   is left `accepted` and the reason written. You cannot check your own
   framing fix: you made the frame the viewer called empty.
+- **Size a fix round by what it changes.** Red items with a measured target
+  (a subject's size, a position, a timing, a caption's place) go to one
+  helper on the mid-tier model (Sonnet), with the numbers in its brief; one
+  agent per scene on the strongest model only for a scene that must be
+  redrawn. One cut spent four Opus agents (about a seventh of the campaign)
+  enlarging subjects, and the score stayed 6.
+- **A score the look sets is not a fix round.** When the viewer's reason for
+  the score names the look ("template", "flat", "mixed art") rather than a red
+  item, fix the red items only and do not re-run the viewer for the score: the
+  look was set at the key frame.
 - **Stop when the score stops moving.** After a fix round whose viewer
   scores no higher than the one before, with no P0 open, stop: accept what
   is left with its reason and write in `score` what keeps the cut from the

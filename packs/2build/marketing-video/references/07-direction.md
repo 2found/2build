@@ -38,7 +38,10 @@ you may overrule.
       {"art": "P02", "at": "word:every", "in": "whip"}]},
     "B05": "custom" } }
 ```
-A beat may set `captions_y` (a frame share) to lift its captions off a face.
+A beat may set `captions_y` (a frame share) to lift its captions off a face,
+or `[[seconds into the beat, share or null], …]` to move them part-way through
+the beat (its second half is a product screen) or hide them there (null; the
+.srt keeps them).
 
 `look.preset` (`stickman`, `ink`, `anime`, or `none`; see
 `tools/mvflib/styles.json`) sets these under whatever the look and `captions`

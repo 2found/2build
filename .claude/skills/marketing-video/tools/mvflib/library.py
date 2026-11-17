@@ -175,7 +175,9 @@ def save(cd: Path, subject: str | None = None) -> dict:
                 out[rel] = _tree(cd / rel, pd / rel, replace=True)
         for rel in UNION:
             out[rel] = _tree(cd / rel, pd / rel)
-    sub = slug(subject or c.get("subject") or cd.name)
+    saved = _json(lib / SAVED) or {}
+    # a campaign made before --subject keeps the subject it was last saved under
+    sub = slug(subject or c.get("subject") or (saved.get(cd.name) or {}).get("subject") or cd.name)
     out["00-material"] = _tree(cd / "00-material", lib / "subjects" / sub / "00-material")
     out["history"] = record(cd)
     for src in sorted((cd / "07-video").glob("*/src")):
@@ -184,7 +186,6 @@ def save(cd: Path, subject: str | None = None) -> dict:
     for f in sorted(legacy.glob("*/format.json")) if legacy.is_dir() else []:
         if not (lib / "formats" / f.parent.name).exists():
             out["formats"] = out.get("formats", 0) + _tree(f.parent, lib / "formats" / f.parent.name)
-    saved = _json(lib / SAVED) or {}
     saved[cd.name] = {"at": today().isoformat(), "product": c.get("product"), "subject": sub}
     dump(lib / SAVED, saved)
     return out

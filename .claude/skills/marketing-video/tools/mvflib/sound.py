@@ -70,10 +70,13 @@ def speech_spans(tl: dict) -> list[tuple[float, float]]:
 
 
 def duck_curve(n: int, spans, db: float, ramp: float = 0.12) -> np.ndarray:
-    t = np.arange(n) / SR
     m = np.zeros(n)
-    for s, e in spans:
-        m = np.maximum(m, np.clip(np.minimum((t - (s - ramp)) / ramp, ((e + ramp) - t) / ramp), 0, 1))
+    for s, e in spans:  # only the samples a span touches: a long video has hundreds of spans
+        a, b = max(0, int((s - ramp) * SR)), min(n, int((e + ramp) * SR) + 1)
+        if a >= b:
+            continue
+        t = np.arange(a, b) / SR
+        m[a:b] = np.maximum(m[a:b], np.clip(np.minimum((t - (s - ramp)) / ramp, ((e + ramp) - t) / ramp), 0, 1))
     return 1 - (1 - 10 ** (-db / 20)) * m
 
 

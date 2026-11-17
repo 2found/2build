@@ -107,3 +107,26 @@ def build(script: dict, manifest: dict | None = None) -> dict:
 def load_manifest(take: Path) -> dict | None:
     m = Path(take) / "manifest.json"
     return load(m) if m.is_file() else None
+
+
+def chapters(script: dict, tl: dict) -> list[dict]:
+    """A long video's chapters: a beat's `chapter` (a title) opens one, and it runs to the next. Times are the
+    timeline's, so they follow the voice once it is measured. Long-form checks, briefs and reviews go chapter by
+    chapter, and export writes the description's stamps from these."""
+    starts = {b["id"]: b["start"] for b in tl["beats"]}
+    out = []
+    for b in script.get("beats") or []:
+        if isinstance(b.get("chapter"), str) and b["chapter"].strip() and b["id"] in starts:
+            out.append({"title": b["chapter"].strip(), "start": starts[b["id"]], "beats": []})
+        if out:
+            out[-1]["beats"].append(b["id"])
+    for a, z in zip(out, out[1:] + [None]):
+        a["end"] = z["start"] if z else tl["duration"]
+    return out
+
+
+def stamp(t: float) -> str:
+    """YouTube's chapter stamp: m:ss, or h:mm:ss past an hour."""
+    t = int(t)
+    h, m, s = t // 3600, t // 60 % 60, t % 60
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .common import HYPERFRAMES, PLATFORMS, Report, config, copy_kind, dump, family, heavy_prefix, load, tile_width
 from .scaffold import placeholders
+from . import timing
 
 
 def run(cmd: list[str], cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess:
@@ -188,14 +189,16 @@ def srt(groups: list[dict]) -> str:
     return "\n".join(out)
 
 
-def contact_sheet(path: Path, out: Path, cols: int = 6) -> Path:
+def contact_sheet(path: Path, out: Path, cols: int = 6, start: float = 0.0, span: float | None = None) -> Path:
+    """18 frames spread over the cut, or over `start`..`start + span` (one chapter of a long cut)."""
     info = probe(path)
-    dur = float(info["format"]["duration"])
+    dur = span or float(info["format"]["duration"])
     v = next(s for s in info["streams"] if s["codec_type"] == "video")
     n = cols * 3
     step = dur / n
     w = tile_width(int(v["width"]), int(v["height"]), cols, 3)
-    run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(path), "-vf",
+    run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", f"{start:.3f}", "-t", f"{dur:.3f}", "-copyts",
+         "-i", str(path), "-vf",
          # select (not fps): fps relabels a later frame as 00:00:00, so the sheet showed mid-effect frames as frame 0
          f"select='isnan(prev_selected_t)+gte(t-prev_selected_t\\,{step:.3f})',scale={w}:-2,drawtext=text='%{{pts\\:hms}}':x=4:y=4:fontsize={max(12, w // 12)}:fontcolor=white:box=1:boxcolor=black@0.5,"
          f"tile={cols}x3:padding=4:margin=4", "-frames:v", "1", str(out)])
@@ -207,11 +210,16 @@ def spot(path: Path, t: float, out: Path) -> Path:
     return out
 
 
-def copy_files(script: dict, platform: str) -> dict[str, str]:
-    """The text the user pastes at upload, one file per field."""
+def copy_files(script: dict, platform: str, tl: dict | None = None) -> dict[str, str]:
+    """The text the user pastes at upload, one file per field. A long video's chapter stamps come from the
+    measured timeline (timing.chapters), never typed."""
     c = (script.get("platforms") or {}).get(platform) or {}
     if copy_kind(platform) == "youtube":
-        return {"title.txt": c.get("title", "").strip() + "\n", "description.txt": c.get("description", "").strip() + "\n",
+        desc = c.get("description", "").strip()
+        chs = timing.chapters(script, tl) if tl and PLATFORMS[platform]["canvas"] != "9x16" else []
+        if chs:
+            desc = (desc + "\n\n" if desc else "") + "\n".join(f"{timing.stamp(x['start'])} {x['title']}" for x in chs)
+        return {"title.txt": c.get("title", "").strip() + "\n", "description.txt": desc + "\n",
                 "tags.txt": ", ".join(c.get("tags") or []) + "\n"}
     return {"caption.txt" if copy_kind(platform) == "caption" else "post.txt": post_copy(script, platform)}
 
@@ -301,7 +309,7 @@ def export(campaign_dir: Path, proj: Path, platforms: list[str], draft: bool = F
         r = qa(f, p, tl)
         rep.extend(r)
         (d / "captions.srt").write_text(srt(tl.get("captions", [])), encoding="utf-8")
-        for name, text in copy_files(script, p).items():
+        for name, text in copy_files(script, p, tl).items():
             (d / name).write_text(text, encoding="utf-8")
         if p == "youtube-long":
             th = campaign_dir / "07-video" / script["id"] / "thumbnail-16x9.jpg"
@@ -311,8 +319,13 @@ def export(campaign_dir: Path, proj: Path, platforms: list[str], draft: bool = F
                 rep.warn("Y6", p, f"no custom thumbnail: mvf thumbnail {script['id']} (YouTube picks a random frame otherwise)")
         hook_end = tl["beats"][0]["end"]
         # Frame 0 is the designed still (H0: readable at frame 0, no caption yet); later hook frames may be mid-effect.
-        spot(f, 0.0, d / "cover.jpg")
+        # A hook that builds its still (a count-up, a reveal) names the frame where it lands: platforms.<p>.cover_at.
+        cover_at = float(((script.get("platforms") or {}).get(PLATFORMS[p].get("upload_of") or p) or {}).get("cover_at") or 0)
+        spot(f, min(cover_at, tl["duration"] - 0.1), d / "cover.jpg")
         contact_sheet(f, d / "contact.jpg")
+        if tl["duration"] > viewer.LONG_S:  # 18 frames over 17 minutes is one a minute: one sheet per chapter too
+            for k, ch in enumerate(timing.chapters(script, tl), 1):
+                contact_sheet(f, d / f"contact-c{k}.jpg", start=ch["start"], span=ch["end"] - ch["start"])
         cta = next((b for b in tl["beats"] if b["role"] == "cta"), tl["beats"][-1])
         for k, t in enumerate([0.0, hook_end - 0.1, tl["duration"] / 2, cta["start"] + 0.6, tl["duration"] - 0.2]):
             spot(f, t, d / f"spot-{k}.jpg")

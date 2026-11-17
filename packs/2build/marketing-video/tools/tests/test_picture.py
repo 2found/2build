@@ -264,6 +264,45 @@ class ViewerBrief(unittest.TestCase):
             self.assertEqual(width(out), viewer.KEY_W)
             self.assertEqual([p.name for p in (proj / "review").iterdir()], ["keyframe.jpg"])
 
+    def test_a_long_cut_is_seen_whole_sparsely_and_each_chapter_at_one_fps(self):
+        with tempfile.TemporaryDirectory() as t:
+            clip = Path(t) / "c.mp4"
+            L = 400
+            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+                            f"testsrc2=s=90x160:r=2:d={L}", "-pix_fmt", "yuv420p", str(clip)], check=True)
+            cd, proj = project(Path(t), clip)
+            beats = [{"id": f"B{i + 1:02d}", "vo": "x", **({"chapter": f"Part {i // 4 + 1}"} if i % 4 == 0 else {})}
+                     for i in range(8)]
+            (cd / "05-scripts/s01.json").write_text(json.dumps({"id": "s01", "value": "v", "beats": beats,
+                                                                "platforms": {"youtube-long": {}}}))
+            tl = {"duration": L, "timing": "measured", "beats": [
+                {"id": b["id"], "start": i * 50.0, "end": i * 50.0 + 50, "vo_start": i * 50.0 + 1, "vo_end": i * 50.0 + 40,
+                 "words": [{"w": f"w{b['id']}"}]} for i, b in enumerate(beats)]}
+            (proj / "timeline.json").write_text(json.dumps(tl))
+            with self.assertRaises(SystemExit):
+                viewer.brief(cd, proj, 1)  # the overview comes first
+            text = viewer.brief(cd, proj).read_text()
+            self.assertIn("1 every 4 seconds", text)
+            self.assertIn("0:00 Part 1; 3:20 Part 2", text)
+            self.assertIn("leave or skip ahead", text)
+            self.assertEqual(len(list((proj / "review").glob("viewer-v1-strip-*.jpg"))), 6)
+            c2 = viewer.brief(cd, proj, 2)
+            self.assertEqual(c2.name, "viewer-brief-v1-c2.md")
+            text = c2.read_text()
+            self.assertIn('chapter 2 of 2, "Part 2", 200–400 s', text)
+            self.assertIn("wB05", text)
+            self.assertNotIn("wB04", text)  # chapter 1's voice
+            self.assertIn("review/viewer-v1-c2.md", text)
+            self.assertEqual(len(list((proj / "review").glob("viewer-v1-c2-strip-*.jpg"))), 12)
+            (proj / "review/viewer-v1.md").write_text("Verdict: APPROVE\nRed items: none\nRetell: r")
+            rep = Report()
+            viewer.check(proj, rep)
+            self.assertIn("viewer-brief-v1-c2.md has no finished answer", " ".join(i["msg"] for i in rep.items))
+            (proj / "review/viewer-v1-c2.md").write_text("Verdict: FIX\nRed items: 250s frozen\nRetell: r")
+            rep = Report()
+            viewer.check(proj, rep)
+            self.assertIn("250.0s frozen", " ".join(i["msg"] for i in rep.items if i["code"] == "VW2"))
+
     def test_no_render_is_a_clear_stop(self):
         with tempfile.TemporaryDirectory() as t:
             cd, proj = project(Path(t), None)

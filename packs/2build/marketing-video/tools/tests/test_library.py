@@ -103,6 +103,16 @@ class Library(unittest.TestCase):
         self.assertIn("production code in", out)
         self.assertNotIn("ep2/s01", out)  # not this campaign's own
 
+    def test_a_resave_keeps_the_subject_it_was_saved_under(self):
+        c = json.loads((self.cd / "campaign.json").read_text())
+        c.pop("subject")  # made before --subject
+        write(self.cd / "campaign.json", c)
+        mvf(self.cd, "library", "save", "--subject", "Kiếm Lai")
+        library.save(self.cd)  # the final export saves again without --subject
+        lib = library.root(self.cd)
+        self.assertEqual(json.loads((lib / "saved.json").read_text())["ep1"]["subject"], "kiem-lai")
+        self.assertFalse((lib / "subjects/ep1").exists())
+
     def test_a_template_never_overwrites_a_kept_pack(self):
         mvf(self.cd, "library", "save")
         mvf(self.root, "init", "ep3", "--product", "Acme")

@@ -169,12 +169,36 @@ def lint(script: dict, campaign: dict, refs: dict, manifest: dict | None = None,
     for p in platforms:
         _copy(script, p, sid, angle, refs, r)
     if "youtube-long" in platforms:
-        _chapters(script["platforms"]["youtube-long"] or {}, tl, f"{sid}.youtube-long", r)
+        _chapters(script, script["platforms"]["youtube-long"] or {}, tl, f"{sid}.youtube-long", r)
     _material(script, sid, refs, r)
     craft.check(script, tl, sid, refs, r, control=str(sid).startswith("ctl-"))
     r.info("T0", sid, f"{tl['timing']} runtime {tl['duration']:.1f}s over {len(beats)} beats")
     _answered(script, r)
+    if tl["duration"] > craft.SHORT_S:
+        _fold(script, tl, sid, r)
     return r
+
+
+def _fold(script: dict, tl: dict, sid: str, r: Report, most: int = 3):
+    """A long video repeats a beat-level WARN dozens of times (one 17-minute script: N4 ×20, V2 ×20). Past `most`,
+    one line per code names the beats, by chapter, and the first message."""
+    of = {b: x["title"] for x in timing.chapters(script, tl) for b in x["beats"]}
+    by: dict = {}
+    for it in r.items:
+        if it["level"] == "WARN":
+            by.setdefault(it["code"], []).append(it)
+    for code, its in by.items():
+        if len(its) <= most:
+            continue
+        r.items = [i for i in r.items if i not in its]
+        # where names the beat, or the message opens with the span ("48.0–62.3s:", "B03–B05:")
+        beats = [i["where"].rsplit(".", 1)[-1] if i["where"] != sid else i["msg"].split(":", 1)[0] for i in its]
+        counts: dict = {}
+        for b in beats:
+            counts[of.get(b, "")] = counts.get(of.get(b, ""), 0) + 1
+        per = "; ".join(f"{t}: {n}" for t, n in counts.items() if t)
+        r.warn(code, sid, f"×{len(its)} ({', '.join(beats[:12])}{', …' if len(beats) > 12 else ''})"
+               + (f" by chapter: {per}" if per else "") + f". First: {its[0]['msg']}")
 
 
 def _answered(script: dict, r: Report):
@@ -511,11 +535,14 @@ def _length(tl, tag, platforms, r: Report):
         label = PLATFORMS[p]["label"]
         if d > hard["max_s"] or d < hard["min_s"]:
             r.fail("L1", tag, f"{d:.1f}s is outside {label}'s {hard['min_s']}–{hard['max_s']}s limit")
+        elif hard.get("unverified_max_s") and d > hard["unverified_max_s"]:
+            r.warn("L1", tag, f"{d:.1f}s: {label} takes over {hard['unverified_max_s'] // 60} minutes only from a verified "
+                   "account; the owner verifies the channel before posting")
         elif rec.get("reach_max_s") and d > rec["reach_max_s"]:
             r.warn("L1", tag, f"{d:.1f}s: {label} recommends only videos up to {rec['reach_max_s']}s to people who do "
                    "not follow you")
-        elif d > rec["max_s"] or d < rec["min_s"]:
-            r.warn("L1", tag, f"{d:.1f}s is outside {label}'s {rec['min_s']}–{rec['max_s']}s sweet spot; "
+        elif d > rec.get("max_s", d) or d < rec["min_s"]:
+            r.warn("L1", tag, f"{d:.1f}s is outside {label}'s {rec['min_s']}–{rec.get('max_s', '')}s sweet spot; "
                    "keep it only if every beat earns its time")
 
 
@@ -734,12 +761,26 @@ def _youtube(c: dict, p: str, where: str, terms: list[str], r: Report):
             r.warn("P4", where, f"thumbnail_text is {len(words(thumb))} words; ≤ 4 reads at search-result size")
 
 
-def _chapters(c: dict, tl: dict, where: str, r: Report):
+def _chapters(script: dict, c: dict, tl: dict, where: str, r: Report):
     """Chapters make a long upload skimmable and searchable: 0:00 first, at least 3, each at least 10 s."""
     stamps = [m.group(0).strip() for m in CHAPTER.finditer(c.get("description", ""))]
+    chs = timing.chapters(script, tl)
+    if chs:
+        if stamps:
+            r.warn("P5", where, "the description types chapter stamps, and the beats' `chapter` fields make them too: "
+                   "delete the typed ones, export writes the stamps from the measured timeline")
+        if script["beats"][0]["id"] not in chs[0]["beats"]:
+            r.fail("P5", where, f"chapters start at {chs[0]['beats'][0]}: the first beat opens the first chapter "
+                   "(YouTube's first stamp is 0:00)")
+        short = [x["title"] for x in chs if x["end"] - x["start"] < 10]
+        if len(chs) < 3 or short:
+            r.fail("P5", where, f"{len(chs)} chapters" + (f", under 10 s: {short}" if short else "")
+                   + ": YouTube shows none unless there are ≥ 3 and each is ≥ 10 s")
+        return
     if not stamps:
         if tl["duration"] >= PLATFORMS["youtube-long"]["recommend"]["chapters_from_s"]:
-            r.warn("P5", where, f"{tl['duration']:.0f}s with no chapters: put 0:00 + one timestamp per beat group in the description")
+            r.warn("P5", where, f"{tl['duration']:.0f}s with no chapters: give the first beat of each part a `chapter` "
+                   "title; export writes the stamps from the measured timeline")
         return
     secs = [sum(int(x) * 60 ** i for i, x in enumerate(reversed(s.split(":")))) for s in stamps]
     if secs[0] != 0 or len(secs) < 3 or any(b - a < 10 for a, b in zip(secs, secs[1:])):

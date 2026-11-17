@@ -112,7 +112,9 @@ pick the ideas yourself:
   It snapshots only its own beat and returns the snapshots. You lay every
   beat's snapshot beside the key frame on one sheet, send a beat that
   drifts back to its agent (the fixes in parallel too), then render once.
-  Renders run one at a time.
+  Renders run one at a time. A long-form cut has too many beats for that:
+  give each agent one chapter (its beats are its scenes), at most four at
+  once.
 - **Every review:** the predict, overlap, coldread and viewer helpers.
 - **Production as a whole:** once the owner approves the script, stage 7
   starts in a fresh context that reads the disk (`mvf next`). It copies code

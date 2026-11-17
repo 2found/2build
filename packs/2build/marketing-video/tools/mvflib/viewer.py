@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 
 from .common import HYPERFRAMES, Report, heavy_prefix, load, tile_width
+from .timing import stamp as timing_stamp
 
 VERDICTS = ("APPROVE", "FIX", "UNVERIFIABLE")
 SCORE_SCALE = "5 a student's cut, 6 a template, 7 a working pro, 8 an agency, 9 an award entry"
@@ -23,15 +24,17 @@ def _version(proj: Path) -> int:
     return max(ns, default=0) + 1
 
 
-def sheets(video: Path, out: Path, dur: float, W: int, H: int) -> list[Path]:
-    """1 fps strips, 18 frames a sheet, each under ~1 MP, with the second stamped on every frame."""
-    per = COLS * ROWS
+def sheets(video: Path, out: Path, dur: float, W: int, H: int, start: float = 0.0, step: float = 1.0) -> list[Path]:
+    """Strips of one frame every `step` seconds (1 fps by default) from `start`, 18 frames a sheet, each under
+    ~1 MP, with the second stamped on every frame."""
+    per = COLS * ROWS * step
     w = tile_width(W, H, COLS, ROWS)
     paths = []
-    for k in range(int(dur // per) + (1 if dur % per > 0.5 else 0) or 1):
+    for k in range(int(dur // per) + (1 if dur % per > 0.5 * step else 0) or 1):
         p = out.parent / f"{out.stem}-{k + 1}.jpg"
-        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", str(k * per), "-t", str(per), "-i", str(video),
-                        "-vf", f"fps=1,scale={w}:-2,drawtext=text='%{{eif\\:t+{k * per}\\:d}}s':x=4:y=4:fontsize={max(12, w // 10)}:"
+        at = start + k * per
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", f"{at:g}", "-t", f"{per:g}", "-i", str(video),
+                        "-vf", f"fps=1/{step:g},scale={w}:-2,drawtext=text='%{{eif\\:t+{at:g}\\:d}}s':x=4:y=4:fontsize={max(12, w // 10)}:"
                         f"fontcolor=white:box=1:boxcolor=black@0.6,tile={COLS}x{ROWS}:padding=4:margin=4",
                         "-frames:v", "1", str(p)], check=True)
         paths.append(p)
@@ -112,28 +115,59 @@ def keyframe(cd: Path, proj: Path, at: float) -> tuple[Path, list[str]]:
     return res
 
 
-def brief(cd: Path, proj: Path) -> Path:
+LONG_S = 300.0         # longer than this, one helper sees the whole cut sparsely and each chapter at 1 fps
+OVERVIEW_FRAMES = 108  # six sheets: what one helper can look at within its budget
+
+
+def chapters(cd: Path, proj: Path) -> list[dict]:
+    from . import timing
+    meta = load(proj / "mvf.json")
+    return timing.chapters(load(cd / meta["script"]), load(proj / "timeline.json"))  # a hook never moves a chapter
+
+
+def brief(cd: Path, proj: Path, chapter: int | None = None) -> Path:
+    """The cold viewer's brief. A cut over LONG_S is seen twice over: one overview brief with a frame every few
+    seconds, and one brief per chapter (`chapter`, 1-based) at 1 fps whose red items count with the overview's."""
     name = f"{proj.parent.name}/{proj.name}"  # <sid>/<canvas>, what `mvf export` takes
     video = proj / "renders/master.mp4"
     if not video.is_file():
         raise SystemExit(f"no {video}: render the cut first (`mvf export {name} --draft`)")
     meta, tl = load(proj / "mvf.json"), load(proj / "timeline.json")
     script, c = load(cd / meta["script"]), load(cd / "campaign.json")
-    n = _version(proj)
     (proj / "review").mkdir(exist_ok=True)
     from .common import PLATFORMS
     canvas = PLATFORMS["canvases"][meta["canvas"]]
-    strips = sheets(video, proj / "review" / f"viewer-v{n}-strip", tl["duration"], canvas["width"], canvas["height"])
-    opener = openers(video, proj / "review" / f"viewer-v{n}-open.jpg")
-    refs, ref_notes = references(cd, proj / "review" / f"viewer-v{n}-refs.jpg")
-    rows = [f"| {b['vo_start']:.1f}–{b['vo_end']:.1f} | {' '.join(w['w'] for w in b.get('words') or [])} |"
-            for b in tl["beats"] if b.get("vo_start") is not None]
+    dur = tl["duration"]
+    a, b, part, tag = 0.0, dur, "", ""
+    if chapter is not None:
+        chs = chapters(cd, proj)
+        if not 1 <= chapter <= len(chs):
+            raise SystemExit(f"--chapter {chapter}: this cut has {len(chs)} chapters (beat `chapter` titles)")
+        n = _version(proj) - 1
+        if n < 1:
+            raise SystemExit(f"write the overview brief first: `mvf viewer {name}`")
+        ch = chs[chapter - 1]
+        a, b, tag = ch["start"], ch["end"], f"-c{chapter}"
+        part = (f"This is chapter {chapter} of {len(chs)}, \"{ch['title']}\", {a:.0f}–{b:.0f} s of a {dur / 60:.0f}-minute "
+                "video: judge this part only, as one more stretch of a video you chose to watch.\n")
+    else:
+        n = _version(proj)
+    step = 1.0 if chapter is not None or dur <= LONG_S else max(2.0, round(dur / OVERVIEW_FRAMES))
+    strips = sheets(video, proj / "review" / f"viewer-v{n}{tag}-strip", b - a, canvas["width"], canvas["height"], a, step)
+    opener = openers(video, proj / "review" / f"viewer-v{n}-open.jpg") if chapter is None else None
+    refs, ref_notes = references(cd, proj / "review" / f"viewer-v{n}-refs.jpg") if chapter is None else (None, [])
+    rows = [f"| {x['vo_start']:.1f}–{x['vo_end']:.1f} | {' '.join(w['w'] for w in x.get('words') or [])} |"
+            for x in tl["beats"] if x.get("vo_start") is not None and a <= x["vo_start"] < b]
     heard = proj / "assets/music/product.json"
     if heard.is_file():
         rows += [f"| {s:.1f}–{e:.1f} | (no voice-over: the product's own recorded sound plays here; not a silence) |"
-                 for s, e in load(heard).get("windows") or []]
+                 for s, e in load(heard).get("windows") or [] if a <= s < b]
         rows.sort(key=lambda r: float(r.split("|")[1].split("–")[0]))
-    out = proj / "review" / f"viewer-brief-v{n}.md"
+    out = proj / "review" / f"viewer-brief-v{n}{tag}.md"
+    long = dur > LONG_S
+    if long and chapter is None:
+        chs = chapters(cd, proj)
+        part = ("Chapters: " + "; ".join(f"{timing_stamp(x['start'])} {x['title']}" for x in chs) + "\n") if chs else ""
     rel = lambda p: p.relative_to(proj)  # noqa: E731
     if refs:
         ref_line = (f"For comparison only, one frame each from the most-viewed videos on this topic "
@@ -144,18 +178,17 @@ def brief(cd: Path, proj: Path) -> Path:
     else:
         ref_line = "(Research downloaded no reference videos: judge the framing on its own.)"
         ref_q = "Would this opening stop your thumb among the videos you usually see on this topic? Say why or why not."
-    out.write_text(f"""# Cold viewer: {name} (v{n}, {tl['duration']:.0f} s)
+    out.write_text(f"""# Cold viewer: {name} (v{n}{tag}, {b - a:.0f} s)
 
-You review a short video you have never seen, for a {c.get('goal', '')} post on {', '.join(script.get('platforms') or {})}.
-You get only what a viewer gets: the frames (1 per second, the second stamped on each), the voice as heard and
+You review a {'long ' if long else 'short '}video you have never seen, for a {c.get('goal', '')} post on {', '.join(script.get('platforms') or {})}.
+You get only what a viewer gets: the frames ({'1 per second' if step == 1 else f'1 every {step:g} seconds'}, the second stamped on each), the voice as heard and
 one line on what it is for. Do not open any other file in the project: no script, no plan, no direction.
-
+{part}
 **Logline:** {script.get('value', '')}
 Frames, in order: {', '.join(f'`{rel(p)}`' for p in strips)}
-The first two seconds, larger: `{rel(opener)}`
-Each frame is one instant of a moving picture, so lettering or a figure caught mid-fade looks faint or doubled. Call
+""" + (f"The first two seconds, larger: `{rel(opener)}`\n" if opener else "") + f"""Each frame is one instant of a moving picture, so lettering or a figure caught mid-fade looks faint or doubled. Call
 that a fault only when it shows in two frames running.
-{ref_line}
+{ref_line if chapter is None else ''}
 
 | s | voice |
 | --- | --- |
@@ -163,7 +196,7 @@ that a fault only when it shows in two frames running.
 
 Watch it as a viewer first, then as an editor:
 1. Retell it in one or two sentences as you would to a friend. If you cannot, say so.
-2. The second you would swipe, and why. Every place you did not follow (a name, a "he", a "so").
+2. {'The chapter and second you would leave or skip ahead' if long else 'The second you would swipe'}, and why. Every place you did not follow (a name, a "he", a "so").
 3. Each frame: does the picture show what the voice says at that second? Is anything broken (text over a face,
    cut-off words, a black or frozen stretch, a mangled hand, stray text)?
 4. Could this frame belong to another video? Name any frame that is a stock look (glowing particles over a
@@ -181,7 +214,7 @@ Watch it as a viewer first, then as an editor:
    why (still, repeated, unclear, too long). Then at most three fixes, the biggest first, each with its second and
    what changes; at least one makes the best moment stronger instead of repairing a fault.
 
-Budget: at most 15 tool calls. Write the full notes to `review/viewer-v{n}.md` (in this project folder), ending
+Budget: at most 15 tool calls. Write the full notes to `review/viewer-v{n}{tag}.md` (in this project folder), ending
 with exactly these four lines:
 Verdict: APPROVE | FIX | UNVERIFIABLE
 Red items: <second>s <what>; <second>s <what>  (or none)
@@ -236,10 +269,17 @@ def check(proj: Path, rep: Report) -> None:
     if v["verdict"] == "UNVERIFIABLE":
         rep.warn("VW1", w, f"{p.name}: the viewer could not judge from the frames; give it what it was missing and rerun")
         return
-    if v["red"]:
+    red = list(v["red"])
+    for q in sorted((proj / "review").glob(f"viewer-brief-v{n}-c*.md")):  # a long cut's chapter briefs
+        ans = q.with_name(q.name.replace("viewer-brief-", "viewer-"))
+        cv = read(ans) if ans.is_file() else {"verdict": None, "red": []}
+        if cv["verdict"] not in VERDICTS:
+            rep.warn("VW1", w, f"{q.name} has no finished answer ({ans.name}): give it to a fresh helper")
+        red += cv["red"]
+    if red:
         rv = load(proj / "review.json") if (proj / "review.json").is_file() else {}
         ats = [float(i["at"]) for i in rv.get("issues") or [] if isinstance(i.get("at"), (int, float))]
-        loose = [it for it in v["red"] if it["at"] is None
+        loose = [it for it in red if it["at"] is None
                  or not any(it["at"] - NEAR_S <= a <= it.get("to", it["at"]) + NEAR_S for a in ats)]
         if loose:
             rep.warn("VW2", w, f"{p.name} marks red items review.json does not carry: "

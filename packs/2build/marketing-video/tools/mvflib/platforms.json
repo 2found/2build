@@ -302,8 +302,9 @@
     "sound_default": "on",
     "hard": {
       "min_s": 1,
-      "max_s": 900,
-      "max_mb": 2048,
+      "max_s": 43200,
+      "unverified_max_s": 900,
+      "max_mb": 262144,
       "title_chars": 100,
       "description_chars": 5000,
       "tags_chars": 500,
@@ -313,7 +314,6 @@
     },
     "recommend": {
       "min_s": 60,
-      "max_s": 480,
       "hook_s": 5.0,
       "first_value_s": 15.0,
       "hashtags": [
@@ -390,7 +390,7 @@
         "note": "estimate from third-party overlay templates; verify on a phone screenshot of an uploaded Short"
       },
       {
-        "what": "an unverified account uploads up to 15 minutes (hard max_s here); verified accounts up to 12 hours",
+        "what": "an unverified account uploads up to 15 minutes (hard unverified_max_s, a WARN); verified accounts up to 12 hours (hard max_s) or 256 GB (hard max_mb), whichever is less",
         "url": "https://support.google.com/youtube/answer/71673",
         "read": "2026-11-04",
         "note": "long-standing; re-check"

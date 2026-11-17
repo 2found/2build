@@ -156,10 +156,12 @@ def caption_groups(tl: dict, script: dict, max_words: int = 3, pause: float = 0.
         if cur:
             phrases.append(cur)
         for ph in phrases:
-            groups.extend(_chunk(ph, max_words))
+            groups.extend((t["start"], g) for g in _chunk(ph, max_words))
+    starts = [b0 for b0, _ in groups]
+    groups = [g for _, g in groups]
     out = []
     for i, g in enumerate(groups):
-        s = max(0.05, g[0]["s"] - 0.04)
+        s = max(0.05, starts[i], g[0]["s"] - 0.04)  # never before its beat's cut: one frame over the last scene shows
         e = max(g[-1]["e"] + 0.08, s + 0.3)
         if i + 1 < len(groups):  # linger into a pause, never into the next group: one line on screen at a time
             e = min(e + 0.25, max(0.05, groups[i + 1][0]["s"] - 0.04))
@@ -199,7 +201,7 @@ CAPTION_STYLES = {
 
 def captions_html(groups: list[dict], geo: dict, brand: dict, duration: float, cap: dict | None = None,
                   look: dict | None = None, beat_tops: list[tuple[float, float, int]] | None = None) -> str:
-    """beat_tops: (start, end, top px) for beats whose direction moves the captions off their picture."""
+    """beat_tops: (start, end, top px) where the direction moves the captions off their picture; top None hides them."""
     c, f = dict(brand["colors"]), dict(brand["fonts"])
     cap = cap or {"style": "shadow"}
     if look:  # a directed video: captions sit on pictures, in the look's own colours and type
@@ -220,7 +222,10 @@ def captions_html(groups: list[dict], geo: dict, brand: dict, duration: float, c
             f'<span id="cap{i}-{j}" class="w{" key" if t["key"] else ""}">{html.escape(t["text"])}</span>'
             for j, t in enumerate(g["tokens"]))
         w0 = g["tokens"][0]["s"]  # the group shows a little before its first word: place it by that word's beat
-        own = next((t for b0, b1, t in beat_tops or [] if b0 <= w0 < b1), None)
+        hit = next(((t,) for b0, b1, t in beat_tops or [] if b0 <= w0 < b1), None)
+        if hit and hit[0] is None:
+            continue  # a window with no captions (the .srt keeps them)
+        own = hit[0] if hit else None
         rows.append(f'    <div id="cap{i}" class="cap"' + (f' style="top:{own}px"' if own is not None else "") + f'>{spans}</div>')
         cut = i + 1 < len(groups) and groups[i + 1]["s"] - g["e"] < 0.05  # the next group replaces this one
         js.append(f'  show("#cap{i}", {g["s"]}, {g["e"]}, {json.dumps([[t["s"], t["e"]] for t in g["tokens"]])}, {str(cut).lower()});')
@@ -556,8 +561,13 @@ def scaffold(campaign_dir: Path, script_path: Path, canvas: str, hook: str, take
 
     cap = dirn.captions_of(dr) if dr else None
     groups = caption_groups(tl, sv, max_words=int((cap or {}).get("words") or 3))
-    tops = [(b["start"], b["end"], round(float(bs["captions_y"]) * geo["H"])) for b in tl["beats"]
-            for bs in [((dr or {}).get("beats") or {}).get(b["id"])] if isinstance(bs, dict) and bs.get("captions_y") is not None]
+    tops = []
+    for b in tl["beats"]:
+        bs = ((dr or {}).get("beats") or {}).get(b["id"])
+        marks = dirn.captions_marks(bs.get("captions_y")) if isinstance(bs, dict) else []
+        for k, (at, y) in enumerate(marks):
+            end = b["start"] + marks[k + 1][0] if k + 1 < len(marks) else b["end"]
+            tops.append((b["start"] + at, end, None if y is None else round(y * geo["H"])))
     cap_file = proj / "compositions/captions.html"
     if not ((cap or {}).get("custom") and cap_file.exists()):  # captions.custom: true keeps a hand-authored captions.html
         cap_file.write_text(captions_html(groups, geo, brand, tl["duration"], cap, look if dr else None, tops), encoding="utf-8")

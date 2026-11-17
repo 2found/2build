@@ -19,7 +19,7 @@ import subprocess
 from pathlib import Path
 
 from . import timing
-from .common import PLATFORMS, Report, config, dump, load, save_user_config, today, user_dir
+from .common import PLATFORMS, Report, config, dump, load, long_form, save_user_config, today, user_dir
 from .pretest import SIZES, caption_of, personas
 
 STIMULUS_CHARS = 12000  # Micro Fish refuses a longer subject (about six minutes of Vietnamese voice)
@@ -217,10 +217,60 @@ def stimulus(rows: list[tuple], duration: float, timing_kind: str, caption: str,
                      "subject. Judge it in two runs, or shorten it")
 
 
+OPENING_S = 90.0  # a long video is judged on its opening in full: where most viewers decide to stay
+
+
+def long_stimulus(sv: dict, tl: dict, platform: str, vi: bool, chars: int = STIMULUS_CHARS) -> str:
+    """A long video as it is chosen and watched: the card on the home page (title, thumbnail words, length), the
+    opening in full, then each chapter by its title with its key lines word for word and the rest condensed, so
+    seventeen minutes fit one subject. Pictures are cut first, then the condensed lines; the opening and the key
+    lines never are."""
+    c = (sv.get("platforms") or {}).get(platform) or {}
+    rows = _rows(sv["beats"], tl["beats"])
+    keys = {b["id"] for b in sv["beats"] if b.get("key_moment")}
+    ids = [b["id"] for b in sv["beats"]]
+    chs = timing.chapters(sv, tl) or [{"title": "", "start": 0.0, "end": tl["duration"], "beats": ids}]
+    of = {b: k for k, x in enumerate(chs) for b in x["beats"]}
+    P, T, V = ("HÌNH", "CHỮ", "GIỌNG") if vi else ("PICTURE", "TEXT", "VOICE")
+    m, sec = divmod(int(tl["duration"]), 60)
+    card = (f"Trên trang chủ {PLATFORMS[platform]['label']} bạn thấy một video {m}:{sec:02d}: tiêu đề \"{c.get('title', '')}\", "
+            f"ảnh bìa ghi \"{c.get('thumbnail_text', '')}\". Nếu bấm vào, video chạy như dưới đây. Đoạn mở đầu là nguyên văn; "
+            "sau đó mỗi chương có tên chương, các câu chính nguyên văn, phần còn lại tóm tắt (…). GIỌNG là lời nghe MỘT lần."
+            if vi else
+            f"On the {PLATFORMS[platform]['label']} home page you see a {m}:{sec:02d} video titled \"{c.get('title', '')}\", "
+            f"its thumbnail reading \"{c.get('thumbnail_text', '')}\". If you click, it plays as below: the opening word for "
+            "word, then each chapter by its title, its key lines word for word and the rest condensed (…). VOICE is heard ONCE.")
+    def line(r, pic_n, vo_n):
+        a, b, pic, on, vo = r
+        cut = lambda x, n: x if n is None or len(x) <= n else x[: max(0, n - 1)].rstrip() + "…"
+        parts = [f"[{a:.0f}–{b:.0f}]"] + ([f"{P}: {cut(pic, pic_n)}"] if pic and pic_n != 0 else []) + \
+                ([f"{T}: {on}"] if on else []) + ([f"{V}: \"{cut(vo, vo_n)}\""] if vo and vo_n != 0 else [])
+        return " | ".join(parts)
+    # (picture chars, condensed voice chars) for the body; None keeps it whole, 0 drops it
+    for pic_n, vo_n in ((None, None), (120, None), (60, 120), (0, 60), (0, 0)):
+        out, k_prev = [card], -1
+        for bid, r in zip(ids, rows):
+            k = of.get(bid, 0)
+            if k != k_prev and chs[k]["title"]:
+                out.append(f"== {chs[k]['title']} [{timing.stamp(chs[k]['start'])}]")
+                k_prev = k
+            if r[0] < OPENING_S or bid in keys:
+                out.append(line(r, pic_n if pic_n is None else max(pic_n, 90), None))
+            elif vo_n != 0:
+                out.append(line(r, pic_n, vo_n))
+        text = "\n".join(out)
+        if len(text) <= chars:
+            return text
+    raise SystemExit(f"this video is {len(text)} characters with only its opening and key lines; Micro Fish takes "
+                     f"{chars} per subject. Mark fewer key_moment beats, or judge the opening alone")
+
+
 def script_stimulus(script: dict, hook: str, manifest: dict | None, platform: str, vi: bool,
                     chars: int = STIMULUS_CHARS) -> tuple[str, dict]:
     sv = timing.variant(script, hook)
     tl = timing.build(sv, manifest)
+    if long_form(platform):
+        return long_stimulus(sv, tl, platform, vi, chars), tl
     return stimulus(_rows(sv["beats"], tl["beats"]), tl["duration"], tl["timing"], caption_of(script), platform, vi,
                     chars), tl
 
@@ -237,6 +287,8 @@ def video_stimulus(proj: Path, script: dict, platform: str, vi: bool, chars: int
     """The cut as rendered: the measured timeline, what each beat's scene shows (from the storyboard and the
     direction), and what the reviewer saw on its frames."""
     tl = load(proj / "timeline.json")
+    if long_form(platform):
+        return long_stimulus(timing.variant(script, (load(proj / "mvf.json") or {}).get("hook")), tl, platform, vi, chars)
     notes = {}
     rv = proj / "review.json"
     if rv.is_file():
@@ -256,9 +308,19 @@ def video_stimulus(proj: Path, script: dict, platform: str, vi: bool, chars: int
 
 # ---------- the brief ----------
 
-def questions(vi: bool) -> list[dict]:
+def questions(vi: bool, long: bool = False) -> list[dict]:
     """What each persona is asked after the feed closes, about the one video it met. `retell` is the test of
-    understanding; the tags are how the numbers find ad-feel, no-use and the words nobody followed."""
+    understanding; the tags are how the numbers find ad-feel, no-use and the words nobody followed. A long video
+    is also chosen (the click) and left part-way (which chapter)."""
+    more = ([{"id": "click", "type": "scale", "ask": "Chỉ thấy tiêu đề và ảnh bìa trên trang chủ, bạn có bấm vào không (1 chắc chắn không, 5 chắc chắn có)"},
+             {"id": "left_at", "type": "text", "ask": "Bạn sẽ tắt hoặc tua ở chương nào, vì sao? Xem hết thì nói xem hết"}] if vi else
+            [{"id": "click", "type": "scale", "ask": "Seeing only the title and thumbnail on the home page, would you click (1 certainly not, 5 certainly)"},
+             {"id": "left_at", "type": "text", "ask": "At which chapter would you stop or skip, and why? Say all of it if you would watch it all"}]
+            ) if long else []
+    return _questions(vi) + more
+
+
+def _questions(vi: bool) -> list[dict]:
     if vi:
         return [
             {"id": "retell", "type": "text", "ask": "Mở đầu bằng 'Video nói là…' và kể lại điều video nói như kể cho bạn. Đã lướt qua hoặc không kể được thì nói thẳng."},
@@ -280,6 +342,12 @@ def questions(vi: bool) -> list[dict]:
 
 def experts(c: dict, platform: str, vi: bool) -> list[dict]:
     lab, mk = PLATFORMS[platform]["label"], ", ".join(c.get("markets") or [])
+    if long_form(platform):
+        first = (f"Biên tập viên video dài trên {lab} ở {mk}: tiêu đề và ảnh bìa có khiến bấm không, 60 giây đầu có giữ "
+                 "người xem không, chương nào người xem tua hoặc bỏ" if vi else
+                 f"Long-form editor on {lab} in {mk}: does the title and thumbnail earn the click, does the first minute "
+                 "keep the viewer, which chapter they skip or leave")
+        return [{"id": "creative", "lens": first}] + experts_rest(vi)
     if vi:
         lenses = [f"Giám đốc sáng tạo video ngắn trên {lab} ở {mk}: hook 2 giây đầu, nhịp, điểm rơi người xem",
                   "Giáo viên giỏi giải thích: người lạ nghe MỘT lần có hiểu và kể lại được không, thuật ngữ nào chưa được giải nghĩa",
@@ -291,6 +359,11 @@ def experts(c: dict, platform: str, vi: bool) -> list[dict]:
                   "Skeptical fact-checker: which line reads as an ad, which is hard to believe or untrue",
                   "A member of the priority audience: what can I actually use from this"]
     return [{"id": i, "lens": x} for i, x in zip(("creative", "teacher", "skeptic", "audience"), lenses)]
+
+
+def experts_rest(vi: bool) -> list[dict]:
+    """The lenses every kind of video gets after its platform's own."""
+    return experts({}, "tiktok", vi)[1:]
 
 
 def audience(cd: Path, c: dict, n: int) -> dict:
@@ -320,7 +393,7 @@ def brief(cd: Path, sim: str, subjects: list[tuple[str, str]], size: str, platfo
                         for lab, text in subjects],
            "audience": audience(cd, c, personas(size, len(subjects))), "rounds": 3, "feed_size": 4,
            "metric": "depth",  # few people finish a short video: decide on how far they watched, not on who finished
-           "questions": questions(vi), "experts": lenses}
+           "questions": questions(vi, long_form(platform)), "experts": lenses}
     if j.get("context"):
         out["context"] = load(Path(j["context"]).expanduser())
     return out
@@ -356,8 +429,8 @@ def run(out: Path, keep: bool = False, parallel: int | None = None) -> dict:
     if res["state"] not in ("completed", "completed_with_failures"):
         dump(out / "run.json", res)
         raise SystemExit(f"Micro Fish {res['state']}: {res.get('reason') or r.stderr.strip()[-600:]}\n"
-                         f"What it recorded is kept. Continue with `mvf judge resume {out}` (2 sessions at a time); "
-                         f"if it stops again, read why each session failed in {out / 'progress.log'}")
+                         f"What it recorded is kept. Continue with `mvf judge resume {out}`; if it stops again, read "
+                         f"why each session failed in {out / 'progress.log'}")
     return res
 
 
@@ -394,6 +467,7 @@ def summarize(t: dict, key: dict) -> dict:
                     "rank_in_feed": f"{x.get('rank_in_feed')}/{x.get('of')}" if x.get("rank_in_feed") else None,
                     "like_rate": pct("like"), "share_rate": pct("share"), "comment_rate": pct("comment"),
                     "interviewed": iv.get("answered"), "clarity_top2": top2("clarity"), "intent_top2": top2("intent"),
+                    "click_top2": top2("click"),  # a long video: would they click its card
                     "ad_feel": sum(n for tg, n in tags if "ad-feel" in tg or "quang-cao" in tg),
                     "no_use": sum(n for tg, n in tags if "no-use" in tg),
                     "unclear": [tg for tg, _ in tags if tg.startswith("unclear-")],
@@ -413,7 +487,10 @@ def verdict(t: dict, key: dict) -> dict:
 
     def score(lab):
         x = s[lab]
-        return ((x["watch_pct"] or 0), (x["like_rate"] or 0), (x["comment_rate"] or 0))
+        watch = x["watch_pct"] or 0
+        if x.get("click_top2") is not None:  # a long video is chosen first: watch per card shown
+            watch = watch * x["click_top2"] / 100
+        return (watch, (x["like_rate"] or 0), (x["comment_rate"] or 0))
     cands = [lab for lab in s if s[lab]["kind"] == "candidate"]
     controls = [lab for lab in s if s[lab]["kind"] in {"control", "bench"}]
     if not cands:
@@ -443,7 +520,8 @@ def evidence_line(v: dict, size: str) -> str:
         parts.append(f"{x['id']} n={x['n']} · {_watched(x)} · like {x['like_rate']}% · comment "
                      f"{x['comment_rate']}% · stopped {x['stopped']}% · rank in feed "
                      f"{x['rank_in_feed']} · clarity top2 {x['clarity_top2']}% · intent top2 {x['intent_top2']}% · "
-                     f"ad-feel {x['ad_feel']}")
+                     + (f"click top2 {x['click_top2']}% · " if x.get("click_top2") is not None else "")
+                     + f"ad-feel {x['ad_feel']}")
     return f"Micro Fish {size}, one arm per video: " + " | ".join(parts) + f". {v['why']}"
 
 
@@ -495,6 +573,11 @@ def judge_scripts(cd: Path, items: list[tuple[dict, str, str]], round_: str, siz
             "bình luận, và kể lại đúng điều video nói không" if vi else
             "Which of these videos is worth producing: does a stranger who meets it in a feed stop, how long do they "
             "watch, do they like or comment, and can they retell what it said")
+    if long_form(platform):
+        goal = ("Video dài nào trong số này đáng sản xuất: người lạ thấy tiêu đề và ảnh bìa có bấm không, xem tới chương "
+                "nào, và kể lại đúng điều video nói không" if vi else
+                "Which of these long videos is worth producing: does a stranger who sees the title and thumbnail click, "
+                "how far into it do they watch, and can they retell what it said")
 
     def stim(lab: str, e: tuple) -> str:
         if e[1] == "bench":
@@ -563,11 +646,10 @@ def collect(cd: Path, out: Path) -> Path:
 
 
 def resume(cd: Path, out: Path, parallel: int | None = None) -> Path:
-    """Continue a stopped run from what Micro Fish recorded, then read it back. A stopped run means the provider
-    could not keep up with the workspace's 8 sessions at once, so it continues 2 at a time."""
+    """Continue a stopped run from what Micro Fish recorded, then read it back."""
     k = load(out / "key.json")
     require_ready()
-    dump(out / "run.json", {**run(out, parallel=parallel or 2), "sim": k["sim"]})
+    dump(out / "run.json", {**run(out, parallel=parallel), "sim": k["sim"]})
     return _read_video(cd, out, k) if out.parent.name == "judge" else collect(cd, out)  # <proj>/judge/<round> is a cut
 
 

@@ -59,6 +59,14 @@ def duck_expr(spans: list[tuple[float, float]], low: float) -> str:
     return f"1-{1 - low:.4f}*{m}"
 
 
+def duck_filters(spans: list[tuple[float, float]], low: float, per: int = 60) -> str:
+    """ffmpeg's expression parser stops at about 100 nested calls (98 spoken lines broke a long video), so the spans
+    go in time order into chained volume filters of `per` each. Spans do not overlap, so at any time at most one
+    filter ducks and the product is the same curve."""
+    spans = sorted(spans)
+    return ",".join(f"volume='{duck_expr(spans[i:i + per], low)}':eval=frame" for i in range(0, max(1, len(spans)), per))
+
+
 def score(proj: Path, bed: Path | None, also_duck: list | None = None) -> dict:
     """`also_duck`: spans where something else must be heard like a spoken line (the product's own sound)."""
     tl = load(proj / "timeline.json")
@@ -83,11 +91,13 @@ def score(proj: Path, bed: Path | None, also_duck: list | None = None) -> dict:
     low = 10 ** ((OPEN_DB - UNDER_VO_DB) / 20)
     fade = min(0.8, dur / 4)
     keys = key_holds(tl)
-    kduck = f"volume='{duck_expr(keys, 10 ** (-KEY_DB / 20))}':eval=frame," if keys else ""
-    af = (f"volume={gain:.2f}dB,volume='{duck_expr(spans, low)}':eval=frame,{kduck}"
+    kduck = f"{duck_filters(keys, 10 ** (-KEY_DB / 20))}," if keys else ""
+    af = (f"volume={gain:.2f}dB,{duck_filters(spans, low)},{kduck}"
           f"afade=t=in:d=0.25,afade=t=out:st={max(0.0, dur - fade):.3f}:d={fade:.3f}")
-    run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(raw), "-af", af, str(music / "bed.wav")])
-    raw.unlink(missing_ok=True)
+    try:
+        run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(raw), "-af", af, str(music / "bed.wav")])
+    finally:
+        raw.unlink(missing_ok=True)
     items = []
     if vo_lufs is None:
         items.append({"level": "WARN", "msg": "no voice clips measured: bed set to -23 LUFS open; check it by ear"})

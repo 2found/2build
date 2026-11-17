@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from . import timing
-from .common import PLATFORMS, copy_kind, load
+from .common import PLATFORMS, copy_kind, load, long_form
 
 SIZES = {"quick": 2, "standard": 48, "deep": 96}  # personas per video
 
@@ -32,11 +32,34 @@ def caption_of(script: dict) -> str:
     return ""
 
 
-def _script_block(script: dict, hook: str, take: Path | None) -> str:
+def place(script: dict) -> tuple[str, bool]:
+    """Where a viewer meets this script, as the reader is told it, and whether it is a long video someone chose."""
+    plats = [p for p in script.get("platforms") or {} if p in PLATFORMS]
+    lp = next((p for p in plats if long_form(p)), None)
+    if lp:
+        c = script["platforms"][lp] or {}
+        return (f"You are on the {PLATFORMS[lp]['label']} home page in the evening, choosing something to watch for "
+                f"the next twenty minutes. You clicked this video for its title \"{c.get('title', '')}\" and its "
+                f"thumbnail \"{c.get('thumbnail_text', '')}\", and know nothing else about it. Most viewers leave in "
+                "the first minute when the opening does not deliver what the title promised, and skip ahead when a "
+                "chapter drags: say the second you would leave or skip, and why.", True)
+    lab = PLATFORMS[plats[0]]["label"] if plats else "TikTok"
+    return (f"You are scrolling the {lab} feed at night, thumb ready, with dozens of videos you like competing for the "
+            "next second. You did not ask for this video and know nothing about who made it or why. Most real "
+            "viewers swipe in the first 2 s; say so if you would.", False)
+
+
+def _script_block(script: dict, hook: str, take: Path | None, body_of: str | None = None) -> str:
+    """One variant, second by second. A hook variant changes only the first beat: with `body_of` (the variant
+    already written in full) the rest is named, not repeated, so a long script is not copied once per hook."""
     sv = timing.variant(script, hook)
     tl = timing.build(sv, timing.load_manifest(take) if take else None)
     lines = [f"### Variant {script['id']}/{hook} — {tl['duration']:.1f}s ({tl['timing']} timing), format {script.get('format')}"]
-    for b, t in zip(sv["beats"], tl["beats"]):
+    for i, (b, t) in enumerate(zip(sv["beats"], tl["beats"])):
+        if body_of and i:
+            lines.append(f"- [{t['start']:05.2f}–{tl['duration']:05.2f}] the same beats as {body_of} from its second "
+                         f"beat on, starting at {t['start']:.2f}s")
+            break
         vo = (b.get("vo") or "").strip() or "(no voice)"
         on = (b.get("onscreen") or "").strip()
         lines.append(f"- [{t['start']:05.2f}–{t['end']:05.2f}] {b.get('role')}: VOICE \"{vo}\""
@@ -61,12 +84,14 @@ def brief(campaign_dir: Path, scripts: list[Path], hooks: dict[str, list[str]], 
     c = load(campaign_dir / "campaign.json")
     segs = load(campaign_dir / "02-audience/segments.json").get("segments", [])
     facts = load(campaign_dir / "01-product/facts.json")
-    blocks, ids = [], []
+    blocks, ids, longs = [], [], []
     for sp in scripts:
         s = load(sp)
-        for h in hooks.get(s["id"]) or ["H1"] + [v["id"] for v in s.get("variants") or []]:
-            blocks.append(_script_block(s, h, takes.get(s["id"])))
+        longs.append(place(s)[1])
+        for k, h in enumerate(hooks.get(s["id"]) or ["H1"] + [v["id"] for v in s.get("variants") or []]):
+            blocks.append(_script_block(s, h, takes.get(s["id"]), ids[-k] if k else None))
             ids.append(f"{s['id']}/{h}")
+    long = any(longs)
     plats = ", ".join(PLATFORMS[p]["label"] for p in c.get("platforms", []))
     seg_txt = []
     for x in sorted(segs, key=lambda x: x.get("priority", 9)):
@@ -76,13 +101,37 @@ def brief(campaign_dir: Path, scripts: list[Path], hooks: dict[str, list[str]], 
     q = question or (f"Which video ({' vs '.join(ids)}) holds viewers longest, makes them want to share it and "
                      f"understand {facts.get('one_liner', 'the product')} correctly? Which one gets swiped in the first "
                      f"2 seconds, and why?")
-    return f"""# Short-video pre-test — {c.get('product')} ({c.get('slug')})
+    if long:
+        q = question or (f"Which video ({' vs '.join(ids)}) gets clicked from its title and thumbnail, keeps viewers "
+                         f"past the first minute and through its chapters, and leaves them understanding "
+                         f"{facts.get('one_liner', 'the product')} correctly? Where does each one lose them, and why?")
+        content = (f"long video (kind: video) on {plats}, chosen from a home page by its title and thumbnail. Measure "
+                   "per person: would click (click), still watching at 1 minute (hold_60s), the chapter they leave or "
+                   "skip (left_at), wants to share/save (share), and the comment they would write.")
+        report = """- Rank the variants by click and by who is still watching at 1 minute; say whether the gap is clear.
+- For each variant: the chapter viewers leave or skip and the line that made them; the first comment they would write.
+- For each variant: what a viewer who leaves at 1 minute got from it; who they would send it to and with what words;
+  whether they can name the product without the CTA.
+- Experts (a long-form YouTube editor, a teacher, someone in the priority-1 segment) score the title and thumbnail,
+  the first minute against the title's promise, how much it feels like an ad, how clear the value is, and suggest
+  concrete wording fixes.
+- Which lines sound like an ad or are hard to believe."""
+    else:
+        content = (f"short video (kind: video) on {plats}. Measure per person: stops scrolling in the first second\n"
+                   "(attention), watches to the end (watch_through), wants to share/save (share), and the comment they would write.\n"
+                   "Viewers scroll a feed and most watch X muted: judge each variant on its on-screen text alone too.")
+        report = """- Rank the variants by attention in the first 2 seconds and by watch_through; say whether the gap is clear.
+- For each variant: the second viewers leave and the line that made them leave; the first comment they would write.
+- For each variant: what a viewer who leaves at 3 s and at 6 s got from it; who they would send it to and with
+  what words; whether they can name the product without the CTA.
+- Experts (a TikTok creator, an X growth marketer, someone in the priority-1 segment) score the hook, how much it
+  feels like an ad, how clear the value is, and suggest concrete wording fixes.
+- Which lines sound like an ad or are hard to believe."""
+    return f"""# {'Long-video' if long else 'Short-video'} pre-test — {c.get('product')} ({c.get('slug')})
 
 **Decision to make:** {q}
 
-**Content:** short video (kind: video) on {plats}. Measure per person: stops scrolling in the first second
-(attention), watches to the end (watch_through), wants to share/save (share), and the comment they would write.
-Viewers scroll a feed and most watch X muted: judge each variant on its on-screen text alone too.
+**Content:** {content}
 
 **Markets:** {', '.join(c.get('markets') or [])} · **Languages:** {', '.join(c.get('languages') or [])}
 **Size:** {size} ({SIZES[size]} personas per variant)
@@ -97,13 +146,7 @@ Viewers scroll a feed and most watch X muted: judge each variant on its on-scree
 {chr(10).join(blocks)}
 
 ## Report
-- Rank the variants by attention in the first 2 seconds and by watch_through; say whether the gap is clear.
-- For each variant: the second viewers leave and the line that made them leave; the first comment they would write.
-- For each variant: what a viewer who leaves at 3 s and at 6 s got from it; who they would send it to and with
-  what words; whether they can name the product without the CTA.
-- Experts (a TikTok creator, an X growth marketer, someone in the priority-1 segment) score the hook, how much it
-  feels like an ad, how clear the value is, and suggest concrete wording fixes.
-- Which lines sound like an ad or are hard to believe.
+{report}
 """
 
 
@@ -121,11 +164,9 @@ def coldread(script: dict, hook: str, take: Path | None) -> str:
     cap = caption_of(script)
     return f"""# Cold read — {script['id']}/{hook} ({tl['duration']:.0f} s, {tl['timing']} timing)
 
-You are scrolling the TikTok For You feed at night, thumb ready, with dozens of videos you like competing for
-the next second. You did not ask for this video and know nothing about who made it or why. Read the table
-top to bottom as if it plays: PICTURE is what you see, ON SCREEN the text, VOICE what you hear.
-Be the viewer, not a critic: most real viewers swipe in the first 2 s, so say so if you would.
-You hear each VOICE line once, at speaking pace: do not re-read a line to work out what it meant.
+{place(script)[0]}
+Read the table top to bottom as if it plays: PICTURE is what you see, ON SCREEN the text, VOICE what you hear.
+Be the viewer, not a critic. You hear each VOICE line once, at speaking pace: do not re-read a line to work out what it meant.
 
 | s | PICTURE | ON SCREEN | VOICE |
 | --- | --- | --- | --- |
@@ -187,7 +228,7 @@ def script_clip(script: dict, hook: str, take: Path | None, kind: str) -> dict:
     return {"id": f"{script['id']}/{hook}", "kind": kind, "rows": rows, "caption": cap, "duration": dur}
 
 
-def feed(clips: list[dict], seed: int) -> tuple[str, dict]:
+def feed(clips: list[dict], seed: int, where: str = "TikTok For You") -> tuple[str, dict]:
     """A feed of anonymous clips: the candidates, a control the team already rejected, and real videos with known
     views. A reader asked 'would you watch this?' about one clip says yes to almost anything; a reader who ranks it
     against videos people really watched, and against one they really did not, cannot."""
@@ -204,7 +245,7 @@ def feed(clips: list[dict], seed: int) -> tuple[str, dict]:
     labs = ", ".join(key)
     text = f"""# Feed — {len(order)} videos
 
-You are scrolling the TikTok For You feed at night. These {len(order)} videos come up one after another. You did
+You are scrolling the {where} feed at night. These {len(order)} videos come up one after another. You did
 not ask for any of them and know nothing about who made them. Read each table top to bottom as if it plays:
 PICTURE is what you see, ON SCREEN the text, VOICE what you hear. Be the viewer, not a critic. Most real
 viewers swipe in the first 2 s; say so when you would. You hear each VOICE line once, at speaking pace: do

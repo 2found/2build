@@ -335,7 +335,10 @@ keep. Use, adapt or skip any step below.
     list the lines to record.
   - `omnivoice` (shipped extension, no voices included) clones `voice.ref` or
     designs a voice (`mvf voice-design`, `mvf voice-pick`), and Whisper times
-    each word. `--rehear --engine omnivoice` re-times any take.
+    each word. `--rehear --engine omnivoice` re-times any take. When Whisper
+    could not hear words of a line (a WARN names the cue and the second),
+    listen to it, and `mvf voice <sid> --redo B07` voices that line again on
+    a new seed, keeping every other line of the take.
   - Reference voices (`<name>.wav` with a `.txt` of its words) are found in
     `<campaign>/voices/`, then the repo's `.babysit/marketing-video/voices/`,
     then the user's library `~/.babysit/marketing-video/voices/`. A voice

@@ -58,7 +58,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mvflib import checks, extensions, flow, material, timing  # noqa: E402
 from mvflib.common import (PLATFORMS, STAGES, TOOLS, Report, config, dump, find_campaign,  # noqa: E402
-                           heavy_prefix, load, local_dir, project_root, say_map, today, user_dir)
+                           heavy_prefix, load, local_dir, long_form, project_root, say_map, today, user_dir)
 
 TEMPLATES = TOOLS / "templates/campaign"
 
@@ -184,6 +184,22 @@ def cue_list(script: dict) -> list[dict]:
     hook = script.get("hook") or "H1"
     cues += [cue(v) for v in script.get("variants") or [] if v.get("id") == hook and (v.get("vo") or "").strip()]
     return cues
+
+
+def unheard(cue: dict) -> str:
+    """Words the take's own ASR never heard, where they would be: runs of 2+ words, or any word when many are
+    missing. Single misheard words are normal; a dropped sentence is a run (one take lost 9 words at 3.6 s)."""
+    ws = cue.get("words") or []
+    runs, cur = [], []
+    for w in ws + [{}]:
+        if w.get("unheard"):
+            cur.append(w)
+        elif cur:
+            runs.append(cur)
+            cur = []
+    lost = sum(len(r) for r in runs)
+    keep = [r for r in runs if len(r) >= 2 or lost >= max(3, len(ws) // 10)]
+    return "; ".join(f"\"{' '.join(w['w'] for w in r)}\" at {r[0]['s']:.2f}s" for r in keep)
 
 
 def voice_key(script: dict, engine: str | None = None) -> dict:
@@ -619,8 +635,13 @@ def cmd_feed(a):
         print("WARN no 06-pretest/bench/*.json: transcribe 2-3 real videos with known views (references/06-pretest.md#feed)")
     out = cd / "06-pretest" / a.round / "feed"
     out.mkdir(parents=True, exist_ok=True)
+    first = load(script_path(cd, a.script[0].partition("/")[0]))
+    plats = [p for p in first.get("platforms") or {} if p in PLATFORMS]
+    if any(long_form(p) for p in plats):
+        print("WARN a long video is not met in a feed: run `mvf coldread` (one reader per video) or `mvf judge scripts`")
+    where = PLATFORMS[plats[0]]["label"] if plats and plats[0] != "tiktok" else "TikTok For You"
     for i in range(a.readers):
-        text, key = feed(clips, a.seed + i)
+        text, key = feed(clips, a.seed + i, where)
         (out / f"feed-{i + 1}.md").write_text(text, encoding="utf-8")
         (out / f"feed-{i + 1}.key.json").write_text(_json.dumps(key, ensure_ascii=False, indent=1), encoding="utf-8")
         print(out / f"feed-{i + 1}.md")
@@ -754,7 +775,15 @@ def cmd_voice(a):
         old = load(prev[-1] / "manifest.json")
         if (old.get("mvf_voice") or {}).get("engine") == name:
             reuse, _ = take_state(s, prev[-1])
+    redo = {x.strip() for x in (a.redo or "").split(",") if x.strip()}
+    if redo - {x["id"] for x in cues}:
+        raise SystemExit(f"--redo: no spoken line {', '.join(sorted(redo - {x['id'] for x in cues}))}")
+    reuse -= redo
     todo = [x for x in cues if x["id"] not in reuse]
+    n = int(prev[-1].name[1:]) + 1 if prev else 1
+    for x in todo:
+        if x["id"] in redo:
+            x["salt"] = f":t{n:02d}"  # the same text with the same seed gives the same audio
     for x in todo:
         if x.get("voice") and mode != "recorded":
             w, t = voice_ref(cd, x["voice"])
@@ -762,7 +791,6 @@ def cmd_voice(a):
     if not todo:
         print(f"take {prev[-1].name} already voices every line as written")
         return
-    n = int(prev[-1].name[1:]) + 1 if prev else 1
     new = tdir / f"t{n:02d}"
     part = tdir / f"t{n:02d}.part"
     if part.exists():
@@ -791,6 +819,11 @@ def cmd_voice(a):
         print("INFO word times are spread by length: an engine with rehear times them from the audio (--rehear --engine …)")
     for x in m["cues"]:
         print(f"  {x['id']:4} {x['speech'][1] - x['speech'][0]:5.2f}s  {x['text'][:70]}")
+    for x in m["cues"]:
+        miss = unheard(x)
+        if miss:
+            print(f"WARN {x['id']}: Whisper did not hear {miss}: the take may have dropped them. Listen there; "
+                  f"if they are missing, `mvf voice {s['id']} --redo {x['id']}` draws it again")
 
 
 def cmd_voice_design(a):
@@ -1002,10 +1035,14 @@ def cmd_viewer(a):
     from mvflib import viewer
     cd = campaign_dir(a)
     proj = proj_path(cd, a.proj)
-    out = viewer.brief(cd, proj)
+    out = viewer.brief(cd, proj, a.chapter)
     n = out.stem.rsplit("-v", 1)[1]
     print(f"{out}\ngive it to a fresh helper (no other context: not the script, not the plan); it writes "
           f"{proj / 'review' / f'viewer-v{n}.md'}. Record each red item in review.json, fix, re-export.")
+    chs = viewer.chapters(cd, proj) if a.chapter is None and load(proj / "timeline.json")["duration"] > viewer.LONG_S else []
+    if chs:
+        print(f"a long cut: also `mvf viewer {a.proj} --chapter K` for K in 1..{len(chs)} (one fresh helper each, "
+              "in parallel); their red items count with this one")
 
 
 def cmd_keyframe(a):
@@ -1108,6 +1145,9 @@ def cmd_judge(a):
             print("WARN no --control: add a script the team already rejected; without a known loser the panel's "
                   "enthusiasm cannot be told from a good script")
         bench = [load(cd / "06-pretest/bench" / f"{b}.json") for b in a.bench or []]
+        if bench and long_form(plat):
+            raise SystemExit("--bench: a benchmark is the first 30-45 s of a real video, and a long video is judged "
+                             "whole; rank long candidates against a --control only")
         judge.judge_scripts(cd, items, a.round, a.size, plat, manifests, bench, a.dry, a.parallel)
     elif a.action == "video":
         if len(a.names) != 1:
@@ -1233,6 +1273,7 @@ def main():
     p.add_argument("--opt", action="append", help="engine option key=value (repeatable; `mvf extensions` lists them)")
     p.add_argument("--all", action="store_true", help="re-voice every line, not only changed ones")
     p.add_argument("--rehear", action="store_true", help="re-time the words of the latest take from its audio (same audio)")
+    p.add_argument("--redo", metavar="IDS", help="draw these lines again (comma-separated cue ids) although their text did not change")
     p.add_argument("--owner-skip", metavar="REASON", help="voice before the owner read the script or the pre-test picked it (a test take, a demo); the reason is recorded in 06-pretest/owner.json")
     p.set_defaults(fn=cmd_voice)
     p = sub.add_parser("voice-design")
@@ -1291,6 +1332,7 @@ def main():
     p.set_defaults(fn=cmd_export)
     p = sub.add_parser("viewer", help="brief for a fresh helper who sees only the cut (1 fps frames + the voice)")
     p.add_argument("proj")
+    p.add_argument("--chapter", type=int, help="a long cut: one chapter (1-based) at 1 fps, after the overview brief")
     p.set_defaults(fn=cmd_viewer)
     p = sub.add_parser("keyframe", help="one finished frame beside the most-viewed references: settle the look before every scene")
     p.add_argument("proj")
@@ -1313,7 +1355,7 @@ def main():
     p.add_argument("--size", default="quick", choices=["quick", "standard", "deep"])
     p.add_argument("--platform", help="the feed the personas scroll (default: the campaign's first platform)")
     p.add_argument("--dry", action="store_true", help="write the brief and key only; run nothing")
-    p.add_argument("--parallel", type=int, help="sessions at once (default 8; resume 2)")
+    p.add_argument("--parallel", type=int, help="sessions at once (default 8: lower it when the provider rate-limits)")
     p.set_defaults(fn=cmd_judge)
     p = sub.add_parser("qa")
     p.add_argument("video")
