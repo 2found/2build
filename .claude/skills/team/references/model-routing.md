@@ -12,9 +12,9 @@ its phase) and its route carries to every follow-up on it.
 Single-purpose assignments (basic design, phase integration, heavy QA,
 release, handover fix, delivery in a fresh session) get their own routes.
 `autopilot` does not select models: every step in one invocation runs on the
-model of the session opened by the human or the lead, except `design-ui`, which
-always runs in an Opus-class, high-effort subagent (autopilot SKILL.md §
-Subagent steps). Neither skill switches a running worker's model.
+model of the session opened by the human or the lead, except `design-ui` and
+UI/UX `implement` work, which run in subagents on the `pro` tier (autopilot
+SKILL.md § Subagent steps). Neither skill switches a running worker's model.
 
 ## Route inputs
 
@@ -104,7 +104,7 @@ importance signal, the built-in policy falls back to `pro`.
 
 A ticket worker is `critical` because it owns its ticket plan and its approval;
 implementation rides the same session instead of buying a cold start. Built in,
-`simple` and `normal` tickets run on `pro` (Claude `opus` at medium effort): a
+`simple` and `normal` tickets run on `pro` (Claude `opus` at high effort): a
 stronger model that lands the ticket in one session is cheaper than a
 follow-up, which costs a cold start. Phase integration (`normal`/`normal`)
 also runs on `pro`, because it reviews and fixes the small tickets that

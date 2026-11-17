@@ -39,6 +39,9 @@ Settle these before any layout:
 - **Jobs.** Write each job the change serves as trigger → done with its ideal
   steps, as rows of the flow inventory (create the file with these rows when
   it is missing). Design the path first, then the screens it needs (J1, J2).
+  List the blockers the job can hit midway (balance, sign-in, credential,
+  quota) and design each fix in place or as a detour that returns to the
+  same step with input kept and the refreshed state shown (J5).
 - **Owner.** For each fact and action in the brief, find the screen that
   already owns it or its nearest relative, and extend that. A new screen, tab
   or navigation entry needs a job no existing screen can own, and names what
@@ -72,21 +75,23 @@ Use `browse` or the caller's browser tooling: render, inspect screenshots at
 the common and the narrowest supported width, fix what falls short, and
 recheck. On the rendered preview:
 - Walk each job, counting actions and screen switches against its ideal
-  steps (J2, J4), plus one relevant failure.
+  steps (J2, J4), plus one relevant failure and each blocker walked through
+  its fix back to the job's end (J5).
 - Cold read (S2): a fresh subagent sees only the screenshot of each new or
   reshaped screen and answers "what is this for?" and "what would you do
   first?". No subagent tool → report S2 as unchecked.
 - Count per changed screen: primary actions, tabs, row actions, rows over 2
-  lines, helper paragraphs, repeated facts (S1, S3, S4, T1–T3). Prefer
-  layout, position and icons to sentences.
+  lines, helper paragraphs, repeated facts, labels over length (S1, S3, S4,
+  T1–T3, T5). Prefer layout, position and icons to sentences.
 - Lay it beside its two nearest sibling screens: header, gutter, rows and
-  states match (C1–C3).
+  states match (C1–C3), and switching between its own states moves nothing
+  that did not change (C6).
 - Name what the screen fetches on open and what it shows before data lands
   (P1, P4).
 - The other color scheme and `agent-browser a11y` on each screen.
 
-`ui-audit`'s [checklists](../ui-audit/references/checklists.md) say how each
-row is measured on the built UI. Honor requested build/verification commands.
+`ui-audit`'s [measures](../ui-audit/SKILL.md#what-is-measured) say how each
+row is quantified on the built UI. Honor requested build/verification commands.
 A build is not visual evidence; report blocked inspection. Keep previews local
 unless publishing is requested.
 

@@ -21,6 +21,7 @@ the design authority. Accessibility (WCAG 2.2 AA) and the agent path
 | J2 | A job finishes where it starts: no leaving for another screen to fetch, copy or remember what this one needs. | actions ÷ ideal ≤ 1.5; screen switches beyond the ideal path 0; values retyped or carried in the head 0 |
 | J3 | Every state an object can reach (the backend's own enums and lifecycle) has a visible form and a way out: retry, edit, cancel, undo, delete. | lifecycle matrix: states with no screen 0, with no exit 0 |
 | J4 | Each screen shows the next step, and a finished action shows its result where the user is looking. | per step: next step visible without scrolling or guessing |
+| J5 | A blocker met mid-job (balance too low, not signed in, missing credential or field, unverified, quota spent) is fixed without abandoning the job: in place (sheet, dialog, inline field), or by a detour that returns to the same step with everything entered kept. The job then continues on the refreshed state (the new balance shows) without being started again. | per blocker, walked as one journey: actions ÷ (job ideal + fix ideal) ≤ 1.5; navigations the user makes to find the fix 0; values re-entered 0; steps redone 0; refreshed state visible on return |
 
 ## One owner: nothing lives in two places
 | id | Bar | Proof |
@@ -44,22 +45,24 @@ the design authority. Accessibility (WCAG 2.2 AA) and the agent path
 | T2 | A count or status is an icon plus a number or word, aligned in a shared column, with the full sentence as its accessible name and tooltip. | counts written as sentences 0 |
 | T3 | Nothing is said twice on a screen, reassurance repeated per card included. | repeated facts 0 |
 | T4 | Never cut: an error with its recovery, a blocker, destructive-confirm wording, form labels and validation, legal copy, the word beside a colour dot, a price, or the only text saying what a write or charge will do. | over-cutting fails too |
+| T5 | Words are a budget. Titles ≤ 6 words, buttons ≤ 3 words and verb-first; a sentence explaining how to operate a control means the control should change; a screen carries no more words than its job needs. | labels over length 0; how-to sentences 0; words in the first viewport ≤ 2× the product median |
 
 ## One system: same job, same component, same geometry
 | id | Bar | Proof |
 |---|---|---|
-| C1 | One idiom per job. Page shell and header, list row, card, form footer, dialog or sheet, loading, empty, error and partial failure each come from one shared component named in the design authority. The list is open: any job two screens both do (a stat tile, a banner) joins it. A second idiom is drift even when built from legal primitives. | idioms per job, counted in source and on screen: 1 |
+| C1 | One idiom per job. Page shell and header, list row, card, form footer, dialog or sheet, loading, empty, error and partial failure each come from one shared component named in the design authority. The list is open: any job two screens both do (a stat tile, a banner) joins it. A second idiom is drift even when built from legal primitives. The same kind of action also behaves the same everywhere: where its feedback appears, how it confirms, saves and undoes. | idioms per job, counted in source and on screen: 1; behaviours per kind of action: 1 |
 | C2 | Loading is a skeleton shaped like the content that replaces it, so nothing jumps when data lands; a spinner belongs only inside the control that started an action. Loading, empty and error look and behave the same on every screen. | state matrix, screens × states |
 | C3 | Each geometry role has one value, on the project's scale, across screens: page gutter, header height, section gap, card padding, row height, title size, radius. | computed styles per role: 1 value |
 | C4 | A feature composes shared components; it never redraws, restyles or locally copies one. A new shared component, variant or token is a design decision recorded in the design authority. | local look-alikes 0; literal or off-scale values 0 |
 | C5 | A drift class seen twice becomes a rule in the project's mechanical UI check, so it cannot return. | the rule fails on a planted case |
+| C6 | A state change moves only what changed. A region keeps its size and place through loading, empty, error, filled, expanded, selected and submitting; a control keeps its size when its label, icon or spinner changes; validation, toasts and banners take reserved space or float over content, never push it; switching tab, filter or page leaves the shell still. A component looks the same in every state except the part that signals the state. | per state change, element boxes before and after: unchanged elements moved 0 px, controls resized 0; shifts counted after input too (CLS ignores those) |
 
 ## Fast: measured on the build users run
 | id | Bar | Proof |
 |---|---|---|
 | P1 | A screen shows usable content within 1 s warm and 2.5 s cold (LCP); anything slower shows its skeleton within 100 ms. | measured with production-shaped data |
 | P2 | An action gives feedback within 100 ms and finishes or shows progress within 1 s (INP ≤ 200 ms); past 10 s it shows progress and can be cancelled or left. | measured per main action |
-| P3 | Nothing moves after first paint (CLS ≤ 0.1): no content jumping as data, images or banners arrive. | measured; frames of a cold open |
+| P3 | Nothing moves after first paint (CLS ≤ 0.1): no content jumping as data, images, fonts or banners arrive. Shifts a user's action causes are C6. | measured; frames of a cold open |
 | P4 | Opening a screen fires no duplicate request, no unbounded list fetch and no request whose result it never shows. Long lists paginate or virtualize. | request log of one open |
 | P5 | Returning to a screen already seen shows its last content at once and refreshes in place; it does not start over from a skeleton. | back-navigation frames |
 

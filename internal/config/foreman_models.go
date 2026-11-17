@@ -36,11 +36,12 @@ func defaultForemanModels() ForemanModels {
 		// @smol, @slow and @plan — and `--model @normal` is a hard startup
 		// error ("Model @normal not found", then "No model selected"), so the
 		// normal role is expressed by omitting --model and letting omp use its
-		// configured default.
+		// configured default. Claude's pro is opus at high effort: autopilot
+		// also runs UI design and UI/UX implementation on pro.
 		Tiers: map[string]map[string]ModelBinding{
 			"lite":  {"codex": {"gpt-6-luna", "high"}, "claude": {"haiku", ""}, "omp": {"@smol", ""}},
 			"flash": {"codex": {"gpt-6.1-sol", "high"}, "claude": {"sonnet", "high"}, "omp": {"", ""}},
-			"pro":   {"codex": {"gpt-6.1-sol", "high"}, "claude": {"opus", "medium"}, "omp": {"@slow", ""}},
+			"pro":   {"codex": {"gpt-6.1-sol", "high"}, "claude": {"opus", "high"}, "omp": {"@slow", ""}},
 			"max":   {"codex": {"gpt-6-astra", "high"}, "claude": {"opus", "high"}, "omp": {"@plan", ""}},
 		},
 	}

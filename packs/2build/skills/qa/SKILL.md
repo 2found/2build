@@ -165,8 +165,10 @@ Exercise the application like a user and leave reproducible evidence.
    blocks PASS. This is acceptance verification, not pixel equality or a new
    design exercise. Each changed screen also meets the
    [UI bar](../../shared/ui-bar.md): shoot its loading, empty and error
-   states and lay it beside its nearest sibling screen (C1–C3), walk the
-   design note's jobs counting steps (J2), check nothing it shows already
+   states and lay it beside its nearest sibling screen (C1–C3), check each
+   state change moves nothing that did not change (C6), walk the
+   design note's jobs counting steps (J2) and each blocker they can hit
+   through its fix back to the job's end (J5), check nothing it shows already
    lives on another screen (O1), and time its open and main action (P1, P2).
    A failed row is a failed case unless the design note names it unmet.
    Off-script time around the changed

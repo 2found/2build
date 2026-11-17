@@ -2,6 +2,32 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
+## 1.139.0 — 2026-11-18
+
+### Changed
+
+- `ui-audit` — rewritten as a shorter standard: eight principles (the job is
+  the unit, side-by-side comparison, backend as truth, measured not opined,
+  persona knowledge only, real conditions, subtract first, fix the cause
+  where it lives) replace the fixed procedure; evidence-gathering method is
+  now the agent's choice. Its three reference files (checklists, helpers,
+  report-template) are removed; measures live in the skill body.
+- UI bar — three new rows: **J5** a blocker met mid-job (balance, sign-in,
+  credential, quota) is fixed in place or as a detour that returns with
+  input kept and refreshed state shown; **T5** words are a budget (titles
+  ≤ 6 words, buttons ≤ 3 words, verb-first, no how-to sentences); **C6** a
+  state change moves only what changed (element boxes compared before and
+  after loading/empty/error/expanded/submitting). C1 now also requires the
+  same kind of action to behave the same everywhere; P3 defers input-caused
+  shifts to C6.
+- `design-ui`, `qa` — jobs list the blockers they can hit and walk each fix
+  back to the job's end (J5); changed screens are checked for state-change
+  stability (C6) and label length (T5).
+- `autopilot`, `team` — user-facing UI/UX work runs on the `pro` tier:
+  `design-ui` and UI/UX `implement` milestones dispatch on the pro binding
+  (`bbs team model` resolves it; Claude Code default `opus` + high effort).
+  Claude's pro default moves to `opus` at **high** effort (was medium).
+
 ## 1.138.1 — 2026-11-17
 
 ### Fixed

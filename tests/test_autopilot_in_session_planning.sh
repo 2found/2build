@@ -142,7 +142,7 @@ assert policy["tiers"] == {
               "claude": {"model": "sonnet", "effort": "high"},
               "omp": {"model": ""}},
     "pro":   {"codex": {"model": "gpt-6.1-sol", "effort": "high"},
-              "claude": {"model": "opus", "effort": "medium"},
+              "claude": {"model": "opus", "effort": "high"},
               "omp": {"model": "@slow"}},
     "max":   {"codex": {"model": "gpt-6-astra", "effort": "high"},
               "claude": {"model": "opus", "effort": "high"},

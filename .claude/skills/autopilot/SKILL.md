@@ -152,10 +152,16 @@ alongside another editing step or a gate. This session keeps the checkpoint,
 the judgment of what comes back, and every gate; a subagent never decides
 readiness.
 
+- **UI work runs on the `pro` tier.** `design-ui`, and `implement` work
+  whose deliverable is a user-facing UI/UX surface (screens, components,
+  layout, interaction, visual polish), run in a subagent bound to the `pro`
+  tier: read `.tiers.pro.<agent>` from `bbs team model --dir "$REPO" --json`
+  (settings may override it). Claude Code: `model: "opus"`,
+  `effort: "high"` by default; elsewhere the binding the policy returns, else
+  the harness's top advertised model at high effort, or inherited when the
+  subagent tool has no selector (record which).
 - **`design-ui` always runs in a subagent** — init step 4, builder step 2, a
-  Team ticket's prototype extension. Claude Code: `model: "opus"`,
-  `effort: "high"`; elsewhere the harness's top advertised model at high
-  effort, or inherited when the subagent tool has no selector (record which).
+  Team ticket's prototype extension.
   Its prompt carries this line verbatim:
   `Make it really good, use lots of tokens and iterate till you're proud of it.`
   Dispatch it from this session
@@ -186,8 +192,11 @@ readiness.
   that handoff and the diff and re-runs the checks; a failure goes to one
   more subagent for that milestone with the evidence, then to the repair
   loop. Record each accepted milestone in the checkpoint with its handoff
-  filename. `XS`/`S` tickets, single-milestone plans and every review/QA fix are
-  coded in this session. An `implement` subagent never invokes `design-ui`:
+  filename. A UI/UX milestone runs on the `pro` tier; others inherit.
+  `XS`/`S` tickets and single-milestone plans are coded in this session,
+  except UI/UX work, which prefers one `implement` subagent on the `pro`
+  tier unless the session already runs on that binding. Every review/QA fix
+  is coded in this session. An `implement` subagent never invokes `design-ui`:
   a user-facing surface without a spec comes back as a gap, and this
   session dispatches `design-ui` first. A browser it opens uses a session
   name this session entered in the cleanup ledger, and it returns a
@@ -204,8 +213,8 @@ push, ticket status, gate, close-out or autopilot authority. No subagent tool
 There is no `--planner` flag and no per-step model flag. The session model is
 a **launch** decision: the human chooses it for a direct run; the lead selects
 it before opening a ticket worker.
-Autopilot does not select a model tier or reroute the session; `design-ui`'s
-pinned subagent is the one fixed exception. On Claude Code an inherited
+Autopilot does not select a model tier or reroute the session; the `pro`
+subagents for `design-ui` and UI/UX `implement` are the one fixed exception. On Claude Code an inherited
 subagent is called with the session's own model alias: an omitted `model`
 resolves to `CLAUDE_CODE_SUBAGENT_MODEL` when the project sets it
 (`setup-project` seeds `sonnet`), not to the session's model.
