@@ -116,7 +116,7 @@ def checks(cd: Path | None = None, quick: bool = False) -> list[dict]:
     add("research", "OK" if v else "WARN",
         f"{v + ' at ' + ab if v else 'agent-browser not runnable'} (TikTok, pages that need a browser;"
         " put this path in gathering briefs)",
-        "" if v else "npm install -g agent-browser cloakbrowser")
+        "" if v else "npm install -g agent-browser cloakbrowser && agent-browser install")
     return out
 
 

@@ -31,8 +31,11 @@ re-observed or dropped.
   `cross` patterns seen through web search or embeds, and say so. Never like,
   follow or comment.
 - For a long-form reference, the title and the thumbnail carry the hook.
-- **Read TikTok through the `browse` skill** (`../browse/skill.md`: headed
-  agent-browser on cloakbrowser, logged out, its session export and cleanup).
+- **Read TikTok through the `browse` skill on its CloakBrowser engine**
+  (`../browse/skill.md`: headed agent-browser, logged out, its session export
+  and cleanup). Plain Chromium is the browse default and TikTok blocks it —
+  the CloakBrowser stealth exports are required, and the `mvf-research`
+  profile below only exists on that engine.
   **Always the same profile:** pass `--restore mvf-research` to every `open`
   and `close`, on every site and in every campaign, so cookies, a passed
   captcha and any login the owner made carry over instead of each run

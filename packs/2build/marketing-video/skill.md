@@ -330,7 +330,8 @@ Never log in to, upload to or post on any platform, and never spend money (ads,
 boosts, paid APIs) without the user's explicit say. Delivery ends at local
 files plus caption and post text; the user posts. Keep secrets out of campaign
 files, and read them from env vars only. Observe platforms logged out (pages
-that need a real browser, such as TikTok, through `browse`), and do not like,
+that need a real browser, such as TikTok, through `browse` — always request
+its CloakBrowser engine, its default is plain Chromium), and do not like,
 follow or comment.
 
 ## Report

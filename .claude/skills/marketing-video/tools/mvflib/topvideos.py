@@ -57,9 +57,11 @@ def tiktok_search(query: str, scope: str) -> str:
           ".map(x=>x.href)).size<2)c=c.parentElement;return [a.href,a.href+\" \"+c.innerText.replace(/\\s+/g,\" \")"
           ".slice(0,200)]})).values()])")
     return "\n".join([
-        "AGENT: mvf cannot search TikTok (it needs a real browser). With the browse skill, logged out:",
-        "AGENT:   open https://www.tiktok.com/ (the home page; never load a /search or /tag URL, TikTok blocks it), "
-        f"snapshot -i, click the Search box, keyboard type {query!r}, press Enter",
+        "AGENT: mvf cannot search TikTok (it needs a real browser). With the browse skill on its "
+        "CloakBrowser engine, logged out:",
+        "AGENT:   open --restore mvf-research https://www.tiktok.com/ (the home page; never load a /search or "
+        "/tag URL, TikTok blocks it), "
+         f"snapshot -i, click the Search box, keyboard type {query!r}, press Enter",
         f"AGENT:   then the hashtag {tag}: click it in a caption or the Hashtags tab, or type it in the search box",
         "AGENT:   on each list, collect each post's link and card text (likes, caption, creator) at once: the page swaps "
         f"its results a few seconds after it loads. agent-browser eval '{js}'",

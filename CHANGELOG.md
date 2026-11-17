@@ -2,6 +2,20 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
+## 1.137.0 — 2026-11-17
+
+### Changed
+
+- `browse` — plain Chromium (Chrome for Testing, via `agent-browser install`)
+  is now the default engine; CloakBrowser stealth is opt-in, requested per
+  task or after a site blocks the plain browser. New usage notes: `batch`
+  JSON on stdin, `errors`/`console` on pages you built, cache-busting after
+  an edit, and one `eval`/`fetch` for many pages.
+- `marketing-video` — names the CloakBrowser engine wherever it calls
+  `browse` (TikTok is blocked on plain Chromium), and `mvf top-videos` now
+  prints `--restore mvf-research` on its `open` step so the research profile
+  carries over between runs.
+
 ## 1.136.0 — 2026-11-17
 
 ### Added
