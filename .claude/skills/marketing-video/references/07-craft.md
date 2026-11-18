@@ -47,7 +47,12 @@ An effect alone looks like a sticker; the body around it sells the hit.
   (2026-11-10) none of them gave a visible gain, a freeze delayed the payoff
   and ghosts on a short or vertical move read as a smear. They sell a
   reaction that is already framed; they are not one. Add one only when a
-  with/without frame strip shows it helps.
+  with/without frame strip shows it helps. A close character's acting is
+  different: see [Characters that act](#characters-that-act).
+- **Stepped motion needs a matching frame rate.** HyperFrames renders at 30
+  fps unless the root sets `data-fps`. Poses held on twos or threes of a
+  24 fps count then last 2 frames on some holds and 3 on others, and the
+  rhythm wobbles. Set `data-fps="24"` on a cut timed in 24 fps frames.
 
 | You see | Usual fix |
 | --- | --- |
@@ -58,6 +63,43 @@ An effect alone looks like a sticker; the body around it sells the hit.
 | mush at phone size | one focal point, bigger shapes, fewer colours |
 | washed out glow on paper | glow belongs on dark plates; on paper use ink: lines, solid shapes |
 | it pops off | let it shrink, fade or fall away before it ends |
+
+### Characters that act
+A drawn character reads as alive through a few habits, whatever the style.
+Numbers are frames at 24 fps. The rates, blink and mouth counts come from
+animation references (ANN, Animation Obsessive, Bloop, Clip Studio); the
+breath and lag figures are estimates to tune by eye.
+- **Hold drawings, do not glide.** Hand animation changes the drawing every 2
+  frames (12 a second) for normal action and every 3 (8 a second, the TV
+  anime default) for calm or weighty action; only a fast release goes to
+  every frame. Quantise a character's transforms to those steps (GSAP
+  `steps(n)`), and leave the camera and the scenery smooth. A move can start
+  on ones and drop to threes as it settles.
+- **Pose, hold, pose.** Jump between key poses with little in between and
+  hold each one (6–12 frames, longer for a reaction) so it reads.
+- **Blinks have a half-shut drawing.** Half 2, shut 1–2, half 2, open: about
+  6 frames, every 2–6 s at no fixed interval, one extra after a head turn.
+  A blink that only swaps open and shut reads as a flicker.
+- **A talking mouth moves.** Three mouths (closed, half, open), a new one
+  every 2–3 frames while the voice speaks, never the same twice, closed now
+  and then; it shuts 2–3 frames after the sentence ends. A still mouth under
+  a voice reads as a dub.
+- **Never fully still.** A slow breath (scale 1–2%, a 2.5–3 s cycle, on
+  threes), and loose parts (hair, a beard, a tail, a flame, a sleeve)
+  swaying on their own cycle 2–4 frames behind the body. Keep both small:
+  they are noticed only when missing.
+- **A take (surprise, a shock, a hit received).** Squash 2 frames, one
+  stretched smear frame toward the move, the pose just past its mark, a
+  stepped shake that decays (10, −8, 6, −4, 2 px on twos), a hold, then
+  settle on threes. The face changes on the smear, not after. For a big
+  one, add radial focus lines boiling on twos while it holds, and at most
+  one inverted impact frame (1–2 frames). An impact frame is a flash: one
+  per shot, never three in a second.
+- On a face filling the frame the owner judged these clearly better than
+  the same beats on smooth twos with a one-frame blink and a still mouth
+  (stacked side-by-side study, 2026-11-18). That contrasts with the fights
+  above, framed small, where stepping showed nothing: the habits sell a
+  face and a body the viewer can see.
 
 ## Devices
 A number or a comparison is a relation, and a relation can be shown. The line

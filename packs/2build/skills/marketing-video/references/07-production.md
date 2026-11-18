@@ -153,6 +153,37 @@ the cut 6: "faceless silhouettes where reactions are the story".
   fix the design there, not in the scenes.
 - A face needs about 120 px of figure height on a 1080 px-wide frame before
   its expression reads. Smaller than that, use a silhouette or a back.
+- **Set the line weight on screen, not in the drawing.** A figure drawn once
+  and scaled per shot scales its outline too: one series put a 15 px
+  outline beside an 8 px one in the same cut. Pass the drawing code the
+  scale it is placed at and divide every line width (and print offset) by it,
+  so all figures share one outline in px (about 10 on a 1080-wide frame;
+  sets and props thinner, so figures stand off the ground). Measured on the
+  same six figures: median outline 8–15 px before, 9–10 px after
+  (2026-11-18).
+- **Give every expression a mark.** Brows, eyes and mouth alone read as the
+  wrong feeling about half the time at phone size, the quiet ones (happy,
+  curious, smug, pensive) worst. Draw a mark beside the face: a vein for
+  anger, a tear for sadness, purple lines and a sweat drop for fear, shock
+  lines for surprise, "?" for curiosity, "…" for thinking, a sparkle for
+  joy, a puff of breath for smugness. Blind agent readers (not children)
+  named 19 of 36 unmarked faces and 46 of 48 marked ones (2026-11-18). A
+  mouth hidden by a beard or a muzzle then stops mattering.
+- **Shift a style through the face first.** Asked for a look "a little more
+  anime", three directions were drawn on one sheet (same characters, same
+  two expressions): the current one, the same print look with an anime face
+  (tall irises dark at the top, two highlights on the light side, a heavy
+  upper lid thinning to the inner corner, hatched blush, one hard cel
+  shadow), and full clean cel. The owner took the middle one: it moved the
+  feeling and kept what made the series its own. Lashes flicked upward made
+  an old man and a dragon read feminine; a heavy lid without lashes did not.
+- **Judge motion side by side.** Stills cannot show timing. Stack the same
+  beats twice in one frame, the current way on top and the candidate below,
+  with the same words and times, and label each half with what it does.
+- **Keep a log of what went wrong beside the cast code** (a table: the
+  error, the fix) and read it before the next scene. A series' errors
+  repeat: a glow disc that turned a character into a sun, a caption over
+  the feet, a mark clipped by the head's frame.
 - The person the story follows has a face, shown clearly the first time the
   voice names them. A silhouette cannot react, so it is for a stranger, a
   crowd or a threat, never for the one whose reaction is the beat.

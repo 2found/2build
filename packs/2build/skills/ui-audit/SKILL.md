@@ -16,7 +16,8 @@ Make it really good, use lots of tokens and iterate till you're proud of it.
 Follow [preamble](../../shared/preamble.md) and the
 [Auto-Decision Framework](../../shared/auto-decision-framework.md). The
 standard is the [UI bar](../../shared/ui-bar.md): it owns the rules and
-numbers, findings cite its row ids. Evaluate and report only; fixes go to
+numbers, findings cite its row ids. Shared refs are filesystem paths beside
+this skill's directory, so read them by path, not as `skill://`. Evaluate
 `autopilot`. Browser driving: [`browse`](../browse/SKILL.md). A live system
 or a founder's real data: [live-safety](references/live-safety.md) is
 binding.

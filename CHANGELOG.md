@@ -2,6 +2,25 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
+## 1.139.1 — 2026-11-18
+
+### Added
+
+- `marketing-video` — animation craft guidance in `references/07-craft.md`:
+  how to make drawn characters read as alive (pose-hold-pose on twos/threes
+  at the matching `data-fps`, half-shut blinks, cycling talking mouths,
+  breath and secondary sway, the squash/smear/shake take, one impact frame
+  per shot), plus a stepped-motion frame-rate rule.
+- `marketing-video` — production guidance in `references/07-production.md`:
+  set line weight in placed px (divide widths by placement scale), give every
+  expression a drawn mark beside the face, shift a style through the face
+  first, judge motion with stacked side-by-side beats, and keep an error log
+  beside the cast code.
+
+### Fixed
+
+- `ui-audit` — adds the missing filesystem-path note for its `../references/`
+  links, which OMP resolves as `skill://` URIs and fails on.
 ## 1.139.0 — 2026-11-18
 
 ### Changed
