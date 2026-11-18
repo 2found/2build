@@ -40,7 +40,7 @@ def repo() -> tuple[tempfile.TemporaryDirectory, Path]:
 
 def campaign(root: Path, voice=None, **script_over) -> Path:
     mvf(root, "init", "demo", "--product", "Acme")
-    cd = root / "marketing/campaigns/demo"
+    cd = root / "marketing/channels/acme/campaigns/demo"
     s = script(voice=voice or {"mode": "recorded"}, **script_over)
     (cd / "05-scripts/s01-test.json").write_text(json.dumps(s))
     mvf(cd, "approve", "s01-test", "--verdict", "approved")  # the owner read it: production may start

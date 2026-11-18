@@ -3,8 +3,10 @@
 campaign dir; every artifact has a check; every video is measured against the
 platform it ships to. Run from anywhere inside a campaign (or pass --campaign).
 
-  init <slug> --product NAME [--subject S] [--format F]   new campaign from templates and the library
-                                    (default <repo>/marketing/campaigns/<slug>)
+  init <slug> --product NAME [--channel C] [--series S] [--subject S] [--format F]   new campaign from templates
+                                    and the library, in <repo>/marketing/channels/<C or product>/campaigns/<slug>
+                                    (--root DIR: in DIR/<slug>, no channel)
+  channel init <name> --product NAME   the channel folder's missing parts: AGENTS.md, docs/, pack/, brand/, metrics/
   format save <name> --from <sid> | ls      keep a series' look, captions, ambience, rigs, props and voice by name
   library [save|check DIR]          what earlier videos left (product pack, material, history, formats); save this
                                     campaign into it; check that a campaigns folder can be deleted
@@ -260,8 +262,19 @@ def pick_take(cd: Path, script: dict, want: str | None) -> Path | None:
 
 # ---------- commands ----------
 
+def cmd_channel(a):
+    from mvflib import channel
+    chd = channel.path(a.name)
+    made = channel.init(chd, a.product)
+    print(f"channel {chd}: " + (f"wrote {', '.join(made)}" if made else "complete, nothing written"))
+
+
 def cmd_init(a):
-    root = Path(a.root) if a.root else project_root() / "marketing/campaigns"
+    from mvflib import channel
+    if a.root and (a.channel or a.series):
+        raise SystemExit("--root writes the campaign where you say; --channel and --series need a channel folder")
+    chd = None if a.root else channel.path(a.channel or a.product)
+    root = Path(a.root) if a.root else chd / "campaigns"
     cd = root / a.slug
     if (cd / "campaign.json").exists():
         raise SystemExit(f"{cd} already has a campaign")
@@ -271,6 +284,13 @@ def cmd_init(a):
     if a.format and not formats.find(root, a.format):
         have = ", ".join(r["name"] for r in formats.listing(root)) or "none"
         raise SystemExit(f"no format {a.format!r} in {formats.root(root)} (have: {have})")
+    over = channel.overlay(chd, a.series) if a.series else None
+    if chd:
+        made = channel.init(chd, a.product)
+        if made:
+            print(f"channel {chd}: wrote {', '.join(made)}")
+        for line in channel.sync_pack(chd, a.product):
+            print(f"INFO {line}")
     for rel, tmpl in (("campaign.json", "campaign.json"), ("01-product/facts.json", "facts.json"),
                       ("02-audience/segments.json", "segments.json"), ("03-trends/trends.json", "trends.json"),
                       ("03-research/research.json", "research.json"), ("04-strategy/angles.json", "angles.json")):
@@ -291,6 +311,9 @@ def cmd_init(a):
         v = (f.get("voice") or {}).get("ref")
         print(f"format {a.format} (from {f.get('from')}): style {f.get('style') or 'none'}, look/captions/ambience in "
               f"{formats.APPLIED}" + (f"; set each script's voice.ref = \"{v}\"" if v else ""))
+    if over:
+        dump(cd / "campaign.json", channel.merge(load(cd / "campaign.json"), over))
+        print(f"series {over['series']}: merged {chd / channel.SERIES / a.series}.json into campaign.json")
     print(f"campaign {cd}\nnext: `mvf next` (it walks the stages and says who acts)")
 
 
@@ -303,7 +326,13 @@ def cmd_format(a):
         out = formats.save(cd, a.name, a.sid, force=a.force)
         print(f"format {a.name} → {out}\nstart the next episode with `mvf init <slug> --product … --format {a.name}`")
         return
-    camps = campaign_dir(a).parent if maybe_campaign(a) else (Path(a.root) if a.root else project_root() / "marketing/campaigns")
+    if maybe_campaign(a):
+        camps = campaign_dir(a).parent
+    elif a.root:
+        camps = Path(a.root)
+    else:  # the library's formats are found from any folder in the repo; a channel adds its legacy _formats
+        from mvflib import channel
+        camps = channel.path(a.channel) / "campaigns" if a.channel else project_root()
     rows = formats.listing(camps)
     for r in rows:
         print(f"{r['name']}: broken format.json" if r.get("broken") else
@@ -1169,10 +1198,17 @@ def main():
     p = sub.add_parser("init")
     p.add_argument("slug")
     p.add_argument("--product", required=True)
-    p.add_argument("--root")
+    p.add_argument("--channel", help="the channel folder, <repo>/marketing/channels/<channel>/ (default: the product)")
+    p.add_argument("--series", help="merge the channel's pack/series/<name>.json into campaign.json")
+    p.add_argument("--root", help="the campaigns folder instead of a channel's (no channel skeleton, pack or series)")
     p.add_argument("--format", help="start from a saved format (`mvf format ls`)")
     p.add_argument("--subject", help="what the video is about (a novel, a feature): starts from its saved material")
     p.set_defaults(fn=cmd_init)
+    p = sub.add_parser("channel", help="write the missing parts of a channel folder (mvf init does it too)")
+    p.add_argument("action", choices=["init"])
+    p.add_argument("name")
+    p.add_argument("--product", required=True)
+    p.set_defaults(fn=cmd_channel)
     p = sub.add_parser("library", help="what earlier videos left: product pack, material, history, formats")
     p.add_argument("action", nargs="?", choices=["ls", "save", "check"], default="ls")
     p.add_argument("dir", nargs="?", help="check: the campaigns folder to delete")
@@ -1183,6 +1219,7 @@ def main():
     p.add_argument("name", nargs="?")
     p.add_argument("--from", dest="sid", help="the script whose direction to keep")
     p.add_argument("--force", action="store_true")
+    p.add_argument("--channel", help="ls outside a campaign: also this channel's legacy campaigns/_formats")
     p.add_argument("--root", help="campaigns folder for `ls` outside a campaign")
     p.set_defaults(fn=cmd_format)
     sub.add_parser("status").set_defaults(fn=cmd_status)

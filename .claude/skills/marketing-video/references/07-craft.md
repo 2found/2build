@@ -113,6 +113,13 @@ A number or a comparison is a relation, and a relation can be shown. The line
 - It lands on the word that says it and holds until the line is understood.
   One device per beat; two at once compete.
 - Every value it shows is a fact the beat cites.
+- **A size reference from today is marked as one.** A house cat drawn in
+  full colour inside a Cretaceous burrow, to show "cat-sized", read to a
+  cold viewer as "cats survived too". Draw the yardstick as a grey ghost
+  with a dashed rim and a label, so it is clearly a comparison.
+- **One symbol, one meaning per video.** The same cut used "Zzz" for the
+  sage's sleep and for a starving dinosaur, and the viewer read the
+  starving one as asleep.
 
 ## Cuts and rhythm
 - **Cut for a reason:** a new piece of information, a reaction, a change of
@@ -130,6 +137,14 @@ A number or a comparison is a relation, and a relation can be shown. The line
   hold beat alone.
 - **Cut on the action** when a move carries across shots, and on the word
   when the line carries it.
+- **A short changes the picture at least every 2.5 s**: a cut, a punch-in
+  or a large pose change. A 43 s cut with nine shots (about 5 s each, one
+  frame held 9 s) was "about half as dense as a short needs" to its cold
+  viewer, who scored it 4.
+- **The peak gets the biggest picture.** The same cut built its voice to the
+  asteroid strike and showed a few brown dots, and the viewer named that the
+  moment they would leave. Give the story's peak the frame's full width,
+  a flash and a shake; spend the drawing time there first.
 
 ## Empty space
 A frame with room left over is a framing problem, not a decoration problem.

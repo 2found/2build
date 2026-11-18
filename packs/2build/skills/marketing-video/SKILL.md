@@ -52,8 +52,15 @@ preset (`"style": "none"` in `campaign.json`). The presets (`stickman`, `ink`,
 that wants one, and nothing asks for them
 ([07 Production](references/07-production.md#the-key-frame)).
 
-One campaign is one folder, `marketing/campaigns/<slug>/` by default. Each stage
-leaves one artifact on disk, so the work survives a crash and can be audited.
+One campaign is one folder, `marketing/channels/<channel>/campaigns/<slug>/` by
+default. Each stage leaves one artifact on disk, so the work survives a crash
+and can be audited. The channel folder holds what every episode shares:
+`AGENTS.md`, a bible and production notes in `docs/`, owner decisions
+(`docs/03-decisions.md`: an open one follows its **Proposed** option until a
+**Decided:** line), `pack/campaign.json` (brand, colours, fonts, pronunciations:
+the source of the library's product pack, copied over it at every `mvf init`,
+so edit it there), `pack/series/<name>.json` overlays, `brand/` (logo, cast sheet, the cast's shared drawing code: [07-production](references/07-production.md#characters-drawn-in-code)) and `metrics/`
+(`videos.csv`, `weekly.md`). The campaign holds one video's stages.
 What a later video uses lives in the library, `<repo>/.babysit/marketing-video/library/`:
 the product pack (facts, captures, audience, trends, brand), each subject's
 material, the history of every angle and script, formats and production code.
@@ -65,7 +72,8 @@ Read it with `mvf library`, never by opening earlier campaigns; once
 The owner touches a campaign three times, and the agent does everything else.
 1. **The brief.** What to promote, the goal, and where it goes (platforms,
    language); the viewer benefit only if the owner names one. Ask once, only for what the request leaves out,
-   and write every other assumption into `campaign.json`.
+   and write every other assumption into `campaign.json`. The channel's `AGENTS.md`, `docs/` and decided
+   decisions answer first; a channel's own `bin/` script, when it has one, opens the campaign.
 2. **The script.** The owner reads the winning script's page (`mvf sheet
    <sid>`) and says yes, no with a reason, or "you decide" (`mvf approve`).
    This happens on the campaign's first video; nothing is voiced before it.
@@ -293,9 +301,13 @@ stopped.
 inside a campaign.
 - It needs python3 and ffmpeg; `yt-dlp` for video references and transcripts;
   `mvf doctor` checks the rest.
-- `mvf init <slug> --product NAME [--subject S] [--root DIR]` writes the folder
-  and its `.gitignore`, and copies in the library's pack for the product and
-  material for the subject; pass `--root` when the repo keeps campaigns elsewhere.
+- `mvf init <slug> --product NAME [--channel C] [--series S] [--subject S]`
+  writes the folder and its `.gitignore` in channel `C` (default: the product),
+  first writing the channel's missing files (`mvf channel init C --product NAME`
+  does only that, never overwriting) and copying its pack into the library; it
+  then copies in the library's pack for the product and material for the
+  subject, and merges `pack/series/S.json` (lists unioned, other values
+  replaced). `--root DIR` writes `DIR/<slug>` with no channel, as before.
   For the next episode of a series, `mvf format save <name> --from <sid>`
   keeps the last one's look, captions, ambience, rigs, props and voice, and
   `mvf init <slug> --product NAME --format <name>` starts from them.

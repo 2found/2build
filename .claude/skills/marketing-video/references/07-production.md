@@ -135,6 +135,14 @@ a counted "1-2-3" and a sound-effect burst. It also put captions across
 bodies and a figure over the caption at the punch, which the zones and the
 review are here to catch.
 
+**A scene guide made of numbers is what keeps parallel agents together.** A
+guide that said "fill the frame" and "keep it lively" gave four styles. One
+that gave each agent the voice table with its seconds, a shot list with times
+and sizes ("the fireball about 60% of the frame width", "a cut every 2.5 s or
+less"), the bands where subjects and captions go, and the shared drawing
+code's poses and parts gave three chapters that matched on the first pass.
+Put each rule as something an agent can measure on its own snapshot.
+
 A later video took a manuscript page beside a figure seen from behind as its
 key frame, and it held up. The scenes built after it had round heads a few
 pixels tall and a faceless silhouette for the lead, and a cold viewer scored
@@ -148,9 +156,44 @@ the cut 6: "faceless silhouettes where reactions are the story".
   colour nobody else wears, and a silhouette (height, build, hair) that
   differs from the others as a shape, not only in colour. Heights keep one
   ratio between shots.
+- **The shared drawing code lives with the channel, one file per
+  character.** A series' cast outlives its first campaign, so its code goes
+  under the channel's `brand/` (for example `brand/<series>/kit/`), not in a
+  campaign. Split the source by what changes alone: a core (palette, line
+  helpers, eyes, texture), one file per character (both forms of one
+  character in one file, so their shared marks stay in step), animals,
+  places, motion, and a short export list. A build step joins them into the
+  one bundle every scene loads, and each project's copy step runs the build
+  first. A scene agent then reads only the file of the character it draws, and
+  an edit to one character touches one file. A prop or animal used by one
+  episode stays in that episode; move it into the kit when a second one needs
+  it. One series split an 800-line kit this way, and the joined bundle
+  matched the old file byte for byte, so no scene changed.
 - Put the cast on one frame before any scene: each character from the angles
   the video uses, with the expressions it needs. Read it at phone size and
   fix the design there, not in the scenes.
+- **Ask a cold viewer what each shape is before the look is locked.** You
+  know who the character is; a stranger reads the shape. One series' fire
+  spirit, a round orange face ringed with rays, read as the sun in a story
+  about the sun going dark, and its sage's red horns over a red robe read as
+  a demon to a child. Change the shape (a flame cap instead of rays, ivory
+  horns), then ask again.
+- **One character in two forms needs a shared prop and an on-screen change**
+  early in the first video, or viewers take the second form for a pet.
+- **Judge texture and colour on a compressed render at phone size.** A paper
+  grain that looked like hand-made paper on a desktop sheet read as fog on a
+  phone, and a warm cast on a warm ground did not stand out in a bright feed.
+  Keep the grain felt rather than seen, and put the cast on a ground of the
+  opposite temperature.
+- **Lay an SVG filter texture once, over the whole video.** In the
+  HyperFrames renderer a rect painted with an SVG filter (feTurbulence
+  grain) showed over the shapes drawn after it and through clips that were
+  hidden, so a grain drawn per shot stacked into blotches on every frame.
+  Put one grain overlay in a top-level composition and none in the shots.
+- **A signature view stays in the video's style.** An x-ray view drawn as
+  thin teal lines on black read as a stock infographic dropped into a crayon
+  cartoon. Keep the drawing and its colours and lay the view over them (a
+  tint, an outline, a cut-away).
 - A face needs about 120 px of figure height on a 1080 px-wide frame before
   its expression reads. Smaller than that, use a silhouette or a back.
 - **Set the line weight on screen, not in the drawing.** A figure drawn once
@@ -415,6 +458,14 @@ keep. Use, adapt or skip any step below.
   `07-video/<sid>/thumb-<canvas>/index.html` once, then snapshots it to
   `thumbnail-<canvas>.jpg`. Edit the page and re-run. YouTube long-form needs
   one; a TikTok or Shorts cover is frame 0.
+- **HyperFrames traps met in drawn scenes.**
+  - GSAP moving an SVG `<g>` that carries a `transform` attribute replaces
+    that attribute, and the figure jumps or vanishes. Put the static
+    transform on an inner group and animate the outer one.
+  - A nested composition counts its clips' `data-start` from its own start.
+  - `svgOrigin` given only in a `fromTo`'s from-vars was ignored, and a
+    rotation about `svgOrigin` drifted. Give the origin in both, or rotate a
+    wrapper group about `transformOrigin`.
 - **Draft and export.** `mvf export <proj> --draft`, then `mvf export <proj>`
   and `mvf qa` ([08](08-delivery.md)).
 

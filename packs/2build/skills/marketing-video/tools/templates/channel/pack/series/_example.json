@@ -1,0 +1,6 @@
+{
+  "_about": "A series overlay: copy to pack/series/<name>.json. `mvf init --series <name>` merges it into the new campaign.json: lists are unioned in order, objects merged, other values replaced, and `series` is recorded. Names starting with _ are never used.",
+  "series": "example",
+  "known_words": [],
+  "constraints": ["owner: series 'example'; bible in docs/"]
+}

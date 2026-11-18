@@ -101,6 +101,22 @@ UNVERIFIABLE (VW1), or red items have no issue near their second (VW2).
   the score names the look ("template", "flat", "mixed art") rather than a red
   item, fix the red items only and do not re-run the viewer for the score: the
   look was set at the key frame.
+- **Unless the look is still open.** A series' first video is where its
+  look is cheapest to change. Before locking it for every episode, build
+  the whole cut as a silent draft (estimated times, captions as the voice)
+  and give it to a cold viewer. One series' first draft scored 4: shots of
+  about 5 s, a peak shown as a few dots, a spirit that read as the sun and
+  horns that read as a demon's. The team redrew the cast, lowered the grain,
+  and rebuilt the cut with one agent per chapter from a guide of measured
+  rules. A fresh viewer then scored it 6, and the owner locked that look.
+- **A fresh viewer every round.** A viewer who saw the last cut checks
+  whether its notes were met; a stranger sees the video. When two viewers
+  disagree on taste (one asked for cool grounds, the next for warm ones),
+  keep what the references and the owner chose, and act on what both name.
+- **A hand-built draft gets the same brief.** When the cut is not an mvf
+  project yet, write the brief by hand in the format above: per-second
+  sheets with the second stamped, the first two seconds larger, a few large
+  stills, the reference frame, the voice table. Never add the plan.
 - **Stop when the score stops moving.** After a fix round whose viewer
   scores no higher than the one before, with no P0 open, stop: accept what
   is left with its reason and write in `score` what keeps the cut from the

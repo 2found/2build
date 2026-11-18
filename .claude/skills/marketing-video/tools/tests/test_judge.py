@@ -93,7 +93,7 @@ class Judge(unittest.TestCase):
                     "MVF_SOOT": str(write_exec(self.root / "soot", FAKE_SOOT)),
                     "MVF_MICRO_FISH": str(write_exec(self.root / "micro-fish.sh", FAKE_MF))}
         mvf(self.root, "init", "demo", "--product", "Acme")
-        self.cd = self.root / "marketing/campaigns/demo"
+        self.cd = self.root / "marketing/channels/acme/campaigns/demo"
         for sid in ("s01-a", "s02-b", "s00-old"):
             (self.cd / "05-scripts" / f"{sid}.json").write_text(json.dumps(script(id=sid)))
         self.language("vi")  # Micro Fish ships a Vietnamese persona library

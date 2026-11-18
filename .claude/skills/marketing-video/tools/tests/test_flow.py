@@ -24,7 +24,7 @@ class Owner(unittest.TestCase):
         self.home = self.root / "bhome"
         os.environ["BABYSIT_HOME"] = str(self.home)
         mvf(self.root, "init", "demo", "--product", "Acme")
-        self.cd = self.root / "marketing/campaigns/demo"
+        self.cd = self.root / "marketing/channels/acme/campaigns/demo"
         c = json.loads((self.cd / "campaign.json").read_text())
         c.pop("_template")
         (self.cd / "campaign.json").write_text(json.dumps(c))

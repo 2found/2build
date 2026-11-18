@@ -34,10 +34,13 @@ or invalid.
 in official pictures from the rights holder.
 
 ## Tool
-- `mvf init <slug> --product NAME [--subject S] [--root DIR]` writes every
-  stage file from the templates, plus the campaign `.gitignore`, then copies in
-  what the library keeps for the product and the subject (`subject` in
-  `campaign.json`): re-check the facts' dates before a script cites them.
+- `mvf init <slug> --product NAME [--channel C] [--series S] [--subject S]`
+  copies the channel's `pack/campaign.json` into the library, writes every
+  stage file into `marketing/channels/<C>/campaigns/<slug>/` (`--root DIR`
+  for `DIR/<slug>`) from the templates, plus the campaign `.gitignore`, copies
+  in what the library keeps for the product and the subject (`subject` in
+  `campaign.json`), then merges `pack/series/<S>.json`: re-check the facts'
+  dates before a script cites them.
 - `campaign.json` holds `slug`, `product`, `goal` (awareness, follow, signup,
   install, purchase, retention or launch), `benefit`, `kpi`, `markets`,
   `languages`, `platforms` (tiktok, x, youtube, youtube-long, instagram, facebook,

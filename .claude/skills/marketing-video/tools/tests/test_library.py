@@ -23,7 +23,7 @@ def write(p: Path, data) -> None:
 class Library(unittest.TestCase):
     def setUp(self):
         self.d, self.root = repo()
-        self.camps = self.root / "marketing/campaigns"
+        self.camps = self.root / "marketing/channels/acme/campaigns"
         mvf(self.root, "init", "ep1", "--product", "Acme", "--subject", "Kiếm Lai")
         self.cd = self.camps / "ep1"
         c = json.loads((self.cd / "campaign.json").read_text())

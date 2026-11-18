@@ -155,6 +155,11 @@ viewer and what usually breaks it). What holds across all of them:
 - **Brand in the picture:** seen where the value happens, named at most once,
   one soft CTA. For a story about a book, a film or a game, the product is
   where the viewer continues it.
+- **The CTA asks for what the viewer can do there, now.** A TikTok short
+  that ended "find the full story on YouTube", before any full story
+  existed, sent viewers to nothing, and two cold viewers named it the
+  weakest line. Ask for the follow on the platform they are on, and put the
+  other platform in the description or a pinned comment.
 - **Write several hooks**, each a different way in. The clearest becomes H1.
   Variants replace beat B01 only, so the pre-test isolates the hook.
 
