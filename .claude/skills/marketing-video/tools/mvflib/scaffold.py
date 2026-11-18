@@ -50,8 +50,13 @@ def geometry(canvas: str, platforms: list[str]) -> dict:
 
 
 def _brand(campaign: dict) -> dict:
+    """brand.fonts.<role> is a family name, or {family, file, weight?} for a font HyperFrames does not bundle
+    (file relative to the campaign); `font_files` keeps those, and `fonts` holds only the family names."""
     b = campaign.get("brand") or {}
-    return {"colors": {**DEFAULT_COLORS, **(b.get("colors") or {})}, "fonts": {**DEFAULT_FONTS, **(b.get("fonts") or {})},
+    own = b.get("fonts") or {}
+    files = [v for v in own.values() if isinstance(v, dict) and v.get("file")]
+    return {"colors": {**DEFAULT_COLORS, **(b.get("colors") or {})},
+            "fonts": {**DEFAULT_FONTS, **{k: _family(v) for k, v in own.items()}}, "font_files": files,
             "names": b.get("names") or [], "logo": b.get("logo"), "say": b.get("say") or {},
             "colors_set": dict(b.get("colors") or {})}
 
@@ -60,10 +65,10 @@ def _family(f) -> str:
     return f["family"] if isinstance(f, dict) else str(f)
 
 
-def font_faces(look: dict) -> str:
-    """@font-face for every look font that ships as a file (copied to assets/fonts/)."""
+def font_faces(look: dict, brand: dict | None = None) -> str:
+    """@font-face for every look or brand font that ships as a file (copied to assets/fonts/)."""
     out, seen = [], set()
-    for f in (look.get("fonts") or {}).values():
+    for f in [*(look.get("fonts") or {}).values(), *((brand or {}).get("font_files") or [])]:
         if isinstance(f, dict) and f.get("file") and (f["family"], f["file"]) not in seen:
             seen.add((f["family"], f["file"]))
             out.append(f'@font-face {{ font-family: "{f["family"]}"; src: url("assets/fonts/{Path(f["file"]).name}"); '
@@ -214,7 +219,7 @@ def captions_html(groups: list[dict], geo: dict, brand: dict, duration: float, c
     deco = CAPTION_STYLES.get(cap.get("style") or "shadow", CAPTION_STYLES["shadow"]).format(
         sw=max(6, round(size * 0.12)), bw=max(3, round(size * 0.06)), ink=(look or {}).get("colors", {}).get("ink", "#1b1b1b"))
     weight = int(cap.get("weight") or 800)
-    faces = font_faces(look) if look else ""
+    faces = font_faces(look or {}, brand)
     rows, js = [], []
     for i, g in enumerate(groups):
         # A fixed gap between words: the spoken word lifts (scale) and must not eat the space beside it.
@@ -308,7 +313,7 @@ def scene_placeholder(b: dict, t: dict, geo: dict, brand: dict, logo: str | None
 
 
 def index_html(tl: dict, geo: dict, brand: dict, audio: list[dict], music: list[dict], title: str,
-               look: dict | None = None, slots: dict | None = None, overlay: bool = False) -> str:
+               look: dict | None = None, slots: dict | None = None, overlay: bool = False, fps: int | None = None) -> str:
     c = brand["colors"]
     W, H = geo["W"], geo["H"]
     look = look or dirn.look_of(None, brand)
@@ -352,7 +357,7 @@ def index_html(tl: dict, geo: dict, brand: dict, audio: list[dict], music: list[
 {kit_js}
     </script>
     <style>
-      {font_faces(look)}
+      {font_faces(look, brand)}
       :root {{ {look_vars(look, brand)} }}
       {PAPER_CSS if look.get("paper") else ""}
       * {{ margin: 0; padding: 0; box-sizing: border-box; }}
@@ -364,7 +369,7 @@ def index_html(tl: dict, geo: dict, brand: dict, audio: list[dict], music: list[
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="{tl['duration']}" data-width="{W}" data-height="{H}">
+    <div id="root" data-composition-id="main" data-start="0" data-duration="{tl['duration']}"{f' data-fps="{fps}"' if fps else ""} data-width="{W}" data-height="{H}">
       <div id="ground"></div>
 {chr(10).join(hosts)}
       <div id="captions" data-composition-id="captions" data-composition-src="compositions/captions.html" data-start="0"
@@ -442,6 +447,12 @@ def scaffold(campaign_dir: Path, script_path: Path, canvas: str, hook: str, take
         shutil.copytree(bdir, proj / "assets/brand", dirs_exist_ok=True)
         if brand["logo"]:
             logo = f"assets/brand/{Path(brand['logo']).name}"
+    for f in brand["font_files"]:  # a brand font HyperFrames does not bundle ships as a file
+        src = campaign_dir / f["file"]
+        if not src.is_file():
+            raise SystemExit(f"brand font {f['file']} not found (paths are relative to the campaign)")
+        (proj / "assets/fonts").mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, proj / "assets/fonts" / src.name)
     # Approved art (mvf art approve). A directed shot whose art is not approved yet shows its newest
     # draft from assets/art/draft/ — a rough cut only: export refuses a project that still does.
     dr = dirn.load_direction(campaign_dir, script["id"])
@@ -588,7 +599,10 @@ def scaffold(campaign_dir: Path, script_path: Path, canvas: str, hook: str, take
                                             "draft_art": sorted(set(plan["draft_art"])), "items": prep.items,
                                             "beats": {k: {"lead": v["lead"], "tail": v["tail"]} for k, v in plan["beats"].items()}})
     title = f"{campaign.get('product', '')} {script['id']} {canvas} {hook}".strip()
-    (proj / "index.html").write_text(index_html(tl, geo, brand, audio, mus, title, look, slots, overlay), encoding="utf-8")
+    fps = campaign.get("fps")  # a look drawn on frames (anime on threes at 24) renders and ships at that rate
+    if fps is not None and not (isinstance(fps, int) and 24 <= fps <= 60):
+        raise SystemExit(f"campaign.json fps {fps!r}: an integer from 24 to 60, or leave it out (30)")
+    (proj / "index.html").write_text(index_html(tl, geo, brand, audio, mus, title, look, slots, overlay, fps), encoding="utf-8")
     (proj / "STORYBOARD.md").write_text(storyboard_md(sv, tl, geo, platforms, hook), encoding="utf-8")
     (proj / "SCENE_GUIDE.md").write_text(scene_guide_md(sv, tl, geo, brand, platforms), encoding="utf-8")
     dump(proj / "timeline.json", {**tl, "canvas": canvas, "hook": hook, "captions": groups})
@@ -605,7 +619,7 @@ def scaffold(campaign_dir: Path, script_path: Path, canvas: str, hook: str, take
     dump(proj / "mvf.json", {"script": str(script_path.relative_to(campaign_dir)), "script_sha256": _sha(script_path),
                              "hook": hook, "canvas": canvas, "platforms": platforms,
                              "take": str(take.relative_to(campaign_dir)) if take else None, "timing": tl["timing"],
-                             "copies": copies, "generated": generated,
+                             "copies": copies, "generated": generated, "fps": fps,
                              "draft_art": sorted(set(plan["draft_art"])) if plan else []})
     print(f"scaffold {proj.relative_to(campaign_dir)}: {tl['duration']:.2f}s ({tl['timing']}), {len(tl['beats'])} scenes"
           + (f"; generated {generated}" if generated else "")

@@ -431,7 +431,16 @@ keep. Use, adapt or skip any step below.
     never overwritten.
 
   Re-run it after a re-voice: every slot, clip and caption moves and your
-  scenes are kept. A project switched to another hook keeps the old opening as
+  scenes are kept.
+
+  Two `campaign.json` settings reach the project:
+  - A brand font HyperFrames does not bundle is written
+    `brand.fonts.<role>: {"family", "file", "weight"}`. The file path is
+    relative to the campaign. Scaffold copies the file and declares it for the
+    captions. Without the file, the captions fall back to another font.
+  - `fps` (24 to 60) sets a look drawn on frames, such as anime held on
+    threes at 24. The project renders at that rate and every delivery file
+    keeps it. Left out, the rate is 30. A project switched to another hook keeps the old opening as
   `<beat>.<hook>.html`. `--from` copies body scenes from another project, and
   a copy follows its source until you edit it.
 - **Direction** (optional). `07-video/<sid>/direction.json` describes shots
@@ -466,6 +475,19 @@ keep. Use, adapt or skip any step below.
   - `svgOrigin` given only in a `fromTo`'s from-vars was ignored, and a
     rotation about `svgOrigin` drifted. Give the origin in both, or rotate a
     wrapper group about `transformOrigin`.
+  - Shared drawing code (a channel's cast and places) can live in
+    `assets/kit/*.js`. A scene loads it with `<script src="assets/kit/….js">`
+    inside its own `<template>`, before the scene script. The generated
+    `index.html` never needs editing for it.
+- **A draft built before the voice** (estimated times, one file per
+  chapter) moves into the scaffolded project one beat at a time:
+  - every moment re-anchors to `MV.beat(id).words`, never to the draft's
+    typed seconds. A draft timed by estimate had its picture land 3 s behind
+    the words once it was voiced;
+  - a shot that crosses a beat boundary is cut there, and the next beat
+    redraws it and carries on the motion;
+  - the scaffold's caption band and platform zones replace whatever band the
+    draft kept clear.
 - **Draft and export.** `mvf export <proj> --draft`, then `mvf export <proj>`
   and `mvf qa` ([08](08-delivery.md)).
 

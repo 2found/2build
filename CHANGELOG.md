@@ -2,6 +2,24 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
+## 1.140.0 — 2026-11-19
+
+### Added
+
+- `marketing-video` — channel-scoped campaigns: `mvf init --channel/--series`
+  and `channel init` scaffold a channel folder (AGENTS.md, docs/, pack/,
+  brand/, metrics/) and campaigns now live under `channels/<C>/campaigns/<slug>`.
+- `marketing-video` — brand font files: `campaign.json` `brand.fonts.<role>`
+  accepts `{"family", "file", "weight"}` for a font HyperFrames does not
+  bundle; the scaffold copies the file and emits its `@font-face`.
+- `marketing-video` — campaign `fps` (24–60) renders and exports at that
+  rate (`data-fps` on the composition, `-r` and GOP on encode) for looks
+  drawn on frames such as anime on threes.
+- `marketing-video` — review/production guidance: fix the class of a red
+  item across every beat, check a word's time before moving a "late" shot,
+  keep shared drawing code under `assets/kit/`, and re-anchor a draft to
+  `MV.beat(id).words` after voicing.
+
 ## 1.139.1 — 2026-11-18
 
 ### Added
@@ -21,6 +39,7 @@ Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
 - `ui-audit` — adds the missing filesystem-path note for its `../references/`
   links, which OMP resolves as `skill://` URIs and fails on.
+
 ## 1.139.0 — 2026-11-18
 
 ### Changed

@@ -97,6 +97,15 @@ UNVERIFIABLE (VW1), or red items have no issue near their second (VW2).
   agent per scene on the strongest model only for a scene that must be
   redrawn. One cut spent four Opus agents (about a seventh of the campaign)
   enlarging subjects, and the score stayed 6.
+- **Fix the class, not the seconds.** A red item names the seconds the viewer
+  happened to sample; the same fault (a small subject, a repeated ground band,
+  a label that repeats the caption) usually sits in beats nobody named. One
+  round fixed exactly the named seconds, and the next viewer scored the same 6
+  for the same faults in the untouched beats. Brief each fix round with the
+  class and apply it to every beat, including the unnamed ones.
+- **A "late" picture may be the sampling.** The viewer sees whole seconds; a
+  shot cut on a word at 23.49 s first shows on the 24 s frame and reads as
+  a second late. Check the word's time before moving a shot.
 - **A score the look sets is not a fix round.** When the viewer's reason for
   the score names the look ("template", "flat", "mixed art") rather than a red
   item, fix the red items only and do not re-run the viewer for the score: the

@@ -63,8 +63,13 @@ def target_size(canvas_wh: tuple[int, int], enc: dict, hard: dict) -> tuple[int,
     return ev(w), ev(h)
 
 
-def encode(master: Path, out: Path, platform: str, canvas_wh: tuple[int, int]) -> Path:
-    enc, hard = PLATFORMS[platform]["encode"], PLATFORMS[platform]["hard"]
+def encode(master: Path, out: Path, platform: str, canvas_wh: tuple[int, int], fps: int | None = None) -> Path:
+    """fps: the project's own rate (campaign.json `fps`), kept so frames drawn on a beat are not resampled."""
+    enc, hard = dict(PLATFORMS[platform]["encode"]), PLATFORMS[platform]["hard"]
+    if fps:
+        enc["fps"] = fps
+        if "gop" in enc:
+            enc["gop"] = max(1, fps // 2)  # closed GOP of half the frame rate
     w, h = target_size(canvas_wh, enc, hard)
     v = ["-c:v", enc["vcodec"], "-profile:v", enc["profile"], "-pix_fmt", enc["pix_fmt"], "-r", str(enc["fps"]),
          "-preset", "slow", "-vf", f"scale={w}:{h}:flags=lanczos"]
@@ -305,7 +310,7 @@ def export(campaign_dir: Path, proj: Path, platforms: list[str], draft: bool = F
     summary = {"script": script["id"], "hook": meta["hook"], "canvas": meta["canvas"], "draft": draft, "files": {}}
     for p in platforms:
         d = out_root / p
-        f = encode(master, d / f"{script['id']}-{p}.mp4", p, wh)
+        f = encode(master, d / f"{script['id']}-{p}.mp4", p, wh, meta.get("fps"))
         r = qa(f, p, tl)
         rep.extend(r)
         (d / "captions.srt").write_text(srt(tl.get("captions", [])), encoding="utf-8")
