@@ -1,4 +1,4 @@
-"""Channels (mvflib/channel.py): a campaign lives in <repo>/marketing/channels/<channel>/campaigns/<slug>/."""
+"""Channels (mvflib/channel.py): a campaign lives in <repo>/marketing/channels/<channel>/<slug>/."""
 import json
 import os
 import sys
@@ -12,7 +12,7 @@ from test_extensions import mvf, repo  # noqa: E402
 
 SKELETON = ("AGENTS.md", "README.md", "docs/01-bible.md", "docs/02-production-workflow.md", "docs/03-decisions.md",
             "pack/campaign.json", "pack/series/_example.json", "metrics/videos.csv", "metrics/weekly.md",
-            "campaigns/.gitkeep", "brand/.gitkeep")
+            "brand/.gitkeep")
 
 
 def write(p: Path, data) -> None:
@@ -35,7 +35,7 @@ class Channel(unittest.TestCase):
     def test_a_campaign_opens_in_the_products_channel_with_its_skeleton(self):
         mvf(self.root, "init", "ep1", "--product", "Acme")
         chd = self.root / "marketing/channels/acme"
-        self.assertTrue((chd / "campaigns/ep1/campaign.json").is_file())
+        self.assertTrue((chd / "ep1/campaign.json").is_file())
         for rel in SKELETON:
             self.assertTrue((chd / rel).is_file(), rel)
             self.assertNotIn("{{", (chd / rel).read_text(), rel)
@@ -51,7 +51,7 @@ class Channel(unittest.TestCase):
 
     def test_channel_flag_names_the_folder(self):
         mvf(self.root, "init", "ep1", "--product", "Acme", "--channel", "Hoả Long")
-        self.assertTrue((self.root / "marketing/channels/hoa-long/campaigns/ep1/campaign.json").is_file())
+        self.assertTrue((self.root / "marketing/channels/hoa-long/ep1/campaign.json").is_file())
         self.assertFalse((self.root / "marketing/channels/acme").exists())
 
     def test_root_keeps_the_old_layout(self):
@@ -76,7 +76,7 @@ class Channel(unittest.TestCase):
         self.assertEqual((chd / "docs/01-bible.md").read_text(), "my bible")
         self.assertEqual(read(chd / "pack/campaign.json"), {"markets": ["VN"]})
         self.assertTrue((chd / "docs/03-decisions.md").is_file())
-        self.assertFalse((chd / "campaigns/ep1").exists())  # channel init opens no campaign
+        self.assertFalse((chd / "ep1").exists())  # channel init opens no campaign
         self.assertIn("nothing written", mvf(self.root, "channel", "init", "acme", "--product", "Acme").stdout)
 
     def test_the_channel_pack_is_the_product_packs_source(self):
@@ -93,9 +93,9 @@ class Channel(unittest.TestCase):
         self.assertNotIn("_about", lib)
         self.assertEqual(lib["markets"], ["VN"])
         self.assertEqual((self.lib / "brand/logo.png").read_bytes(), b"png")
-        c = read(chd / "campaigns/ep1/campaign.json")
+        c = read(chd / "ep1/campaign.json")
         self.assertEqual((c["markets"], c["languages"], c["known_words"]), (["VN"], ["vi"], ["Acme"]))
-        self.assertTrue((chd / "campaigns/ep1/brand/logo.png").is_file())
+        self.assertTrue((chd / "ep1/brand/logo.png").is_file())
         self.assertEqual(read(chd / "pack/campaign.json")["_about"], "edit here")  # the source is never rewritten
 
     def test_a_missing_pack_is_written_from_the_library(self):
@@ -111,7 +111,7 @@ class Channel(unittest.TestCase):
             "_about": "overlay", "known_words": ["T. rex"], "goal": "follow",
             "constraints": ["no competitor names", "owner: family audience"], "brand": {"say": {"T. rex": "tee rex"}}})
         mvf(self.root, "init", "ep1", "--product", "Acme", "--series", "kids")
-        c = read(chd / "campaigns/ep1/campaign.json")
+        c = read(chd / "ep1/campaign.json")
         self.assertEqual(c["series"], "kids")
         self.assertEqual(c["goal"], "follow")
         self.assertEqual(c["constraints"], ["no competitor names", "no prices on screen unless a fact is checked "
@@ -125,7 +125,7 @@ class Channel(unittest.TestCase):
         for bad in ("nope", "_example"):
             r = mvf(self.root, "init", "ep2", "--product", "Acme", "--series", bad, ok=False)
             self.assertNotEqual(r.returncode, 0)
-            self.assertFalse((chd / "campaigns/ep2").exists())
+            self.assertFalse((chd / "ep2").exists())
         self.assertIn("have: kids", mvf(self.root, "init", "ep2", "--product", "Acme", "--series", "nope",
                                         ok=False).stderr)
 

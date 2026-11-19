@@ -21,7 +21,7 @@ Videos for {{PRODUCT}}, made with the `marketing-video` skill (`mvf`). CLAUDE.md
 docs/                bible, production workflow, decisions (series bibles beside them)
 pack/campaign.json   the channel's product pack: brand, colours, fonts, pronunciations
 pack/series/*.json   per-series overlay merged into each new campaign.json (`--series NAME`)
-campaigns/<slug>/    one mvf campaign per episode
+<slug>/            one mvf campaign per episode (its own campaign.json)
 brand/               logo, avatar, banner, character sheets
 metrics/             videos.csv (one row per posted video), weekly.md
 ```

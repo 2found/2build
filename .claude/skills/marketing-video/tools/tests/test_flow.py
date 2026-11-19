@@ -24,7 +24,7 @@ class Owner(unittest.TestCase):
         self.home = self.root / "bhome"
         os.environ["BABYSIT_HOME"] = str(self.home)
         mvf(self.root, "init", "demo", "--product", "Acme")
-        self.cd = self.root / "marketing/channels/acme/campaigns/demo"
+        self.cd = self.root / "marketing/channels/acme/demo"
         c = json.loads((self.cd / "campaign.json").read_text())
         c.pop("_template")
         (self.cd / "campaign.json").write_text(json.dumps(c))
@@ -71,7 +71,7 @@ class Owner(unittest.TestCase):
         self.assertNotIn("BLOCKED", mvf(self.cd, "voice", "s01-test", ok=False).stderr)
 
     def test_a_draft_export_is_not_a_delivery(self):
-        out = self.cd / "08-delivery/s01-test/9x16"
+        out = self.cd / "08-delivery/s01-test-9x16"
         out.mkdir(parents=True)
         (out / "delivery.json").write_text(json.dumps({"draft": True}))
         self.write("s02-b")
@@ -88,8 +88,8 @@ class Owner(unittest.TestCase):
     def test_the_owner_reads_the_campaigns_first_script_only(self):
         self.write("s02-b")
         self.assertIsNotNone(flow.owner_gate(self.cd, "s02-b", None))
-        (self.cd / "08-delivery/s01-test/9x16").mkdir(parents=True)  # one video shipped
-        (self.cd / "08-delivery/s01-test/9x16/delivery.json").write_text(json.dumps({"draft": False}))  # (a draft is not one): the owner has read the campaign
+        (self.cd / "08-delivery/s01-test-9x16").mkdir(parents=True)  # one video shipped
+        (self.cd / "08-delivery/s01-test-9x16/delivery.json").write_text(json.dumps({"draft": False}))  # (a draft is not one): the owner has read the campaign
         self.assertIsNone(flow.owner_gate(self.cd, "s01-test", None))
         self.assertIsNone(flow.owner_gate(self.cd, "s02-b", None))
         flow.approve(self.cd, "s02-b", "rejected", "off brand", None)  # a rejection still holds
@@ -160,7 +160,7 @@ class Owner(unittest.TestCase):
             self.assertEqual(x["run"], "mvf viewer s01-test/9x16")
             (proj / "review/viewer-v1.md").write_text("Verdict: APPROVE\n")
             self.assertEqual(self.nxt()["run"], "mvf export s01-test/9x16")
-            out = self.cd / "08-delivery/s01-test/9x16"
+            out = self.cd / "08-delivery/s01-test-9x16"
             out.mkdir(parents=True)
             (out / "delivery.json").write_text(json.dumps({"draft": True}))
             self.assertEqual(self.nxt()["run"], "mvf export s01-test/9x16")  # a draft is not the delivery

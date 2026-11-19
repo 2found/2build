@@ -263,6 +263,11 @@ class ViewerBrief(unittest.TestCase):
             self.assertEqual(notes, ["120,000 views"])
             self.assertEqual(width(out), viewer.KEY_W)
             self.assertEqual([p.name for p in (proj / "review").iterdir()], ["keyframe.jpg"])
+            wide = Path(t) / "w.png"  # a 16:9 frame fits the sheet too
+            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=1920x1080",
+                            "-frames:v", "1", str(wide)], check=True)
+            out, _ = viewer.beside(wide, cd, proj / viewer.KEYFRAME)
+            self.assertEqual(width(out), viewer.KEY_W)
 
     def test_a_long_cut_is_seen_whole_sparsely_and_each_chapter_at_one_fps(self):
         with tempfile.TemporaryDirectory() as t:

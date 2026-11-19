@@ -4,7 +4,7 @@
   docs/                    bible, production workflow, decisions (Proposed until Decided)
   pack/campaign.json       the product pack's source: `mvf init` copies it into the library before every campaign
   pack/series/<name>.json  an overlay `mvf init --series <name>` merges into the new campaign.json
-  campaigns/<slug>/        one campaign per episode
+  <slug>/                  one campaign per episode, marked by its campaign.json
   brand/, metrics/         logo and character sheets; videos.csv and weekly.md
 
 What every episode shares lives at channel level; what one video needs lives in its campaign."""
@@ -29,6 +29,14 @@ def path(name: str) -> Path:
     return project_root() / "marketing/channels" / library.slug(name)
 
 
+def campaigns_dir(chd: Path) -> Path:
+    """Where a channel's campaigns live: the channel root, or its legacy campaigns/ if that is populated."""
+    old = chd / "campaigns"
+    if old.is_dir() and any((p / "campaign.json").is_file() for p in old.iterdir()):
+        return old
+    return chd
+
+
 def init(chd: Path, product: str) -> list[str]:
     """Write whatever of the skeleton is missing; an existing file is never touched. Returns what was written."""
     made = []
@@ -49,7 +57,7 @@ def init(chd: Path, product: str) -> list[str]:
         except OSError:  # no symlinks here: an import line does the same for Claude Code
             (chd / "CLAUDE.md").write_text("@AGENTS.md\n", encoding="utf-8")
         made.append("CLAUDE.md")
-    for d in ("campaigns", "brand"):
+    for d in ("brand",):
         if not (chd / d).is_dir():
             (chd / d).mkdir(parents=True)
             (chd / d / ".gitkeep").touch()

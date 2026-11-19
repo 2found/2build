@@ -8,7 +8,7 @@ Only what this channel adds to the `marketing-video` skill. The stages and check
 mvf init <slug> --product "{{PRODUCT}}" --channel {{CHANNEL}} [--series NAME] [--format NAME]
 ```
 
-`mvf` is `python3 <marketing-video skill>/tools/mvf.py`. Init copies `pack/campaign.json` into the library's product pack, writes `campaigns/<slug>/` and merges `pack/series/NAME.json` into its `campaign.json`. From then on: `mvf --campaign campaigns/<slug> next`.
+`mvf` is `python3 <marketing-video skill>/tools/mvf.py`. Init copies `pack/campaign.json` into the library's product pack, writes `<slug>/` beside this folder's shared parts and merges `pack/series/NAME.json` into its `campaign.json`. From then on: `mvf --campaign <slug> next`.
 
 - Slug: _naming rule, e.g. `<series code><number>-<keyword>`._
 

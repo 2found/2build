@@ -149,7 +149,8 @@ def record(cd: Path) -> int:
             continue
         beats = [b for b in s.get("beats") or [] if isinstance(b, dict)]
         rows.append({**base, "at": _day(sp), "kind": "script", "id": s.get("id") or sp.stem,
-                     "made": (cd / "08-delivery" / sp.stem).is_dir(),
+                     "made": (cd / "08-delivery" / sp.stem).is_dir()
+                             or any((cd / "08-delivery").glob(f"{sp.stem}-*/delivery.json")),
                      "payoff": (s.get("spine") or {}).get("payoff") or s.get("value"),
                      "vo": " ".join(str(b.get("vo") or "") for b in beats)})
     lib = root(cd)
@@ -264,7 +265,8 @@ def check(campaigns: Path) -> tuple[bool, list[str]]:
     saved = _json(lib / SAVED) or {}
     have = {(r.get("campaign"), r.get("id")) for r in _rows(lib) if r.get("kind") == "script"}
     out, ok, delivered = [], True, 0
-    for cd in sorted(p for p in Path(campaigns).iterdir() if (p / "campaign.json").is_file()):
+    for cd in sorted(p for p in Path(campaigns).iterdir()
+                     if (p / "campaign.json").is_file() and "slug" in (_json(p / "campaign.json") or {})):
         miss = []
         if cd.name not in saved:
             miss.append("never saved")

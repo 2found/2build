@@ -2,6 +2,13 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
+## 1.140.1
+
+- **marketing-video:** channel campaigns now live at `marketing/channels/<channel>/<slug>/` instead of `campaigns/<slug>/`; `mvf` still reads a legacy populated `campaigns/` folder, so existing channels keep working.
+- **marketing-video:** delivery output flattens to `08-delivery/<sid>-<canvas>/<platform>/`; flow, status, library and freshness reads accept both layouts.
+- **marketing-video:** `viewer.beside` fits 16:9 frames on the keyframe sheet (regression covered).
+- Fixed a stale `test_benefit` assertion that no longer matched the TikTok browse instructions shipped in v1.137.0.
+
 ## 1.140.0 — 2026-11-19
 
 ### Added

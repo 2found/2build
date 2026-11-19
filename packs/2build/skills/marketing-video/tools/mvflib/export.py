@@ -285,7 +285,7 @@ def export(campaign_dir: Path, proj: Path, platforms: list[str], draft: bool = F
         master = render(proj, draft)
     canvas = PLATFORMS["canvases"][meta["canvas"]]
     wh = (canvas["width"], canvas["height"])
-    out_root = campaign_dir / "08-delivery" / script["id"] / meta["canvas"]
+    out_root = campaign_dir / "08-delivery" / f"{script['id']}-{meta['canvas']}"
     rep = Report()
     from . import viewer
     from .scaffold import geometry

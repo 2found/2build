@@ -52,7 +52,7 @@ preset (`"style": "none"` in `campaign.json`). The presets (`stickman`, `ink`,
 that wants one, and nothing asks for them
 ([07 Production](references/07-production.md#the-key-frame)).
 
-One campaign is one folder, `marketing/channels/<channel>/campaigns/<slug>/` by
+One campaign is one folder, `marketing/channels/<channel>/<slug>/` by
 default. Each stage leaves one artifact on disk, so the work survives a crash
 and can be audited. The channel folder holds what every episode shares:
 `AGENTS.md`, a bible and production notes in `docs/`, owner decisions
@@ -176,7 +176,7 @@ checks expect.
 | 5 | script -> `05-scripts/<sid>.json` | 3 candidate scripts, each delivering its benefit early and in plain words, complete enough that a stranger can retell it, written from its ending, with 2-4 key moments, hook variants and platform copy; the kind of video and its channels from the [atlas](references/formats.md) | [05](references/05-script.md) |
 | 6 | pre-test -> `06-pretest/<round>/decision.json` | Micro Fish (or another honest test) picks one script and one hook, and strangers can retell what it told them; the owner reads the winner before production | [06](references/06-pretest.md) |
 | 7 | video -> `07-video/<sid>/` | one video: real product, the picture drawn in code (approved art only as its parts), measured audio, reviewed by looking, by a cold viewer who never read the plan, and judged by a simulated panel | [07](references/07-production.md), [craft](references/07-craft.md) |
-| 8 | delivery -> `08-delivery/<sid>/<canvas>/<platform>/` | the platform's specs, QA, captions, copy, AI labels | [08](references/08-delivery.md) |
+| 8 | delivery -> `08-delivery/<sid>-<canvas>/<platform>/` | the platform's specs, QA, captions, copy, AI labels | [08](references/08-delivery.md) |
 
 Open only the reference for the stage you are in, and only the sections you
 need: `rg -n '^## ' references/<file>.md` lists them, and the Bar comes first.

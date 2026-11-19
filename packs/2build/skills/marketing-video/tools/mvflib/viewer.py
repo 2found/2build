@@ -89,7 +89,8 @@ def beside(frame: Path, cd: Path, out: Path) -> tuple[Path, list[str]]:
     refs, notes = references(cd, out.parent / f"{out.stem}-refs.jpg")
     if refs:
         subprocess.run([*ff, "-i", str(frame), "-i", str(refs), "-filter_complex",
-                        f"[0]scale=-2:{KEY_H},pad={KEY_W}:{KEY_H}:(ow-iw)/2:0[a];[1]scale={KEY_W}:-2[b];[a][b]vstack",
+                        f"[0]scale={KEY_W}:{KEY_H}:force_original_aspect_ratio=decrease:force_divisible_by=2,"  # a 16:9 frame at KEY_H is wider than the sheet
+                        f"pad={KEY_W}:{KEY_H}:(ow-iw)/2:0[a];[1]scale={KEY_W}:-2[b];[a][b]vstack",
                         "-frames:v", "1", str(out)], check=True)
         refs.unlink()
     else:

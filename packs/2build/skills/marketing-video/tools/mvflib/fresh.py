@@ -80,7 +80,8 @@ def past_videos(cd: Path, limit: int = 60) -> list[str]:
             pay = (s.get("spine") or {}).get("payoff") or s.get("value")
             if pay:
                 # a script that never reached delivery was never seen by anyone
-                made = "made" if (sib / "08-delivery" / sp.stem).is_dir() else "script only, never made"
+                made = "made" if ((sib / "08-delivery" / sp.stem).is_dir() or
+                              any((sib / "08-delivery").glob(f"{sp.stem}-*/delivery.json"))) else "script only, never made"
                 out.append(f"{sib.name}/{s.get('id')} ({made}): {_cut(pay)}")
         if len(out) >= limit:
             break

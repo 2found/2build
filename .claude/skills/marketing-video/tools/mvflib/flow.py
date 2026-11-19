@@ -87,8 +87,8 @@ def record_skip(cd: Path, sid: str, reason: str) -> None:
 
 
 def delivered(cd: Path) -> bool:
-    """A video was delivered: some 08-delivery/<sid>/<canvas>/delivery.json is not a draft export."""
-    return any(not load(p).get("draft") for p in (cd / "08-delivery").glob("*/*/delivery.json"))
+    """A video was delivered: some 08-delivery/**/delivery.json is not a draft export."""
+    return any(not load(p).get("draft") for p in (cd / "08-delivery").rglob("delivery.json"))
 
 
 def pretest_gate(cd: Path, sid: str) -> str | None:
@@ -309,7 +309,10 @@ def next_action(cd: Path, stage_report, lint_fails) -> dict:
                         "in review.json", run=f"mvf viewer {rel}", ref="references/07-review.md#cold-viewer")
     for proj in projs:
         rel = proj.relative_to(cd / "07-video")
-        dj = cd / "08-delivery" / sid / proj.name / "delivery.json"
+        dj = cd / "08-delivery" / f"{sid}-{proj.name}" / "delivery.json"
+        old = cd / "08-delivery" / sid / proj.name / "delivery.json"  # pre-flatten layout
+        if old.is_file() and not dj.is_file():
+            dj = old
         if not dj.is_file() or load(dj).get("draft"):
             return _act("agent", f"export {rel} for its platforms", run=f"mvf export {rel}", ref="references/08-delivery.md")
     return _act("owner", f"watch and listen to every file in 08-delivery/{sid}/, then post it yourself (mvf never "

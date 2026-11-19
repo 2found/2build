@@ -4,7 +4,7 @@ campaign dir; every artifact has a check; every video is measured against the
 platform it ships to. Run from anywhere inside a campaign (or pass --campaign).
 
   init <slug> --product NAME [--channel C] [--series S] [--subject S] [--format F]   new campaign from templates
-                                    and the library, in <repo>/marketing/channels/<C or product>/campaigns/<slug>
+                                    and the library, in <repo>/marketing/channels/<C or product>/<slug>
                                     (--root DIR: in DIR/<slug>, no channel)
   channel init <name> --product NAME   the channel folder's missing parts: AGENTS.md, docs/, pack/, brand/, metrics/
   format save <name> --from <sid> | ls      keep a series' look, captions, ambience, rigs, props and voice by name
@@ -274,7 +274,7 @@ def cmd_init(a):
     if a.root and (a.channel or a.series):
         raise SystemExit("--root writes the campaign where you say; --channel and --series need a channel folder")
     chd = None if a.root else channel.path(a.channel or a.product)
-    root = Path(a.root) if a.root else chd / "campaigns"
+    root = Path(a.root) if a.root else channel.campaigns_dir(chd)
     cd = root / a.slug
     if (cd / "campaign.json").exists():
         raise SystemExit(f"{cd} already has a campaign")
@@ -332,7 +332,7 @@ def cmd_format(a):
         camps = Path(a.root)
     else:  # the library's formats are found from any folder in the repo; a channel adds its legacy _formats
         from mvflib import channel
-        camps = channel.path(a.channel) / "campaigns" if a.channel else project_root()
+        camps = channel.campaigns_dir(channel.path(a.channel)) if a.channel else project_root()
     rows = formats.listing(camps)
     for r in rows:
         print(f"{r['name']}: broken format.json" if r.get("broken") else
@@ -474,7 +474,8 @@ def cmd_status(a):
         t = pick_take(cd, s, "latest") if takes(cd, s["id"]) else None
         rep = lint(s, c, rf, timing.load_manifest(t) if t else None)
         projs = sorted((cd / "07-video" / s["id"]).glob("*/mvf.json")) if (cd / "07-video" / s["id"]).is_dir() else []
-        deliv = sorted((cd / "08-delivery" / s["id"]).glob("*/delivery.json")) if (cd / "08-delivery" / s["id"]).is_dir() else []
+        deliv = sorted(list((cd / "08-delivery").glob(f"{s['id']}-*/delivery.json"))
+                           + list((cd / "08-delivery" / s["id"]).glob("*/delivery.json"))) if (cd / "08-delivery").is_dir() else []
         print(f"  script    {sp.name:28} {'FAIL' if rep.fails else 'ok':5} {rep.fails} FAIL {rep.warns} WARN · take "
               f"{t.name if t else '—'} · projects {len(projs)} · deliveries {len(deliv)}")
     ar = _stage_report(cd, "art", c)
@@ -1219,7 +1220,7 @@ def main():
     p.add_argument("name", nargs="?")
     p.add_argument("--from", dest="sid", help="the script whose direction to keep")
     p.add_argument("--force", action="store_true")
-    p.add_argument("--channel", help="ls outside a campaign: also this channel's legacy campaigns/_formats")
+    p.add_argument("--channel", help="ls outside a campaign: also this channel's legacy _formats")
     p.add_argument("--root", help="campaigns folder for `ls` outside a campaign")
     p.set_defaults(fn=cmd_format)
     sub.add_parser("status").set_defaults(fn=cmd_status)

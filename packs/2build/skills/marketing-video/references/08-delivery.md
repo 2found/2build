@@ -1,6 +1,6 @@
 # Stage 8 - Delivery
 
-Output: `08-delivery/<sid>/<canvas>/<platform>/`, holding:
+Output: `08-delivery/<sid>-<canvas>/<platform>/`, holding:
 - the video, `captions.srt`, `cover.jpg` (frame 0), `contact.jpg`, the spot
   frames and `qa.json` (or `qa.md` by hand);
 - the platform's copy: `caption.txt` (TikTok), `post.txt` plus the thread
