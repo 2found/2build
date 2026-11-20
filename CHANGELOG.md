@@ -2,6 +2,11 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
+## 1.140.2
+
+- marketing-video: Micro Fish judge is now optional — without it `mvf next` and doctor run the cold-read pre-test as an `agent-panel` round; Micro Fish doctor rows warn instead of blocking.
+- marketing-video: a Micro Fish run that dies on the provider (credits out, auth rejected, model refused) is reported as dead instead of resumed; the run falls back to the agent panel with the reason recorded in `evidence`.
+
 ## 1.140.1
 
 - **marketing-video:** channel campaigns now live at `marketing/channels/<channel>/<slug>/` instead of `campaigns/<slug>/`; `mvf` still reads a legacy populated `campaigns/` folder, so existing channels keep working.

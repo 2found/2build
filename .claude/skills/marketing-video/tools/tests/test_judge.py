@@ -7,6 +7,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from unittest import mock
 
 TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS))
@@ -49,7 +50,7 @@ elif cmd == "run":
     brief = json.loads(Path(sys.argv[2]).read_text())
     print("round 1/3: 24 awake, 24 completed", file=sys.stderr)
     if os.environ.get("FAKE_STOPPED"):
-        print(json.dumps({"sim": brief["sim"], "state": "stopped", "phase": "round 2", "reason": "most sessions failed"}))
+        print(json.dumps({"sim": brief["sim"], "state": "stopped", "phase": "round 2", "reason": os.environ.get("FAKE_REASON", "most sessions failed")}))
         sys.exit(2)
     runs = home / "runs"; runs.mkdir(parents=True, exist_ok=True)
     (runs / "report.md").write_text("# Report\\n" + brief["goal"])
@@ -269,6 +270,21 @@ class Judge(unittest.TestCase):
         self.assertIn("round 1/3", (out / "progress.log").read_text())
         self.run_mvf("judge", "resume", FAKE_KEY=str(key), FAKE_PREF=pref)
         self.assertEqual(json.loads((out / "judge.json").read_text())["winner"], "s01-a/H1")
+
+    def test_a_run_the_provider_killed_says_so_and_points_past_resume(self):
+        self.setup_judge()
+        key = self.cd / "06-pretest/r1/microfish/key.json"
+        pref = json.dumps({"s01-a/H1": 50, "s00-old/H1": 20})
+        # The run stops with a quota reason: mvf must say it is provider-side, not just "resume".
+        r = self.run_mvf("judge", "scripts", "s01-a", "--control", "s00-old",
+                         ok=False, FAKE_STOPPED="1", FAKE_REASON="provider 402: insufficient credits",
+                         FAKE_KEY=str(key), FAKE_PREF=pref)
+        self.assertIn("provider-side", r.stderr)
+        self.assertIn("top up credits", r.stderr)
+        self.assertIn("agent-panel", r.stderr)
+        self.assertIn("cold read", r.stderr)
+        out = self.cd / "06-pretest/r1/microfish"
+        self.assertIsNotNone(judge.last_run_failed_hard(out.parent))
 
     def test_a_control_that_wins_means_no_winner(self):
         self.run_scripts({"s01-a/H1": 30, "s02-b/H1": 20, "s00-old/H1": 50})

@@ -58,7 +58,7 @@ def _brand(campaign: dict) -> dict:
     return {"colors": {**DEFAULT_COLORS, **(b.get("colors") or {})},
             "fonts": {**DEFAULT_FONTS, **{k: _family(v) for k, v in own.items()}}, "font_files": files,
             "names": b.get("names") or [], "logo": b.get("logo"), "say": b.get("say") or {},
-            "colors_set": dict(b.get("colors") or {})}
+            "colors_set": dict(b.get("colors") or {}), "captions": b.get("captions")}
 
 
 def _family(f) -> str:
@@ -570,7 +570,8 @@ def scaffold(campaign_dir: Path, script_path: Path, canvas: str, hook: str, take
             if (from_dir / "assets" / d).is_dir():
                 shutil.copytree(from_dir / "assets" / d, proj / "assets" / d, dirs_exist_ok=True)
 
-    cap = dirn.captions_of(dr) if dr else None
+    # captions: the direction's, else the brand's own (brand.captions, e.g. {"style": "stroke"}), else the default
+    cap = dirn.captions_of(dr) if dr else (brand.get("captions") or None)
     groups = caption_groups(tl, sv, max_words=int((cap or {}).get("words") or 3))
     tops = []
     for b in tl["beats"]:

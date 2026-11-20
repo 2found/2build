@@ -54,7 +54,8 @@ def micro_fish() -> Path | None:
 
 
 def soot_bin() -> str | None:
-    return os.environ.get("MVF_SOOT") or shutil.which("soot")
+    env_b = os.environ.get("MVF_SOOT")
+    return env_b if env_b and os.access(env_b, os.X_OK) else (None if env_b else shutil.which("soot"))
 
 
 def choice() -> dict | None:
@@ -69,7 +70,10 @@ def providers() -> list[dict]:
     sb = soot_bin()
     if not sb:
         return []
-    r = subprocess.run([sb, "providers", "--json"], capture_output=True, text=True)
+    try:
+        r = subprocess.run([sb, "providers", "--json"], capture_output=True, text=True)
+    except OSError:
+        return []
     try:
         return json.loads(r.stdout) if r.returncode == 0 else []
     except json.JSONDecodeError:
@@ -404,6 +408,49 @@ def brief(cd: Path, sim: str, subjects: list[tuple[str, str]], size: str, platfo
 def _sim_id(cd: Path, tag: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", load(cd / "campaign.json").get("slug", "mvf").lower()).strip("-")
     return f"{slug[:28]}-{tag}"[:40]
+# failure_kind values in serve.log that a retry cannot fix (credits out, auth rejected, model refused):
+# the run is dead until the user changes something, so mvf next routes around it instead of resuming forever.
+HARD_KINDS = {"provider_auth", "provider_rejected", "provider_protocol", "provider_decode"}
+HARD_PAT = re.compile(r"insufficient|out of credit|no credit|quota|balance|billing|unauthorized|"
+                      r"invalid (api )?key|permission denied|forbidden|hết tiền|hết credit", re.I)
+
+
+def provider_blocked() -> str | None:
+    """Why Micro Fish cannot run now even though it is set up: the failure_kind serve.log last recorded
+    (hard provider failures only; provider_rate_limit and provider_unavailable are transient), or None."""
+    log = home() / "serve.log"
+    if not log.is_file():
+        return None
+    try:
+        kinds = re.findall(r'"?failure_kind"?:\s*"([a-z_]+)"', log.read_text(encoding="utf-8", errors="replace"))
+    except OSError:
+        return None
+    return kinds[-1] if kinds and kinds[-1] in HARD_KINDS else None
+
+
+def run_failed_hard(out: Path) -> str | None:
+    """The run dir stopped on a provider-side failure: return a short reason, else None."""
+    r_ = load(out / "run.json") if (out / "run.json").is_file() else {}
+    if r_.get("state") in ("completed", "completed_with_failures"):
+        return None
+    why = str(r_.get("reason") or "")
+    prog = ""
+    p = out / "progress.log"
+    if p.is_file():
+        try:
+            prog = p.read_text(encoding="utf-8", errors="replace")[-4000:]
+        except OSError:
+            pass
+    kind = provider_blocked()
+    if kind or (r_.get("state") and HARD_PAT.search(why + " " + prog)):
+        return why.splitlines()[0][:160] if why.strip() else (kind or "provider-side failure")
+    return None
+
+
+def last_run_failed_hard(d: Path) -> str | None:
+    """Newest run.json anywhere under d (a microfish round dir or a proj/judge dir): hard failure or None."""
+    runs = sorted(d.rglob("run.json"), key=lambda p: -p.stat().st_mtime) if d.is_dir() else []
+    return run_failed_hard(runs[0].parent) if runs else None
 
 
 def run(out: Path, keep: bool = False, parallel: int | None = None) -> dict:
@@ -428,9 +475,18 @@ def run(out: Path, keep: bool = False, parallel: int | None = None) -> dict:
         shutil.copy2(res["report"], out / "answer.md")
     if res["state"] not in ("completed", "completed_with_failures"):
         dump(out / "run.json", res)
-        raise SystemExit(f"Micro Fish {res['state']}: {res.get('reason') or r.stderr.strip()[-600:]}\n"
+        reason = res.get("reason") or r.stderr.strip()[-600:]
+        hard = run_failed_hard(out)
+        if hard:
+            raise SystemExit(f"Micro Fish {res['state']}: {reason}\n"
+                             f"This is provider-side ({hard}) — resuming as-is will fail the same way. The user fixes "
+                             "the provider (top up credits, `! soot login <provider>` again, or `mvf judge setup` with "
+                             "another provider/model), then `mvf judge resume " + str(out) + "`. To go on without Micro "
+                             "Fish: scripts use the cold read and decision.json `agent-panel`; a cut exports without "
+                             "the judge step (references/06-pretest.md#micro-fish).")
+        raise SystemExit(f"Micro Fish {res['state']}: {reason}\n"
                          f"What it recorded is kept. Continue with `mvf judge resume {out}`; if it stops again, read "
-                         f"why each session failed in {out / 'progress.log'}")
+                         f"why each session failed in {out / 'progress.log'} and {home() / 'serve.log'} (failure_kind).")
     return res
 
 

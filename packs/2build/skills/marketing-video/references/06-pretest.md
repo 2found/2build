@@ -74,6 +74,10 @@ never a forecast of views.
   the choice in `~/.babysit/marketing-video/config.json`, and creates the
   Micro Fish workspace.
 
+Skip both when the user would rather not set Soot up: the cold read below
+runs the stage as an `agent-panel` round instead, and `mvf next` routes
+there on its own.
+
 Later runs reuse the choice. Set it again only when the user asks.
 
 **Judge the scripts.**
@@ -117,9 +121,12 @@ The provider can rate-limit a long run. Micro Fish then stops where it is and
 keeps its record: `mvf judge resume --round rN` continues from there
 (`--parallel 2` when progress.log shows rate limits), and
 `mvf judge collect <microfish dir>` reads back a run that finished without
-it. When the control leads or ties, or the lead is not clear, the society
-could not tell the scripts apart: rewrite from the research, not the hook,
-or run a larger `--size`.
+it. A stop that is not a rate limit — credits out, auth rejected, model
+refused — is dead until the user changes something: `mvf` says so in its
+error. Do not resume it; go back to the cold read below as an `agent-panel`
+round and say why in `evidence`. When the control leads or ties, or the lead
+is not clear, the society could not tell the scripts apart: rewrite from the
+research, not the hook, or run a larger `--size`.
 
 **Judge the cut.** `mvf judge video <proj>` (its round defaults to `v1`) puts
 the cut in the same feed as one video, built from the timeline and what

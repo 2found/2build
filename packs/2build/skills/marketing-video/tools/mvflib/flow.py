@@ -257,6 +257,15 @@ def next_action(cd: Path, stage_report, lint_fails) -> dict:
                         run=f"mvf feed {' '.join(cands[:3])}{ctl}", ref="references/06-pretest.md#cold-read",
                         why="no Micro Fish evaluator is ready (" + "; ".join(p[1] for p in st["problems"]) + ")")
         ctl = f" --control {ctls[0]}" if ctls else " --control <a rejected script>"
+        # A Micro Fish run that died provider-side (credits out, auth rejected) is dead until the user changes
+        # something: route to the agent panel instead of re-offering `mvf judge scripts` forever.
+        hard = judge.last_run_failed_hard(cd / "06-pretest")
+        if hard:
+            return _act("agent", f"pre-test the scripts with an agent panel, labelled `agent-panel` in decision.json: "
+                        "cold read and a feed of fresh readers, then write the decision",
+                        run=f"mvf feed {' '.join(cands[:3])}{ctl}", ref="references/06-pretest.md#cold-read",
+                        why=f"the last Micro Fish run failed on the provider ({hard}); `mvf judge resume` only helps "
+                            "once the user tops up credits or re-picks the provider/model")
         return _act("agent", "pre-test the scripts on Micro Fish (10-30 min: run it in the background)",
                     run=f"mvf judge scripts {' '.join(cands[:3])}{ctl}", ref="references/06-pretest.md")
     if pre is not None and pre.fails:
@@ -301,7 +310,8 @@ def next_action(cd: Path, stage_report, lint_fails) -> dict:
                         run=f"mvf export {rel} --draft", ref="references/07-review.md")
         if open_review(proj):
             return _act("agent", f"fix the open P0 in {rel}/review.json", ref="references/07-review.md")
-        if judge.video_judged(proj) is None and judge.choice() is not None:
+        if judge.video_judged(proj) is None and judge.choice() is not None \
+                and judge.last_run_failed_hard(proj / "judge") is None:
             return _act("agent", f"judge the cut {rel} on Micro Fish (background)", run=f"mvf judge video {rel}",
                         ref="references/06-pretest.md#micro-fish")
         if viewer._latest(proj) is None:

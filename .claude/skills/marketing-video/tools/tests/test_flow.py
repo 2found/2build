@@ -128,6 +128,20 @@ class Owner(unittest.TestCase):
         x = self.nxt()
         self.assertEqual((x["who"], x["run"]), ("agent", "mvf voice s02-b"))
 
+    def test_next_routes_around_a_provider_dead_judge_run(self):
+        self.write("s02-b", voice={"mode": "recorded"})
+        self.write("s03-c")
+        self.write("ctl-old")
+        # Micro Fish is configured but its last run died provider-side (credits out): mvf next must not
+        # re-offer `mvf judge scripts`; it routes to the agent panel with the reason in `why`.
+        with mock.patch.object(judge, "choice", return_value={"provider": "p", "model": "m"}), \
+                mock.patch.object(judge, "last_run_failed_hard", return_value="insufficient_quota"):
+            x = self.nxt()
+        self.assertEqual(x["who"], "agent")
+        self.assertIn("agent-panel", x["what"])
+        self.assertIn("insufficient_quota", x["why"])
+        self.assertNotIn("judge scripts", x.get("run") or "")
+
     def test_next_sends_a_reviewed_cut_to_the_cold_viewer_and_a_draft_to_export(self):
         self.write("s01-test", voice={"mode": "recorded"})
         (self.cd / "06-pretest/r1").mkdir(parents=True)

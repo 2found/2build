@@ -1,6 +1,7 @@
 """`mvf doctor`: is this machine ready to make a video? One line per backbone (HyperFrames edits, OmniVoice
-speaks, Qwen Image + RMBG draw, Micro Fish judges), each with the fix. The agent fixes what it can; what only
-the user can do (sign in to an AI provider, pick the evaluator model) is marked NEEDS."""
+speaks, Qwen Image + RMBG draw) plus Micro Fish as an optional WARN block — without it the agent panel
+pre-tests instead. The agent fixes what it can; only the user can sign in to an AI provider or pick the
+evaluator model, so those are advice, not blocking rows."""
 from __future__ import annotations
 
 import json
@@ -88,24 +89,25 @@ def checks(cd: Path | None = None, quick: bool = False) -> list[dict]:
         "" if lic == "bria-agreement" else "RMBG-1.4 is non-commercial; marketing a product needs a Bria agreement. Record "
         "it once: ~/.babysit/marketing-video/config.json {\"rmbg_license\": \"bria-agreement\"|\"non-commercial\"}")
 
-    # ---- judge: Micro Fish on Soot ----
+    # ---- judge: Micro Fish on Soot — OPTIONAL. Without it the agent panel in 06-pretest.md pre-tests instead.
+    # Nothing here blocks READY; `mvf judge` itself still exits NEEDS_CONTEXT until it is set up.
     st = judge.status()
     sv = (_ver([st["soot"], "version"]) or "").split(" (")[0] if st["soot"] else "not found"
-    add("judge", "OK" if st["soot"] else "MISSING", f"Soot {sv.removeprefix('soot ')}",
-        "" if st["soot"] else "install Soot (https://github.com/2found/2agent)")
-    add("judge", "OK" if st["micro_fish"] else "MISSING", f"micro-fish skill {st['micro_fish'] or 'not found'}")
+    add("judge", "OK" if st["soot"] else "WARN", f"Soot {sv.removeprefix('soot ')} (optional: Micro Fish)",
+        "" if st["soot"] else "install Soot (https://github.com/2found/2agent), or skip Micro Fish and use an agent panel")
+    add("judge", "OK" if st["micro_fish"] else "WARN", f"micro-fish skill {st['micro_fish'] or 'not found'} (optional)",
+        "" if st["micro_fish"] else "link soot-forge's groups/society-sim/claude-code/micro-fish to ~/.claude/skills/micro-fish, or set MVF_MICRO_FISH")
     if st["signed_in"]:
         add("judge", "OK", "Soot providers signed in: " + ", ".join(st["signed_in"]))
     ch = st["choice"]
     if ch:
         add("judge", "OK", f"evaluator model {ch['provider']}/{ch['model']} (chosen {ch.get('set_at')})")
-    add("judge", "OK" if st["workspace"] else ("INFO" if not ch else "MISSING"),
+    add("judge", "OK" if st["workspace"] else ("INFO" if not ch else "WARN"),
         f"Micro Fish workspace {judge.home() / 'society'} " + ("ready" if st["workspace"] else "not created"))
     seen = {x["what"] for x in out}
     for what, msg, fix in st["problems"]:
-        state = "NEEDS" if what in {"provider", "model"} else "MISSING"
-        if msg not in seen:
-            add("judge", state, msg, fix)
+        if what not in {"soot", "micro-fish"} and msg not in seen:  # those two have their own rows above
+            add("judge", "WARN", msg + " (Micro Fish optional; agent panel covers it)", fix)
 
     # ---- research (optional) ----
     v = _ver(["yt-dlp", "--version"]) if shutil.which("yt-dlp") else None

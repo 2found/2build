@@ -143,16 +143,21 @@ browser or a video it cannot read. Do it yourself before that stage's check.
 | Edit and render | HyperFrames (HTML to video, `npx hyperframes`, Node 22+) | the first scaffold downloads the pinned version |
 | Voice | OmniVoice (clone or designed voice; Whisper times the words) | uv builds its environment on the first take (about 2 GB, once) |
 | Picture parts (supporting code, never the scene) | Qwen Image 2.1 Turbo, and RMBG-1.4 cutouts (the `image-gen` skill) | `image-gen/scripts/setup` downloads the weights once; free and local |
-| Judge | Micro Fish on the user's Soot: a society of persona Soots on a shared feed, and an expert panel | the user signs in to a provider and names the model, then `mvf judge setup` |
+| Judge (optional) | Micro Fish on the user's Soot: a society of persona Soots on a shared feed, and an expert panel | the user signs in to a provider and names the model, then `mvf judge setup`. Without it `mvf next` runs the agent panel in 06-pretest.md instead |
 
 Run **`mvf doctor`** before the first video. It checks each backbone and
-prints the fix for anything missing. The agent fixes what it can; `NEEDS`
-lines are the user's to do:
+prints the fix for anything missing. Micro Fish rows are `WARN`, never
+blocking — the video ships with an `agent-panel` pre-test. The agent fixes
+what it can; for Micro Fish itself, only the user can:
 - **Signing in to an AI provider for Soot.** Ask the user to run
   `! soot login <provider>`. Never ask for, paste or write a key.
 - **Naming the judge model on first use.** Ask once, offer the providers that
   `mvf judge status` lists as signed in, then run `mvf judge setup --provider
   P --model M`.
+- **When a Micro Fish run dies on the provider** (credits out, auth rejected,
+  model refused — `mvf` says so in its error), do not keep resuming: the run
+  is dead until the user changes something. Offer the fix, and keep going
+  with the agent panel.
 
 Other engines plug in as extensions, but these four are the defaults the
 checks expect.

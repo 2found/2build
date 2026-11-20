@@ -12,7 +12,7 @@ from pathlib import Path
 LIB = Path(__file__).resolve().parent
 TOOLS = LIB.parent
 SKILL = TOOLS.parent
-HYPERFRAMES = "0.8.153"  # pinned HyperFrames CLI; bump after `npx hyperframes upgrade --check` on a finished film
+HYPERFRAMES = "0.9.69"  # pinned HyperFrames CLI; bump after `npx hyperframes upgrade --check` on a finished film. 0.8.153 rendered SVG paper grain (feTurbulence + multiply) as a grey wash the preview never showed
 
 PLATFORMS = json.loads((LIB / "platforms.json").read_text(encoding="utf-8"))
 # 2.5D visual style presets (stickman, ink, anime): defaults for art prompts, the look and the stick rig
