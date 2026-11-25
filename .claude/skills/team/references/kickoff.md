@@ -36,8 +36,11 @@ detail) — without replacing live workers or replaying completed work.
 
 The lead does this itself; it is the goal it keeps. Write the parent
 `requirement.md`: outcome, audience, scope and non-goals, constraints
-(deadline, platforms, data, compliance), assumptions, and open questions. Read
-the codebase and docs enough to answer what they can. Classify each remaining
+(deadline, platforms, data, compliance), assumptions, and open questions.
+Have one foreground subagent on your model read the codebase and docs enough
+to answer what they can and return a digest of at most ~400 words with
+`file:line` cites; spot-check one cite yourself. The raw reads would stay in
+your context for the whole project. Classify each remaining
 question with the Auto-Decision Framework: answer Mechanical and Taste
 questions as recorded assumptions; ask the human only what would change the
 architecture, the scope or the phase plan.
@@ -65,7 +68,7 @@ is a fix the team owes, feedback beyond it is a change request.
 ## 2. Basic design and phase plan
 
 Read [project contract](project-contract.md),
-[execution evidence](execution.md) and
+[execution contract](execution.md) and
 [phases](phases.md). Dispatch one basic-design worker on the
 **design** route in the parent checkout, using `--plan-worker`
 (default: this lead's harness), to produce the architecture

@@ -13,17 +13,17 @@ money/auth/irreversible-data floor); nothing recorded goes stale. A worker
 whose gates are not needed reports with `--no-gate "<why>"`; a failed verdict
 or open material finding is fixed in that session, not waived. Edits after
 `task done` are taken by the next `integrate`. A repair or QA fix is never
-re-reviewed ([review effort](phases.md#review-effort)).
+re-reviewed ([review effort](phase-qa.md#review-effort)).
 
 An evidence-only ticket (project `artifacts_only: true`) reports with
 `bbs team task done … --artifacts <paths.json>` instead; its worktree holds no
 code change.
 
-A ticket's worker is shut down when it reports done; a phase QA failure is
-fixed by the phase QA session itself
-([phases](phases.md#4-cumulative-qa-and-product-review)), never sent back as
-a `repair`. A phase that does not compose does not either: its conflicts are
+A phase QA failure is fixed by the phase QA session itself
+([phase QA](phase-qa.md#cumulative-qa-and-product-review)), never sent back as
+a `repair`; a phase that does not compose does not either: its conflicts are
 resolved in the phase worktree ([git flow](../references/git-flow.md) step 6).
+A settled worker is shut down ([tickets](tickets.md#ticket-session-ownership)).
 
 ### When the phase is landed and verified
 
@@ -131,7 +131,7 @@ The human answers on the release approval:
   - **in scope** — a defect, a criterion that does not hold, a flow that
     differs from the prototype, a decision taken for them that they reverse:
     the team owes the fix. Run one fix round alone in **one** session, the
-    same shape as phase QA ([phases](phases.md#4-cumulative-qa-and-product-review)):
+    same shape as phase QA ([phase QA](phase-qa.md#cumulative-qa-and-product-review)):
     dispatch one fix worker on `--qa-worker` with every item; it edits the
     owning tickets' worktrees, runs `integrate` + `land` and re-tests what
     the fixes touched. Then update the handover with what changed,

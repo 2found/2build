@@ -16,7 +16,7 @@ readiness. Preserve
 each ticket's `pointers.workflow`.
 
 For each ticket: **select its route once → launch its ticket worker → await the
-batch → lightly verify → finish (the worker is shut down when it reports done; a follow-up starts a fresh session)**. The
+batch → lightly verify → finish**. The
 ticket worker follows autopilot's **Team ticket assignment** contract:
 
 | Loop step (one session) | Boundary |
@@ -59,19 +59,19 @@ by [project contract](project-contract.md#project-design-checkpoint) step 5.
 ### Ticket session ownership
 
 The ticket session is the ticket's single writer while it works: questions and
-plan reviews go to the live session. A worker that reports `task done` is shut
-down at once — the watcher closes its terminal when the Dispatch settles
-(succeeded, failed or abandoned), because a follow-up to a finished worker
-almost never happens and an idle agent costs memory and tokens. Opt out with
-config `foreman_keep_settled_workers: true` (debugging only). Land closes any terminal still left in the phase's worktrees.
+plan reviews go to the live session. This section owns the shutdown rule: a
+worker that reports `task done` is shut down at once — the watcher closes its
+terminal when the Dispatch settles (succeeded, failed or abandoned), because a
+follow-up to a finished worker almost never happens and an idle agent costs
+memory and tokens. Opt out with config `foreman_keep_settled_workers: true`
+(debugging only; [reuse](worker-routing.md#reuse-a-ticket-session) then
+applies). Land closes any terminal still left in the phase's worktrees.
 
 After every accepted report the next owner is therefore a **fresh session**,
 and only in the two follow-up cases of the wake loop (SKILL.md step 2), on the
-ticket's recorded route.
-
-Release the Dispatch's resource lease on every settlement.
-Never reuse one ticket's session for another ticket, and never send a
-follow-up to a session whose Dispatch is still open.
+ticket's recorded route. Release the Dispatch's resource lease on every
+settlement. Never reuse one ticket's session for another ticket, and never
+send a follow-up to a session whose Dispatch is still open.
 
 ### Batch dispatch: one wake per phase
 
@@ -139,8 +139,8 @@ waiting on it:
   worktree, on its current tree, and write that ticket's own `qa` verdict
   and evidence with `BABYSIT_TICKET=<ticket>`;
 - a covered ticket is not finish-ready until its heavy checks pass; the
-  consolidated run fixes a failure itself in that ticket's worktree and
-  re-checks it, the way phase QA does — never a `repair` through the lead.
+  consolidated run fixes a failure itself, like phase QA
+  ([phase QA](phase-qa.md#cumulative-qa-and-product-review)).
 
 ### Light verification and ticket close-out
 
@@ -155,7 +155,7 @@ inputs change later.
 | Trigger | Next owner |
 |---|---|
 | Ticket session ended without success (failed, `BLOCKED`, exited, lost) | one `repair` on a fresh worker in the ticket worktree; still `BLOCKED` after it → park and escalate |
-| Phase QA, heavy QA, release or handover failure | the session that found it fixes it itself in the owning ticket's worktree, `integrate` + `land` |
+| Phase QA, heavy QA, release or handover failure | the session that found it fixes it ([phase QA](phase-qa.md#cumulative-qa-and-product-review)); nothing goes to a `repair` |
 | `integrate` lays out a conflict | You resolve it in the phase worktree, `integrate` again ([git flow](../references/git-flow.md) step 6); never a ticket follow-up |
 | `BASE_DRIFT=`, a pinned contract changed (`contract:<id>:changed`) | Nothing: `integrate` composes on the current base and phase QA catches what breaks |
 | `integrate` refuses: the phase changes a contract another team owns | You ask the owning team for the change ([contracts](../references/contracts.md)) and adapt the phase to the version on base yourself, like any other integrate conflict — edit the ticket worktree whose snapshot changed it (`integrate` takes the edit), `integrate` again; never a ticket follow-up. Needing a change beyond the approved design parks the phase `BLOCKED` |

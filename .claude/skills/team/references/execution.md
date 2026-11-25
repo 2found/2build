@@ -83,86 +83,24 @@ report with `bbs team task done … --artifacts <artifacts.json>`, containing
 through this path. Final acceptance checks still cover each criterion; there is
 no phase commit to integrate or land, and delivery reads `ARTIFACTS_READY`.
 
-## Integrated checks and independent product review
+## Evidence and product review
 
-Build and land the phase commit first (`bbs team integrate`, `land`,
-[phases](phases.md#2-integrate-the-phase)). In its integration worktree,
-before testing, create a verification attempt:
+Phase evidence (`bbs team evidence --begin`, results and review check JSON) is
+the phase QA worker's: [phase-qa.md](phase-qa.md#evidence). It begins the
+attempt with `"phase"` named; the CLI captures the phase subject (the contract
+plus every ticket of phases 1..k) and refuses a phase that is not ready or an
+integration worktree that is not clean at the phase commit.
 
-```sh
-bbs team evidence "$PARENT" --begin --file /absolute/check-spec.json
-```
-
-```json
-{"kind":"integration","producer":"actual-qa-dispatch-id","phase":"p2"}
-```
-
-The CLI captures the phase subject (the contract plus every ticket of phases
-1..k) and derives the surfaces from the phase commit; it refuses a phase that
-is not ready, or an integration worktree that is not clean at that commit.
-Store the returned attempt ID. Tests run in that worktree, against that exact
-commit; earlier phases' commits must already be on base. After tests, run:
-
-```sh
-bbs team evidence "$PARENT" --attempt <id> --file /absolute/results.json
-```
-
-```json
-{
-  "checks":[{"criterion":"AC1","kind":"behavior","command":["actual","command"],"exit_code":0,"log":"/absolute/real-check.log"}],
-  "findings":[]
-}
-```
-
-Record every required criterion/check pair and real exit code. Also record the phase review as `{"criterion":"<phase id>","kind":"review",...}`
-with the review report as its log ([phases](phases.md#4-cumulative-qa-and-product-review));
-a passing one stands on every later commit of the phase, and a fix delta is
-never reviewed ([review effort](phases.md#review-effort)). The producer
-archives logs and hashes them; changed inputs reject results. Failures remain
-durable; repairs get a fresh attempt. A preview requires `preview` HTTP(S) URL,
-`runtime` full tested SHA, and a passing `runtime` check whose probe log contains
-that SHA exactly. The probe must query the running build; echoing an expected
-SHA proves nothing. The dashboard labels the observation time, never current
-server availability.
-
-Release receipts and requests are phases.md's: `bbs team release --request`
+Release receipts and requests are [phases](phases.md#5-release)': `bbs team release --request`
 and `--file` write `release-request.json` on the phase ticket and
 `project-releases/<id>.json` on the parent, and the snapshot reads them back.
-
-When the contract requires product review, the integration session runs it
-next as the read-only product evaluator ([product-review.md](product-review.md));
-a separate evaluator Task is the exception named there. Its identity must
-differ from child gate producers — in a phase session, which built the
-ticket, the evaluator is a fresh subagent ([phases](phases.md#phase-session-a-one-ticket-phase-verifies-itself)). Final evidence and every
-criterion check use `kind: product`; `kind: journey` is only for an explicitly
-required preliminary check. Material findings require repair and fresh evidence;
-minor findings stay in the handoff.
 
 After the last phase is released (or landed and verified, for `none`), release settled
 workers and leases, persist the report, then run `bbs team complete "$PARENT" --team "$FOREMAN_ID"`.
 It writes the completion receipt only when all assigned parents are verified. Status edits or a raw done
 heartbeat cannot replace this receipt.
 
-## Progress, waits and repair
-
-Write `bbs team progress <ticket> --file <report.json>` at a meaningful
-milestone or wait transition. Use the actual Task/Dispatch/attempt IDs
-(`run_id` carries the bbs Task id):
-
-```json
-{"producer":"worker-id","phase":"qa","summary":"Task survives reload",
- "run_id":"run-id","dispatch_id":"dispatch-id","attempt_id":"attempt-id",
- "evidence":"/absolute/durable/check.log"}
-```
-
-`phase` names the ticket's loop step (`plan`, `approve`, `build`, `review`,
-`qa`, `repair`), not a release phase. An `approve` wait on the lead is
-`wait_kind: approval`.
-Only changed evidence advances `progress_at`; summary rewrites and extra edits
-do not. Waits add `wait_kind` (`test`, `approval`, `resource`),
-`wait_reason` and `wait_until` at most 15 minutes ahead. Refresh from actual
-ongoing waits, never a timer. Expiry is not failure or a reason to inspect a
-worker; Orca owns runtime state and runtime.md defines reconciliation triggers.
+## Repair
 
 A ticket session repairs its own failures: autopilot's repair loop inside
 the session. One that ends without success follows the wake loop's

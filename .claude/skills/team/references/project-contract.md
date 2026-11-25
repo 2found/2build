@@ -194,35 +194,13 @@ never unlocks a gate on resume.
 ## Phase integration QA
 
 Every code-bearing phase ends in one integration QA on its landed phase
-commit ([phases](phases.md#2-integrate-the-phase)), proving every criterion of that
-phase and all earlier ones — fresh for this phase's criteria and whatever its
-diff touches, earlier phases' passing evidence for the rest; the last phase's run is the project's final QA and
-passes before the lead's `done` heartbeat. Per-ticket QA never substitutes for
-it. Wholly evidence-only projects may record N/A with acceptance evidence.
-The lead owns the evidence checks; one integration worker session on the normal
-route reviews the phase diff and tests through the `qa` skill, and fixes its
-findings in their owning ticket's worktree
-([phases](phases.md#4-cumulative-qa-and-product-review)). The lead never tests
-inline.
-
-1. `bbs team integrate` builds the phase commit in its detached integration
-   worktree and `bbs team land` puts it on local base right away
-   ([phases §2–3](phases.md#2-integrate-the-phase); conflicts per
-   [git flow](../references/git-flow.md) step 6).
-2. Begin evidence with `"phase"` (execution.md), then run the `qa` skill in
-   that worktree with parent identity, the phase commit, the approved artifact
-   revision and the ticket list, in its Team integration mode: no commits,
-   edits of the integration worktree or topology changes. The runtime must serve that exact tree;
-   probe the changed behavior first. Run the cumulative journeys,
-   cross-ticket transitions and adjacent regressions. A shared resource (port, database,
-   device) is taken with `bbs ticket surface acquire` and released on every
-   outcome.
-3. Persist `integration-qa.md` with commands, results, runtime identity,
-   evidence links and the tested commit; set `pointers.integration_qa` and the
-   parent `qa` verdict.
-4. On FAIL, the session fixes every failure itself, forward on base
-   ([phases §4](phases.md#4-cumulative-qa-and-product-review)). PASS unlocks
-   the release and removes the phase's worktrees ([delivery](delivery.md)).
+commit, proving every criterion of that phase and all earlier ones; the last
+phase's run is the project's final QA and passes
+before the lead's `done` heartbeat. Per-ticket QA never substitutes for it. The lead owns the evidence
+checks and never tests inline; the phase worker's steps, its fixes and the
+evidence shapes are in [phase-qa.md](phase-qa.md), the lead's `integrate` →
+`land` order in [phases §2–4](phases.md#2-integrate-the-phase). Wholly
+evidence-only projects may record N/A with acceptance evidence.
 
 ## Executable completion
 

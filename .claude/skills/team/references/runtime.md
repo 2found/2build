@@ -103,8 +103,9 @@ never writes ticket state. See topology.md for the bidirectional relations.
 
 ## Completion reporting
 
-Use project-contract.md for the durable report and execution.md for typed evidence
-and the final completion receipt. A `done` heartbeat alone is not completion.
+Use project-contract.md for the durable report and execution.md for scope,
+readiness and the final completion receipt (typed phase evidence is the QA
+worker's, phase-qa.md). A `done` heartbeat alone is not completion.
 The parent becomes `done` once every phase landed (and released, where its mode
 asks). After successful `bbs team complete`, the external watcher drops the
 the lead from its set and leaves its terminal open and idle — never closed,

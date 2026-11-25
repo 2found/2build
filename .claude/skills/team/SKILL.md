@@ -123,7 +123,9 @@ logs. Judge work from readiness JSON, verdicts and handoff paths. In
 measured runs (2026-11) the lead cost more than all its workers together,
 almost all of it from turns outside the watcher's wakes, so:
 
-- **You do no hands-on work.** No code edits, test runs, browser checks or debugging in your session — even a "quick" one re-reads your whole context on every tool call. Work is a Task on a worker; the only work you do yourself is resolving an `integrate` conflict (git flow step 6).
+- **You do no hands-on work.** No code edits, test runs, browser checks or debugging in your session — even a "quick" one re-reads your whole context on every tool call. Work is a Task on a worker; an `integrate` conflict goes to one foreground subagent (step 3 below).
+- **Nothing runs in the background of your session.** No `run_in_background`, Monitor, wait loop or background subagent: each completion is a notification wake that re-reads your whole context. Anything longer than about two minutes is a Task.
+- **A wake you did not expect is one read.** Any wake that is not the watcher's (a stray notification, a late tool result) gets one chained call — `bbs team batch show "$FOREMAN_ID"; bbs team next "$PARENT"` — and, unless it shows a `QUESTION=` or a stalled, exited or lost worker, a reply of `ok` and the end of the turn.
 - **Requests outside the project go elsewhere.** A deploy, an ops check, a hotfix or a question about another repo is a `bbs team task create` on a worker, or the human's own session — never a detour in yours.
 - **A status question is one read.** Answer "how far along?" from one `bbs team batch show "$FOREMAN_ID"` (or `bbs team next`), in a few lines, then end the turn.
 - **One lead session per project.** Do not start a second lead on the same project; after the handover (or `bbs team complete`) the session has nothing left to do — say so and let the human close it.
@@ -241,10 +243,17 @@ On a settled batch wake:
    phase with an open phase session is its own: `bbs team next` answers
    `wait` for it until the session settles.
    Merging is your job: `integrate`/`land` lay a conflict out in the phase
-   worktree and **you resolve every conflict there yourself** in that wake —
-   focused checks, then `integrate` again ([git flow](../references/git-flow.md)
-   steps 5–7). Never send a conflict back to a ticket; only one that needs a
-   change beyond the approved design parks the phase `BLOCKED`.
+   worktree and you own its resolution in that wake, without loading the
+   diff into your context: hand it to **one foreground subagent** on your
+   model, working in `RESOLVE_IN`, with the `CONFLICT=` lines, the
+   conflicting tickets' briefs and the design paths. It resolves keeping both
+   sides' intent, runs the focused checks and returns at most five lines
+   (files, how each was resolved, checks); you then run `integrate` again,
+   and send a repeat conflict back to the same subagent (Claude Code:
+   `SendMessage`). A conflict of a few lines with no logic in it you may
+   resolve directly ([git flow](../references/git-flow.md) steps 5–7).
+   Never send a conflict back to a ticket; only one that needs a change
+   beyond the approved design parks the phase `BLOCKED`.
 4. Launch everything runnable as **one batch** — new tickets, follow-ups,
    integration QA, release workers — then `bbs team batch` and end the turn.
 

@@ -12,9 +12,9 @@ its phase) and its route carries to every follow-up on it.
 Single-purpose assignments (basic design, phase integration, heavy QA,
 release, handover fix, delivery in a fresh session) get their own routes.
 `autopilot` does not select models: every step in one invocation runs on the
-model of the session opened by the human or the lead, except `design-ui` and
-UI/UX `implement` work, which run in subagents on the `pro` tier (autopilot
-SKILL.md § Subagent steps). Neither skill switches a running worker's model.
+model of the session opened by the human or the lead, except `design-ui`
+(a `pro`-tier subagent) and `implement` (always a `flash`-tier subagent;
+autopilot SKILL.md § Subagent steps). Neither skill switches a running worker's model.
 
 ## Route inputs
 
@@ -104,9 +104,14 @@ importance signal, the built-in policy falls back to `pro`.
 
 A ticket worker is `critical` because it owns its ticket plan and its approval;
 implementation rides the same session instead of buying a cold start. Built in,
-`simple` and `normal` tickets run on `pro` (Claude `opus` at high effort): a
-stronger model that lands the ticket in one session is cheaper than a
-follow-up, which costs a cold start. Phase integration (`normal`/`normal`)
+`normal` tickets run on `pro` (Claude `opus` at high effort): a stronger model
+that lands the ticket in one session is cheaper than a follow-up, which costs
+a cold start. A `simple` ticket runs on `flash` (Claude `sonnet` at high
+effort): `implement` always runs in a `flash` subagent, so its main thread
+only reads the brief, dispatches, runs focused checks and reports. The route
+lookup cannot tell a `--kind phase` session from a `--kind ticket` one, and a
+phase session also integrates, reviews and QAs its phase: classify it at least
+`normal`. Phase integration (`normal`/`normal`)
 also runs on `pro`, because it reviews and fixes the small tickets that
 deferred their gates to it. Only `hard` tickets — security, money, live
 data, cross-system logic — reach `max`. Basic design is its own `design` class
@@ -142,24 +147,9 @@ it does not select or override a model. Only `lite`, `flash`, `pro`, and `max` a
 
 Users override policy in `~/.babysit/settings.json` or
 `<repo>/.babysit/settings.json` (`BABYSIT_STATE_DIR` relocates the global file).
-Precedence is repo > global > built-in defaults, merged per field. Example:
-
-```json
-{
-  "foreman": {
-    "models": {
-      "routing": {
-        "hard": { "normal": "max" }
-      },
-      "tiers": {
-        "flash": {
-          "codex": { "model": "my-model", "effort": "high" }
-        }
-      }
-    }
-  }
-}
-```
+Precedence is repo > global > built-in defaults, merged per field; the file
+shape is the `foreman.models` block in `docs/team.md`,
+and `bbs team model --json` prints the effective result.
 
 `routing` maps `simple|normal|hard` × `normal|critical|design` to `lite|flash|pro|max`.
 `tiers` maps each tier and agent ID to `model` and optional `effort`. Omitted
@@ -199,17 +189,7 @@ the Auto-Decision Framework.
 
 ## Autopilot session boundary
 
-A Team-dispatched Autopilot honors the supplied assignment and model, records the
-routing metadata with observed launch settings, and reports conflicting launch
-evidence to the lead before work. It does not classify tasks, select tiers or
-repair a route by spawning a worker. The lead recovers missing legacy routing
-evidence from the durable handoff before its next launch.
-
-Standalone Autopilot runs all steps in the human-opened session or its
-subagents. It does not
-load this routing table, recommend a tier, or change models between steps, beyond `design-ui`'s pinned subagent.
-Record the actual session model (unknown if unobserved) as evidence; use the
-existing capability/NEEDS\_CONTEXT handling if the session cannot carry the work.
+Standalone Autopilot runs all steps in the human-opened session or its subagents. It does not load this routing table, recommend a tier, or change models between steps, beyond the pinned `design-ui` and `implement` subagents. A Team-dispatched one follows [team assignment](../autopilot/references/team-assignment.md).
 
 ## Resume and changing a route
 
@@ -221,10 +201,10 @@ task/phase/tier evidence must be resolved through the CLI policy before the next
 launch. A changed task scope or routing policy is reclassified at a settled
 boundary and the previous route remains in the handoff.
 
-A follow-up on a ticket starts a fresh session (the settled one is closed) on
-the ticket's route. A ticket whose route must change (reclassified scope, explicit
-override) releases its settled session and starts a fresh worker on the same
-checkout; never reuse a session for an assignment with a different agent,
+A follow-up on a ticket starts a fresh session on the ticket's route
+([worker routing](worker-routing.md#reuse-a-ticket-session)). A ticket whose
+route must change (reclassified scope, explicit override) starts a fresh worker
+on the same checkout; never reuse a session for an assignment with a different agent,
 provider, model, effort or resource profile. Persist requested
 settings and observed launch results separately; label an unobserved native
 default as `native-default`, never as a known effective model. That label is

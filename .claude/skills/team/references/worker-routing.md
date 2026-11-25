@@ -22,7 +22,6 @@ resulting model, effort and selected tier into route validation before resource
 admission:
 
 ```bash
-```bash
 bbs team route --ticket "$TICKET" --task "$TASK" \
   [--agent <explicit-agent>] [--pinned-agent <ticket-agent>] \
   [--pinned-model <ticket-model>] [--pinned-effort <ticket-effort>] \
@@ -32,6 +31,12 @@ bbs team route --ticket "$TICKET" --task "$TASK" \
   --selected-tier <lite|flash|pro|max> [--override-provenance <source|none>] \
   [--pinned-model-provenance <ticket-pointer>] [--pinned-effort-provenance <ticket-pointer>]
 ```
+
+**Launch a batch in one call.** Run `model`, `task create`, `route`,
+`resource reserve`, `set-pointer` and `task launch` for every worker of the
+batch, then `bbs team batch`, as one `set -e` script that parses the
+`--json` / `KEY=` output between commands, and read its output once. Each
+separate tool call re-reads the lead's whole context.
 
 `$TASK` is the bbs Task the worker will run: create it first with
 `bbs team task create "$FOREMAN_ID" --ticket "$TICKET" --kind <kind> --spec-file <spec>`
@@ -86,50 +91,20 @@ started no terminal settles its Dispatch as failed by itself.
 
 ### OMP launch: `native-terminal`
 
-Resolve the selected alias on the execution host before launch, using its live
-OMP role binding. Put the expected resolved provider/model/effort in the Task
-spec. Require the worker to compare actual session metadata before ticket work;
-unknown or conflicting settings must be reported, never repaired by switching
-the live model. An omitted effort uses the selected role's native binding.
-
-Render an idle native command, create an Orca terminal in the assignment
-worktree, wait for the agent to come up, then launch the Task into that exact
-terminal:
-
-```bash
-bbs team worker-command --startup-only --dir "$REPO" \
-  --agent omp --model <selected-model> [--effort <selected-effort>]
-
-orca terminal create --worktree <assignment-worktree> \
-  --command "<exact rendered startup command>" --json
-orca terminal wait --terminal "$TERMINAL" --for tui-idle --json
-
-bbs team task launch "$TASK" --agent omp --worktree <assignment-worktree> \
-  --terminal "$TERMINAL" --created-terminal
-```
-
-`--startup-only` rejects `--prompt` and `--skill`. Do not type the assignment
-by hand. Execute native preflight and startup on the selected execution host;
-remote placement must be supported explicitly; never fall back to a
-coordinator-local launch. A launch into `--terminal` verifies the agent Orca
-detects there and reports `transport-matched`: it does not attest native
-settings, so persist the worker's observed agent/model/effort separately.
-`--created-terminal` records that this Dispatch owns the terminal, so the
-watcher closes it at settle; without it the terminal is never closed by
-the lead. Never close a preexisting user's terminal or an uncertain live
-worker.
+When `launchMode` is `native-terminal` (agent OMP), read
+[worker-routing-omp.md](worker-routing-omp.md) instead of the `agent-launch`
+call above; every other agent never loads it.
 
 ### Reuse a ticket session
 
-A settled worker's terminal is closed by the watcher, so this applies only to a
-session that is still live (watcher opted out with `foreman_keep_settled_workers`
-for debugging). Otherwise start a fresh worker in
-the ticket worktree and point its spec at the ticket's handoffs. A follow-up on
-a ticket (`repair`, `redirect`, `deliver`) goes to that ticket's
-existing session only when its previous Dispatch settled with an accepted
-report, the handle is the exact one recorded for this ticket (`bbs team task
-show`), and `orca terminal show` still names its agent. It inherits the ticket
-route, so skip model lookup and route resolution:
+Only a session that is still live qualifies (a settled worker is shut down:
+[ticket session ownership](tickets.md#ticket-session-ownership)); otherwise
+start a fresh worker in the ticket worktree and point its spec at the ticket's
+handoffs. A follow-up on a ticket (`repair`, `redirect`, `deliver`) goes to
+that ticket's existing session only when its previous Dispatch settled with an
+accepted report, the handle is the exact one recorded for this ticket (`bbs
+team task show`), and `orca terminal show` still names its agent. It inherits
+the ticket route, so skip model lookup and route resolution:
 
 ```bash
 bbs team task create "$FOREMAN_ID" --ticket "$TICKET" --kind <repair|redirect> --spec-file <follow-up spec>
