@@ -82,7 +82,7 @@ fi
 has_all "ticket-runs-whole-loop-in-one-session" \
   'One context, one session' 'select its route once' \
   'every follow-up' 'without stopping between steps' 'only delays the dependent' \
-  'you resolve every conflict there yourself' 'never a ticket follow-up' 'approval self-resolve'
+  'you own its resolution in that wake' 'one foreground subagent' 'never a ticket follow-up' 'approval self-resolve'
 
 has_all "ticket-session-ownership" \
   '### Ticket session ownership' 'fresh' 'session' \
@@ -128,8 +128,9 @@ has_all "workflow-aware-dispatch" \
   'pointers.workflow' '`builder` unless the project defines its own' 'evidence-only'
 
 has_all "phase-qa-gate" \
-  '## Phase integration QA' 'bbs team integrate' 'one integration worker session' \
-  'every criterion of' 'cross-ticket transitions' 'that exact commit'
+  '## Phase integration QA' 'bbs team integrate' 'phase integration worker' \
+  'every criterion of' 'cross-ticket journeys' 'that exact commit' \
+  'phase-qa.md'
 
 has_all "durable-resume-and-finish" \
   'bbs team task list "$FOREMAN_ID"' 'Terminal handles are routing metadata' \
@@ -219,10 +220,10 @@ has_all "decision-trail-and-alternatives" \
   '## Alternatives considered' 'a one-way decision with no alternative weighed'
 
 PROJECT_CONTRACT="$ROOT/.claude/skills/team/references/project-contract.md"
-if python3 - "$PROJECT_CONTRACT" "$ROOT/.claude/skills/qa/SKILL.md" <<'PY'
+if python3 - "$PROJECT_CONTRACT" "$ROOT/.claude/skills/qa/SKILL.md" "$ROOT/.claude/skills/team/references/phase-qa.md" <<'PY'
 from pathlib import Path
 import sys
-contract, qa = (Path(p).read_text() for p in sys.argv[1:])
+contract, qa, phase_qa = (Path(p).read_text() for p in sys.argv[1:])
 for required in (
     'approval publish --kind project-plan',
     'Only current `approved` unlocks children',
@@ -230,10 +231,10 @@ for required in (
     'auto: true', 'approval self-resolve',
     'bbs team report <parent>', 'atomically\nreplace parent `report.md`',
     '`LANDED`', '`RELEASED`', 'UNKNOWN',
-    'bbs team integrate', 'bbs team land',
-    'fixes every failure itself',
 ):
     assert required in contract, required
+for required in ('bbs team integrate', 'bbs team land', 'fixes every failure itself'):
+    assert required in phase_qa, required
 assert 'Team integration mode' in qa
 assert 'tests that exact commit read-only' in qa
 assert 'integration worktree, commit or switch revisions' in qa
