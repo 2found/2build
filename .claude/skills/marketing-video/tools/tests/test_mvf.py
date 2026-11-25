@@ -282,6 +282,14 @@ class Timing(unittest.TestCase):
         self.assertEqual(timing.cue_id(v["beats"][0]), "H2")
         self.assertEqual(s["beats"][0]["vo"], "Your inbox is lying.")  # original untouched
 
+    def test_all_silent_beats_are_measured(self):
+        s = script()  # voice.mode none: every beat timed by its min_s, nothing estimated
+        for b in s["beats"]:
+            b["vo"], b["min_s"] = "", 2.0
+        self.assertEqual(timing.build(timing.variant(s, None), None)["timing"], "measured")
+        s["beats"][1]["vo"] = "One spoken line."
+        self.assertEqual(timing.build(timing.variant(s, None), None)["timing"], "estimated")
+
     def test_mixed_timing_is_reported(self):
         m = {"cues": MANIFEST["cues"][:2]}
         self.assertEqual(timing.build(timing.variant(script(), None), m)["timing"], "mixed")

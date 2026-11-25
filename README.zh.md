@@ -154,14 +154,7 @@ bbs autopilot recover --json
 
 ## 语义决策
 
-`semantic-decision` 将任务规模、复杂度、路由、测试影响和审查判断变成显式、可复用的 skill 步骤。默认 provider 是当前 LLM，无需配置，也无需额外的 model 进程。要使用 Cloudflare：
-
-```bash
-bbs config set semantic_decision_provider cloudflare
-bbs config set semantic_decision_model clef-flash  # or clef
-```
-
-在环境变量或 `~/.babysit/.env` 中设置 `CLOUDFLARE_ACCOUNT_ID` 和 `CLOUDFLARE_API_TOKEN`。只有用户配置能选择 provider；项目策略可以限制外部推理。Cloudflare 出错或回答不确定时，回退到当前 LLM。参见 [skill](.claude/skills/semantic-decision/SKILL.md) 和[契约](.claude/skills/references/semantic-decision.md)。配置路径、默认值、项目限制和人工审查行为见[没有 dashboard 控件的设置](docs/operations.md#settings-without-a-dashboard-control)。
+`semantic-decision` 将任务规模、复杂度、路由、测试影响和审查判断变成显式、可复用的 skill 步骤。当前 LLM 在会话内自行判断，再用一条命令 `bbs semantic-decision --kind <kind> --input request.json --llm-answers answers.json` 校验并记录；无需配置，也无需额外的 model 进程。参见 [skill](.claude/skills/semantic-decision/SKILL.md)、[契约](.claude/skills/references/semantic-decision.md)，人工审查行为见[没有 dashboard 控件的设置](docs/operations.md#settings-without-a-dashboard-control)。
 
 </details>
 

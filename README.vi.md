@@ -155,14 +155,7 @@ Chạy `bbs <subcommand> --help` để xem cách dùng. Chi tiết: [CLI hỗ tr
 
 ## Quyết định ngữ nghĩa
 
-`semantic-decision` đưa các phép đánh giá kích thước tác vụ, độ phức tạp, định tuyến, tác động lên kiểm thử và review vào một bước skill rõ ràng, dùng lại được. Provider mặc định là LLM hiện tại; không cần cấu hình hay tiến trình model bổ sung. Để dùng Cloudflare:
-
-```bash
-bbs config set semantic_decision_provider cloudflare
-bbs config set semantic_decision_model clef-flash  # or clef
-```
-
-Đặt `CLOUDFLARE_ACCOUNT_ID` và `CLOUDFLARE_API_TOKEN` trong môi trường hoặc `~/.babysit/.env`. Chỉ cấu hình của người dùng chọn provider; chính sách dự án có thể hạn chế suy luận bên ngoài. Khi Cloudflare lỗi hoặc câu trả lời không chắc chắn, hệ thống quay về LLM hiện tại. Xem [skill](.claude/skills/semantic-decision/SKILL.md) và [contract](.claude/skills/references/semantic-decision.md). Đường dẫn config, giá trị mặc định, giới hạn của dự án và bước người duyệt nằm ở [các thiết lập không có điều khiển trên dashboard](docs/operations.md#settings-without-a-dashboard-control).
+`semantic-decision` đưa các phép đánh giá kích thước tác vụ, độ phức tạp, định tuyến, tác động lên kiểm thử và review vào một bước skill rõ ràng, dùng lại được. LLM hiện tại tự đánh giá trong phiên, rồi một lệnh `bbs semantic-decision --kind <kind> --input request.json --llm-answers answers.json` kiểm tra và ghi lại kết quả; không cần cấu hình hay tiến trình model bổ sung. Xem [skill](.claude/skills/semantic-decision/SKILL.md), [contract](.claude/skills/references/semantic-decision.md) và [các thiết lập không có điều khiển trên dashboard](docs/operations.md#settings-without-a-dashboard-control) về bước người duyệt.
 
 </details>
 

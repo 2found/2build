@@ -154,14 +154,7 @@ bbs autopilot recover --json
 
 ## 시맨틱 결정
 
-`semantic-decision`은 작업 규모, 복잡도, 라우팅, 테스트 영향, 리뷰 판단을 명시적이고 재사용 가능한 skill 단계로 만듭니다. 기본 provider는 현재 LLM이며 별도 설정이나 추가 model 프로세스가 필요 없습니다. Cloudflare를 사용하려면:
-
-```bash
-bbs config set semantic_decision_provider cloudflare
-bbs config set semantic_decision_model clef-flash  # or clef
-```
-
-`CLOUDFLARE_ACCOUNT_ID`와 `CLOUDFLARE_API_TOKEN`을 환경 변수 또는 `~/.babysit/.env`에 설정하세요. provider는 사용자 설정만 선택할 수 있고, 프로젝트 정책은 외부 추론을 제한할 수 있습니다. Cloudflare 오류나 불확실한 답변은 현재 LLM으로 대체됩니다. [skill](.claude/skills/semantic-decision/SKILL.md)과 [계약](.claude/skills/references/semantic-decision.md)을 참고하세요. 설정 경로, 기본값, 프로젝트 제한, 사람 검토 동작은 [dashboard 컨트롤이 없는 설정](docs/operations.md#settings-without-a-dashboard-control)을 참고하세요.
+`semantic-decision`은 작업 규모, 복잡도, 라우팅, 테스트 영향, 리뷰 판단을 명시적이고 재사용 가능한 skill 단계로 만듭니다. 현재 LLM이 세션 안에서 판단하고, 명령 하나 `bbs semantic-decision --kind <kind> --input request.json --llm-answers answers.json`이 검증해 기록합니다. 별도 설정이나 추가 model 프로세스가 필요 없습니다. [skill](.claude/skills/semantic-decision/SKILL.md)과 [계약](.claude/skills/references/semantic-decision.md)을 참고하세요. 사람 검토 동작은 [dashboard 컨트롤이 없는 설정](docs/operations.md#settings-without-a-dashboard-control)을 참고하세요.
 
 </details>
 

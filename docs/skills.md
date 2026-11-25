@@ -64,8 +64,8 @@ outside a workflow.
 | Full test/fix browser loop | `/bbs:qa` |
 | Pre-landing code review | `/bbs:review-pr` |
 
-`semantic-decision` makes bounded judgments inside the workflows (the current
-LLM by default, optional Cloudflare inference). It sets `user-invocable: false`,
+`semantic-decision` makes bounded judgments inside the workflows (judged by the
+current LLM). It sets `user-invocable: false`,
 so it is not in the `/` menu.
 
 ## Occasional commands

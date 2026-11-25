@@ -37,42 +37,19 @@ keys below and the configuration examples above.
 
 | Setting / file | How to inspect or change | Default / scope |
 |----------------|--------------------------|-----------------|
-| `semantic_decision_provider` | `bbs config get semantic_decision_provider`; `bbs config set semantic_decision_provider cloudflare` | `llm`; user scope only |
-| `semantic_decision_model` | `bbs config set semantic_decision_model clef-flash` or `clef` | `clef-flash`, used only with `cloudflare` |
-| Semantic credentials | Edit `$BBS_CONFIG_DIR/.env` with `nano`; set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` | Environment wins, then user `.env`; project `.env` is ignored |
-| Project inference limits | Edit `<repo>/.babysit/semantic-decision.yaml` | Optional; can restrict external inference, not enable it or select provider/model |
 | Team model/effort routes | `bbs team model --json`; edit `~/.babysit/settings.json` or `<repo>/.babysit/settings.json` | Built-in policy, then user, then repo overrides; [schema](../.claude/skills/team/references/model-routing.md#model-tiers) |
 | Base branch | `bbs autopilot base-branch`; `BBS_BASE_BRANCH` or `bbs config set base_branch <name>` | `origin/HEAD`, then `main`; the only git setting ([git flow](../.claude/skills/references/git-flow.md)) |
 
-The semantic-decision step always exists. Selecting Cloudflare is the explicit
-user opt-in to external inference; credentials alone do not select it. Switch
-back with `bbs config set semantic_decision_provider llm`. No separate
-`semantic_decision_enabled` switch is needed. The CLI reads config each call;
-there is no daemon restart or rebuild for settings changes.
-
-Project restrictions, for example:
-
-```yaml
-# <repo>/.babysit/semantic-decision.yaml
-allowed_kinds: [task-size, task-complexity, testcase]
-# enabled: false  # force the LLM provider for this project
-```
-
-Other decision kinds fall back to LLM. `allowed_kinds: []` permits no external
-inference; omitted permits all kinds under the user's chosen provider.
-Malformed policy also falls back. `enabled: true` grants no access the user
-has not configured. Do not run `bbs secrets load` to source project credentials
-for this provider; its credentials belong in the user file or environment.
-
-Cloudflare's 20-second timeout and 0.75 confidence threshold are currently code
-constants, not hidden config keys. Request/response format, all decision kinds
-and telemetry fields live in the
+The semantic-decision step always exists and has no settings: the calling LLM
+judges and `bbs semantic-decision --llm-answers` records it. Older configs that
+still set `semantic_decision_provider` or `semantic_decision_model` keep working;
+those keys are ignored. Request/answer format, all decision kinds and telemetry
+fields live in the
 [semantic-decision contract](../.claude/skills/references/semantic-decision.md).
 
 ### Decision coverage and human review
 
-Bounded judgments now use one `semantic-decision` step, with the current LLM
-as default. This coverage audit separates judgments from enforced policy:
+Bounded judgments use one `semantic-decision` step, judged by the current LLM. This coverage audit separates judgments from enforced policy:
 
 | Decision | Consumer / kind | What still governs execution |
 |----------|-----------------|------------------------------|

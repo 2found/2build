@@ -423,6 +423,11 @@ keep. Use, adapt or skip any step below.
     with `voice.ref`.
   - Spoken spellings go in `brand.say`; captions keep the display spelling.
     Listen to every line.
+  - **No voice** (`voice.mode: none`, e.g. a trend sound the owner adds in
+    the app): skip `mvf voice`. Each beat lasts its `min_s` (`gap: 0` keeps
+    them back to back), so set them from the sound's line starts. That timing
+    counts as measured, and the master gets a silent AAC track; the sound is
+    never baked in.
 - **Scaffold.** `mvf scaffold <sid> [--hook H2] [--canvas 9x16] [--from DIR]`
   writes one project per canvas on the latest matching take:
   - generated files: `index.html`, `compositions/captions.html`,

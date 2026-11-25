@@ -36,7 +36,7 @@ foreman-cache-economics.md (681.6M here against 476.9M there for the same
 | Turns per session, median | 152 |
 | Compactions | 148 |
 | Models, main thread | Opus 50%, Sonnet 31% |
-| Models, subagents | Sonnet 19% (already set by `CLAUDE_CODE_SUBAGENT_MODEL=sonnet`) |
+| Models, subagents | Sonnet 19% (then set by `CLAUDE_CODE_SUBAGENT_MODEL=sonnet`, removed 2026-11-25) |
 
 Main thread by active skill:
 
@@ -116,30 +116,26 @@ checks the script against synthetic Claude Code, Codex and OMP logs.
 | Lever | Estimate | Why not |
 |---|---|---|
 | Auto-compact window 300k → 200k | ~10% of main thread | 2.4× more compactions; it trades recall for cost, and forced compaction was removed on purpose. User decision. |
-| Batch verifiers (several findings per verifier) | ~2% | breaks the tuned one-finding, one-vote design |
+| Batch verifiers (several findings per verifier) | ~2% | done 2026-11-25 (below): one vote per finding is kept, inside one verifier |
 | Shorter skill text | 1–2% | not worth the risk to tuned prompts, which are sent word for word |
 | Light tier for correctness angles | part of 7% | correctness is where findings come from; judge by findings, not tokens |
 | Hide the nested `2build:*` relisting | 6.5k chars when touching `2build/` | no setting found that disables a nested project skill root; a per-name `skillOverrides` on 24 names would also hide `bbs:*` |
 
-## Re-check
+## Changes made on 2026-11-25
 
-After a week of runs on the new skills:
-
-```bash
-python3 .claude/skills/token-audit/scripts/token_audit.py usage --since <date> --project babysit-worktrees --harness claude
-```
-
-| Metric | Baseline | Expect | Change it tests |
+| # | Change | Where | Targets |
 |---|---|---|---|
-| `sub:write_1h` share | 10% | ~0; 5-minute writes appear instead at a lower weight | 1 |
-| Subagent share | 19% | lower; cleanup finders on the light model in `by model` | 2 |
-| review-pr share of the main thread | 18% | lower; second reviews name a `review_tree` | 3 |
-| Errored `bbs autopilot verification` calls | ~230 | a handful | 4 |
-| `--help` lookups per session | 4.7 | lower | 4 |
-| First-turn context, median | 57.8k | lower by the trimmed listing (~4k) | 7 |
-| Output share of the main thread | 11% | lower | 6 |
-
-Watch for the cost of each lever as well: findings a light-tier finder missed
-(compare review reports before and after), delta reviews that missed a
-regression outside the fix, and ops skills nobody remembers to call by
-`/name`.
+| 8 | **`implement` always in a `flash`-tier subagent** (Claude Code `sonnet` at high effort, Codex/OMP from `bbs team model`), every ticket size and UI/UX too. One subagent is continued across milestones and retries (`SendMessage`) instead of a cold one each time; review/QA fixes stay in the session | `autopilot/SKILL.md` § Subagent steps | Opus main-thread output and cache reads while coding |
+| 9 | **review-pr runs three subagents** from medium up: a correctness finder, a cleanup finder (each works its angles over one warm context) and one verifier for the whole deduplicated list, which also runs the xhigh/max sweep. Every subagent prompt opens with the same diff brief so the verifier reads it from cache. Was 8–10 finders plus one verifier per candidate (up to 48) | `review-pr/SKILL.md` `F0n`, Phase 2/3 | subagent cache writes (62% of subagent spend in foreman-cache-economics.md) |
+| 10 | Model passed explicitly to every pinned subagent; `CLAUDE_CODE_SUBAGENT_MODEL` and `subagentPromptCacheTtl: "1h"` no longer seeded by `setup-project` (it removes the old seeded values) and removed from the user settings | `setup-project/SKILL.md`, `~/.claude/settings.json` | silent model drift on inherited subagents; 2× subagent cache writes |
+| 11 | **Design then plan in two subagents**: `design-ui`'s spec carries a `Code map` (files it read that the build touches or reuses) and `plan-draft` starts from it in a fresh subagent; the design subagent is continued only for a light design | `autopilot/SKILL.md`, `design-ui/SKILL.md`, `plan-draft/SKILL.md` | design context re-read on every planning turn; re-surveying code |
+| 12 | review-pr writes the diff to a file and passes its path; a diff pasted into a subagent prompt is output at 5× | `review-pr/SKILL.md` `F0n` | output tokens |
+| 13 | Team lead: no background tools (each completion is a wake), one-read reply to unexpected wakes, a batch's launch commands in one script, kickoff codebase read and `integrate` conflicts in a foreground subagent | `team/SKILL.md`, `kickoff.md`, `worker-routing.md`, `git-flow.md` | lead turns and context (the lead cost more than all workers in the 2026-11-13 re-check) |
+| 14 | Turn and tool-output rule in the preamble (chain calls, logs to file + `tail`, screenshots only for layout); milestone checks read `--stat` plus named hunks; release waits with `gh run watch` | `preamble.md`, `autopilot/SKILL.md`, `release/SKILL.md`, `browse/SKILL.md`, `implement/SKILL.md` | turns and retained output |
+| 15 | **semantic-decision is calling-LLM only**: the Cloudflare/Clef provider, its config keys (now ignored), credentials and project limits are removed; a decision is judged in-session and recorded with one `bbs semantic-decision --llm-answers` call, the request/answers template inline in the skill | `internal/decision`, `internal/cmd/semantic_decision.go`, `semantic-decision/SKILL.md` | 3–5 turns per decision (~344 decisions in the log, all `llm`) |
+| 16 | qa prototype conformance compares text first (scoped snapshot diff, box `eval`); images viewed only for differences, 80-character and narrowest-width states | `qa/SKILL.md` | images re-read every executor turn |
+| 17 | `simple` ticket workers route to `flash` (`simple`×`critical`); a phase diff ≤ ~200 lines off the sensitive paths is reviewed at `low` | `internal/config/foreman_models.go`, `team/references/phase-qa.md` | ticket-worker model price; small phase reviews |
+| 18 | Team references split by reader: phase-QA material moved to `phase-qa.md`, OMP launch to `worker-routing-omp.md`, duplicated rules given one owner; the lead's entry reading set fell from 68.6 KB to 59.1 KB | `team/references/` | lead context at entry and after each compaction |
+| 19 | `plan-draft` on `flash` for `S`, or up to `M` with a design `Code map`, off the floor paths; `implement` at medium effort on `XS`/`S`; each milestone's acceptance reads hunks of files the plan does not name (silent scope drift fails it) | `autopilot/SKILL.md` | plan model price, thinking output |
+| 20 | **File size budget** (800 lines per hand-written source file, or the entrypoint's own): new responsibilities in new files, an over-budget file never grows, big files read by range. Stated in the 2build pointer every session loads; checked at each milestone and by review-pr's File size angle; native ESLint/SwiftLint ratchet seeded by setup-project; oversized files reported by harness-audit | `references/file-size.md`, `implement`, `plan-draft`, `autopilot`, `review-pr`, `setup-project`, `harness-audit` | whole-file reads of 2–5k-line files (~25–60k tokens each, re-read every turn) |
+| 21 | review-pr **Plan conformance** angle (`--plan`, in the cleanup finder; no new subagent) | `review-pr/SKILL.md` `F1n`, autopilot gate | quality: silent departures from the plan's Approach and contracts |

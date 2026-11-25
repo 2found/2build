@@ -156,21 +156,13 @@ Run `bbs <subcommand> --help` for usage. More detail: [companion CLI](docs/compa
 ## Semantic decisions
 
 `semantic-decision` makes task sizing, complexity, routing, test impact and review
-judgments an explicit reusable skill step. Its default provider is the current
-LLM; no configuration or extra model process is needed. To use Cloudflare:
-
-```bash
-bbs config set semantic_decision_provider cloudflare
-bbs config set semantic_decision_model clef-flash  # or clef
-```
-
-Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in the environment or
-`~/.babysit/.env`. Only user configuration selects the provider; project policy
-can restrict external inference. Cloudflare errors or uncertain answers fall
-back to the current LLM. See the [skill](.claude/skills/semantic-decision/SKILL.md)
-and [contract](.claude/skills/references/semantic-decision.md). See
+judgments an explicit reusable skill step. The current LLM judges in-session and
+one call, `bbs semantic-decision --kind <kind> --input request.json --llm-answers answers.json`,
+validates and records it; no configuration or extra model process is needed. See
+the [skill](.claude/skills/semantic-decision/SKILL.md), the
+[contract](.claude/skills/references/semantic-decision.md) and
 [settings without a dashboard control](docs/operations.md#settings-without-a-dashboard-control)
-for config paths, defaults, project limits and human-review behavior.
+for human-review behavior.
 
 </details>
 
