@@ -28,15 +28,26 @@ forbid() {
 
 # --- autopilot: subagent steps; both gates stay in-session ------------------
 require '### Subagent steps (`design-ui`, `plan-draft`, `investigate`, `perf-audit`, `implement`)' "$SKILL"
-require '**`implement`: one subagent per plan milestone**' "$SKILL"
-require 'coded in this session. An `implement` subagent never invokes `design-ui`:' "$SKILL"
+require '**`implement` always runs in a subagent on the `flash` tier**' "$SKILL"
+require '`flash` is `model: "sonnet"`, `effort: "high"`' "$SKILL"
+require '.tiers.flash.<agent>' "$SKILL"
+require '**Keep one implement' "$SKILL"
+require 'never rely on a machine default such as' "$SKILL"
+require 'is coded in this session: those are small edits' "$SKILL"
+require 'An `implement` subagent never invokes `design-ui`:' "$SKILL"
+forbid 'XS`/`S` tickets and single-milestone plans are coded in this session' "$SKILL"
+forbid 'setup-project` seeds `sonnet`' "$SKILL"
+forbid 'merge `env.CLAUDE_CODE_SUBAGENT_MODEL' "$ROOT/.claude/skills/setup-project/SKILL.md"
 require 'first milestone the checkpoint does not record as accepted' "$SKILL"
 require 'run in this session that needs `design-ui` dispatches it the same way' "$SKILL"
 require 'is called with the session'"'"'s own model alias' "$SKILL"
 require 'SKILL.md § Subagent steps applies in' "$TEAM_ASSIGNMENT"
-require 'plan one subagent per milestone (SKILL.md § Subagent steps)' "$WORKFLOWS/builder.md"
+require '`flash`-tier subagent, an `M`/`L` plan one milestone per dispatch' "$WORKFLOWS/builder.md"
 require '**`design-ui` always runs in a subagent**' "$SKILL"
-require 'Claude Code: `model: "opus"`,' "$SKILL"
+require '**Design then plan: two subagents, never this session.**' "$SKILL"
+require 'Code map: <path[:symbol]' "$ROOT/.claude/skills/design-ui/SKILL.md"
+require 'carries a `Code map`, start from it' "$ROOT/.claude/skills/plan-draft/SKILL.md"
+require '`pro` is `model: "opus"`,' "$SKILL"
 require '`effort: "high"`' "$SKILL"
 require '`Make it really good, use lots of tokens and iterate till you'"'"'re proud of it.`' "$SKILL"
 require 'never from inside a `plan-draft` subagent' "$SKILL"
@@ -130,7 +141,7 @@ policy = json.loads(Path(sys.argv[2]).read_text())
 
 
 assert policy["routing"] == {
-    "simple": {"normal": "flash", "critical": "pro",   "design": "pro"},
+    "simple": {"normal": "flash", "critical": "flash", "design": "pro"},
     "normal": {"normal": "pro",   "critical": "pro",   "design": "pro"},
     "hard":   {"normal": "pro",   "critical": "max",   "design": "max"},
 }, policy["routing"]
@@ -175,7 +186,20 @@ require 'One `review-pr --fix` pass is the review gate.' "$VERIFY"
 require 'The file takes exactly these three keys' "$VERIFY"
 require 'returns its ID as `data.id`' "$VERIFY"
 require '## 5. Subagent model routing (medium and above)' "$REVIEW"
-require 'Phase 2 verifier and the sweep finder — on the mid tier.' "$REVIEW"
+require 'finder, the cleanup finder and the verifier (which also runs any sweep) —' "$REVIEW"
+require '### Subagent layout (`F0n`, 2build; medium and above)' "$REVIEW"
+require '### 2build angles (`F1n`: File size, Plan conformance; cleanup finder)' "$REVIEW"
+require '[--plan <plan.md>]' "$REVIEW"
+require '`review-pr --fix --plan <plan.md path>`' "$SKILL"
+require 'an `OVER` file the plan did not' "$SKILL"
+require '**Budget.** 800 lines per hand-written source file' "$ROOT/.claude/skills/references/file-size.md"
+require '../references/file-size.md' "$ROOT/.claude/skills/implement/SKILL.md"
+require 'File size budget: 800 lines' "$ROOT/.claude/skills/setup-project/references/project-pointers.md"
+require 'Every level from medium up launches exactly three subagents' "$REVIEW"
+require 'Run **one verifier** via the Task tool' "$REVIEW"
+forbid 'Run **8 independent finder angles**' "$REVIEW"
+forbid 'Run **10 independent finder angles**' "$REVIEW"
+forbid 'Run **one more finder**' "$REVIEW"
 require '**Effort is capped at `medium`** unless the human' "$REVIEW"
 require 'route above this session'"'"'s model' "$REVIEW"
 require 'When the subagent tool has no model selector' "$REVIEW"

@@ -44,12 +44,21 @@ instructions unless asked.
 - `.gitignore`: ignore `.babysit/.env` and any machine-local
   `.babysit/qa.local.yaml`. Verify they are also untracked; an ignore rule
   does not remove an already tracked secret. Never print secret values.
-- `.claude/settings.json` (project, committed), when Claude Code is a harness:
-  merge `env.CLAUDE_CODE_SUBAGENT_MODEL: "sonnet"` and
-  `subagentPromptCacheTtl: "1h"` if absent, so subagents run on Sonnet and keep
-  their prompt cache warm across long tool waits. Keep every other key; an
-  existing value is a deliberate choice. Never write `settings.local.json` or
-  `~/.claude/`.
+- `.claude/settings.json` (project, committed): seed no model or cache
+  settings — 2build skills pass each subagent's model and effort explicitly.
+  Remove the two keys earlier versions seeded, only at exactly these values:
+  `env.CLAUDE_CODE_SUBAGENT_MODEL: "sonnet"` (it silently moves every
+  inherited subagent off the session's model) and
+  `subagentPromptCacheTtl: "1h"` (short subagents pay 2× per cache write and
+  rarely read it back). Keep every other key. Never write
+  `settings.local.json` or `~/.claude/`.
+- File size guard ([budget](../references/file-size.md)): the 2build pointer
+  below states it. When the project already runs ESLint or SwiftLint in its
+  checks, add the native rule (`max-lines` 800 with blank lines and comments
+  skipped / `file_length`) at error level, with a per-file override at the
+  current line count for each file already past it, so those can shrink but
+  not grow. Never split code during setup; `harness-audit` reports the
+  oversized files.
 - If login is needed, keep credential **names** in QA config and values in
   ignored files or environment variables. Preserve environment-specific names;
   use `QA_USER` / `QA_PASS` only for a new single-target harness. Seed only

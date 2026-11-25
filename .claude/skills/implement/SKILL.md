@@ -23,8 +23,14 @@ guardrails.
 - The plan file is the Claude Code plan: derive the native task list
   (TaskCreate) from `plan.md` — you own task order, one task per verifiable
   unit — and keep it live: in_progress when started, completed only after its
-  check passes. A deviation updates the task list and `## Deviations`; never
-  track the work in an ad-hoc list beside the plan.
+  check passes. Create the tasks in one message and send each status update
+  alongside the next work call, never as a turn of its own. A deviation
+  updates the task list and `## Deviations`; never track the work in an
+  ad-hoc list beside the plan.
+- File size ([budget](../references/file-size.md)): put a new responsibility
+  in a new file; never grow a file past the budget, or at all once it is
+  past it, unless the plan accepted it. Read a file over ~400 lines by range
+  (`rg -n`, then offset/limit), never whole.
 - Reuse before writing: before creating any util, helper, or component, check
   the reuse notes in the plan's **Approach**, then grep shared/lib/util dirs and the
   nearest similar feature. A new shared util or abstraction is a plan

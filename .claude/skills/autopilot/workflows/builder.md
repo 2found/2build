@@ -39,8 +39,9 @@ ticket/requirement, stop with `NEEDS_CONTEXT`.
    approves its plan by ticket size here instead (SKILL.md § Team ticket
    assignment).
 3. **build / implement / child modes:** run `implement` against the
-   requirement, plan, and (child mode) only the child scope — an `M`/`L`
-   plan one subagent per milestone (SKILL.md § Subagent steps). `implement`
+   requirement, plan, and (child mode) only the child scope — always in a
+   `flash`-tier subagent, an `M`/`L` plan one milestone per dispatch
+   (SKILL.md § Subagent steps). `implement`
    leaves its output uncommitted, and so does this workflow: gates bind the
    tree's content, and committing belongs to the human or the lead.
 4. **Not child mode** — a Team ticket leaves steps 4–5 to its phase and

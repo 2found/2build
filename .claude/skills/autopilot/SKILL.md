@@ -152,28 +152,47 @@ alongside another editing step or a gate. This session keeps the checkpoint,
 the judgment of what comes back, and every gate; a subagent never decides
 readiness.
 
-- **UI work runs on the `pro` tier.** `design-ui`, and `implement` work
-  whose deliverable is a user-facing UI/UX surface (screens, components,
-  layout, interaction, visual polish), run in a subagent bound to the `pro`
-  tier: read `.tiers.pro.<agent>` from `bbs team model --dir "$REPO" --json`
-  (settings may override it). Claude Code: `model: "opus"`,
-  `effort: "high"` by default; elsewhere the binding the policy returns, else
-  the harness's top advertised model at high effort, or inherited when the
-  subagent tool has no selector (record which).
+- **Pinned tiers: `design-ui` on `pro`, `implement` on `flash`.** Read the
+  binding from `bbs team model --dir "$REPO" --json` (settings may override
+  it): `.tiers.pro.<agent>` for `design-ui`, `.tiers.flash.<agent>` for
+  `implement`. Claude Code defaults: `pro` is `model: "opus"`,
+  `effort: "high"`; `flash` is `model: "sonnet"`, `effort: "high"`.
+  Elsewhere (Codex, OMP) use the binding the policy returns, else the
+  harness's matching advertised model at high effort, or inherit when the
+  subagent tool has no selector (record which). Always pass the model and
+  effort explicitly; never rely on a machine default such as
+  `CLAUDE_CODE_SUBAGENT_MODEL`, which may or may not be set.
+  `implement` on an `XS`/`S` ticket (`bbs ticket get ticket_size`) drops to
+  `effort: "medium"` on the same model; `M`/`L`, a money/auth/irreversible-data
+  path and any retry after a failed check keep `high`.
 - **`design-ui` always runs in a subagent** — init step 4, builder step 2, a
   Team ticket's prototype extension.
   Its prompt carries this line verbatim:
   `Make it really good, use lots of tokens and iterate till you're proud of it.`
   Dispatch it from this session
   before `plan-draft`, never from inside a `plan-draft` subagent: nested
-  delegation is rejected on some harnesses. A `plan-draft` or `implement`
+  delegation is rejected on some harnesses. A `plan-draft`
   run in this session that needs `design-ui` dispatches it the same way,
   never inline. If it reports S2 unchecked for want of a subagent tool,
   dispatch that cold read from this session, to a fresh subagent that sees
   only the screenshots.
+- **Design then plan: two subagents, never this session.** Design and plan
+  exploration would otherwise sit in this session's context and be re-read
+  on every later turn. After `design-ui` returns, `plan-draft` runs in a
+  **fresh** subagent that starts from the spec's `Code map` and the
+  prototype on disk instead of re-surveying the code. Do not continue the
+  `design-ui` subagent for the plan: its screenshots and discarded prototype
+  iterations would be re-read on every planning turn, which costs more than
+  re-reading the mapped files. The one exception is a light design (few
+  iterations, its subagent ended under ~60k tokens of context) on a harness
+  that can continue it (Claude Code: `SendMessage`); record the choice.
 - **`plan-draft`, `investigate` and `perf-audit`: decide per run.** Default
   to a subagent on the session's model (inherited, no effort override) when
   the survey, failure or measurement spans more than a few files or signals;
+  a `plan-draft` subagent runs on the `flash` tier instead when the work
+  touches no money/auth/irreversible-data path and its size estimate is `S`,
+  or is at most `M` with a design `Code map` scoping the survey — an `L`
+  plan or a floor path keeps the session's model;
   run in session when the needed
   context is already warm, or briefing would cost more than the work. Log
   the choice in the checkpoint. A `plan-draft` subagent plans from the spec
@@ -183,20 +202,31 @@ readiness.
   editing; it may apply its fix in ticket scope, and this session re-runs
   the reproducer before accepting it. A `perf-audit` subagent measures and
   writes its report; it changes no code — a fix it ranks is `implement` work.
-- **`implement`: one subagent per plan milestone** when the plan is `M`/`L`
-  with two or more milestones (a manifest's rows count), in plan order, on
-  the session's model (inherited). Each gets its milestone, the earlier
-  milestones' handoffs, and the plan's acceptance checks for it; it codes
-  the milestone, runs those checks, and writes the implement handoff
+- **`implement` always runs in a subagent on the `flash` tier**, at every
+  ticket size and for UI/UX work too; this session never codes a plan step
+  itself. An `M`/`L` plan with two or more milestones (a manifest's rows
+  count) is dispatched one milestone at a time, in plan order; any other
+  plan is one dispatch. Each dispatch gets its milestone, the earlier
+  milestones' handoffs, and the plan's acceptance checks for it; the
+  subagent codes it, runs those checks, and writes the implement handoff
   (`## Deviations` included). Before the next milestone this session reads
-  that handoff and the diff and re-runs the checks; a failure goes to one
-  more subagent for that milestone with the evidence, then to the repair
-  loop. Record each accepted milestone in the checkpoint with its handoff
-  filename. A UI/UX milestone runs on the `pro` tier; others inherit.
-  `XS`/`S` tickets and single-milestone plans are coded in this session,
-  except UI/UX work, which prefers one `implement` subagent on the `pro`
-  tier unless the session already runs on that binding. Every review/QA fix
-  is coded in this session. An `implement` subagent never invokes `design-ui`:
+  that handoff and `git diff --stat`, then only the hunks of files the
+  handoff's Deviations name, files the plan does not name (scope drift the
+  handoff did not log is a failed milestone), and money/auth/irreversible-data
+  paths; it re-runs the checks with output to a log file (exit code and
+  `tail` printed), plus the [file size check](../references/file-size.md)
+  against the ticket's starting revision: an `OVER` file the plan did not
+  accept fails the milestone. **Keep one implement
+  subagent warm:** when the harness can continue a subagent with its context
+  (Claude Code: `SendMessage` to its agent id), send the next milestone and
+  a failed-check retry to the same subagent instead of a fresh one — it
+  already holds the plan and the code it read, and its prompt cache is warm.
+  Start a fresh one only when the harness cannot continue it, it reports its
+  context nearly full, or it failed the same milestone twice. A failure goes
+  back once with the evidence, then to the repair loop. Record each accepted
+  milestone in the checkpoint with its handoff filename. Every review/QA fix
+  is coded in this session: those are small edits against context this
+  session already holds. An `implement` subagent never invokes `design-ui`:
   a user-facing surface without a spec comes back as a gap, and this
   session dispatches `design-ui` first. A browser it opens uses a session
   name this session entered in the cleanup ledger, and it returns a
@@ -213,11 +243,12 @@ push, ticket status, gate, close-out or autopilot authority. No subagent tool
 There is no `--planner` flag and no per-step model flag. The session model is
 a **launch** decision: the human chooses it for a direct run; the lead selects
 it before opening a ticket worker.
-Autopilot does not select a model tier or reroute the session; the `pro`
-subagents for `design-ui` and UI/UX `implement` are the one fixed exception. On Claude Code an inherited
-subagent is called with the session's own model alias: an omitted `model`
-resolves to `CLAUDE_CODE_SUBAGENT_MODEL` when the project sets it
-(`setup-project` seeds `sonnet`), not to the session's model.
+Autopilot does not select a model tier or reroute the session; `design-ui`
+on `pro`, `implement` on `flash` and a small `plan-draft` on `flash` (above)
+are the fixed exceptions. On Claude Code an
+inherited subagent is called with the session's own model alias: an omitted
+`model` resolves to `CLAUDE_CODE_SUBAGENT_MODEL` on a machine that sets it,
+not to the session's model.
 
 When `plan-draft` returns, from a subagent or this session, inspect the
 artifacts, confirm they belong to this attempt, and read
@@ -397,8 +428,10 @@ back evidence, never a verdict.
    chose and entered in the cleanup ledger. It edits no code, runs no git and
    writes no gate or verdict; it returns only the Executor-mode block, and you
    read its report file only for the failures you triage. After a fix (and
-   the review it re-opens), run a new executor on the failed and affected
-   cases plus the final primary-journey pass. Record the executor's model,
+   the review it re-opens), send the failed and affected cases plus the
+   final primary-journey pass back to the same executor when the harness can
+   continue it (Claude Code: `SendMessage`), so its warm cache is reused;
+   otherwise run a new executor. Record the executor's model,
    runs and report paths in the checkpoint. Run the whole QA in this session
    only when the harness has no subagent tool or the executor cannot reach
    the target, and record why. If the session lacks what a check needs (no
@@ -422,7 +455,9 @@ back evidence, never a verdict.
    fabricated PASS.
    Record the ticket's starting revision before implementation and pass the
    complete ticket diff as the first review's target: the working tree against
-   that revision, untracked files included.
+   that revision, untracked files included. Pass the plan as
+   `review-pr --fix --plan <plan.md path>` so its Plan conformance angle
+   checks the diff against the accepted Approach and contracts.
    **Review once.** One `review-pr --fix` pass is the review gate. Its fixes,
    later QA fixes and repairs are verified by the checks they record, never
    by another review round; a code change never reopens a gate
