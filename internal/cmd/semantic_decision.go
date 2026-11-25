@@ -9,17 +9,14 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/2found/2build/internal/config"
 	"github.com/2found/2build/internal/decision"
-	"github.com/2found/2build/internal/env"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 func newSemanticDecisionCmd() *cobra.Command {
 	var input, kind, llmAnswers string
 	cmd := &cobra.Command{
-		Use: "semantic-decision", Short: "Run a bounded judgment step (LLM by default; optional Cloudflare Clef)",
+		Use: "semantic-decision", Short: "Validate and record the calling LLM's bounded judgment",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			var request decision.Request
@@ -32,34 +29,18 @@ func newSemanticDecisionCmd() *cobra.Command {
 			if !decisionKinds[kind] {
 				return fmt.Errorf("unknown decision kind %q", kind)
 			}
-			start := time.Now()
-			var result decision.Result
-			var err error
-			if llmAnswers != "" {
-				if input == "-" && llmAnswers == "-" {
-					return fmt.Errorf("input and llm-answers cannot both read stdin")
-				}
-				var answers map[string]decision.Answer
-				if err = readDecisionJSON(llmAnswers, cmd.InOrStdin(), &answers); err != nil {
-					return err
-				}
-				result, err = decision.ResolveLLM(request, answers)
-			} else {
-				policy := semanticDecisionPolicy(kind)
-				if policy != "" {
-					status := "FALLBACK_LLM"
-					if policy == "provider_llm" {
-						status = "NEEDS_LLM"
-					}
-					result = decision.Result{Status: status, Provider: "llm", Reason: policy}
-				} else {
-					model, _ := config.Get("semantic_decision_model")
-					result, err = (decision.Client{
-						AccountID: decisionCredential("CLOUDFLARE_ACCOUNT_ID"),
-						Token:     decisionCredential("CLOUDFLARE_API_TOKEN"), Model: model,
-					}).Decide(cmd.Context(), request)
-				}
+			if llmAnswers == "" {
+				return fmt.Errorf("semantic-decision records the calling LLM's judgment in one call: add --llm-answers <answers.json> (choice and reason per question ID)")
 			}
+			if input == "-" && llmAnswers == "-" {
+				return fmt.Errorf("input and llm-answers cannot both read stdin")
+			}
+			start := time.Now()
+			var answers map[string]decision.Answer
+			if err := readDecisionJSON(llmAnswers, cmd.InOrStdin(), &answers); err != nil {
+				return err
+			}
+			result, err := decision.ResolveLLM(request, answers)
 			if err != nil {
 				return err
 			}
@@ -71,7 +52,7 @@ func newSemanticDecisionCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&input, "input", "-", "JSON request file, or - for stdin (state and choice questions)")
 	cmd.Flags().StringVar(&kind, "kind", "custom", "task-size, task-complexity, testcase, review-finding, skill-route, orchestration, deep-review, decision-tier, human-review, recovery, or custom")
-	cmd.Flags().StringVar(&llmAnswers, "llm-answers", "", "Record calling LLM's answers from JSON file (choice and reason per question)")
+	cmd.Flags().StringVar(&llmAnswers, "llm-answers", "", "Calling LLM's answers JSON file (choice and reason per question ID); required")
 	return cmd
 }
 
@@ -98,18 +79,6 @@ func readDecisionJSON(path string, stdin io.Reader, dst any) error {
 	return nil
 }
 
-func decisionCredential(key string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	for _, kv := range env.ParseFile(filepath.Join(config.Dir(), ".env")) {
-		if kv.Key == key {
-			return kv.Val
-		}
-	}
-	return ""
-}
-
 func logSemanticDecision(kind string, request decision.Request, result decision.Result, elapsed time.Duration) error {
 	if telemetryMode() == "off" {
 		return nil
@@ -119,8 +88,7 @@ func logSemanticDecision(kind string, request decision.Request, result decision.
 	for id, a := range result.Answers {
 		choices[id] = a.Choice
 	}
-	// Correlate fallback and completion without storing source, criteria, reasons,
-	// credentials, or provider response bodies in global analytics.
+	// Correlate decisions without storing source, criteria or reasons in global analytics.
 	record := struct {
 		TS           string            `json:"ts"`
 		Kind         string            `json:"kind"`
@@ -129,12 +97,11 @@ func logSemanticDecision(kind string, request decision.Request, result decision.
 		Ticket       string            `json:"ticket,omitempty"`
 		Status       string            `json:"status"`
 		Provider     string            `json:"provider"`
-		Model        string            `json:"model,omitempty"`
 		Reason       string            `json:"reason,omitempty"`
 		Choices      map[string]string `json:"choices,omitempty"`
 		DurationMS   int64             `json:"duration_ms"`
 	}{time.Now().UTC().Format(time.RFC3339), "semantic-decision", kind, fmt.Sprintf("%x", sha256.Sum256(data)),
-		os.Getenv("BABYSIT_TICKET"), result.Status, result.Provider, result.Model, result.Reason, choices, elapsed.Milliseconds()}
+		os.Getenv("BABYSIT_TICKET"), result.Status, result.Provider, result.Reason, choices, elapsed.Milliseconds()}
 	encoded, err := json.Marshal(record)
 	if err != nil {
 		return err
@@ -156,49 +123,4 @@ var decisionKinds = map[string]bool{
 	"task-size": true, "task-complexity": true, "testcase": true, "review-finding": true,
 	"skill-route": true, "orchestration": true, "deep-review": true, "custom": true,
 	"decision-tier": true, "human-review": true, "recovery": true,
-}
-
-// Only user config grants external inference. Repository policy can subtract
-// capabilities, never enable them or select credentials/provider/model.
-func semanticDecisionPolicy(kind string) string {
-	provider, _ := config.Get("semantic_decision_provider")
-	if provider == "" || provider == "llm" {
-		return "provider_llm"
-	}
-	if provider != "cloudflare" {
-		return "invalid_provider"
-	}
-	root := gitOut("rev-parse", "--show-toplevel")
-	if root == "" {
-		root = secretsFindRepoRoot()
-	}
-	if root == "" {
-		return ""
-	}
-	data, err := os.ReadFile(filepath.Join(root, ".babysit", "semantic-decision.yaml"))
-	if os.IsNotExist(err) {
-		return ""
-	}
-	if err != nil {
-		return "invalid_project_policy"
-	}
-	var policy struct {
-		Enabled      *bool     `yaml:"enabled"`
-		AllowedKinds *[]string `yaml:"allowed_kinds"`
-	}
-	if yaml.Unmarshal(data, &policy) != nil {
-		return "invalid_project_policy"
-	}
-	if policy.Enabled != nil && !*policy.Enabled {
-		return "project_disabled"
-	}
-	if policy.AllowedKinds != nil {
-		for _, allowed := range *policy.AllowedKinds {
-			if allowed == kind {
-				return ""
-			}
-		}
-		return "project_kind_denied"
-	}
-	return ""
 }

@@ -24,7 +24,7 @@ func TestForemanModelDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct{ complexity, phase, tier string }{
-		{"simple", "normal", "flash"}, {"simple", "critical", "pro"}, {"simple", "design", "pro"},
+		{"simple", "normal", "flash"}, {"simple", "critical", "flash"}, {"simple", "design", "pro"},
 		{"normal", "normal", "pro"}, {"normal", "critical", "pro"}, {"normal", "design", "pro"},
 		{"hard", "normal", "pro"}, {"hard", "critical", "max"}, {"hard", "design", "max"},
 		{"critical", "critical", "max"},

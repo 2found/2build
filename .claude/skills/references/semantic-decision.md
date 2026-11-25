@@ -1,88 +1,32 @@
 # Semantic decision
 Contract for the [semantic-decision skill](../semantic-decision/SKILL.md),
-a judgment step governed by the Auto-Decision Framework. The default provider
-is the calling `llm`; configured Cloudflare uses `clef-flash` or `clef`, with
-`llm` fallback. The CLI
-never launches another LLM. Use after gathering evidence, before selecting
-among bounded choices; skip mechanical facts and explicit user selections.
-
-## Provider configuration
-The step always runs; no configuration means the calling LLM makes the decision.
-**Only an explicit user request authorizes changing user settings**; credentials
-alone never select an external provider. To use Cloudflare, the user sets:
-```sh
-bbs config set semantic_decision_provider cloudflare
-bbs config set semantic_decision_model clef-flash
-```
-These keys live in user `~/.babysit/config.yaml` (or `BABYSIT_STATE_DIR`).
-`cloudflare` and `llm` are the allowed providers; `clef` and `clef-flash` are
-the Cloudflare models. Credentials resolve environment first, then the user
-state directory's `.env`: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`.
-Project dotenv/config cannot supply credentials, select external inference, or select
-provider/model. Do not export project credentials into the command's environment.
-
-Optional project `.babysit/semantic-decision.yaml` can only restrict consent:
-```yaml
-enabled: false                     # forces llm; true grants no external access
-allowed_kinds: [task-size, testcase] # omitted = all; [] = none
-```
-Malformed/unreadable project policy falls back to LLM. A provider
-result never grants execution, orchestration, spending, release, or escalation
-permission. Workflow prerequisites and explicit authorization remain authoritative.
+a judgment step governed by the Auto-Decision Framework. The calling LLM
+judges in-session; the CLI validates its answers against the request and
+records them. It never launches another model. Use after gathering evidence,
+before selecting among bounded choices; skip mechanical facts and explicit user
+selections. A choice never grants execution, orchestration, spending, release
+or escalation permission; workflow prerequisites and explicit authorization
+remain authoritative.
 
 ## Call contract
-Write a JSON request to a scratch/evidence file. `state` contains only relevant,
-redacted evidence: requirement, cited code excerpts, candidate, caller/flow map,
-and the applicable rubric. Never include credentials or whole environment dumps.
-Use stable IDs; each question has `type: choice`, `instructions`, and `criteria`
-(mapping option ID to meaning). Batch independent questions sharing context in
-one request (1–64 questions; 256 KiB maximum); narrow evidence rather than truncate.
-```json
-{
-  "state": {"candidate": "...", "evidence": ["src/a.go:12 ..."], "rubric": "..."},
-  "questions": {
-    "finding_1": {
-      "type": "choice",
-      "instructions": "Classify this finding against the cited evidence and verdict ladder.",
-      "criteria": {
-        "CONFIRMED": "Concrete reachable trigger and wrong result are evidenced.",
-        "PLAUSIBLE": "Mechanism is real; trigger needs verification.",
-        "REFUTED": "Cited code or invariant proves the candidate false."
-      }
-    }
-  }
-}
-```
+`state` holds only relevant, redacted evidence (requirement, cited excerpts,
+candidate, caller/flow map, rubric); never credentials or environment dumps.
+Each question has a stable ID, `type: choice`, `instructions` and `criteria`
+(option ID to meaning). Batch independent questions sharing context in one
+request (1-64 questions; 256 KiB maximum); narrow evidence rather than truncate.
+Answers map each question ID to `choice` (a criteria key) and a cited `reason`.
+One call records everything:
 ```sh
-bbs semantic-decision --kind review-finding --input request.json
+bbs semantic-decision --kind <kind> --input request.json --llm-answers answers.json
 ```
-Stdout is JSON, never a bare verdict:
-- `status: DECIDED`, `provider: cloudflare`: `answers` keyed by question ID,
-  each with `choice`, `confidence`, `probabilities`.
-- `status: NEEDS_LLM`, `provider: llm`: the normal default route; **no answers
-  yet**. Decide in the current session against the evidence/rubric.
-- `status: FALLBACK_LLM`, `provider: llm`: Cloudflare could not decide or project
-  policy restricts it. Complete the same step using the current LLM.
-  For either LLM route, record answers (each `choice` + cited `reason`) via:
-  `bbs semantic-decision --kind review-finding --input request.json --llm-answers answers.json`.
-  This returns `DECIDED` with `provider: llm` and no fabricated probabilities.
-- Nonzero exit: invalid input/config; correct the request before proceeding.
-  Old/missing CLI: report `BBS_DEGRADED`, use the same LLM fallback and include
-  the decision/reason in the handoff.
+Stdout is `{"status":"DECIDED","provider":"llm","answers":{...}}`. Nonzero exit:
+invalid request, answer or kind; correct the file and rerun. Without
+`--llm-answers` the CLI fails and names this form. Old/missing CLI: report
+`BBS_DEGRADED`, keep the choice and reason in the handoff.
 
-Fallback occurs for restricted external inference, absent credentials, provider
-errors/timeouts (20s), malformed/incomplete answers, or uncertain answers. Current
-routing threshold: winning probability ≥0.75; this is not a correctness
-guarantee. A failed question sends the whole batch to fallback;
-no partial acceptance. Never blindly retry a provider or block an unattended run
-for its credentials. Reconcile returned choices with cited evidence and mandatory
-floors; if they conflict, use and record the LLM fallback with the discrepancy.
-Keep request, response and fallback rationale in the task's evidence/handoff.
-
-CLI telemetry appends to `decisions.jsonl`, respecting `telemetry: off` and
-`BABYSIT_ANALYTICS_DIR`. It records kind, request hash, provider/model, outcome,
-fallback reason, choices and latency; not source text, credentials or reasoning.
-The matching hash correlates fallback with its completion.
+Reconcile choices with cited evidence and the floors below. Telemetry appends to
+`decisions.jsonl`, respecting `telemetry: off` and `BABYSIT_ANALYTICS_DIR`: kind,
+request hash, outcome, choices and latency; not source text or reasoning.
 
 ## Consumers
 | Kind | Evidence and bounded choices | Non-negotiable floor |
@@ -96,12 +40,8 @@ The matching hash correlates fallback with its completion.
 | `orchestration` | Proposed decomposition, dependencies, shared state and verification boundaries; `single-ticket/multi-ticket`. | Recommendation only; the lead owns dispatch/topology and its approvals. |
 | `decision-tier` | Proposed action, evidence, user direction and authority; `Mechanical/Taste/User Challenge` from the Auto-Decision Framework. | Cannot downgrade known User Challenges or missing authority; no recursive classification. |
 | `human-review` | Checkpoint policy, artifact revision, rubric, gaps and delegated authority; `proceed/revise/needs-human/blocked`. | Apply the owner policy first; see below. |
-| `recovery` | Blocker evidence, cause, prior attempts and available inputs; `recoverable/needs-human`. | Preserve triage's retry limit and execution authority; provider failure is not a human blocker. |
+| `recovery` | Blocker evidence, cause, prior attempts and available inputs; `recoverable/needs-human`. | Preserve triage's retry limit and execution authority; a failed CLI call is not a human blocker. |
 | `custom` | Another bounded judgment with explicit criteria and evidence. | Auto-Decision Framework applies; never classify away a User Challenge. |
-
-Cloudflare wire contract: [Clef-flash API](https://developers.cloudflare.com/ai/models/%40cf/cloudflare/clef-flash/).
-The provider sends `model`, `state`, `questions` to Workers AI and validates
-its `result.answers`; skills consume only the shared result above.
 
 ## Human review
 First read the checkpoint owner's current policy and durable state. Explicit

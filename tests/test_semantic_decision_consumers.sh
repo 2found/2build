@@ -25,27 +25,10 @@ with tempfile.TemporaryDirectory() as temp:
     contract = (pack / "shared/semantic-decision.md").read_text()
     assert (pack / "shared" / re.search(r"\[semantic-decision skill\]\(([^)]+)\)", contract)[1]).is_file()
     semantic = (pack / "skills/semantic-decision/SKILL.md").read_text()
-    assert "uses the calling LLM fallback" in semantic
+    assert "--llm-answers" in semantic
+    assert "cloudflare" not in semantic.lower() and "clef" not in contract.lower()
     assert "skill reports `BBS_DEGRADED` and stops" not in semantic
     assert "skill reports `BBS_DEGRADED` and stops" in (pack / "skills/qa/SKILL.md").read_text()
 
-# Execute each consumer's actual load expression with a dummy project exporter.
-# Provider values from the project must be filtered, while QA variables and
-# pre-existing user provider values remain available.
-for skill in ("qa", "browse", "create-pr"):
-    text = (root / ".claude/skills" / skill / "SKILL.md").read_text()
-    expression = re.search(r'eval "\$\((bbs secrets load.*?)\)"', text)[1]
-    script = """bbs() { printf '%s\\n' 'export CLOUDFLARE_ACCOUNT_ID=project-account' 'export CLOUDFLARE_API_TOKEN=project-token' 'export QA_PASS=project-login'; }
-""" + 'eval "$(' + expression + ')"\n' + """test "$QA_PASS" = project-login
-test "${CLOUDFLARE_ACCOUNT_ID-}" = "${EXPECTED_ACCOUNT-}"
-test "${CLOUDFLARE_API_TOKEN-}" = "${EXPECTED_TOKEN-}"
-"""
-    environment = os.environ.copy()
-    for key in ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "EXPECTED_ACCOUNT", "EXPECTED_TOKEN"):
-        environment.pop(key, None)
-    subprocess.run(["bash", "-eu", "-c", script], env=environment, check=True)
-    environment.update(CLOUDFLARE_ACCOUNT_ID="user-account", CLOUDFLARE_API_TOKEN="user-token",
-                       EXPECTED_ACCOUNT="user-account", EXPECTED_TOKEN="user-token")
-    subprocess.run(["bash", "-eu", "-c", script], env=environment, check=True)
-print("OK: packed semantic reads/fallback and consumer credential boundaries")
+print("OK: packed semantic reads")
 PY

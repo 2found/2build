@@ -21,8 +21,6 @@ func semanticSetup(t *testing.T) string {
 	repo := t.TempDir()
 	t.Setenv("BABYSIT_STATE_DIR", state)
 	t.Setenv("BABYSIT_ANALYTICS_DIR", "")
-	t.Setenv("CLOUDFLARE_ACCOUNT_ID", "")
-	t.Setenv("CLOUDFLARE_API_TOKEN", "")
 	if err := os.Mkdir(filepath.Join(repo, ".babysit"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -47,97 +45,8 @@ func semanticRun(t *testing.T, args ...string) (decision.Result, error) {
 	}
 	return result, nil
 }
-func TestSemanticConsentAndProjectRestrictions(t *testing.T) {
-	semanticSetup(t)
-	// Credentials alone do not select external inference.
-	t.Setenv("CLOUDFLARE_ACCOUNT_ID", "present-account")
-	t.Setenv("CLOUDFLARE_API_TOKEN", "present-token")
-	// A cloned repo cannot grant consent or select a provider/model.
-	os.WriteFile(".babysit/semantic-decision.yaml", []byte("enabled: true\nprovider: attacker\nmodel: attacker\n"), 0o600)
-	result, err := semanticRun(t)
-	if err != nil || result.Reason != "provider_llm" || result.Status != "NEEDS_LLM" {
-		t.Fatalf("%+v %v", result, err)
-	}
-	t.Setenv("CLOUDFLARE_ACCOUNT_ID", "")
-	t.Setenv("CLOUDFLARE_API_TOKEN", "")
-	config.Set("semantic_decision_provider", "cloudflare")
-	result, err = semanticRun(t)
-	if err != nil || result.Reason != "missing_credentials" || result.Model != "clef-flash" {
-		t.Fatalf("%+v %v", result, err)
-	}
-	cases := []struct{ policy, kind, want string }{
-		{"enabled: false\n", "custom", "project_disabled"},
-		{"allowed_kinds: []\n", "custom", "project_kind_denied"},
-		{"allowed_kinds: [task-size]\n", "testcase", "project_kind_denied"},
-		{"allowed_kinds: [task-size]\n", "task-size", "missing_credentials"},
-		{"enabled: [broken\n", "task-size", "invalid_project_policy"},
-	}
-	for _, tc := range cases {
-		os.WriteFile(".babysit/semantic-decision.yaml", []byte(tc.policy), 0o600)
-		result, err = semanticRun(t, "--kind", tc.kind)
-		if err != nil || result.Reason != tc.want {
-			t.Fatalf("%s: %+v %v", tc.policy, result, err)
-		}
-	}
-}
-func TestSemanticCredentialsOnlyUserScope(t *testing.T) {
-	state := semanticSetup(t)
-	const key = "BBS_TEST_SEMANTIC_TOKEN"
-	os.Unsetenv(key)
-	t.Cleanup(func() { os.Unsetenv(key) })
-	os.WriteFile(".babysit/.env", []byte(key+"=project-secret\n"), 0o600)
-	if got := decisionCredential(key); got != "" {
-		t.Fatalf("project credential read: %q", got)
-	}
-	os.WriteFile(filepath.Join(state, ".env"), []byte(key+"=user-secret\n"), 0o600)
-	if got := decisionCredential(key); got != "user-secret" {
-		t.Fatal(got)
-	}
-	t.Setenv(key, "shell-secret")
-	if got := decisionCredential(key); got != "shell-secret" {
-		t.Fatal(got)
-	}
-	t.Setenv(key, "")
-	if got := decisionCredential(key); got != "" {
-		t.Fatal("empty shell override ignored")
-	}
-}
-
-func TestSemanticProjectPolicyUsesGitRoot(t *testing.T) {
-	semanticSetup(t)
-	root, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	runGit(t, root, "init", "-q")
-	if err := config.Set("semantic_decision_provider", "cloudflare"); err != nil {
-		t.Fatal(err)
-	}
-	nested := filepath.Join(root, "apps", "foo")
-	if err := os.MkdirAll(filepath.Join(nested, ".babysit"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Chdir(nested)
-	for _, policy := range []string{"enabled: false\n", "allowed_kinds: []\n"} {
-		if err := os.WriteFile(filepath.Join(root, ".babysit", "semantic-decision.yaml"), []byte(policy), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		result, err := semanticRun(t)
-		want := "project_disabled"
-		if strings.HasPrefix(policy, "allowed_kinds") {
-			want = "project_kind_denied"
-		}
-		if err != nil || result.Status != "FALLBACK_LLM" || result.Reason != want {
-			t.Fatalf("%s: %+v %v", policy, result, err)
-		}
-	}
-}
 func TestSemanticLLMCompletionAndTelemetry(t *testing.T) {
 	state := semanticSetup(t)
-	first, err := semanticRun(t, "--kind", "task-size")
-	if err != nil || first.Status != "NEEDS_LLM" {
-		t.Fatal(first, err)
-	}
 	os.WriteFile("answers.json", []byte(`{"size":{"choice":"L","reason":"private analysis file.go:2"}}`), 0o600)
 	result, err := semanticRun(t, "--kind", "task-size", "--llm-answers", "answers.json")
 	if err != nil || result.Status != "DECIDED" || result.Provider != "llm" || result.Answers["size"].Choice != "L" {
@@ -151,17 +60,16 @@ func TestSemanticLLMCompletionAndTelemetry(t *testing.T) {
 		t.Fatal("source or reasoning leaked into telemetry")
 	}
 	rows := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if len(rows) != 2 {
+	if len(rows) != 1 {
 		t.Fatal(string(data))
 	}
-	var a, b map[string]any
-	json.Unmarshal([]byte(rows[0]), &a)
-	json.Unmarshal([]byte(rows[1]), &b)
-	if a["request_id"] != b["request_id"] || b["decision_kind"] != "task-size" {
-		t.Fatal(a, b)
+	var row map[string]any
+	json.Unmarshal([]byte(rows[0]), &row)
+	if row["decision_kind"] != "task-size" || row["provider"] != "llm" || row["status"] != "DECIDED" {
+		t.Fatal(row)
 	}
 	config.Set("telemetry", "off")
-	semanticRun(t)
+	semanticRun(t, "--kind", "task-size", "--llm-answers", "answers.json")
 	after, _ := os.ReadFile(filepath.Join(state, "analytics", "decisions.jsonl"))
 	if !bytes.Equal(data, after) {
 		t.Fatal("opt-out ignored")
@@ -169,19 +77,20 @@ func TestSemanticLLMCompletionAndTelemetry(t *testing.T) {
 }
 func TestSemanticInvalidConfigAndInput(t *testing.T) {
 	semanticSetup(t)
+	// The one-call form is required; the error names it.
+	if _, err := semanticRun(t); err == nil || !strings.Contains(err.Error(), "--llm-answers") {
+		t.Fatalf("missing --llm-answers: %v", err)
+	}
+	// Legacy provider/model keys from older configs are inert.
 	config.Set("semantic_decision_provider", "cloudflare")
-	config.Set("semantic_decision_provider", "llm")
-	result, err := semanticRun(t)
-	if err != nil || result.Reason != "provider_llm" {
+	config.Set("semantic_decision_model", "clef")
+	os.WriteFile("answers.json", []byte(`{"size":{"choice":"S","reason":"cited"}}`), 0o600)
+	if result, err := semanticRun(t, "--llm-answers", "answers.json"); err != nil || result.Provider != "llm" {
 		t.Fatal(result, err)
 	}
-	config.Set("semantic_decision_provider", "unknown")
-	result, err = semanticRun(t)
-	if err != nil || result.Reason != "invalid_provider" {
-		t.Fatal(result, err)
-	}
-	if _, err := semanticRun(t, "--model", "clef"); err == nil {
-		t.Fatal("caller may not override user model")
+	os.WriteFile("bad.json", []byte(`{"size":{"choice":"X","reason":"cited"}}`), 0o600)
+	if _, err := semanticRun(t, "--llm-answers", "bad.json"); err == nil {
+		t.Fatal("answer outside criteria accepted")
 	}
 	if _, err := semanticRun(t, "--kind", "typo"); err == nil {
 		t.Fatal("unknown kind accepted")

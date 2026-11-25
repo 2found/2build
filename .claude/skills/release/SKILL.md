@@ -81,7 +81,11 @@ dependencies | success evidence`. Derive this from the profile **and** actual
 CI; report conflicts. In normal mode, trigger and wait only for stages owned
 by CI, while the agent executes its assigned stages. Match the exact workflow,
 source SHA and intended run; wait for its required jobs to finish successfully,
-then verify published outputs. Poll with progress updates; failed, cancelled,
+then verify published outputs. Wait with one blocking
+`gh run watch <id> --exit-status` (or the harness's monitor tool), not a
+short polling loop, then summarize with
+`gh run view <id> --json conclusion,jobs`; on failure read
+`gh run view <id> --log-failed | tail -n 80`. Failed, cancelled,
 quota-blocked or missing required runs block dependent stages.
 
 `--local` overrides every CI executor with its mapped local equivalent and

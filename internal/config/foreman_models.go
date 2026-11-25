@@ -22,12 +22,16 @@ type ModelBinding struct {
 
 func defaultForemanModels() ForemanModels {
 	return ForemanModels{
-		// Ticket workers (critical) and phase integration, which now reviews
-		// the deferred small tickets, run on pro, as does basic design unless
-		// it is hard; max is reserved for hard tickets and hard designs, flash
-		// for simple mechanical re-checks.
+		// Ticket workers (critical) and phase integration, which reviews the
+		// deferred small tickets, run on pro, as does basic design unless it
+		// is hard; max is reserved for hard tickets and hard designs. flash
+		// runs simple mechanical re-checks and simple ticket workers: implement
+		// always runs in a flash subagent, so a simple ticket's main thread
+		// only reads the brief, dispatches, runs focused checks and reports.
+		// The lookup cannot tell a --kind phase session from a ticket; the
+		// lead classifies a one-ticket phase session as at least normal.
 		Routing: map[string]map[string]string{
-			"simple": {"normal": "flash", "critical": "pro", "design": "pro"},
+			"simple": {"normal": "flash", "critical": "flash", "design": "pro"},
 			"normal": {"normal": "pro", "critical": "pro", "design": "pro"},
 			"hard":   {"normal": "pro", "critical": "max", "design": "max"},
 		},

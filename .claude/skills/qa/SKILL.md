@@ -26,7 +26,7 @@ Exercise the application like a user and leave reproducible evidence.
    `git diff $(git merge-base origin/"$BASE" HEAD)`. Target URL and login
    from `.babysit/qa.yaml`:
    ```bash
-   eval "$(bbs secrets load | sed -E '/^export CLOUDFLARE_(ACCOUNT_ID|API_TOKEN)=/d')"                         # exports .babysit/.env values
+   eval "$(bbs secrets load)"                         # exports .babysit/.env values
    ENV=$(bbs secrets qa default-env); ENV=${ENV:-local}
    eval "$(bbs secrets qa probe --env "$ENV" 2>/dev/null)"  # QA_ENV_URL, QA_ENV_{USERNAME,PASSWORD}_ENV, …
    QA_USER=$(printenv "${QA_ENV_USERNAME_ENV:-QA_USER}" 2>/dev/null || true)  # standard: QA_USER / QA_PASS
@@ -149,9 +149,18 @@ Exercise the application like a user and leave reproducible evidence.
    same viewport; also run each screen with 80-character user-named strings
    and at its narrowest supported width, even where the prototype omits
    them. Compare layout, interactions, content hierarchy, overflow and
-   empty/error behavior, and save `prototype-conformance.md`: one row per
-   state — both screenshot paths, `match` / `fixed` / `deviates`, one
-   sentence on where it deviates. The prototype is the standard: fix the
+   empty/error behavior **text first**, because every image viewed stays in
+   context and is re-read each turn: save both screenshots to files, compare
+   structure with a compact, selector-scoped snapshot of each
+   (`snapshot -c -s <sel>` on the prototype, then
+   `diff snapshot --baseline <file> -c -s <sel>` on the build) and check
+   overflow and sizes with one `eval` that returns the boxes as JSON. View
+   the two images only when the text shows a difference beyond data, when
+   the state is an 80-character or narrowest-width case, or when the text
+   cannot settle the state; never claim `match` on a layout question the
+   text did not answer. Save `prototype-conformance.md`: one row per
+   state — both screenshot paths, how it was compared (text / viewed),
+   `match` / `fixed` / `deviates`, one sentence on where it deviates. The prototype is the standard: fix the
    build and re-shoot; never edit the prototype to match the build. A state
    left `deviates` needs an accepted reason tied to a criterion; one not
    checked, or whose reference will not load, is a conformance gap that
