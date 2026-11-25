@@ -37,8 +37,9 @@ unfinished job**: the work counts only when its phase commit is on base.
 6. **Conflicts are resolved in place.** When tickets conflict with each
    other or with base, `integrate` lays the merge out in the phase worktree
    with conflict markers (`CONFLICT=<ticket|base>: <file>`, `RESOLVE_IN=`)
-   and exits non-zero. Whoever ran it — the lead for the phase, the phase QA
-   session for its own fix — resolves there, keeping both sides' intent
+   and exits non-zero. Whoever ran it — the lead for the phase (through one
+   foreground subagent, team SKILL.md), the phase QA session for its own
+   fix — resolves there, keeping both sides' intent
    (generated files: regenerate), runs the focused checks, and runs
    `integrate` again, which commits the resolution (the commit body names
    the resolved files). A ticket whose work changes in between starts the

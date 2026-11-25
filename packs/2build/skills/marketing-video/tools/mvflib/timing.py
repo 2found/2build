@@ -99,8 +99,8 @@ def build(script: dict, manifest: dict | None = None) -> dict:
     duration = round(out[-1]["end"] + END_HOLD, 3) if out else 0.0
     if out:
         out[-1]["end"] = duration  # the last scene holds to the end
-    kinds = {b["timing"] for b in out} - {"silent"}
-    return {"duration": duration, "timing": "measured" if kinds == {"measured"} else ("mixed" if "measured" in kinds else "estimated"),
+    kinds = {b["timing"] for b in out} - {"silent"}  # a silent beat's length is its min_s: nothing to measure or estimate
+    return {"duration": duration, "timing": "measured" if kinds <= {"measured"} else ("mixed" if "measured" in kinds else "estimated"),
             "beats": out}
 
 

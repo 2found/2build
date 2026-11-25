@@ -49,7 +49,9 @@ by path, not as `skill://`.
    through `../../shared/auto-decision-framework.md` into **Approach**, retaining
    a short discovery note when it changes the human's understanding even if
    already resolved; do not repeat the decision detail.
-2. Survey existing patterns before proposing new ones. For UI/frontend work,
+2. Survey existing patterns before proposing new ones. When the design spec
+   carries a `Code map`, start from it: read the mapped files and survey
+   beyond them only for what it does not cover. For UI/frontend work,
    read the declared design doc, component/token source and nearest similar
    flow; for backend work, routes, data access and errors. When adding or reshaping a user-facing surface, inspect the design
    spec at `pointers.design` and its prototype for coverage of the planned flows
@@ -64,7 +66,9 @@ by path, not as `skill://`.
 4. Write **Approach** around the before/after system behavior: where logic and
    data ownership live, affected service/module relationships, changed API,
    event or schema contracts and their callers/consumers. Name reused patterns;
-   justify a new one briefly. Include compatibility, deployment order and
+   justify a new one briefly. Name the new files for new responsibilities;
+   for a touched file past the [file size budget](../../shared/file-size.md),
+   name the module the new code goes in or state why that file must grow. Include compatibility, deployment order and
    rollback constraints when the change requires them. A local change may say
    why it leaves the enclosing contract intact; do not invent system-wide work.
    Lead with consequential interpretations and decisions, with a short

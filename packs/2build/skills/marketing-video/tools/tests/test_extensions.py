@@ -268,6 +268,21 @@ class ScoreAndMaster(unittest.TestCase):
             self.assertAlmostEqual(lufs, -14.0, delta=1.0)
             self.assertLess(peak, -0.5)
 
+    def test_silent_by_design_master_gets_a_silent_aac_track(self):
+        from mvflib.export import master_audio, probe, silent_by_design
+        self.assertTrue(silent_by_design({"beats": [{"timing": "silent"}, {"timing": "silent"}]}))
+        self.assertFalse(silent_by_design({"beats": [{"timing": "silent"}, {"timing": "measured"}]}))
+        self.assertFalse(silent_by_design({"beats": []}))
+        with tempfile.TemporaryDirectory() as d:
+            vid = Path(d) / "raw.mp4"  # HyperFrames renders a voiceless project with no audio stream
+            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=gray:s=64x64:d=2",
+                            "-c:v", "libx264", str(vid)], check=True)
+            with self.assertRaises(SystemExit):
+                master_audio(vid, Path(d) / "voiced.mp4")  # a voiced cut that lost its audio still stops
+            out = master_audio(vid, Path(d) / "master.mp4", silent=True)
+            a = [s for s in probe(out)["streams"] if s["codec_type"] == "audio"]
+            self.assertEqual(a[0]["codec_name"], "aac")
+
 
 if __name__ == "__main__":
     unittest.main()

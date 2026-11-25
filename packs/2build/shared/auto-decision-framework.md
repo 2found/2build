@@ -1,7 +1,7 @@
 # Auto-Decision Framework
 Classify → act → report. Auto-deciding replaces human judgment, not analysis.
 For bounded judgment (scope, routing, tests, review), use the [semantic-decision skill](../skills/semantic-decision/SKILL.md) after collecting evidence.
-Its default LLM provider, optional Cloudflare provider and contract apply;
+Its calling-LLM contract applies;
 mechanical facts and User Challenges stay governed by this framework.
 
 | Tier | When | Action |
@@ -16,8 +16,8 @@ with the proposed action, user direction, relevant evidence, alternatives and
 scope/authority; choices are `Mechanical`, `Taste`, `User Challenge` using the
 row definitions above. Known mechanical facts and explicit User Challenges
 need no classifier. A model cannot downgrade missing authority or a known
-User Challenge. Uncertain tier classification falls back to the calling LLM;
-only unresolved non-derivable input escalates, not provider uncertainty.
+User Challenge. Uncertain tier classification is the calling LLM's call;
+only unresolved non-derivable input escalates.
 Do not recursively classify while executing semantic-decision itself.
 
 When deciding whether a checkpoint needs human input, use its owner's policy

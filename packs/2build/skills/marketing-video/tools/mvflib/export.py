@@ -20,6 +20,11 @@ def run(cmd: list[str], cwd: Path | None = None, check: bool = True) -> subproce
     return r
 
 
+def silent_by_design(tl: dict) -> bool:
+    """No beat speaks (voice.mode none): the owner adds the sound in the app, so the master carries silence."""
+    return bool(tl.get("beats")) and all(b.get("timing") == "silent" for b in tl["beats"])
+
+
 def render(proj: Path, draft: bool = False) -> Path:
     raw = proj / "renders/raw.mp4"
     raw.parent.mkdir(exist_ok=True)
@@ -31,15 +36,21 @@ def render(proj: Path, draft: bool = False) -> Path:
     if r.returncode or not raw.is_file():
         tail = log.read_text()[-2000:]
         raise SystemExit(f"render failed (see {log}):\n{tail}")
-    return master_audio(raw, proj / "renders/master.mp4")
+    silent = silent_by_design(load(proj / "timeline.json")) if (proj / "timeline.json").is_file() else False
+    return master_audio(raw, proj / "renders/master.mp4", silent=silent)
 
 
-def master_audio(src: Path, out: Path, lufs: float = -14.0) -> Path:
+def master_audio(src: Path, out: Path, lufs: float = -14.0, silent: bool = False) -> Path:
     """Static gain to `lufs`, then an oversampled brickwall limiter at -2.4 dBFS (AAC overshoots ~0.5-1 dB,
     so the file peaks near -1.5); video copied untouched. Feeds turn loud uploads down but leave quiet ones
     quiet, so an un-mastered -20 LUFS render plays softer than the feed. Static gain (not loudnorm's dynamic
     mode) keeps the voice/bed balance `mvf score` set; only the impacts get limited."""
     i, _ = loudness(src)
+    if silent and (i != i or i <= -70):  # a silent-by-design cut still needs an AAC track: platforms reject a mute file
+        run(["ffmpeg", "-hide_banner", "-nostats", "-loglevel", "error", "-y", "-i", str(src), "-f", "lavfi", "-i",
+             "anullsrc=r=48000:cl=stereo", "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
+             "-shortest", "-movflags", "+faststart", str(out)])
+        return out
     if i != i:
         raise SystemExit(f"cannot measure loudness of {src} (no audio?)")
     gain = round(lufs - i, 2)
@@ -164,7 +175,9 @@ def qa(path: Path, platform: str, tl: dict) -> Report:
     if a:
         lufs, peak = loudness(path)
         want = P["encode"]["lufs"]
-        if not abs(lufs - want) <= 1.5:
+        if silent_by_design(tl) and lufs <= -70:
+            r.info("Q4", where, "silent by design (voice.mode none): the sound is added in the app")
+        elif not abs(lufs - want) <= 1.5:
             r.warn("Q4", where, f"{lufs:.1f} LUFS; master to {want} (feeds turn loud files down and leave quiet ones quiet)")
         if peak > -1.0:
             r.warn("Q4", where, f"sample peak {peak:.1f} dBFS > -1.0: AAC may clip on playback")

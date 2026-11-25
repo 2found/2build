@@ -23,13 +23,20 @@ How to execute:
 
 The parenthesized minified identifiers (`IFl`, `H2o`, `P2o`, …) are anchors
 that map each region 1:1 to the extraction doc; keep them so the mirror can be
-re-verified against a future dump.
+re-verified against a future dump. The angle, ladder and output text mirrors
+upstream verbatim; the **fan-out does not**: upstream runs one subagent per
+angle and one verifier per candidate, which re-reads the same diff and files
+up to 8 + 48 times with no shared cache. 2build runs every level from medium
+up as **three subagents** (`F0n` below): two finders that each work several
+angles over one warm context, then one verifier for the whole candidate list.
 
 ## 0. Routing
 
-Argument grammar: `[low|medium|high|xhigh|max] [--fix] [--comment] [<target>]`
+Argument grammar: `[low|medium|high|xhigh|max] [--fix] [--comment] [--plan <plan.md>] [<target>]`
 
-1. Parse `--comment` / `--fix`. The first token is the level if it matches a
+1. Parse `--comment` / `--fix` / `--plan <path>`. Without `--plan`, use
+   `bbs ticket path plan --read` when it resolves an existing file (a ticket
+   checkout); with neither, the Plan conformance angle is skipped. The first token is the level if it matches a
    known level name; everything after the level is the free-form `target`
    (a PR number, branch name, or file path to review instead of the diff).
 2. No level given → use the session effort level, capped at `medium`; if
@@ -45,10 +52,12 @@ each prompt):
 | level | pipeline |
 |---|---|
 | low | `1 diff pass → no verify → ≤4 findings` |
-| medium | `3+5 angles × 6 candidates → 1-vote verify → ≤8 findings` (precision) |
-| high | `3+5 angles × 6 candidates → 1-vote verify (recall-biased) → ≤10 findings` (recall) |
-| xhigh | `5+5 angles × 8 candidates → 1-vote verify → sweep → ≤15 findings` (recall) |
+| medium | `2 finders (3+5 angles) × 6 candidates → 1 batch verifier → ≤8 findings` (precision) |
+| high | `2 finders (3+5 angles) × 6 candidates → 1 batch verifier (recall-biased) → ≤10 findings` (recall) |
+| xhigh | `2 finders (5+5 angles) × 8 candidates → 1 batch verifier + sweep → ≤15 findings` (recall) |
 | max | same as xhigh; only the API reasoning effort differs, not the fan-out |
+
+Every level from medium up launches exactly three subagents; low launches none.
 
 ## 1. Shared prompt fragments
 
@@ -63,6 +72,33 @@ uncommitted changes, or the range diff is empty, also run `git diff HEAD` and
 include the working-tree changes in scope — the review often runs before the
 commit. If a PR number, branch name, or file path was passed as an argument,
 review that target instead. Treat this diff as the review scope.
+```
+
+### Subagent layout (`F0n`, 2build; medium and above)
+
+```
+## Subagents — three, sharing one prompt prefix
+Write the diff once to a file (`git diff … > <dir>/review.diff`) and print
+only `git diff --stat`; never paste the diff into a prompt — a subagent
+prompt is output this session writes, at five times the input price. Start
+every subagent prompt with the same shared brief, byte for byte: the review
+target, the changed-file list and the diff file's path. Put the
+role-specific section after it, never before.
+- **Correctness finder** — works the correctness angles in order over one
+  set of reads. Read each touched file and enclosing function once and reuse
+  it for every angle.
+- **Cleanup finder** — works Reuse, Simplification, Efficiency, Altitude,
+  Conventions, File size and (when a plan resolved) Plan conformance the
+  same way. Its brief also carries the plan path.
+Launch both finders in one message so they run in parallel. Each tags every
+candidate with the angle that produced it and keeps the per-angle cap. Do
+NOT let one angle's conclusions suppress another's — if two angles flag the
+same line for different reasons, record both.
+- **Verifier** — one subagent, launched after both finders return, gets the
+  deduplicated candidate list grouped by file and judges every candidate
+  independently (Phase 2). It reads each file once for all candidates in it.
+Never split a role across more subagents, and never add a subagent per
+angle or per candidate.
 ```
 
 ### Correctness angles (`IFl` = A–E; medium/high use A–C, xhigh/max use A–E)
@@ -144,13 +180,36 @@ inferences. In the finding, name the CLAUDE.md path and quote the rule so the
 report can cite it. If no CLAUDE.md applies, return nothing for this angle.
 ```
 
+### 2build angles (`F1n`: File size, Plan conformance; cleanup finder)
+
+```
+### File size
+For each hand-written source file the diff adds to (not generated, lockfile,
+vendored, data, snapshot or migration), compare its line count before and
+after. Flag a file the diff grows past 800 lines — or past the budget the
+governing AGENTS.md/CLAUDE.md states — and any growth of a file already past
+it, unless the plan accepted that file's growth. Name the new module, beside
+the file, that the added code belongs in.
+
+### Plan conformance
+Only when a plan path was given. Read its Approach, contracts, invariants,
+named files/modules and non-goals, and the implement handoff's
+`## Deviations` when it exists. Flag where the diff departs from the plan
+with no matching Deviation entry: logic placed in a different module or
+layer than the plan names; an API, event, schema or signature shaped
+differently from the plan's contract; an invariant the plan states that the
+code does not enforce; a pattern the plan says to reuse that was
+re-implemented; work the plan lists as a non-goal. Quote the plan line and
+the code line. A departure logged in Deviations is not a finding.
+```
+
 ### Cleanup precedence (`HQt`)
 
 ```
-Cleanup, altitude, and conventions candidates use the same
-`file`/`line`/`summary` shape; in `failure_scenario`, state the concrete
-cost (what is duplicated, wasted, harder to maintain, or which CLAUDE.md rule
-is broken) instead of a crash. Correctness bugs always outrank cleanup,
+Cleanup, altitude, conventions, file-size and plan-conformance candidates
+use the same `file`/`line`/`summary` shape; in `failure_scenario`, state the
+concrete cost (what is duplicated, wasted, harder to maintain, which
+CLAUDE.md rule or plan line is broken) instead of a crash. Correctness bugs always outrank cleanup,
 altitude, and conventions findings when the output cap forces a cut.
 ```
 
@@ -184,9 +243,10 @@ handled in this diff (cite the guard); or pure style with no observable effect.
 ```
 ## Phase 2 — Verify (1-vote, 3-state)
 Dedup candidates that point at the same line/mechanism, keeping the one with
-the most concrete failure scenario. For each remaining candidate, run **one
-verifier** via the Task tool: give it the diff, the relevant
-file(s), and the candidate, and have it return exactly one of:
+the most concrete failure scenario. Run **one verifier** via the Task tool
+for all remaining candidates: give it the shared brief and the candidate
+list grouped by file. For each candidate, independently and without letting
+one verdict sway the next, it returns exactly one of:
 <verdict ladder H2o>
 Keep candidates where the vote is CONFIRMED or PLAUSIBLE.
 ```
@@ -195,10 +255,10 @@ Keep candidates where the vote is CONFIRMED or PLAUSIBLE.
 
 ```
 ## Phase 2 — Verify (1-vote, recall-biased)
-Dedup near-duplicates (same defect, same location, same reason → keep one). For
-each remaining candidate, run **one verifier** via the Task tool:
-give it the diff, the relevant file(s), and the candidate; it returns exactly
-one of **CONFIRMED / PLAUSIBLE / REFUTED**.
+Dedup near-duplicates (same defect, same location, same reason → keep one).
+Run **one verifier** via the Task tool for all remaining candidates: give it
+the shared brief and the candidate list grouped by file. For each candidate,
+independently, it returns exactly one of **CONFIRMED / PLAUSIBLE / REFUTED**.
 <recall ladder D2o>
 Keep **CONFIRMED and PLAUSIBLE**. Drop REFUTED.
 ```
@@ -216,12 +276,15 @@ setup/teardown asymmetry in tests; config defaults flipped.
 
 ```
 ## Phase 3 — Sweep for gaps
-Run **one more finder** as a fresh reviewer who has the verified list. Re-read
+The verifier, after its last verdict, sweeps as a reviewer who has the
+verified list and has not seen the finders' reasoning. Using the files it
+already read, re-read
 the diff and enclosing functions looking ONLY for defects not already listed.
 Do not re-derive or re-confirm anything already there — the job is gaps. Focus
 on what the first pass tends to miss: <gap-focus list P2o>
 Surface **up to 8 additional candidates**, each naming a defect not already on
-the list. If nothing new, return an empty sweep — do not pad.
+the list, and give each a verdict from the same ladder. If nothing new,
+return an empty sweep — do not pad.
 ```
 
 ### Output — JSON variant (`$or(n)`, when ReportFindings is unavailable)
@@ -246,7 +309,7 @@ with `{level, findings}`. `findings` is at most <n> entries ranked
 most-severe first; each entry has `file`, `line`, `summary`,
 `failure_scenario`, and `category` — a short kebab-case slug for the angle
 that produced it (`correctness`, `simplification`, `efficiency`,
-`reuse`, `altitude`, `conventions`, or a more specific slug like
+`reuse`, `altitude`, `conventions`, `file-size`, `plan-conformance`, or a more specific slug like
 `test-coverage` when one fits better) — plus `verdict` when a verify pass
 produced one. If more than <n> survive, keep the <n> most severe. If
 nothing survives verification, call it with an empty array. Do not also print
@@ -283,15 +346,17 @@ qualifies, output exactly `(none)`.
 ### medium (`qor`) — assembled from fragments
 
 ```
-`medium effort → 3+5 angles × 6 candidates → 1-vote verify → ≤8 findings`
+`medium effort → 2 finders (3+5 angles) × 6 candidates → 1 batch verifier → ≤8 findings`
 You are reviewing for **precision** at medium effort: every finding you surface
 should be one a maintainer would act on.
 <Phase 0: gather the diff>
+<Subagent layout F0n>
 ## Phase 1 — Find candidates (3 correctness angles + 3 cleanup angles + 1 altitude angle + 1 conventions angle, up to 6 each)
-Run **8 independent finder angles** via the Task tool. Each
+Run **2 finder subagents** via the Task tool: the correctness finder takes
+Angles A–C, the cleanup finder the other 5 plus the 2build angles. Each angle
 surfaces **up to 6 candidate findings** with `file`, `line`, a one-line
 `summary`, and a concrete `failure_scenario`.
-<Angles A, B, C>  <Reuse> <Simplification> <Efficiency> <Altitude> <Conventions>
+<Angles A, B, C>  <Reuse> <Simplification> <Efficiency> <Altitude> <Conventions> <2build angles F1n>
 <cleanup precedence>
 Pass every candidate with a nameable failure scenario through — finders that
 silently drop half-believed candidates bypass the verify step and are the
@@ -303,11 +368,11 @@ dominant cause of misses.
 ### high (`LFl`) — same fan-out, recall posture
 
 ```
-`high effort → 3+5 angles × 6 candidates → 1-vote verify (recall-biased) → ≤10 findings`
+`high effort → 2 finders (3+5 angles) × 6 candidates → 1 batch verifier (recall-biased) → ≤10 findings`
 You are reviewing for **recall** at high effort: catch every real bug a careful
 reviewer would catch in one sitting. At this level, catching real bugs matters
 more than avoiding false positives. Err on the side of surfacing.
-<Phase 0> <Phase 1 as medium> <cleanup precedence>
+<Phase 0> <Subagent layout F0n> <Phase 1 as medium> <cleanup precedence>
 <pass-through instruction>
 <Phase 2 — Verify (1-vote, recall-biased), PLAUSIBLE-by-default ladder>
 <Output, cap 10>
@@ -316,17 +381,19 @@ more than avoiding false positives. Err on the side of surfacing.
 ### xhigh / max (`MFl("xhigh"|"max")`) — widest fan-out plus sweep
 
 ```
-`xhigh|max effort → 5+5 angles × 8 candidates → 1-vote verify → sweep → ≤15 findings`
+`xhigh|max effort → 2 finders (5+5 angles) × 8 candidates → 1 batch verifier + sweep → ≤15 findings`
 You are reviewing for **recall** at <extra-high|maximum> effort: catch every real bug. At
 this level, catching real bugs matters more than avoiding false positives — a
 missed bug ships. Err on the side of surfacing.
 <Phase 0>
+<Subagent layout F0n>
 ## Phase 1 — Find candidates (5 correctness angles + 3 cleanup angles + 1 altitude angle + 1 conventions angle, up to 8 each)
-Run **10 independent finder angles** via the Task tool. Each
+Run **2 finder subagents** via the Task tool: the correctness finder takes
+Angles A–E, the cleanup finder the other 5 plus the 2build angles. Each angle
 surfaces **up to 8 candidate findings**. Do NOT let one angle's conclusions
 suppress another's — if two angles flag the same line for different reasons,
 record both.
-<Angles A–E> <cleanup angles> <cleanup precedence>
+<Angles A–E> <cleanup angles> <2build angles F1n> <cleanup precedence>
 <Phase 2 — Verify (1-vote, 3-state)>
 This is recall mode — a single non-REFUTED vote carries the finding. Do NOT
 drop on uncertainty.
@@ -371,13 +438,12 @@ At each verifier's verdict selection, read ../semantic-decision/SKILL.md.
 After independently checking the candidate against code/callers/guards, use
 kind review-finding with those citations and this effort's verdict ladder to
 choose CONFIRMED/PLAUSIBLE/REFUTED. Keep verification evidence with the choice;
-REFUTED without cited disproof goes to the calling LLM fallback. This adapter
+REFUTED without cited disproof is not allowed. This adapter
 does not replace the independent verifier or change the recall posture.
 After the mandatory phases, use kind deep-review with remaining concrete risk
 and verification gaps to choose deepen/sufficient. A deepen choice adds one
 focused check for the named gap; unresolved material findings still block.
-Use the calling LLM for the default provider and for Cloudflare failures or
-uncertainty. Do not change user configuration or execution permissions.
+Do not change user configuration or execution permissions.
 ```
 
 ## 5. Subagent model routing (medium and above)
@@ -387,9 +453,9 @@ each subagent on; the angle prompts stay word for word. Tiers are relative to
 the models the harness advertises, so the policy is harness-neutral.
 
 ```text
-Subagent model routing. Launch every subagent — every finder (correctness
-angles A–E, Altitude, Reuse, Simplification, Efficiency, Conventions), every
-Phase 2 verifier and the sweep finder — on the mid tier.
+Subagent model routing. Launch all three subagents — the correctness
+finder, the cleanup finder and the verifier (which also runs any sweep) —
+on the mid tier.
 The final synthesis and any --fix edits stay in this session.
 mid is the tier between the smallest model the subagent tool advertises and
 the top tier (Claude Code: model "sonnet"). Never
@@ -397,5 +463,6 @@ route above this session's model: if the session already runs at or below a
 tier, inherit. When the subagent tool has no model selector, or advertises a
 single model, inherit for every role. Never let routing drop a finder or a
 vote: if a routed model is unavailable, rerun that subagent on the inherited
-model.
+model. Pass the model explicitly; never rely on a machine default such as
+CLAUDE_CODE_SUBAGENT_MODEL.
 ```

@@ -16,6 +16,13 @@ Keep machine output terse, human output concise, and downstream artifacts
 complete: preserve reasons, constraints and gotchas. Use full explanations
 for security, destructive actions or ambiguity. Skill-specific formats win.
 
+## Turns and tool output cost context
+Every tool call re-reads the whole context, and its output stays in it.
+Chain independent commands into one call. Send test, build and log output to
+a file and print the exit code plus `tail -n 30`; filter with `rg` rather
+than dumping. Look at a screenshot only when layout is the question; read
+text, errors and DOM state as text.
+
 <a id="escalation-channels"></a>
 
 ## One mode, four escalation channels

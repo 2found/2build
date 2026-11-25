@@ -2,6 +2,15 @@
 
 Older releases: [CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md).
 
+## 1.141.0
+
+- semantic-decision: the Cloudflare Clef provider is removed — the calling LLM judges in-session and `bbs semantic-decision --kind <kind> --input request.json --llm-answers answers.json` validates and records it in one call. `semantic_decision_provider`/`semantic_decision_model` config keys are gone.
+- team: the lead session stays out of work context — integrate conflicts go to one foreground subagent, unexpected wakes get one read, and phase integration QA moves to `team/references/phase-qa.md`; `worker-routing-omp.md` added.
+- autopilot: `implement` always runs in a `flash`-tier subagent (one continued across milestones); review-pr runs three subagents from medium up — correctness finder, cleanup finder, one batch verifier that also sweeps.
+- setup-project: no longer seeds `CLAUDE_CODE_SUBAGENT_MODEL`/`subagentPromptCacheTtl`; removes the old seeded values.
+- marketing-video: a cut with `voice.mode: none` masters to a silent AAC track instead of failing, and all-silent beats count as measured timing.
+- skills: new shared `file-size.md` budget (800 lines/file); preamble gains a turns/tool-output cost note; token-economics doc updated.
+
 ## 1.140.2
 
 - marketing-video: Micro Fish judge is now optional — without it `mvf next` and doctor run the cold-read pre-test as an `agent-panel` round; Micro Fish doctor rows warn instead of blocking.

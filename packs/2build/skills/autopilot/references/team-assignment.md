@@ -102,7 +102,8 @@ Keep each assigned skill in this session on its launched model; never delegate
 the whole ticket, dispatch sibling Tasks or switch models. The review skill's
 internal analysis fan-out and the QA executor subagent remain allowed under
 SKILL.md § Current-session gates, and SKILL.md § Subagent steps applies in
-full: `design-ui` on its pinned model, the others on this session's model.
+full: `design-ui` and `implement` on their pinned tiers, the others on this
+session's model.
 Work beyond the ticket — another ticket's files or contracts, scope one
 coherent plan cannot hold, a scope change — is a handoff to the lead with a
 proposed split or change request, never absorbed silently. This explicit envelope takes

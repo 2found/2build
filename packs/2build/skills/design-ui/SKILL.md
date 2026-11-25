@@ -114,7 +114,12 @@ Owner: <fact or action → owner screen> · removed or replaced: <what, or the r
 Components: <job → shared component> · new: <name, why none fits, where recorded>
 States: <screen → loading / empty / error / partial components>
 Bar: <rows checked on the preview with their count or shot · rows unmet and why>
+Code map: <path[:symbol] → what it holds and whether to reuse or extend it>
 ```
+The code map lists, one line each, the screens, components, tokens, routes
+and data sources you read that the build will touch or reuse — at most ~25
+lines, no excerpts. `plan-draft` and `implement` start from it instead of
+re-surveying the code, so leave out anything you read and ruled out.
 With a ticket, resolve `bbs ticket path design --write`, write the note there,
 then `bbs ticket set-pointer design <path>`. Otherwise an inline note suffices.
 
